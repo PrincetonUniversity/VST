@@ -55,15 +55,33 @@ End is_bool_ot.
 Section generic_boolean.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
+  Definition val_to_Z (v : val) (t : Ctypes.type) : option Z :=
+  match v, t with
+  | Vint i, Tint _ Signed _ => Some (Int.signed i)
+  | Vint i, Tint sz Unsigned _ => Some (Int.unsigned i)
+  | Vlong i, Tlong Signed _ => Some (Int64.signed i)
+  | Vlong i, Tlong Unsigned _ => Some (Int64.unsigned i)
+  | _, _ => None
+  end.
+
+  Lemma val_to_Z_by_value (v : val) (t : Ctypes.type) z :
+    val_to_Z v t = Some z -> type_is_by_value t = true.
+  Proof.
+    destruct v, t; done.
+  Qed.
+  Hint Resolve val_to_Z_by_value : core.
+
   Program Definition generic_boolean_type (stn: bool_strictness) (it: Ctypes.type) (b: bool) : type := {|
-    ty_has_op_type ot mt := (*is_bool_ot ot it stn*) ot = it;
+    ty_has_op_type cty mt := cty = it%type;
     ty_own β l :=
-      ∃ v n, ⌜tc_val it v⌝ ∧
+      ∃ (v:val) n, ⌜(valinject it v) `has_layout_val` it⌝ ∧
              ⌜val_to_Z v it = Some n⌝ ∧
              ⌜represents_boolean stn n b⌝ ∧
-             ⌜field_compatible it [] l⌝ ∧
-             l ↦_it[β] v;
-      ty_own_val v := ∃ n, <affine> ⌜tc_val it v ∧ val_to_Z v it = Some n⌝ ∗ <affine> ⌜represents_boolean stn n b⌝;
+             ⌜l `has_layout_loc` it⌝ ∧
+             l ↦[β]|it| (valinject it v);
+      ty_own_val cty v_rep := <affine> ⌜cty = it⌝ ∗ 
+                          ∃ n, <affine> ⌜v_rep `has_layout_val` cty⌝ ∗ <affine> ⌜val_to_Z (repinject cty v_rep) it = Some n⌝ ∗
+                          <affine> ⌜represents_boolean stn n b⌝;
   |}%I.
   Next Obligation.
     iIntros (??????) "(%v&%n&%&%&%&%&Hl)". iExists v, n.
@@ -73,15 +91,15 @@ Section generic_boolean.
     iIntros (??????->) "(%&%&_&_&_&H&_)" => //.
   Qed.
   Next Obligation.
-    iIntros (??????->) "(%&(%&%)&%)". iPureIntro. destruct v; try done.
-    - rewrite /has_layout_val /tc_val' =>?. destruct it; done.
-    - rewrite /has_layout_val /tc_val' =>?. destruct it; done.
+    iIntros (???????) "(%&%&%&%&%)". iPureIntro. done.
   Qed.
   Next Obligation.
-    iIntros (??????->) "(%&%&%&%&%&%&?)". eauto with iFrame.
+    iIntros (??????->) "(%&%&%&%&%&%&?)".
+    iFrame. iSplit => //. iExists _; iSplit => //.
+    iSplit => //. iPureIntro. rewrite repinject_valinject //. eauto.
   Qed.
   Next Obligation.
-    iIntros (?????? v -> ?) "Hl (%n&(%&%)&%)". iExists v, n; eauto with iFrame.
+    iIntros (?????? v -> ?) "Hl (%&%n&%&%&%)". iExists (repinject it v), n; rewrite valinject_repinject; eauto with iFrame.
   Qed.
 (*  Next Obligation.
     iIntros (????????). apply: mem_cast_compat_bool; [naive_solver|]. iPureIntro. naive_solver.
@@ -92,10 +110,15 @@ Section generic_boolean.
 
   Global Program Instance generic_boolean_copyable b stn it : Copyable (b @ generic_boolean stn it).
   Next Obligation.
-    iIntros (????????) "(%v&%n&%&%&%&%&Hl)".
+    iIntros (??????) "(%v&%n&%&%&%&%&Hl)".
     simpl in *; subst.
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //.
-    iSplitR; first done; iExists q, v; eauto 9 with iFrame.
+    iExists _. 
+    iSplitR; first done. iExists q, (valinject it v); iFrame.
+    iIntros "!>". iSplit; try eauto.
+    rewrite /ty_own_val /= repinject_valinject.
+    - eauto.
+    - by eapply val_to_Z_by_value.
   Qed.
 
 (*  Global Instance alloc_alive_generic_boolean b stn it β: AllocAlive (b @ generic_boolean stn it) β True.
@@ -130,9 +153,11 @@ Section generic_boolean.
   Lemma type_if_generic_boolean stn it (b : bool) v T1 T2 :
      case_destruct b (λ b' _,
      li_trace (TraceIfBool b, b') (if b' then T1 else T2))
-    ⊢ typed_if it v (v ◁ᵥ b @ generic_boolean stn it) (valid_val v) T1 T2.
+    ⊢ typed_if it v (v ◁ᵥₐₗ|it| b @ generic_boolean stn it) (valid_val v) T1 T2.
   Proof.
-    unfold case_destruct, li_trace. iIntros "[% Hs] (%n&(%Hv&%)&%Hb)".
+    unfold case_destruct, li_trace. iIntros "[% Hs] (%n&%&%&%Hval_to_Z&%Hb)".
+    apply val_to_Z_by_value in Hval_to_Z as Hit.
+    rewrite repinject_valinject // in Hval_to_Z.
     apply represents_boolean_eq in Hb as <-.
     destruct it, v; try discriminate; eauto.
   Qed.
@@ -164,10 +189,10 @@ Section boolean.
            | _ => None
            end = Some b) T:
     T (i2v (bool_to_Z b) tint) (b @ boolean tint)
-    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ b1 @ boolean it⎤
-                 v2 ⎡v2 ◁ᵥ b2 @ boolean it⎤ op it it T.
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it| b1 @ boolean it⎤
+                 v2 ⎡v2 ◁ᵥₐₗ|it| b2 @ boolean it⎤ op it it tint T.
   Proof.
-    iIntros "HT (%n1&(%Hty1&%Hv1)&%Hb1) (%n2&(%Hty2&%Hv2)&%Hb2) %Φ HΦ".
+    iIntros "HT (_&%n1&%Hty1&%Hv1&%Hb1) (_&%n2&%Hty2&%Hv2&%Hb2) %Φ HΦ".
     rewrite /wp_binop.
     (* some of this should move up to a wp rule in lifting_expr *)
     iIntros "!>" (?) "$ !>".
@@ -199,7 +224,11 @@ Section boolean.
       + destruct it; try by destruct v1; simpl.
         * destruct i, v1; try done; destruct v2; try done; destruct s; done.
         * destruct v1; try done; destruct v2; try done; destruct s; done.
-    - iApply "HΦ"; last done. iExists (bool_to_Z b).
+    - iApply "HΦ"; last done.
+      rewrite /ty_own_val_at /ty_own_val /=.
+      iSplit => //.
+      iExists (bool_to_Z b).
+      iSplit => //.
       iSplit; [by destruct b | done].
   Qed.
   Definition type_eq_boolean_inst b1 b2 :=
@@ -276,9 +305,9 @@ Section builtin_boolean.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Lemma type_val_builtin_boolean b T:
-    (T (b @ builtin_boolean)) ⊢ typed_value (Val.of_bool b) T.
+    (T (b @ builtin_boolean)) ⊢ typed_value u8 (Val.of_bool b) T.
   Proof.
-    iIntros "HT". iExists _. iFrame. iPureIntro. exists (if b then 1 else 0); destruct b; simpl; done.
+    iIntros "HT". iExists _. iFrame. iPureIntro. split; first done. exists (if b then 1 else 0); destruct b; simpl; done.
   Qed.
   Definition type_val_builtin_boolean_inst := [instance type_val_builtin_boolean].
   (* Global Existing Instance type_val_builtin_boolean_inst. *)
@@ -310,3 +339,5 @@ Section builtin_boolean.
 
 End builtin_boolean.
 Global Typeclasses Opaque generic_boolean_type generic_boolean.
+
+Global Hint Resolve val_to_Z_by_value : core.

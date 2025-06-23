@@ -122,17 +122,28 @@ Section int.
   later. We cannot call it int_type since that already exists.  *)
   Program Definition int_inner_type (it : Ctypes.type) (n : Z) : type := {|
     ty_has_op_type ot mt := (*is_bool_ot ot it stn*) ot = it;
-    ty_own β l := ∃ v, <affine> ⌜tc_val it v⌝ ∗ <affine> ⌜val_to_Z v it = Some n⌝ ∗ <affine> ⌜l `has_layout_loc` it⌝ ∗ l ↦_it[β] v;
-    ty_own_val v := <affine> ⌜tc_val it v ∧ val_to_Z v it = Some n⌝;
+    ty_own β l := ∃ v, <affine> ⌜(valinject it v) `has_layout_val` it⌝ ∗
+                       <affine> ⌜val_to_Z v it = Some n⌝ ∗
+                       <affine> ⌜l `has_layout_loc` it⌝ ∗
+                       l ↦[β]|it| (valinject it v);
+    ty_own_val cty v := <affine> ⌜cty = it⌝ ∗
+                        <affine> ⌜v `has_layout_val` cty⌝ ∗
+                        <affine> ⌜val_to_Z (repinject cty v) cty = Some n⌝;
   |}%I.
   Next Obligation.
     iIntros (it n l ??) "(%v&%&%Hv&%Hl&H)". iExists v.
     by iMod (heap_mapsto_own_state_share with "H") as "$".
   Qed.
   Next Obligation. iIntros (????? ->) "(%&%&%&$&_)". Qed.
-  Next Obligation. iIntros (????? -> (? & ?)). rewrite /has_layout_val /tc_val'; done. Qed.
-  Next Obligation. iIntros (????? ->) "(%v&%&%&%&Hl)". eauto with iFrame. Qed.
-  Next Obligation. iIntros (????? v -> ?) "Hl (% & %)". iExists v. eauto with iFrame. Qed.
+  Next Obligation. iIntros (????? -> (? & ? & ?)). done. Qed.
+  Next Obligation. iIntros (????? ->) "(%v&%&%&%&Hl)". iFrame. 
+    rewrite repinject_valinject //.
+    by eapply val_to_Z_by_value. Qed.
+  Next Obligation. iIntros (????? v -> ?) "Hl (% & % & %)".
+    iExists (repinject it v). 
+    rewrite /heap_mapsto_own_state.
+    rewrite valinject_repinject //; last by eapply val_to_Z_by_value.
+    iFrame. done. Qed.
 (*   Next Obligation. iIntros (???????). apply: mem_cast_compat_int; [naive_solver|]. iPureIntro. naive_solver. Qed. *)
 
   Definition int (it : Ctypes.type) : rtype _ := RType (int_inner_type it).
@@ -161,29 +172,63 @@ Section int.
     : LearnAlignment β (n @ int it) (Some (ly_align it)).
   Next Obligation. by iIntros (β it n ?) "(%&%&%&?)". Qed. *)
 
-  Lemma ty_own_int_in_range l β n it : l ◁ₗ{β} n @ int it -∗ ⌜n ∈ it⌝.
+  Lemma val_to_Z_not_Vundef it v n:
+    val_to_Z v it = Some n -> v ≠ Vundef.
   Proof.
+    intros.
+    destruct v, it; done.
+  Qed.
+
+  Lemma has_layout_val_tc_val it v:
+    v ≠ Vundef ->
+    type_is_by_value it = true ->
+    (valinject it v) `has_layout_val` it ->
+    tc_val it v.
+  Proof.
+    intros.
+    eapply has_layout_val_tc_val' in H1; eauto.
+    rewrite /tc_val' repinject_valinject // in H1. by apply H1.
+  Qed.
+
+  Lemma ty_own_int_in_range l β n it :
+    l ◁ₗ{β} n @ int it -∗ ⌜n ∈ it⌝.
+  Proof.
+    intros.
     iIntros "Hl". destruct β.
-    - iDestruct (ty_deref _ _ MCNone with "Hl") as (?) "[_ (% & %)]"; [done|].
-      iPureIntro. by eapply val_to_Z_in_range.
+    - iDestruct (ty_deref _ _ MCNone with "Hl") as (?) "[_ (% & % & %)]"; [done|].
+      iPureIntro. eapply val_to_Z_in_range; try done.
+      eapply has_layout_val_tc_val; eauto.
+      + eapply val_to_Z_not_Vundef; done.
+      + rewrite valinject_repinject //; eauto.
     - iDestruct "Hl" as (?) "(% & % & _)".
-      iPureIntro. by eapply val_to_Z_in_range.
+      iPureIntro. eapply val_to_Z_in_range; try done.
+      eapply has_layout_val_tc_val; eauto.
+      eapply val_to_Z_not_Vundef; done.
   Qed.
 
   (* TODO: make a simple type as in lambda rust such that we do not
   have to reprove this everytime? *)
   Global Program Instance int_copyable x it : Copyable (x @ int it).
   Next Obligation.
-    iIntros (???????) "(%v&%Hv&%&%Hl&Hl)".
+    iIntros (?????) "(%v&%Hv&%&%Hl&Hl)".
     simpl in *; subst.
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //.
-    iSplitR => //. iExists q, v. iFrame. iModIntro. eauto with iFrame.
+    iExists it.
+    iSplitR => //. iExists q, (valinject it v). iFrame. iModIntro.
+    rewrite /ty_own_val /= repinject_valinject.
+    - eauto.
+    - by eapply val_to_Z_by_value.
   Qed.
 
   (* Global Instance int_timeless l z it:
     Timeless (l ◁ₗ z @ int it)%I.
   Proof. Admitted. *)
 End int.
+
+Global Hint Resolve val_to_Z_not_Vundef : core.
+Global Hint Resolve has_layout_val_tc_val' : core.  
+Global Hint Resolve val_to_Z_by_value : core.
+
 (* Typeclasses Opaque int. *)
 Notation "int< it >" := (int it) (only printing, format "'int<' it '>'") : printing_sugar.
 
@@ -202,24 +247,38 @@ Definition int_lt it v1 v2 :=
   | _, _, _ => false
   end.
 
+Lemma elem_of_by_value n it : 
+  n ∈ it -> type_is_by_value it = true.
+Proof.
+  intros.
+  destruct it; done.
+Qed.
+
 Section programs.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   (*** int *)
   Lemma type_val_int n it T :
-    typed_value (i2v n it) T :-
+    typed_value it (i2v n it) T :-
       exhale (<affine> ⌜n ∈ it⌝);
+      exhale (<affine> ⌜type_is_volatile it = false⌝);
       return T (n @ (int it)).
   Proof.
-    iIntros "[%Hn HT]".
+    iIntros "[%Hn [% HT]]".
+    apply elem_of_by_value in Hn as Hbyv.
     iExists _. iFrame. iPureIntro.
-    split; [by apply in_range_i2v | by apply i2v_to_Z].
+    rewrite repinject_valinject //.
+    split3; [done | | by apply i2v_to_Z].
+    rewrite /has_layout_val field_at.value_fits_by_value //.
+    rewrite repinject_valinject //.
+    split; try done.
+    intros ?. by apply in_range_i2v.
   Qed.
   Definition type_val_int_inst := [instance type_val_int].
   Global Existing Instance type_val_int_inst.
 
   Lemma type_val_int_i32 (n:Integers.int) T :
-    typed_value (Vint n) T :-
+    typed_value tint (Vint n) T :-
       exhale (<affine> ⌜(Int.signed n) ∈ tint⌝);
       return T ((Int.signed n) @ (int tint)).
   Proof.
@@ -264,9 +323,14 @@ Section programs.
     | _ => None
     end = Some b →
     (⌜n1 ∈ it⌝ -∗ ⌜n2 ∈ it⌝ -∗ T (i2v (bool_to_Z b) tint) (b @ boolean tint))
-    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ n1 @ int it⎤ v2 ⎡v2 ◁ᵥ n2 @ int it⎤ op it it T.
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it| n1 @ int it⎤ v2 ⎡v2 ◁ᵥₐₗ|it| n2 @ int it⎤ op it it tint T.
   Proof.
-    iIntros "%Hop HT (% & %Hv1) (% & %Hv2) %Φ HΦ".
+    iIntros "%Hop HT (%H1 & [%H %Hv1]) (%H2 & [%H0 %Hv2]) %Φ HΦ".
+    apply has_layout_val_volatile_false in H as Hit.
+    apply val_to_Z_by_value in Hv1 as Hit2.
+    rewrite !repinject_valinject // in Hv1, Hv2.
+    eapply has_layout_val_tc_val in H; eauto.
+    eapply has_layout_val_tc_val in H0; eauto.
     iDestruct ("HT" with "[] []" ) as "HT".
     1-2: iPureIntro; by apply: val_to_Z_in_range.
     rewrite /wp_binop.
@@ -379,8 +443,12 @@ Section programs.
         destruct it; try by destruct v1; simpl.
         * destruct i, v1; try done; destruct v2; try done; destruct s; done.
         * destruct v1; try done; destruct v2; try done; destruct s; done.
-    - iApply "HΦ"; last done. iExists (bool_to_Z b).
-      iSplit; [by destruct b | done].
+    - iApply "HΦ"; last done.
+      rewrite /ty_own_val_at /ty_own_val /=.
+      iSplit => //.
+      iExists (bool_to_Z b).
+      iSplit => //.
+      iSplit; [by destruct b | done ].
   Qed.
 
   Definition type_eq_int_int_inst ge n1 n2 :=
@@ -402,7 +470,11 @@ Section programs.
     [instance type_relop_int_int ge n1 n2 Cop.Oge (bool_decide (n1 >= n2))].
   Global Existing Instance type_ge_int_int_inst.
 
-  Lemma type_arithop_int_int ge n1 n2 n op it v1 v2
+  Class CtypeNotVolatile (cty : Ctypes.type) := {
+    prf : type_is_volatile cty = false;
+  }.
+
+  Lemma type_arithop_int_int ge n1 n2 n op it v1 v2 v1_rep v2_rep
     (Hop : match op with
     | Oadd => Some (n1 + n2)
     | Osub => Some (n1 - n2)
@@ -416,10 +488,17 @@ Section programs.
     | Oshr => Some (n1 ≫ n2)
     | _ => None
     end = Some n) T :
+    TCEq v1_rep (valinject it v1) →
+    TCEq v2_rep (valinject it v2) →
     (<affine> ⌜n1 ∈ it⌝ -∗ <affine> ⌜n2 ∈ it⌝ -∗ <affine> ⌜in_range n it ∧ int_arithop_sidecond it n1 n2 n op⌝ ∗ T (i2v n it) (n @ int it))
-    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ n1 @ int it⎤ v2 ⎡v2 ◁ᵥ n2 @ int it⎤ op it it T.
+    ⊢ typed_bin_op ge v1 ⎡v1_rep ◁ᵥ|it| n1 @ int it⎤ v2 ⎡v2_rep ◁ᵥ|it| n2 @ int it⎤ op it it it T.
   Proof.
-    iIntros "HT (% & %Hv1) (% & %Hv2) %Φ HΦ".
+    iIntros (-> ->) "HT (H1 & [%Hv_layout1 %Hv1]) (H & [%Hv_layout2 %Hv2]) %Φ HΦ".
+    apply has_layout_val_volatile_false in Hv_layout1 as Hit.
+    apply val_to_Z_by_value in Hv1 as Hit2.
+    rewrite !repinject_valinject // in Hv1, Hv2.
+    eapply has_layout_val_tc_val in Hv_layout1 as H; eauto.
+    eapply has_layout_val_tc_val in Hv_layout2 as H0; eauto.
     iDestruct ("HT" with "[] []" ) as ((Hin & Hsc)) "HT".
     1-2: iPureIntro; by apply: val_to_Z_in_range.
     rewrite /wp_binop.
@@ -661,7 +740,13 @@ Section programs.
           2: { rewrite Int64.unsigned_repr_wordsize in H1; simpl in *; rep_lia. }
           destruct s; inv Hv1; done.
     - iApply ("HΦ" with "[] HT").
-      iPureIntro. split; [by apply in_range_i2v | by apply i2v_to_Z].
+      iPureIntro.
+      rewrite repinject_valinject //.
+      split3; [done| | by apply i2v_to_Z].
+      rewrite /has_layout_val field_at.value_fits_by_value // repinject_valinject //.
+      split; [|done].
+      intros ?.
+      by apply in_range_i2v.
   Qed.
   Definition type_add_int_int_inst ge n1 n2 := [instance type_arithop_int_int ge n1 n2 (n1 + n2) Oadd].
   Global Existing Instance type_add_int_int_inst.
@@ -691,9 +776,9 @@ Section programs.
     F ∧ case_if (n ≠ 0)
       (li_trace (TraceIfInt n, true) T1)
       (li_trace (TraceIfInt n, false) T2)
-    ⊢ typed_if it v (v ◁ᵥ n @ int it) F T1 T2.
+    ⊢ typed_if it v (v ◁ᵥₐₗ|it| n @ int it) F T1 T2.
   Proof.
-    iIntros "Hs (% & %Hb)".
+    iIntros "Hs (% & [% %Hb])".
     iStopProof; f_equiv; iIntros "Hs".
     destruct it, v; try discriminate; iExists n; iSplit; auto;
       simpl; (case_bool_decide;
@@ -735,9 +820,14 @@ Section programs.
 
   Lemma type_neg_int n it v T:
     (⌜n ∈ it⌝ -∗ <affine> ⌜is_signed it⌝ ∗ <affine> ⌜n ≠ min_int it⌝ ∗ T (i2v (-n) it) ((-n) @ int it))
-    ⊢ typed_un_op v ⎡v ◁ᵥ n @ int it⎤%I Oneg it T.
+    ⊢ typed_un_op v ⎡v ◁ᵥₐₗ|it| n @ int it⎤%I Oneg it it T.
   Proof.
-    iIntros "HT (% & %Hv) %Φ HΦ". pose proof (val_to_Z_in_range _ _ _ Hv H) as Hin.
+    iIntros "HT (%_ & [%H %Hv]) %Φ HΦ".
+    apply has_layout_val_volatile_false in H as Hit.
+    apply val_to_Z_by_value in Hv as Hit2.
+    rewrite repinject_valinject // in Hv.
+    eapply has_layout_val_tc_val in H as Htc; eauto.
+    pose proof (val_to_Z_in_range _ _ _ Hv Htc) as Hin.
     iDestruct ("HT" with "[//]") as (Hs Hn) "HT".
     rewrite /wp_unop.
     iIntros "!>" (?) "$ !>".
@@ -753,12 +843,19 @@ Section programs.
       + rewrite /Cop.sem_neg /=.
         destruct v; inv Hv.
         rewrite -Int64.neg_repr Int64.repr_signed //.
-    - iApply "HΦ"; last done. iPureIntro.
+    - iDestruct ("HΦ" $! _ _) as "HΦ".
+      iApply "HΦ"; last done.
+      iPureIntro.
       assert (in_range (- n) it).
       { hnf in Hin; destruct it; try done.
         * destruct i; try done; destruct s; simpl in *; rep_lia.
         * destruct s; simpl in *; rep_lia. }
-      split; [by apply in_range_i2v | by apply i2v_to_Z].
+      rewrite repinject_valinject //.
+      split3; [done| | by apply i2v_to_Z].
+      rewrite /has_layout_val field_at.value_fits_by_value // repinject_valinject //.
+      split; [|done].
+      intros ?.
+      by apply in_range_i2v.
   Qed.
   Definition type_neg_int_inst := [instance type_neg_int].
   Global Existing Instance type_neg_int_inst.
@@ -782,16 +879,16 @@ Qed.
 (* Ke: the equivalent to Caesium's CastOp is Clight's Ecast, so use typed_val_expr *)
   Lemma type_Ecast_same_val ge f e it2 T:
     typed_val_expr ge f e (λ v ty,
-      ∀ m (* Ke: for now only handle cases where m is irrelevant *),
+        <affine>⌜typeof e = it2⌝ ∗
+        ∀ m (* Ke: for now only handle cases where m is irrelevant *),
         <affine>⌜Some v = Cop.sem_cast v (typeof e) it2 m⌝ ∗
         T v ty)
     ⊢ typed_val_expr ge f (Ecast e it2) T.
   Proof.
-    iIntros "typed %Φ HΦ".
+    iIntros "He %Φ HΦ".
     iApply wp_Ecast.
-    unfold typed_val_expr.
-    iApply "typed".
-    iIntros (v ty) "own_v Hcast".
+    iApply "He".
+    iIntros (v ty) "own_v (-> & Hcast)".
     iExists v. iIntros (m).
     iDestruct ("Hcast" $! m) as "(Hcast & T)". iFrame.
     iApply ("HΦ" with "[own_v]"); done.
@@ -886,30 +983,36 @@ Qed.
 
   Lemma subsume_int_boolean_val A v n b it T:
     (∃ x, <affine> ⌜n = bool_to_Z (b x)⌝ ∗ T x)
-    ⊢ subsume (v ◁ᵥ n @ int it) (λ x : A, v ◁ᵥ (b x) @ boolean it) T.
+    ⊢ subsume ( v ◁ᵥₐₗ|it| n @ int it) (λ x : A, v ◁ᵥₐₗ|it| (b x) @ boolean it) T.
   Proof.
-    iIntros "[%x [-> ?]] %". iExists _. iFrame. unfold boolean; simpl_type.
-    iExists (bool_to_Z (b x)). iSplit; first done. by destruct b. Qed.
+    iIntros "[%x [-> ?]] (%&%&%)". iExists _. iFrame. unfold boolean; simpl_type.
+    eapply val_to_Z_by_value in H1 as Htc.
+    rewrite repinject_valinject // in H1.
+    rewrite /ty_own_val_at /ty_own_val /=.
+    iSplit => //.
+    iExists (bool_to_Z (b x)). iSplit => //. iSplit => //. rewrite repinject_valinject //. Qed.
   Definition subsume_int_boolean_val_inst := [instance subsume_int_boolean_val].
   Global Existing Instance subsume_int_boolean_val_inst.
 
-  Lemma type_binop_boolean_int ge it1 it2 it3 it4 v1 b1 v2 n2 op T:
-    typed_bin_op ge v1 ⎡v1 ◁ᵥ (bool_to_Z b1) @ int it1⎤ v2 ⎡v2 ◁ᵥ n2 @ int it2⎤ op it3 it4 T
-    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ b1 @ boolean it1⎤ v2 ⎡v2 ◁ᵥ n2 @ int it2⎤ op it3 it4 T.
+  Lemma type_binop_boolean_int ge it1 it2 it3 it4 it5 v1 b1 v2 n2 op T:
+    typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it1| (bool_to_Z b1) @ int it1⎤ v2 ⎡v2 ◁ᵥₐₗ|it2| n2 @ int it2⎤ op it3 it4 it5 T
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it1| b1 @ boolean it1⎤ v2 ⎡v2 ◁ᵥₐₗ|it2| n2 @ int it2⎤ op it3 it4 it5 T.
   Proof.
     iIntros "HT H1 H2". iApply ("HT" with "[H1] H2"). unfold boolean; simpl_type.
-    iDestruct "H1" as "(%&(%&%H1)&%H2)". iPureIntro.
+    rewrite /ty_own_val_at /ty_own_val /=.
+    iDestruct "H1" as "(% & (%&%&%&%))". iPureIntro.
     move: H1 H2 => /= -> ->. done.
   Qed.
   Definition type_binop_boolean_int_inst := [instance type_binop_boolean_int].
   Global Existing Instance type_binop_boolean_int_inst.
 
-  Lemma type_binop_int_boolean ge it1 it2 it3 it4 v1 b1 v2 n2 op T:
-    typed_bin_op ge v1 ⎡v1 ◁ᵥ n2 @ int it2⎤ v2 ⎡v2 ◁ᵥ (bool_to_Z b1) @ int it1⎤ op it3 it4 T
-    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ n2 @ int it2⎤ v2 ⎡v2 ◁ᵥ b1 @ boolean it1⎤ op it3 it4 T.
+  Lemma type_binop_int_boolean ge it1 it2 it3 it4 it5 v1 b1 v2 n2 op T:
+    typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it2| n2 @ int it2⎤ v2 ⎡v2 ◁ᵥₐₗ|it1| (bool_to_Z b1) @ int it1⎤ op it3 it4 it5 T
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it2| n2 @ int it2⎤ v2 ⎡v2 ◁ᵥₐₗ|it1| b1 @ boolean it1⎤ op it3 it4 it5 T.
   Proof.
     iIntros "HT H1 H2". iApply ("HT" with "H1 [H2]"). unfold boolean; simpl_type.
-    iDestruct "H2" as "(%&(%&%H1)&%H2)". iPureIntro.
+    rewrite /ty_own_val_at /ty_own_val /=.
+    iDestruct "H2" as "(% & (%&%&%&%))". iPureIntro.
     move: H1 H2 => /= -> ->. done.
   Qed.
   Definition type_binop_int_boolean_inst := [instance type_binop_int_boolean].
@@ -926,8 +1029,8 @@ Qed.
   Global Existing Instance type_cast_int_builtin_boolean_inst. *)
 
   Lemma annot_reduce_int v n it T:
-    (li_tactic (li_vm_compute Some n) (λ n', v ◁ᵥ n' @ int it -∗ T))
-    ⊢ typed_annot_expr 1 (ReduceAnnot) v (v ◁ᵥ n @ int it) T.
+    (li_tactic (li_vm_compute Some n) (λ n', v ◁ᵥₐₗ|it| n' @ int it -∗ T))
+    ⊢ typed_annot_expr 1 (ReduceAnnot) v (v ◁ᵥₐₗ|it| n @ int it) T.
   Proof.
     unfold li_tactic, li_vm_compute.
     iIntros "[%y [% HT]] Hv"; simplify_eq. iApply step_fupd_intro => //. iModIntro.
@@ -939,6 +1042,12 @@ Qed.
 End programs.
 Global Typeclasses Opaque int_inner_type int.
 
+Example CtypeNotVolatile_int_test_fail : CtypeNotVolatile (tint).
+Proof. Fail solve [refine _]. Abort.
+Hint Extern 0 (CtypeNotVolatile _) => done : typeclass_instances.
+Example CtypeNotVolatile_int_test : CtypeNotVolatile (tint).
+Proof. solve [refine _]. Qed.
+
 Notation "'if' p ≠ 0 " := (TraceIfInt p) (at level 100, only printing).
 (* Notation "'case' n " := (TraceSwitchIntCase n) (at level 100, only printing).
 Notation "'default'" := (TraceSwitchIntDefault) (at level 100, only printing). *)
@@ -948,31 +1057,36 @@ Section offsetof.
 
   (*** OffsetOf *)
   Program Definition offsetof (s : members) (m : ident) : type := {|
-    ty_has_op_type ot mt := ot = size_t;
+    ty_has_op_type ot _ := ot = size_t;
     ty_own β l := ∃ n, <affine> ⌜fieldlist.in_members m s /\ fieldlist.field_offset _ m s = n⌝ ∗ l ◁ₗ{β} n @ int size_t;
-    ty_own_val v := ∃ n, <affine> ⌜fieldlist.in_members m s /\ fieldlist.field_offset _ m s = n⌝ ∗ v ◁ᵥ n @ int size_t;
+    ty_own_val cty v := <affine> ⌜cty=size_t⌝ ∗ ∃ n, <affine> ⌜fieldlist.in_members m s /\ fieldlist.field_offset _ m s = n⌝ ∗ v ◁ᵥ|cty| n @ int size_t;
   |}%I.
   Next Obligation.
     iIntros (s m l E ?). iDestruct 1 as (n Hn) "H". iExists _. iSplitR => //. by iApply ty_share.
   Qed.
   Next Obligation. iIntros (s m ot mt l ?). iDestruct 1 as (??) "Hn". by iDestruct (ty_aligned with "Hn") as "$". Qed.
-  Next Obligation. iIntros (s m ot mt l ->). iDestruct 1 as (??) "Hn". by iApply (ty_size_eq _ _ mt with "Hn"). Qed.
+  Next Obligation. iIntros (s m ot mt l ->). iDestruct 1 as (??) "[% Hn]". by iApply (ty_size_eq _ _ mt with "Hn"). Qed.
   Next Obligation.
-    iIntros (s m ot mt l ?). iDestruct 1 as (??)"Hn".
+    iIntros (s m ot mt l ?). iDestruct 1 as (??) "Hn".
     iDestruct (ty_deref with "Hn") as (v) "[Hl Hi]"; [done|]. iExists _. iFrame.
     eauto with iFrame.
   Qed.
   Next Obligation.
-    iIntros (s m ? l v ???) "Hl". iDestruct 1 as (??)"Hn".
+    iIntros (s m ? l v ???) "Hl". iDestruct 1 as (??)"[% Hn]".
     iExists _. iSplit => //. by iApply (@ty_ref with "[] Hl").
+    Unshelve. done.
   Qed.
 
   Global Program Instance offsetof_copyable s m : Copyable (offsetof s m).
   Next Obligation.
     iIntros (s m E l ?). iDestruct 1 as (n Hn) "Hl".
-    iMod (copy_shr_acc with "Hl") as (???) "(Hl&H2&H3)" => //.
-    iModIntro. iSplitR => //. iExists _, _. iFrame.
-    iModIntro. done.
+    iMod (copy_shr_acc with "Hl") as (???) "(%&Hl&H2&H3)" => //.
+    iModIntro. iExists _. iSplitR => //. iExists _, _.
+    iFrame "Hl H3".
+    iNext.
+    rewrite /ty_own_val /= /ty_own_val_at /ty_own_val /=.
+    iDestruct "H2" as "(-> & % & %)".
+    iSplit => //. iExists _; done.
   Qed.
 
 (*  Lemma type_offset_of s m T:
@@ -995,7 +1109,7 @@ Section tests.
   Definition Vsize_t z := if Archi.ptr64 then Vlong (Int64.repr z) else Vint (Int.repr z).
 
   Lemma type_const_size_t ge f z T:
-    typed_value (i2v z size_t) (T (i2v z size_t))
+    typed_value size_t (i2v z size_t) (T (i2v z size_t))
     ⊢ typed_val_expr ge f (Econst_size_t z) T.
   Proof.
     rewrite /Econst_size_t /size_t; simple_if_tac; [apply type_const_long | apply type_const_int].
@@ -1009,12 +1123,12 @@ Section tests.
     move => Hn1 Hn2.
     iApply type_bin_op.
     iApply type_bin_op.
-    iApply type_const_size_t. iApply type_val_int. iSplit => //.
-    iApply type_const_size_t. iApply type_val_int. iSplit => //.
+    iApply type_const_size_t. iApply type_val_int. iSplit => //. iSplit => //.
+    iApply type_const_size_t. iApply type_val_int. iSplit => //. iSplit => //.
     iApply type_arithop_int_int => //. iIntros (??). iSplit. {
       iPureIntro. (*unfold int_arithop_sidecond, elem_of, int_elem_of_it, min_int, max_int in *; lia.*) rewrite Z.add_0_r //.
     }
-    iApply type_const_size_t. iApply type_val_int. iSplit => //.
+    iApply type_const_size_t. iApply type_val_int. iSplit => //. iSplit => //.
     iApply type_relop_int_int => //.
   Abort.
 End tests.

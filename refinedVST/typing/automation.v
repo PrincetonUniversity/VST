@@ -4,7 +4,7 @@ From lithium Require Import hooks normalize.
 From VST.lithium Require Export all.
 From VST.typing Require Export type.
 From VST.typing.automation Require Export proof_state (* solvers simplification loc_eq. *).
-From VST.typing Require Import programs (* function *) singleton own (* struct *) bytes int.
+From VST.typing Require Import programs (* function *) singleton (* own *) (* struct *) (* bytes *) int.
 Set Default Proof Using "Type".
 Set Nested Proofs Allowed.
 (** * Defining extensions *)
@@ -48,15 +48,15 @@ Ltac liTrace_hook info ::= add_case_distinction_info info.
 
 Ltac liExtensible_to_i2p_hook P bind cont ::=
   lazymatch P with
-  | typed_value ?v ?T =>
+  | typed_value ?cty ?v ?T =>
       (* One could introduce more let-bindings as follows, but too
       many let-bindings seem to hurt performance. *)
       (* bind T ltac:(fun H => uconstr:(typed_value v H)); *)
-      cont uconstr:(((_ : TypedValue _) _))
-  | typed_bin_op ?ge ?v1 ?ty1 ?v2 ?ty2 ?o ?ot1 ?ot2 ?T =>
-      cont uconstr:(((_ : TypedBinOp _ _ _ _ _ _ _ _) _))
-  | typed_un_op ?v ?ty ?o ?ot ?T =>
-      cont uconstr:(((_ : TypedUnOp _ _ _ _) _))
+      cont uconstr:(((_ : TypedValue _ _) _))
+  | typed_bin_op ?ge ?v1 ?ty1 ?v2 ?ty2 ?o ?ot1 ?ot2 ?ot ?T =>
+      cont uconstr:(((_ : TypedBinOp _ _ _ _ _ _ _ _ _) _))
+  | typed_un_op ?v ?ty ?o ?ot1 ?ot ?T =>
+      cont uconstr:(((_ : TypedUnOp _ _ _ _ _) _))
   (*
   | typed_call ?v ?P ?vl ?tys ?T =>
       cont uconstr:(((_ : TypedCall _ _ _ _) _))
@@ -97,7 +97,7 @@ Ltac liToSyntax_hook ::=
   unfold pop_location_info(*, LocInfoE*);
   change (typed_value ?x1 ?x2) with (li.bind1 (typed_value x1 x2));
   change (typed_bin_op ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8) with (li.bind2 (typed_bin_op x1 x2 x3 x4 x5 x6 x7 x8));
-  change (typed_un_op ?x1 ?x2 ?x3 ?x4) with (li.bind2 (typed_un_op x1 x2 x3 x4));
+  change (typed_un_op ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind2 (typed_un_op x1 x2 x3 x4 x5));
   (* change (typed_call ?x1 ?x2 ?x3 ?x4) with (li.bind2 (typed_call x1 x2 x3 x4)); *)
   (* change (typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind2 (typed_copy_alloc_id x1 x2 x3 x4 x5)); *)
   (* change (typed_place ?x1 ?x2 ?x3 ?x4) with (li.bind5 (typed_place x1 x2 x3 x4)); *)
@@ -146,8 +146,8 @@ Ltac liRIntroduceLetInGoal :=
       li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_write Σ tG cs ge f b e ot v ty H)))
     (* | @typed_place ?Σ ?tG ?P ?l1 ?β1 ?ty1 ?T =>
       li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_place Σ tG P l1 β1 ty1 H))) *)
-    | @typed_bin_op ?Σ ?tG ?cs ?ge ?v1 ?P1 ?v2 ?P2 ?op ?ot1 ?ot2 ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_bin_op Σ tG cs ge v1 P1 v2 P2 op ot1 ot2 H)))
+    | @typed_bin_op ?Σ ?tG ?cs ?ge ?v1 ?P1 ?v2 ?P2 ?op ?ot1 ?ot2 ?ot ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_bin_op Σ tG cs ge v1 P1 v2 P2 op ot1 ot2 ot H)))
     end
   end.
 
@@ -171,7 +171,7 @@ Ltac liRStmt :=
     | _ =>
       let s' := s in
       lazymatch s' with
-      | Sassign _ _ => notypeclasses refine (tac_fast_apply (type_assign _ _ _ _ _ _) _)
+      | Sassign _ _ => notypeclasses refine (tac_fast_apply (type_assign _ _ _ _ _ _ _ _ ) _); [done..|]
       | Sset _ _ => notypeclasses refine (tac_fast_apply (type_set _ _ _ _ _ _ _) _)
       | Ssequence _ _ => notypeclasses refine (tac_fast_apply (type_seq _ _ _ _ _ _) _)
       | Sreturn $ Some _ => notypeclasses refine (tac_fast_apply (type_return_some _ _ _ _ _) _)
@@ -370,15 +370,14 @@ Ltac split_blocks Pfull Ps :=
 Section automation_tests.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
   
-  Notation temp := env.temp.
-  Notation lvar := env.lvar.
+  Import env.
 
   Goal forall Espec ge f (_x:ident) (x:val),
   temp _x x
   ⊢ typed_stmt Espec ge (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint)
                                               (Econst_int (Int.repr 1) tint) tint)) f
                         (λ v t, temp _x (Vint (Int.repr 42))
-                                ∗ ⎡ Vint (Int.repr 42) ◁ᵥ 42 @ int tint ⎤).
+                                ∗ ⎡ Vint (Int.repr 42) ◁ᵥₐₗ|tint| 42 @ int tint ⎤).
   Proof.
     iIntros.
     (* usually Info level 0 is able to see the tactic applied *)
@@ -394,6 +393,9 @@ Section automation_tests.
                (λ v t, ⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True).
   Proof.
   iIntros.
+
+ liEnsureInvariant;
+ try liRIntroduceLetInGoal.
   liRStep.
   liRStep.
   liRStep.
@@ -418,23 +420,24 @@ Section automation_tests.
   liRStep.
   liRStep.
   liRStep.
+  done.
 Qed.
 End automation_tests.
 
 From VST.typing Require Import automation_test.
 
-Global Instance related_to_val_embed `{!typeG OK_ty Σ} {cs : compspecs} A v ty : RelatedTo (λ x : A, (⎡v ◁ᵥ ty x⎤))%I | 100
-:= {| rt_fic := FindVal v |}.
-Global Instance related_to_val_embed2 `{!typeG OK_ty Σ} {cs : compspecs} A v ty : RelatedTo (λ x : A, (⎡v ◁ᵥ ty⎤))%I | 100
-:= {| rt_fic := FindVal v |}.
+Global Instance related_to_val_embed `{!typeG OK_ty Σ} {cs : compspecs} A v cty ty : RelatedTo (λ x : A, (⎡v ◁ᵥₐₗ|cty| ty x⎤))%I | 100
+:= {| rt_fic := FindVal cty v |}.
+Global Instance related_to_val_embed2 `{!typeG OK_ty Σ} {cs : compspecs} A v cty ty : RelatedTo (λ x : A, (⎡v ◁ᵥₐₗ|cty| ty⎤))%I | 100
+:= {| rt_fic := FindVal cty v |}.
 
 Arguments find_in_context : simpl never.
 Arguments subsume : simpl never.
 Arguments FindVal : simpl never.
 
-Lemma simple_subsume_val_to_subsume_embed `{!typeG OK_ty Σ} `{compspecs} (A:Type) (v : val) (ty1 : type) (ty2 : A → type) (P:A->mpred)
-  `{!∀ (x:A), SimpleSubsumeVal ty1 (ty2 x) (P x)} (T: A-> assert) :
-   (∃ x, (@embed mpred assert _ $ P x) ∗ T x) ⊢@{assert} subsume (⎡v ◁ᵥ ty1⎤) (λ x : A, ⎡v ◁ᵥ ty2 x⎤) T.
+Lemma simple_subsume_val_to_subsume_embed `{!typeG OK_ty Σ} `{compspecs} (A:Type) (v : val) cty (ty1 : type) (ty2 : A → type) (P:A->mpred)
+  `{!∀ (x:A), SimpleSubsumeVal cty ty1 (ty2 x) (P x)} (T: A-> assert) :
+   (∃ x, (@embed mpred assert _ $ P x) ∗ T x) ⊢@{assert} subsume (⎡v ◁ᵥₐₗ|cty| ty1⎤) (λ x : A, ⎡v ◁ᵥₐₗ|cty| ty2 x⎤) T.
 Proof.
   iIntros "H".
   iDestruct "H" as (x) "[HP HT]".

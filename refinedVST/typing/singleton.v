@@ -6,23 +6,30 @@ Section value.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Program Definition value (ot : Ctypes.type) (v : val) : type := {|
-    ty_has_op_type ot' mt := ot' = ot;
-    ty_own β l := (<affine> ⌜field_compatible ot [] l⌝ ∗ <affine> ⌜tc_val' ot v⌝ ∗ (*⌜mem_cast_id v ot⌝ ∗*) l ↦_ot[β] v)%I;
-    ty_own_val v' := (<affine> ⌜tc_val' ot v⌝ ∗ <affine> ⌜v' = v⌝)%I;
+    ty_has_op_type ot' mt := (ot' = ot ∧ type_is_by_value ot = true)%type;
+    ty_own β l := (<affine>⌜l `has_layout_loc` ot⌝ ∗
+                   <affine>⌜(valinject ot v) `has_layout_val` ot⌝ ∗
+                   l ↦[β]|ot| (valinject ot v))%I;
+    ty_own_val cty v' := (<affine> ⌜cty = ot⌝ ∗
+                          <affine> ⌜v' = valinject cty v⌝ ∗
+                          <affine> ⌜v' `has_layout_val` cty⌝)%I;
   |}.
   Next Obligation. iIntros (?????) "[$ [$ ?]]". by iApply heap_mapsto_own_state_share. Qed.
-  Next Obligation. iIntros (ot v ot' mt l ->) "[%?]". done. Qed.
-  Next Obligation. iIntros (ot v ot' mt l ->) "[% ->]". done. Qed.
-  Next Obligation. iIntros (ot v ot' mt l ->) "(%&%&?)". eauto with iFrame. Qed.
-  Next Obligation. iIntros (ot v ot' mt l v' -> ?) "Hl [? ->]". by iFrame. Qed.
+  Next Obligation. iIntros (ot v ot' mt l [-> ?]) "[% [% ?]]". done. Qed.
+  Next Obligation. intros ot v ot' mt l [-> ?].
+                   iIntros "[% [% ?]]". done. Qed.
+  Next Obligation. intros ot v ot' mt l [-> ?].
+                   iIntros "[% [% ?]]". eauto with iFrame. Qed.
+  Next Obligation. iIntros (ot v ot' mt l ? [-> ?]) "% Hl (% & -> & %)".
+                   by iFrame. Qed.
 (*  Next Obligation. iIntros (ot v v' ot' mt st ?). apply: mem_cast_compat_id. iPureIntro.
     move => [?[? ->]]. by destruct ot' => //; simplify_eq/=.
   Qed.*)
 
   Lemma value_simplify v ot p T:
-    (<affine> ⌜v = p⌝ -∗ <affine> ⌜tc_val' ot v⌝ -∗ T)
-    ⊢ simplify_hyp (v ◁ᵥ value ot p) T.
-  Proof. iIntros "HT [% ->]". by iApply "HT". Qed.
+    (<affine> ⌜valinject ot v = valinject ot p⌝ -∗ <affine>⌜(valinject ot v) `has_layout_val` ot⌝ -∗ T)
+    ⊢ simplify_hyp (v ◁ᵥₐₗ|ot| value ot p) T.
+  Proof. iIntros "HT [% [% %]]". by iApply "HT". Qed.
   Definition value_simplify_inst := [instance value_simplify with 0%N].
   Global Existing Instance value_simplify_inst.
 
@@ -35,9 +42,9 @@ Section value.
 (*     iDestruct (ty_memcast_compat_id with "Hty") as %?; [done|]. *)
     iDestruct ("HT" with "Hty") as (? ->) "?". iExists _. by iFrame.
   Qed. *)
-  Lemma value_subsume_goal A v v' ly ty T:
-    (<affine> ⌜tc_val' ly v⌝ ∗ (v ◁ᵥ ty -∗ ∃ x, <affine> ⌜v = v' x⌝ ∗ T x))
-    ⊢ subsume (v ◁ᵥ ty) (λ x : A, v ◁ᵥ value ly (v' x)) T.
+  Lemma value_subsume_goal A v v' cty ty T:
+    (<affine>⌜(valinject cty v) `has_layout_val` cty⌝ ∗ (v ◁ᵥₐₗ|cty| ty -∗ ∃ x, <affine> ⌜v = v' x⌝ ∗ T x))
+    ⊢ subsume (v ◁ᵥₐₗ|cty| ty) (λ x : A,v ◁ᵥₐₗ|cty| value cty (v' x)) T.
   Proof.
     iIntros "[% HT] Hty". (* iDestruct (ty_size_eq with "Hty") as %Hly; [done|]. *)
 (*     iDestruct (ty_memcast_compat_id with "Hty") as %?; [done|]. *)
@@ -135,7 +142,13 @@ Section at_value.
       inv Ha; econstructor; eauto.
   Qed.
 
-  Lemma mapsto_tptr:
+  Lemma has_layout_loc_tptr : forall p a b, p `has_layout_loc` (Tpointer a b) ↔ p `has_layout_loc` (tptr tvoid).
+  Proof.
+    intros.
+    rewrite /has_layout_loc field_compatible_tptr //.
+  Qed.
+
+  Lemma mem_block_mapsto_tptr:
     forall sh t1 t2, mapsto_memory_block.mapsto sh (tptr t1) = mapsto_memory_block.mapsto sh (tptr t2).
   Proof.
     intros.
@@ -145,37 +158,54 @@ Section at_value.
     rewrite !andb_false_r //.
   Qed.
 
+  Lemma mapsto_tptr:
+    forall l sh t1 t2, mapsto l sh (tptr t1) = mapsto l sh (tptr t2).
+  Proof.
+    intros.
+    unfold mapsto.
+    extensionality v.
+    rewrite /data_at_rec /=.
+    by erewrite mem_block_mapsto_tptr.
+  Qed.
+
   (* The type of the pointer really doesn't matter; maybe this means we're using the wrong level of type here. *)
-  Lemma value_tptr l t1 t2 v' : l ◁ₗ value (tptr t1) v' ⊣⊢ l ◁ₗ value (tptr t2) v'.
+  (* Lemma value_tptr l t1 t2 v' : l ◁ₗ value (tptr t1) v' ⊣⊢ l ◁ₗ value (tptr t2) v'.
   Proof.
     rewrite /ty_own /=.
-    rewrite /tc_val' /tc_val /=.
-    rewrite !field_compatible_tptr !andb_false_r.
-    rewrite /heap_mapsto_own_state; erewrite mapsto_tptr; done.
-  Qed.
+    rewrite /has_layout_val /has_layout_loc /=.
+    rewrite !field_compatible_tptr.
+    rewrite /heap_mapsto_own_state. rewrite (mapsto_tptr _ _ t1 t2).
+    rewrite /value_fits /tc_val' /=.
 
-  Lemma value_tptr_val v t1 t2 v' : v ◁ᵥ value (tptr t1) v' = v ◁ᵥ value (tptr t2) v'.
+  Qed. *)
+
+  (* Lemma value_tptr_val v t1 t2 v' : v ◁ᵥ|tptr t1| value (tptr t1) v' = v ◁ᵥ|tptr t2| value (tptr t2) v'.
   Proof.
-    rewrite /ty_own_val /=.
-    rewrite /tc_val' /tc_val /=.
+    rewrite /ty_own_val_at /ty_own_val /=.
+    rewrite /has_layout_val.
+    rewrite /value_fits /=.
+
     rewrite !andb_false_r //.
-  Qed.
+  Qed. *)
 
   (* TODO: At the moment this is hard-coded for PtrOp. Generalize it to other layouts as well. *)
-  Program Definition at_value (v : val) (ty : type) : type := {|
-    ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
-    ty_own β l := (if β is Own then ∃ t, l ◁ₗ value (tptr t) v ∗ v ◁ᵥ ty else True)%I;
-    ty_own_val v' := (∃ t, v' ◁ᵥ value (tptr t) v ∗ v ◁ᵥ ty)%I;
+  Program Definition at_value (cty: Ctypes.type) (v : val) (ty : type) : type := {|
+    ty_has_op_type ot mt := (ot = tptr cty ∧ type_is_by_value cty = true)%type;
+    ty_own β l := (if β is Own then l ◁ₗ value (tptr cty) v ∗ v ◁ᵥₐₗ|cty| ty else True)%I;
+    ty_own_val ot v' := (<affine> ⌜ot = tptr cty⌝ ∗ v' ◁ᵥ|ot| value (tptr cty) v ∗ v ◁ᵥₐₗ|cty| ty)%I;
   |}.
-  Next Obligation. by iIntros (?????) "?". Qed.
-  Next Obligation. iIntros (v ty ot mt l (? & ->)) "(% & [Hv ?])". iDestruct (ty_aligned _ _ MCId with "Hv") as %?; first done. iPureIntro. unfold has_layout_loc in *. rewrite !field_compatible_tptr // in H |- *. Qed.
-  Next Obligation. iIntros (v ty ot mt l (? & ->)) "(% & [Hv ?])".
-    iPoseProof (ty_size_eq _ _ mt with "Hv") as "%Hl"; first done.
-    unfold has_layout_val, tc_val' in *; simpl in *.
-    by rewrite !andb_false_r in Hl |- *.
+  Next Obligation. by iIntros (??????) "?". Qed.
+  Next Obligation. iIntros (cty v ty ot mt l (-> & ?)) "(Hv & ?)". iDestruct (ty_aligned _ _ MCId with "Hv") as %?; done. Qed.
+  Next Obligation. iIntros (cty v ty ot mt l (-> & ?)) "[% [Hl Hv]]".
+    iPoseProof (ty_size_eq _ _ mt with "Hl") as "%Hl"; try done.
   Qed.
-  Next Obligation. iIntros (v ty ot mt l (? & ->)) "(% & [Hv $])". iDestruct (ty_deref _ _ MCId with "Hv") as "(% & ? & ?)"; first done. unfold mapsto. erewrite mapsto_tptr; iFrame. Qed.
-  Next Obligation. iIntros (v ty ot mt l v' (? & ->) ?) "Hl (% & [Hv $])". unfold mapsto. erewrite mapsto_tptr. iExists _; iApply (ty_ref _ _ MCId with "[] Hl Hv"); first done. iPureIntro. unfold has_layout_loc in *. rewrite !field_compatible_tptr // in H |- *. Qed.
+  Next Obligation. iIntros (cty v ty ot mt l (-> & ?)) "(Hl & Hv)".
+    rewrite /ty_own_val_at /=.
+    iDestruct (ty_deref _ _ MCId with "Hl") as "(% & ↦ & own_vrep)"; try done.
+     iFrame. done.
+    Qed.
+  Next Obligation. iIntros (cty v ty ot mt l ? ?) "% Hl (% & Hv & $)".
+    iApply (ty_ref _ _ MCId with "[] Hl Hv"); done. Qed.
 (*   Next Obligation.
     iIntros (v ty v' ot mt st ?) "[Hv ?]".
     iDestruct (ty_memcast_compat with "Hv") as "?"; [done|]. destruct mt => //. iFrame.
@@ -183,29 +213,29 @@ Section at_value.
 
 
   Lemma at_value_simplify_hyp_val v v' t ty T:
-    (v ◁ᵥ value (tptr t) v' -∗ v' ◁ᵥ ty -∗ T)
-    ⊢ simplify_hyp (v ◁ᵥ at_value v' ty) T.
-  Proof. iIntros "HT (% & [??])". erewrite value_tptr_val. by iApply ("HT" with "[$] [$]"). Qed.
+    (v ◁ᵥₐₗ|t| value (tptr t) v' -∗ v' ◁ᵥₐₗ|t| ty -∗ T)
+    ⊢ simplify_hyp (v ◁ᵥₐₗ|t| at_value t v' ty) T.
+  Proof. iIntros "HT (% & [??])". by iApply ("HT" with "[$] [$]"). Qed.
   Definition at_value_simplify_hyp_val_inst := [instance at_value_simplify_hyp_val with 0%N].
   Global Existing Instance at_value_simplify_hyp_val_inst.
 
   Lemma at_value_simplify_goal_val v v' t ty T:
-    v ◁ᵥ value (tptr t) v' ∗ v' ◁ᵥ ty ∗ T
-    ⊢ simplify_goal (v ◁ᵥ at_value v' ty) T.
-  Proof. iIntros "[$ [$ $]]". Qed.
+    v ◁ᵥₐₗ|tptr t| value (tptr t) v' ∗ v' ◁ᵥₐₗ|t| ty ∗ T
+    ⊢ simplify_goal (v ◁ᵥₐₗ|tptr t| at_value t v' ty) T.
+  Proof. iIntros "[$ [$ $]]". done. Qed.
   Definition at_value_simplify_goal_val_inst := [instance at_value_simplify_goal_val with 0%N].
   Global Existing Instance at_value_simplify_goal_val_inst.
 
   Lemma at_value_simplify_hyp_loc l v' t ty T:
-    (l ◁ₗ value (tptr t) v' -∗ v' ◁ᵥ ty -∗ T)
-    ⊢ simplify_hyp (l ◁ₗ at_value v' ty) T.
-  Proof. iIntros "HT (% & [??])". erewrite value_tptr. by iApply ("HT" with "[$] [$]"). Qed.
+    (l ◁ₗ value (tptr t) v' -∗ v' ◁ᵥₐₗ|t| ty -∗ T)
+    ⊢ simplify_hyp (l ◁ₗ at_value t v' ty) T.
+  Proof. iIntros "HT [? ?]". by iApply ("HT" with "[$] [$]"). Qed.
   Definition at_value_simplify_hyp_loc_inst := [instance at_value_simplify_hyp_loc with 0%N].
   Global Existing Instance at_value_simplify_hyp_loc_inst.
 
   Lemma at_value_simplify_goal_loc l v' t ty T:
-    l ◁ₗ value (tptr t) v' ∗ v' ◁ᵥ ty ∗ T
-    ⊢ simplify_goal (l ◁ₗ at_value v' ty) T.
+    l ◁ₗ value (tptr t) v' ∗ v' ◁ᵥₐₗ|t| ty ∗ T
+    ⊢ simplify_goal (l ◁ₗ at_value t v' ty) T.
   Proof. iIntros "[$ [$ $]]". Qed.
   Definition at_value_simplify_goal_loc_inst := [instance at_value_simplify_goal_loc with 0%N].
   Global Existing Instance at_value_simplify_goal_loc_inst.
@@ -220,7 +250,7 @@ Section place.
   Program Definition place (l : address) : type := {|
     ty_own β l' := (<affine> ⌜l = l'⌝)%I;
     ty_has_op_type _ _ := False%type;
-    ty_own_val _ := emp;
+    ty_own_val _ _ := emp;
   |}.
   Solve Obligations with try done.
   Next Obligation. by iIntros (????) "$". Qed.
