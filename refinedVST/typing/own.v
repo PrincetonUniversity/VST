@@ -260,8 +260,8 @@ Section own.
   (* TODO: Is it a good idea to have this general rule or would it be
   better to have more specialized rules? *)
 
-  (*
-  Lemma type_relop_ptr_ptr ge (l1 l2 : address) op b β1 β2 ty1 ty2 t1 t2
+  Check typed_bin_op.
+  Lemma type_relop_ptr_ptr (l1 l2 : address) op b β1 β2 ty1 ty2 t1 t2
     (Hop : match op with
            | Olt => Some (bool_decide (l1.2 < l2.2))
            | Ogt => Some (bool_decide (l1.2 > l2.2))
@@ -273,9 +273,10 @@ Section own.
       ⌜0 ≤ l1.2 ≤ Ptrofs.max_unsigned ∧ 0 ≤ l2.2 ≤ Ptrofs.max_unsigned⌝ ∧
       ⎡expr.weak_valid_pointer l1⎤ ∧ ⎡expr.weak_valid_pointer l2⎤ ∧
       T (i2v (bool_to_Z b) tint) (b @ boolean tint)))
-    ⊢ typed_bin_op ge l1 ⎡l1 ◁ₗ{β1} ty1⎤ l2 ⎡l2 ◁ₗ{β2} ty2⎤ op (tptr t1) (tptr t2) T.
+      ⊢ typed_bin_op ge l1 ⎡l1 ◁ₗ{β1} ty1⎤ l2 ⎡l2 ◁ₗ{β2} ty2⎤ op (tptr t1) (tptr t2) (tint) T.
   Proof.
-    iIntros "HT Hl1 Hl2". iIntros (Φ) "HΦ". iDestruct ("HT" with "Hl1 Hl2") as (Heq (? & ?)) "HT".
+    iIntros "HT Hl1 Hl2". iIntros (Φ) "HΦ".
+    iDestruct ("HT" with "Hl1 Hl2") as (Heq (? & ?)) "HT".
     iIntros "!>" (?) "Hm !>".
     iDestruct (valid_pointer.weak_valid_pointer_dry with "[$Hm HT]") as %H1.
     { iDestruct "HT" as "($ & _)". }
@@ -296,23 +297,23 @@ Section own.
         case_bool_decide; destruct (zlt _ _); (done || lia).
     - iDestruct "HT" as "(_ & _ & HT)".
       iApply ("HΦ" with "[] HT") => //.
-      iExists _; iSplit; iPureIntro; try done.
-      by destruct b.
+      simpl.
+      rewrite / ty_own_val_at /ty_own_val /=.
+      destruct b; iSplit; eauto; iExists _; try done. 
   Qed.
 
-  Definition type_lt_ptr_ptr_inst ge l1 l2 :=
-    [instance type_relop_ptr_ptr ge l1 l2 Olt (bool_decide (l1.2 < l2.2))].
+  Definition type_lt_ptr_ptr_inst l1 l2 :=
+    [instance type_relop_ptr_ptr l1 l2 Olt (bool_decide (l1.2 < l2.2))].
   Global Existing Instance type_lt_ptr_ptr_inst.
-  Definition type_gt_ptr_ptr_inst ge l1 l2 :=
-    [instance type_relop_ptr_ptr ge l1 l2 Ogt (bool_decide (l1.2 > l2.2))].
+  Definition type_gt_ptr_ptr_inst l1 l2 :=
+    [instance type_relop_ptr_ptr l1 l2 Ogt (bool_decide (l1.2 > l2.2))].
   Global Existing Instance type_gt_ptr_ptr_inst.
-  Definition type_le_ptr_ptr_inst ge l1 l2 :=
-    [instance type_relop_ptr_ptr ge l1 l2 Ole (bool_decide (l1.2 <= l2.2))].
+  Definition type_le_ptr_ptr_inst l1 l2 :=
+    [instance type_relop_ptr_ptr l1 l2 Ole (bool_decide (l1.2 <= l2.2))].
   Global Existing Instance type_le_ptr_ptr_inst.
-  Definition type_ge_ptr_ptr_inst ge l1 l2 :=
-    [instance type_relop_ptr_ptr ge l1 l2 Oge (bool_decide (l1.2 >= l2.2))].
+  Definition type_ge_ptr_ptr_inst l1 l2 :=
+    [instance type_relop_ptr_ptr l1 l2 Oge (bool_decide (l1.2 >= l2.2))].
   Global Existing Instance type_ge_ptr_ptr_inst.
-*)
 
   (* Lemma type_roundup_frac_ptr v2 β ty P2 T p: *)
   (*   (P2 -∗ T (val_of_loc p) (t2mt (p @ frac_ptr β ty))) ⊢ *)
@@ -340,13 +341,15 @@ Section own.
   (*   TypedBinOp p (p ◁ₗ{β} ty) v2 P2 RoundDownOp T := *)
   (*   i2p (type_rounddown_frac_ptr v2 β ty P2 T p). *)
 
+(*
   Global Program Instance shr_copyable p ty : Copyable (p @ frac_ptr Shr ty).
   Next Obligation.
     intros. rewrite /Affine /ty_own_val /=.
   Admitted.
   Next Obligation.
     iIntros (p ty E ot l) "Htm".
-    iMod (heap_mapsto_own_state_to_mt with "Hmt") as (q) "[_ Hl]" => //.
+    Check heap_mapsto_own_state_to_mt.
+    iMod (heap_mapsto_own_state_to_mt with "Htm") as (q) "(? ?)".
     unfold has_layout_loc.
     rewrite field_compatible_tptr; erewrite mapsto_tptr; iSplitR => //.
     iExists _, _. iFrame. iModIntro. iSplit => //.
@@ -396,6 +399,8 @@ Section own.
     [instance find_in_context_type_val_P_own_singleton with FICSyntactic].
   Global Existing Instance find_in_context_type_val_P_own_singleton_inst | 30.
 End own.
+
+
 Global Typeclasses Opaque place'.
 Notation "place'< l >" := (place' l) (only printing, format "'place'<' l '>'") : printing_sugar.
 
@@ -406,6 +411,8 @@ Notation "&shr" := (frac_ptr Shr) (format "&shr") : bi_scope.
 Notation "&frac< β , ty >" := (frac_ptr β ty) (only printing, format "'&frac<' β ,  ty '>'") : printing_sugar.
 Notation "&own< ty >" := (frac_ptr Own ty) (only printing, format "'&own<' ty '>'") : printing_sugar.
 Notation "&shr< ty >" := (frac_ptr Shr ty) (only printing, format "'&shr<' ty '>'") : printing_sugar.
+ *)
+End own.
 
 Section ptr.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
@@ -425,6 +432,13 @@ Section ptr.
     iIntros (n l v ot mt st ?). apply mem_cast_compat_loc; [done|].
     iIntros "[-> ?]". iPureIntro. naive_solver.
   Qed. *)
+
+
+  Program Definition frac_ptr_type (β : own_state) (ty : type) (l' : address) : type := {|
+                                                                                         ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
+                                                                                         ty_own β' l := (<affine>⌜l `has_layout_loc` (tptr tvoid)⌝ ∗ l ↦[β']|tptr tvoid| l' ∗ (l' ◁ₗ{own_state_min β' β} ty))%I;
+                                                                                         ty_own_val cty v_rep := (<affine> ⌜repinject cty v_rep = adr2val l'⌝ ∗ l' ◁ₗ{β} ty)%I;
+                                                                                       |}.
 
   Definition ptr (n : nat) : rtype _ := RType (ptr_type n).
 
