@@ -1,17 +1,16 @@
 From VST.typing Require Export type.
-From VST.typing Require Import programs optional boolean int singleton.
+From VST.typing Require Import programs (* optional *) boolean int singleton.
 From VST.typing Require Import type_options.
 
 Section own.
-  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs} (ge : genv).
 
   Local Typeclasses Transparent place.
 
-  (* Separate definition such that we can make it typeclasses opaque later. *)
   Program Definition frac_ptr_type (β : own_state) (ty : type) (l' : address) : type := {|
     ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
-    ty_own β' l := (<affine> ⌜field_compatible (tptr tvoid) [] l⌝ ∗ l ↦_(tptr tvoid)[β'] l' ∗ (l' ◁ₗ{own_state_min β' β} ty))%I;
-    ty_own_val v := (<affine> ⌜v = adr2val l'⌝ ∗ l' ◁ₗ{β} ty)%I;
+    ty_own β' l := (<affine>⌜l `has_layout_loc` (tptr tvoid)⌝ ∗ l ↦[β']|tptr tvoid| l' ∗ (l' ◁ₗ{own_state_min β' β} ty))%I;
+    ty_own_val cty v_rep := (<affine> ⌜repinject cty v_rep = adr2val l'⌝ ∗ l' ◁ₗ{β} ty)%I;
   |}.
   Next Obligation.
     iIntros (β ?????) "($&Hl&H)". rewrite left_id.
@@ -19,14 +18,28 @@ Section own.
     destruct β => //=. by iApply ty_share.
   Qed.
   Next Obligation. iIntros (β ty l ot mt l' (? & ->)). unfold has_layout_loc. rewrite !field_compatible_tptr. by iDestruct 1 as (?) "_". Qed.
-  Next Obligation. iIntros (β ty l ot mt l' (? & ->)).
-    iIntros "(-> & ?)"; iPureIntro. intros ?; hnf. simple_if_tac; done. Qed.
-  Next Obligation. iIntros (β ty l ot mt l' (? & ->)) "(%&Hl&Hl')". rewrite left_id. unfold heap_mapsto_own_state. erewrite mapsto_tptr. eauto with iFrame. Qed.
-  Next Obligation. iIntros (β ty l ot mt l' v (? & ->) ?) "Hl [-> Hl']". unfold has_layout_loc in *. rewrite field_compatible_tptr in H. unfold heap_mapsto_own_state. erewrite mapsto_tptr. by iFrame. Qed.
-(*   Next Obligation.
-    iIntros (β ty l v ot mt st ?). apply: mem_cast_compat_loc; [done|].
-    iIntros "[-> ?]". iPureIntro. naive_solver.
-  Qed. *)
+  Next Obligation.
+    iIntros (β ty l ot mt l' [? ->]).
+    iIntros "(%H1 & H2)".
+    rewrite /repinject /= in H1.
+    iPureIntro. rewrite /has_layout_val H1.
+    split; [|done].
+    rewrite /value_fits /tc_val' /= =>?.
+    simple_if_tac; done.
+  Qed.
+  Next Obligation.
+    iIntros (β ty l ot mt l' (? & ->)) "(%&Hl&Hl')".
+    rewrite left_id. unfold heap_mapsto_own_state. 
+    erewrite (mapsto_tptr _ _ tvoid x).
+    eauto with iFrame.
+  Qed.
+  Next Obligation.
+    iIntros (β ty l ot mt l' v (? & ->) ?) "Hl [% Hl']".
+    simpl in H0. rewrite H0.
+    unfold has_layout_loc in *. rewrite field_compatible_tptr in H. unfold heap_mapsto_own_state.
+    erewrite (mapsto_tptr _ _ tvoid x). by iFrame.
+  Qed.
+
   Global Instance frac_ptr_type_le : Proper ((=) ==> (⊑) ==> (=) ==> (⊑)) frac_ptr_type.
   Proof. solve_type_proper. Qed.
   Global Instance frac_ptr_type_proper : Proper ((=) ==> (≡) ==> (=) ==> (≡)) frac_ptr_type.
@@ -81,7 +94,8 @@ Section own.
     iSplit => //.
   Qed. *)
 
-  Lemma simplify_frac_ptr (v : val) (p : address) ty β T:
+(*
+  Lemma simplify_frac_ptr (v : val) (p : address) cty ty β T:
     (<affine> ⌜v = p⌝ -∗ p ◁ₗ{β} ty -∗ T)
     ⊢ simplify_hyp (v◁ᵥ p @ frac_ptr β ty) T.
   Proof. iIntros "HT Hl". iDestruct "Hl" as (->) "Hl". by iApply "HT". Qed.
@@ -110,6 +124,7 @@ Section own.
   Definition simplify_frac_ptr_place_shr_to_own_inst :=
     [instance simplify_frac_ptr_place_shr_to_own with 50%N].
   Global Existing Instance simplify_frac_ptr_place_shr_to_own_inst.
+*)
 
   (*
   TODO: revisit this comment
@@ -123,6 +138,8 @@ Section own.
   calling apply which triggers https://github.com/coq/coq/issues/6583
   and can make the application of this lemma fail if it tries to solve
   a Movable (tc_opaque x) in the context. *)
+
+  Locate "@".
 
   Lemma own_val_to_own_place (l : address) ty β T:
     l ◁ₗ{β} ty ∗ T
