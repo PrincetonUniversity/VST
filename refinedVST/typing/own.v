@@ -94,25 +94,29 @@ Section own.
     iSplit => //.
   Qed. *)
 
-(*
   Lemma simplify_frac_ptr (v : val) (p : address) cty ty β T:
     (<affine> ⌜v = p⌝ -∗ p ◁ₗ{β} ty -∗ T)
-    ⊢ simplify_hyp (v◁ᵥ p @ frac_ptr β ty) T.
-  Proof. iIntros "HT Hl". iDestruct "Hl" as (->) "Hl". by iApply "HT". Qed.
+      ⊢ simplify_hyp (v◁ᵥₐₗ|tptr cty| p @ frac_ptr β ty) T.
+  Proof. iIntros "HT Hl".
+         iDestruct "Hl" as (?) "Hl".
+         iApply "HT"; try done.
+  Qed.
   Definition simplify_frac_ptr_inst := [instance simplify_frac_ptr with 0%N].
   Global Existing Instance simplify_frac_ptr_inst.
 
-  Lemma simplify_goal_frac_ptr_val ty (v : val) β (p : address) T:
+  Lemma simplify_goal_frac_ptr_val cty ty (v : val) β (p : address) T:
     <affine> ⌜v = p⌝ ∗ p ◁ₗ{β} ty ∗ T
-    ⊢ simplify_goal (v ◁ᵥ p @ frac_ptr β ty) T.
-  Proof. by iIntros "[-> [$ $]]". Qed.
+    ⊢ simplify_goal (v ◁ᵥₐₗ|tptr cty| p @ frac_ptr β ty) T.
+  Proof.
+    by iIntros "[-> [$ $]]".
+  Qed.
   Definition simplify_goal_frac_ptr_val_inst := [instance simplify_goal_frac_ptr_val with 0%N].
   Global Existing Instance simplify_goal_frac_ptr_val_inst.
 
-  Lemma simplify_goal_frac_ptr_val_unrefined ty (v : val) β T:
+  Lemma simplify_goal_frac_ptr_val_unrefined cty ty (v : val) β T:
     (∃ p : address, <affine> ⌜v = p⌝ ∗ p ◁ₗ{β} ty ∗ T)
-    ⊢ simplify_goal (v ◁ᵥ frac_ptr β ty) T.
-  Proof. iIntros "[% [-> [? $]]]". iExists _. by iSplit. Qed.
+      ⊢ simplify_goal (v ◁ᵥₐₗ|cty| frac_ptr β ty) T.
+  Proof. iIntros "[% [-> [? $]]]". iExists _. iSplit. Admitted.
   Definition simplify_goal_frac_ptr_val_unrefined_inst :=
     [instance simplify_goal_frac_ptr_val_unrefined with 0%N].
   Global Existing Instance simplify_goal_frac_ptr_val_unrefined_inst.
@@ -124,7 +128,6 @@ Section own.
   Definition simplify_frac_ptr_place_shr_to_own_inst :=
     [instance simplify_frac_ptr_place_shr_to_own with 50%N].
   Global Existing Instance simplify_frac_ptr_place_shr_to_own_inst.
-*)
 
   (*
   TODO: revisit this comment
@@ -139,17 +142,14 @@ Section own.
   and can make the application of this lemma fail if it tries to solve
   a Movable (tc_opaque x) in the context. *)
 
-  Locate "@".
-
-  Lemma own_val_to_own_place (l : address) ty β T:
+  Lemma own_val_to_own_place l cty ty β T:
     l ◁ₗ{β} ty ∗ T
-    ⊢ l ◁ᵥ l @ frac_ptr β ty ∗ T.
+      ⊢ l ◁ᵥₐₗ|tptr cty| l @ frac_ptr β ty ∗ T.
   Proof. by iIntros "[$ $]". Qed.
 
-  Lemma own_val_to_own_place_singleton (l : address) β T:
-    T
-    ⊢ l ◁ᵥ l @ frac_ptr β (place l) ∗ T.
-  Proof. by iIntros "$". Qed.
+  Lemma own_val_to_own_place_singleton (l : address) cty β T:
+    T ⊢ l ◁ᵥₐₗ|tptr cty| l @ frac_ptr β (place l) ∗ T.
+  Proof. by iDestruct 1 as "$". Qed.
 
 (*   Lemma type_offset_of_sub v1 l s m P ly t T:
     ⌜ly_size ly = 1%nat⌝ ∗ (
@@ -259,6 +259,8 @@ Section own.
 
   (* TODO: Is it a good idea to have this general rule or would it be
   better to have more specialized rules? *)
+
+  (*
   Lemma type_relop_ptr_ptr ge (l1 l2 : address) op b β1 β2 ty1 ty2 t1 t2
     (Hop : match op with
            | Olt => Some (bool_decide (l1.2 < l2.2))
@@ -297,6 +299,7 @@ Section own.
       iExists _; iSplit; iPureIntro; try done.
       by destruct b.
   Qed.
+
   Definition type_lt_ptr_ptr_inst ge l1 l2 :=
     [instance type_relop_ptr_ptr ge l1 l2 Olt (bool_decide (l1.2 < l2.2))].
   Global Existing Instance type_lt_ptr_ptr_inst.
@@ -309,7 +312,7 @@ Section own.
   Definition type_ge_ptr_ptr_inst ge l1 l2 :=
     [instance type_relop_ptr_ptr ge l1 l2 Oge (bool_decide (l1.2 >= l2.2))].
   Global Existing Instance type_ge_ptr_ptr_inst.
-
+*)
 
   (* Lemma type_roundup_frac_ptr v2 β ty P2 T p: *)
   (*   (P2 -∗ T (val_of_loc p) (t2mt (p @ frac_ptr β ty))) ⊢ *)
@@ -340,10 +343,9 @@ Section own.
   Global Program Instance shr_copyable p ty : Copyable (p @ frac_ptr Shr ty).
   Next Obligation.
     intros. rewrite /Affine /ty_own_val /=.
-    iIntros "[-> ?]".
   Admitted.
   Next Obligation.
-    iIntros (p ty E ot l ? (t & ->)) "(%&#Hmt&#Hty)".
+    iIntros (p ty E ot l) "Htm".
     iMod (heap_mapsto_own_state_to_mt with "Hmt") as (q) "[_ Hl]" => //.
     unfold has_layout_loc.
     rewrite field_compatible_tptr; erewrite mapsto_tptr; iSplitR => //.
