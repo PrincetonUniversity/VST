@@ -67,37 +67,59 @@ Qed.
 
 Definition ob_cond `{!VSTGS OK_ty Σ} {A B} P (Q : A → B → assert) := λ x : A, ∃ y, <affine> ⌜P x y⌝ ∗ Q x y.
 
+Definition ob_cond1 `{!VSTGS OK_ty Σ} {A} P (Q : A → assert) := λ x : A, <affine> ⌜P x⌝ ∗ Q x.
+
 Ltac ob_cond_tac :=
   lazymatch goal with
   | |- envs_entails ?Δ (ob_cond ?P _ _) =>
-      iExists _; iSplit; [iPureIntro; try done | cbv match]
+      iExists _; iSplit; [iPureIntro; try done | simpl align; cbv match]
+  | |- envs_entails ?Δ (ob_cond1 ?P _ _) =>
+      iSplit; [iPureIntro; try done | cbv match]
   | _ => fail "no such ob"
   end.
 
 (* maybe seal *)
 Definition ob_check `{!VSTGS OK_ty Σ} (R : Prop) (P Q : assert) := <affine> ⌜R⌝ ∗ ▷ <absorb> P ∧ Q.
 
+(* Not sure we need this.
+Definition ob_check_ex `{!VSTGS OK_ty Σ} {A} R P (Q : assert) := (▷ ∃ x : A, <absorb> P x ∧ ⌜R x⌝) ∧ Q.*)
+
 Ltac ob_check_tac := rewrite /= ?Ptrofs.repr_unsigned;
   lazymatch goal with
-  | |- envs_entails ?Δ (ob_check _ ?P _) =>
-      iSplit; [iPureIntro; try done | iSplit; [iNext; let i := fresh "i" in evar (i : ident.ident);
+(*  | |- envs_entails ?Δ (ob_check_ex(A := ?A) _ ?P _) =>
+      iSplit; [iNext; let x := fresh "x" in evar (x : A); let i := fresh "i" in evar (i : ident.ident);
         let b := fresh "b" in evar (b : bool);
         let H := fresh "H" in assert (envs_lookup i Δ = Some (b, P)) as H;
         [subst b i; iAssumptionCore || fail "cannot find" P |
-         clear H; clear b; lazymatch goal with i := ?s |- _ => clear i; iApply s end]
-      |]]
+         clear H; clear b; lazymatch goal with i := ?s : ident.ident |- _ => clear i; iExists x; subst x; iSplit; [iApply s | iPureIntro; try by auto] end]
+      |]*)
+  | |- envs_entails ?Δ (ob_check _ ?P _) =>
+      iSplit; [| iSplit; [iNext; let i := fresh "i" in evar (i : ident.ident);
+        let b := fresh "b" in evar (b : bool);
+        let H := fresh "H" in assert (envs_lookup i Δ = Some (b, P)) as H;
+        [subst b i; iAssumptionCore || fail "cannot find" P |
+         clear H; clear b; lazymatch goal with i := ?s : ident.ident |- _ => clear i; iApply s end]
+      |]]; first (iPureIntro; try by auto)
   | _ => fail "no such ob"
   end.
 
-Definition ob_replace `{!VSTGS OK_ty Σ} (P P' Q : assert) := ▷ (P ∗ (P' -∗ Q)).
+Definition ob_replace `{!VSTGS OK_ty Σ} R (P P' Q : assert) := <affine> ⌜R⌝ ∗ ▷ (P ∗ (P' -∗ Q)).
+
+(*Definition ob_replace_ex `{!VSTGS OK_ty Σ} {A} P R P' (Q : assert) := ▷ (∃ x : A, P x ∗ <affine> ⌜R x⌝ ∗ (P' x -∗ Q)).*)
 
 Ltac ob_replace_tac := rewrite /= ?Ptrofs.repr_unsigned;
   lazymatch goal with
-  | |- envs_entails ?Δ (ob_replace ?P _ _) =>
-      iNext; let i := fresh "i" in evar (i : ident.ident);
+(*  | |- envs_entails ?Δ (ob_replace_ex(A := ?A) ?P _ _ _) =>
+      iNext; let x := fresh "x" in evar (x : A); let i := fresh "i" in evar (i : ident.ident);
+        let H := fresh "H" in assert (envs_lookup i Δ = Some (false, P x)) as H;
+        [subst i x; iAssumptionCore || fail "cannot find" P |
+         clear H; clear x; lazymatch goal with i := ?s : ident.ident |- _ => clear i; iFrame s; iSplit; [iPureIntro; try by auto | iIntros s] end]*)
+  | |- envs_entails ?Δ (ob_replace _ ?P _ _) =>
+      iSplit; [| iNext; let i := fresh "i" in evar (i : ident.ident);
         let H := fresh "H" in assert (envs_lookup i Δ = Some (false, P)) as H;
         [subst i; iAssumptionCore || fail "cannot find" P |
-         clear H; lazymatch goal with i := ?s |- _ => clear i; iFrame s; iIntros s end]
+         clear H; lazymatch goal with i := ?s : ident.ident |- _ => clear i; iFrame s; iIntros s end]];
+        first (iPureIntro; try by auto)
   | _ => fail "no such ob"
   end.
 
@@ -153,13 +175,13 @@ Ltac wp_value_head :=
       eapply tac_wp_consts_nofupd
   | |- envs_entails _ (wp_expr _ ?E _ (Econst_long _ _) (ob_cond _ _)) =>
       eapply tac_wp_constl_nofupd
-  | |- envs_entails _ (wp_expr _ ?E _ (Econst_int _ _) (λ _, ob_replace _ _ _)) =>
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_int _ _) (λ _, ob_replace _ _ _ _)) =>
       eapply tac_wp_consti_nofupd
-  | |- envs_entails _ (wp_expr _ ?E _ (Econst_float _ _) (λ _, ob_replace _ _ _)) =>
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_float _ _) (λ _, ob_replace _ _ _ _)) =>
       eapply tac_wp_constf_nofupd
-  | |- envs_entails _ (wp_expr _ ?E _ (Econst_single _ _) (λ _, ob_replace _ _ _)) =>
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_single _ _) (λ _, ob_replace _ _ _ _)) =>
       eapply tac_wp_consts_nofupd
-  | |- envs_entails _ (wp_expr _ ?E _ (Econst_long _ _) (λ _, ob_replace _ _ _)) =>
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_long _ _) (λ _, ob_replace _ _ _ _)) =>
       eapply tac_wp_constl_nofupd
   | |- envs_entails _ (wp_expr _ ?E _ (Econst_int _ _) (λ _, wp_binop _ _ _ _ _ _ _ _)) =>
       eapply tac_wp_consti_nofupd
@@ -343,12 +365,11 @@ Ltac wp_pures :=
 #[global] Opaque temp.
 
 Lemma tac_wp_load `{!VSTGS OK_ty Σ} Δ ge E f e q v (Q : val → assert) :
-  readable_share q →
   envs_entails Δ (wp_lvalue ge E f e (λ '(bl, o),
-    ob_check (v ≠ Vundef) ⎡mapsto q (typeof e) (Vptr bl (Ptrofs.repr o)) v⎤ (Q v))) →
+    ob_check (readable_share q /\ v ≠ Vundef) ⎡mapsto q (typeof e) (Vptr bl (Ptrofs.repr o)) v⎤ (Q v))) →
   envs_entails Δ (wp_expr ge E f e Q).
 Proof.
-  rewrite envs_entails_unseal=> ? Hi.
+  rewrite envs_entails_unseal=> Hi.
   rewrite Hi -wp_expr_mapsto.
   apply wp_lvalue_mono.
   iIntros ((?, ?)) "(% & H) !>".
@@ -388,21 +409,20 @@ Proof.
 Qed.*)
 
 Lemma tac_wp_store `{!VSTGS OK_ty Σ} Δ OK_spec ge E f e1 e2 q v Q :
-  writable0_share q →
-  envs_entails Δ (wp_expr ge E f (Ecast e2 (typeof e1)) (ob_cond(B := unit) (λ v2 u, u = tt /\ Cop2.tc_val' (typeof e1) v2) (λ v2 _,
+  envs_entails Δ (wp_expr ge E f (Ecast e2 (typeof e1)) (ob_cond1 (λ v2, Cop2.tc_val' (typeof e1) v2) (λ v2,
     wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b (Ptrofs.repr o) in
-    ob_replace ⎡mapsto q (typeof e1) v1 v⎤ ⎡mapsto q (typeof e1) v1 v2⎤ (RA_normal Q))))) →
+    ob_replace (writable0_share q) ⎡mapsto q (typeof e1) v1 v⎤ ⎡mapsto q (typeof e1) v1 v2⎤ (RA_normal Q))))) →
   envs_entails Δ (wp OK_spec ge E f (Sassign e1 e2) Q).
 Proof.
-  rewrite envs_entails_unseal=> ? Hi.
+  rewrite envs_entails_unseal=> Hi.
   rewrite Hi -wp_store.
   apply wp_expr_mono.
-  intros ?; rewrite -fupd_intro /ob_cond.
-  iIntros "(% & (_ & %) & H)"; iSplit; first done.
+  intros ?; rewrite -fupd_intro /ob_cond1 /ob_replace.
+  iIntros "(% & H)"; iSplit; first done.
   iApply (wp_lvalue_mono with "H").
-  iIntros ((?, ?)) "H !>".
+  iIntros ((?, ?)) "(% & ? & H) !>".
   iExists q; iSplit; first done.
-  iDestruct "H" as "(? & H)"; iSplitR "H".
+  iSplitR "H".
   { by rewrite mapsto_mapsto_. }
   iIntros "!> ?"; by iApply "H".
 Qed.
@@ -444,13 +464,13 @@ Qed.*)
 
 Lemma tac_wp_set `{!VSTGS OK_ty Σ} Δ OK_spec ge E f x e v0 Q :
   envs_entails Δ (wp_expr ge E f e (λ v,
-    ob_replace (temp x v0) (temp x v) (RA_normal Q))) →
+    ob_replace True (temp x v0) (temp x v) (RA_normal Q))) →
   envs_entails Δ (wp OK_spec ge E f (Sset x e) Q).
 Proof.
   rewrite envs_entails_unseal=> Hi.
   rewrite Hi -wp_set.
   apply wp_expr_mono.
-  iIntros (?) "($ & H) !> !> ? !>"; by iApply "H".
+  iIntros (?) "(_ & $ & H) !> !> ? !>"; by iApply "H".
 Qed.
 
 Lemma tac_wp_var `{!VSTGS OK_ty Σ} Δ ge E f i x b t Q :
@@ -560,8 +580,7 @@ Tactic Notation "wp_load" :=
     first
       [eapply tac_wp_load
       |fail 1 "wp_load: cannot find 'Load' in" e];
-    [auto
-    |wp_finish]
+    [wp_finish]
   | _ => fail "wp_load: not a 'wp'"
   end.
 
@@ -571,8 +590,7 @@ Tactic Notation "wp_store" :=
     first
       [reshape_seq; eapply tac_wp_store
       |fail 1 "wp_store: cannot find 'Store' in" e];
-    [auto
-    |wp_cast]
+    [wp_cast]
   | _ => fail "wp_store: not a 'wp'"
   end.
 

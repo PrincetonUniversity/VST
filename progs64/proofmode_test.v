@@ -108,6 +108,7 @@ Theorem append_spec Espec lx ly : fun_triple Espec cenv_cs (λ args, ∃ x y, <a
   f_append (λ r, ∃ z, <affine> ⌜r = Some z⌝ ∗ listrep Ews (lx ++ ly) z).
 Proof.
   iIntros (??) "(% & % & -> & Hx & Hy) S"; rewrite /stackframe_of' /=.
+  set (cenv := _ : composite_env).
   iDestruct "S" as "(_ & Htx & Hty & Ht & Hu & _)".
   wp_if.
   wp_binop.
@@ -136,7 +137,7 @@ Proof.
     wp_set. wp_load.
     iDestruct (listrep_isptr with "Htl") as %?.
     wp_field. wp_deref. wp_temp.
-    { by intros ->. }
+    { split; last intros ->; auto. }
     reshape_seq.
     iAssert (∃ t u a l', <affine> ⌜field_compatible t_struct_list [] t⌝ ∗ temp _t t ∗ temp _u u ∗
       ⎡list_body Ews a u t⎤ ∗ listrep Ews l' u ∗
@@ -151,7 +152,7 @@ Proof.
       wp_break; simpl.
       iDestruct (listrep_isptr with "Hy") as %Hy.
       wp_store; wp_temp.
-      { split; first done; intros ?; simpl; done. }
+      { intros ?; simpl; done. }
       iDestruct "Ht1" as "(Ht1 & ? & ?)".
       destruct t; try (destruct Ht; contradiction).
       wp_field. wp_deref. wp_temp.
@@ -176,7 +177,7 @@ Proof.
       wp_set. wp_load.
       iDestruct (listrep_isptr with "Hl'") as %?.
       wp_field. wp_deref. wp_temp.
-      { by intros ->. }
+      { split; last intros ->; auto. }
       wp_skip; simpl.
       iApply ("IH" with "[//] Hy [$] [$] [$] [$] [$] Hl'").
       iIntros "H"; iApply "Hpre"; iFrame.
@@ -185,6 +186,7 @@ Qed.
 
 End append.
 
+Require Import VST.floyd.functional_base.
 Require Import VST.progs64.test.
 
 Section test.
@@ -195,7 +197,7 @@ Context `{VSTGS OK_ty Σ}.
 
 Hypothesis malloc_spec : forall Espec ge E f x v t, ∀ Φ,
   temp x v -∗
-  (∀ p, temp x p -∗ ⎡mapsto_ Ews t p⎤ -∗ tycontext.RA_normal Φ) -∗
+  (∀ p, temp x p -∗ ⎡mapsto_ Tsh t p⎤ -∗ tycontext.RA_normal Φ) -∗
   wp Espec ge E f (Scall (Some x) (Evar _malloc (Tfunction [tulong] (tptr tvoid) cc_default)) [Esizeof t tulong]) Φ.
 
 Theorem test_spec Espec : fun_triple Espec cenv_cs (λ args, <affine> ⌜args = []⌝)
@@ -205,9 +207,10 @@ Proof.
   set (cenv := _ : composite_env).
   iDestruct "S" as "((Hp & _) & Hx & Hq & Ht1 & _)".
   iDestruct "Hp" as "(% & % & Hp & Hdata)"; simpl.
+  assert (align_compatible (tptr tint) (Vptr b Ptrofs.zero)) as Halign.
+  { econstructor; eauto. apply Z.divide_0_r. }
   iAssert ⎡mapsto_ Tsh (tptr tint) (Vptr b Ptrofs.zero)⎤ with "[Hdata]" as "Hdata".
-  { rewrite -memory_block_mapsto_ //. admit. }
-  replace Tsh with Ews by admit.
+  { rewrite -memory_block_mapsto_ //. }
   wp_set.
   wp_apply (malloc_spec with "Ht1").
   iIntros (p1) "Ht1 Hp1"; simpl.
@@ -217,55 +220,50 @@ Proof.
   wp_field; wp_var.
   wp_store; wp_temp.
   wp_deref. wp_load; wp_field; wp_var.
-  { done. }
-  ob_cond_tac.
-  ob_replace_tac.
+  wp_finish.
   wp_set; wp_addrof; wp_var.
-  iAssert (∃ n : nat, temp _x (Vint (Int.repr (Z.of_nat n))) ∗
-    ⎡mapsto Ews tint (Vptr b0 i) (Vint (Int.repr (10 - Z.of_nat n)))⎤) with "[Hx Hp1]" as (n) "(Hx & Hp1)".
-  { iExists 5%nat; iFrame. }
+  iAssert (∃ n : nat, <affine> ⌜0 < n < Int.max_signed⌝ ∗ temp _x (Vint (Int.repr (Z.of_nat n))) ∗
+    ⎡mapsto Tsh tint (Vptr b0 i) (Vint (Int.repr (10 - Z.of_nat n)))⎤) with "[Hx Hp1]"
+    as (n) "(%Hn & Hx & Hp1)".
+  { iExists 5%nat; iFrame; auto. }
   iApply wp_seq.
-  iLöb as "IH" forall (n).
+  iLöb as "IH" forall (n Hn).
   wp_loop; wp_skip; simpl.
   wp_store; wp_binop.
   wp_load; wp_deref.
   wp_load; wp_field; wp_deref; wp_temp.
-  { done. }
   wp_finish.
-  { done. }
   wp_finish.
-  wp_deref.
-  wp_load; wp_field. (* get rid of wp_load? *)
+  wp_deref. wp_load; wp_field. (* get rid of wp_load? *)
   wp_deref; wp_temp.
-  { done. }
   wp_finish.
   wp_set; wp_binop; wp_temp.
   rewrite coqlib3.sub_repr !reptype_lemmas.ptrofs_add_repr_0_r.
   wp_if; wp_binop; wp_temp.
   iNext; iSplit; first done.
   simpl.
-  destruct (Int.eq _ _) eqn: Heq; simpl.
+  rewrite /Int.lt !Int.signed_repr; [if_tac; simpl | rep_lia..].
   - wp_skip; simpl.
     wp_skip; simpl.
-    replace (Z.of_nat n - 1) with (Z.of_nat (n - 1)) by admit.
-    iApply ("IH" with "[$] [$] [$] [$] [$]").
+    replace (Z.of_nat n - 1) with (Z.of_nat (n - 1)) by lia.
+    iApply ("IH" with "[%] [$] [$] [$] [$] [$]"); first by lia.
     rewrite coqlib3.add_repr.
-    replace (10 - Z.of_nat n + 1) with (10 - Z.of_nat (n - 1)) by admit.
+    replace (10 - Z.of_nat n + 1) with (10 - Z.of_nat (n - 1)) by lia.
     done.
   - wp_break; simpl.
     wp_return; wp_load; wp_deref.
     wp_load; wp_field; wp_var.
-    { done. }
     wp_finish.
-    { done. }
     wp_finish.
     iSplitR "Hp Hdata Hx Hq Ht1"; last (iExists [_; _; _]; simpl; iFrame).
     rewrite /= /bind_ret /=.
     iPureIntro.
     rewrite coqlib3.add_repr.
-    admit. (* math *)
+    assert (n = 1%nat) as -> by rep_lia; auto.
     { iSplit; first done.
-      admit. }
+      change (Ctypes.sizeof _) with (sizeof (tptr tint)).
+      rewrite memory_block_mapsto_ //.
+      by iApply mapsto_mapsto_. }
 Qed.
 
 End test.
