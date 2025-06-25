@@ -28,7 +28,7 @@ Global Instance subG_lockG {Σ} : subG lockΣ Σ → lockG Σ.
 Proof. solve_inG. Qed.
 
 Section type.
-  Context `{!lockG Σ} `{!typeG OK_ty Σ} {cs : compspecs}.
+  Context `{!lockG Σ} `{!typeG OK_ty Σ} {cs : compspecs} (ge : genv).
 
   Definition lock_token (γ : lock_id) (l : list string) : mpred :=
     ∃ s : gset string, ⌜l ≡ₚ elements s⌝ ∧ own (inG0 := lock_inG) γ (●{dfrac.DfracOwn 1} (GSet s) : gset_disjUR_authR).
@@ -53,6 +53,8 @@ Section type.
     iModIntro. iExists γ, ∅. by iFrame.
   Qed.
 
+  Check ty_has_op_type.
+
   Program Definition tylocked_ex {A} (γ : lock_id) (n : string) (x : A) (ty : A → type) : type := {|
     ty_has_op_type ot mt := (ty x).(ty_has_op_type) ot mt;
     ty_own β l := (match β return _ with
@@ -60,14 +62,15 @@ Section type.
                   | Shr => ∃ γ', inv lockN ((∃ x', l ◁ₗ ty x' ∗
                                                     own γ' (Excl ())) ∨ own γ (◯ (GSet {[ n ]}): gset_disjUR_authR))
                   end)%I;
-    ty_own_val v := (v ◁ᵥ (ty x))%I;
+    ty_own_val cty v := (v ◁ᵥ|cty| (ty x))%I;
   |}.
   Next Obligation.
-    iIntros (A γ n x ty l E HE) "Hl".
+    iIntros (A???????) "H".
     iMod (own_alloc (Excl ())) as (γ') "Hown" => //.
     iExists _. iApply inv_alloc. iIntros "!#". iLeft. iExists _. by iFrame.
   Qed.
-  Next Obligation. iIntros (A γ n x ty ot mt v ?) "Hl". by iApply ty_aligned. Qed.
+  Next Obligation.
+    iIntros (A γ n x ty ot mt v ?) "Hl". by iApply ty_aligned. Qed.
   Next Obligation.
     iIntros (A γ n x ty ot mt v ?) "Hl". by iApply ty_size_eq. Qed.
   Next Obligation.
