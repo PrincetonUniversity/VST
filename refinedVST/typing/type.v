@@ -749,6 +749,9 @@ Ltac simpl_type :=
         | |- context C [ty_own_val (?x @ {| rty := ?f |} )] =>
             let G := context C [let '({| ty_own_val := y |} ) := (f x) in y ] in
             change G
+        | |- context C [ty_own_val_at ?cty (?x @ {| rty := ?f |} )] =>
+            let G := context C [let '({| ty_own_val := y |} ) := (f x) in y cty ] in
+            change G
      end; simpl.
 
 Ltac unfold_type_equiv :=
