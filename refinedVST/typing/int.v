@@ -190,6 +190,17 @@ Section int.
     rewrite /tc_val' repinject_valinject // in H1. by apply H1.
   Qed.
 
+  Lemma ty_own_val_int_in_range v n it :
+    v ◁ᵥₐₗ|it| n @ int it -∗ ⌜n ∈ it⌝.
+  Proof.
+    intros.
+    iIntros "(% & % & %)".
+    iPureIntro. eapply val_to_Z_in_range; try done.
+    rewrite -> repinject_valinject in H1 |- *; [|by destruct it..].
+    eapply has_layout_val_tc_val; eauto.
+    eapply val_to_Z_not_Vundef; done.
+  Qed.
+
   Lemma ty_own_int_in_range l β n it :
     l ◁ₗ{β} n @ int it -∗ ⌜n ∈ it⌝.
   Proof.
