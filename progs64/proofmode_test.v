@@ -134,7 +134,7 @@ Proof.
     iNext; iSplit; first done; simpl.
     wp_set; wp_temp; simpl.
     rewrite list_unfold; iDestruct "Hx" as "(% & Hhd1 & Hspace & Htl1)".
-    wp_set. wp_load.
+    wp_set.
     iDestruct (listrep_isptr with "Htl") as %?.
     wp_field. wp_deref. wp_temp.
     { split; last intros ->; auto. }
@@ -174,7 +174,7 @@ Proof.
       wp_skip; simpl.
       wp_set; wp_temp; simpl.
       rewrite list_unfold; iDestruct "Hh'" as "(% & Hhd1 & Hspace & Htl1)".
-      wp_set. wp_load.
+      wp_set.
       iDestruct (listrep_isptr with "Hl'") as %?.
       wp_field. wp_deref. wp_temp.
       { split; last intros ->; auto. }
@@ -219,8 +219,7 @@ Proof.
   wp_store; wp_temp.
   wp_field; wp_var.
   wp_store; wp_temp.
-  wp_deref. wp_load; wp_field; wp_var.
-  wp_finish.
+  wp_deref. wp_field; wp_var.
   wp_set; wp_addrof; wp_var.
   iAssert (∃ n : nat, <affine> ⌜0 < n < Int.max_signed⌝ ∗ temp _x (Vint (Int.repr (Z.of_nat n))) ∗
     ⎡mapsto Tsh tint (Vptr b0 i) (Vint (Int.repr (10 - Z.of_nat n)))⎤) with "[Hx Hp1]"
@@ -230,13 +229,10 @@ Proof.
   iLöb as "IH" forall (n Hn).
   wp_loop; wp_skip; simpl.
   wp_store; wp_binop.
-  wp_load; wp_deref.
-  wp_load; wp_field; wp_deref; wp_temp.
-  wp_finish.
-  wp_finish.
-  wp_deref. wp_load; wp_field. (* get rid of wp_load? *)
+  wp_deref.
+  wp_field; wp_deref; wp_temp.
+  wp_deref. wp_field.
   wp_deref; wp_temp.
-  wp_finish.
   wp_set; wp_binop; wp_temp.
   rewrite coqlib3.sub_repr !reptype_lemmas.ptrofs_add_repr_0_r.
   wp_if; wp_binop; wp_temp.
@@ -251,10 +247,8 @@ Proof.
     replace (10 - Z.of_nat n + 1) with (10 - Z.of_nat (n - 1)) by lia.
     done.
   - wp_break; simpl.
-    wp_return; wp_load; wp_deref.
-    wp_load; wp_field; wp_var.
-    wp_finish.
-    wp_finish.
+    wp_return; wp_deref.
+    wp_field; wp_var.
     iSplitR "Hp Hdata Hx Hq Ht1"; last (iExists [_; _; _]; simpl; iFrame).
     rewrite /= /bind_ret /=.
     iPureIntro.

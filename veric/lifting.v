@@ -739,7 +739,7 @@ Qed.
 
 Lemma wp_switch: forall E f e ls R,
   wp_expr ge E f e (λ v, ∃ i, ⌜sem_switch_arg v (typeof e) = Some i⌝ ∧
-    wp E f (seq_of_labeled_statement (select_switch i ls)) (switch_ret_assert R)) ⊢
+    ▷ wp E f (seq_of_labeled_statement (select_switch i ls)) (switch_ret_assert R)) ⊢
   wp E f (Sswitch e ls) R.
 Proof.
   intros; rewrite /wp.

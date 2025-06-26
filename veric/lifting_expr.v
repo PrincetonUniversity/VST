@@ -273,24 +273,39 @@ Proof.
 Qed.
 
 Lemma wp_const_long E f i t P:
-  P (Vlong i)
-  ⊢ wp_expr E f (Econst_long i t) P.
+  P (Vlong i) ⊢ wp_expr E f (Econst_long i t) P.
 Proof.
   rewrite -wp_const_long_fupd; apply fupd_intro.
 Qed.
 
 Lemma wp_const_float E f i t P:
-  P (Vfloat i)
-  ⊢ wp_expr E f (Econst_float i t) P.
+  P (Vfloat i) ⊢ wp_expr E f (Econst_float i t) P.
 Proof.
   rewrite -wp_const_float_fupd; apply fupd_intro.
 Qed.
 
 Lemma wp_const_single E f i t P:
-  P (Vsingle i)
-  ⊢ wp_expr E f (Econst_single i t) P.
+  P (Vsingle i) ⊢ wp_expr E f (Econst_single i t) P.
 Proof.
   rewrite -wp_const_single_fupd; apply fupd_intro.
+Qed.
+
+Lemma wp_sizeof E f ty t P:
+  P (Vptrofs (Ptrofs.repr (@Ctypes.sizeof ge ty))) ⊢ wp_expr E f (Esizeof ty t) P.
+Proof.
+  rewrite /wp_expr.
+  iIntros "? !> %% ?? !>".
+  iFrame.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
+Qed.
+
+Lemma wp_alignof E f ty t P:
+  P (Vptrofs (Ptrofs.repr (@Ctypes.alignof ge ty))) ⊢ wp_expr E f (Ealignof ty t) P.
+Proof.
+  rewrite /wp_expr.
+  iIntros "? !> %% ?? !>".
+  iFrame.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
 Qed.
 
 (* Caesium uses a small-step semantics for exprs, so the wp/typing for an operation can be broken up into
@@ -945,6 +960,101 @@ Proof.
   iIntros "!>"; iExists _; iFrame.
   iStopProof; do 7 f_equiv.
   intros ??; econstructor; eauto.
+Qed.
+
+Definition bool_val' (v: val) (t: type) : option bool :=
+  match classify_bool t with
+  | bool_case_i =>
+      match v with
+      | Vint n => Some (negb (Int.eq n Int.zero))
+      | Vptr b ofs =>
+          if Archi.ptr64 then None else Some true
+      | _ => None
+      end
+  | bool_case_l =>
+      match v with
+      | Vlong n => Some (negb (Int64.eq n Int64.zero))
+      | Vptr b ofs =>
+          if negb Archi.ptr64 then None else Some true
+      | _ => None
+      end
+  | bool_case_f =>
+      match v with
+      | Vfloat f => Some (negb (Float.cmp Ceq f Float.zero))
+      | _ => None
+      end
+  | bool_case_s =>
+      match v with
+      | Vsingle f => Some (negb (Float32.cmp Ceq f Float32.zero))
+      | _ => None
+      end
+  | bool_default => None
+  end.
+
+Definition sem_notbool' (v: val) (ty: type): option val :=
+  option_map (fun b => Val.of_bool (negb b)) (bool_val' v ty).
+
+Definition sem_unary_operation'
+            (op: unary_operation) (v: val) (ty: type): option val :=
+  match op with
+  | Onotbool => sem_notbool' v ty
+  | Onotint => Cop.sem_notint v ty
+  | Oneg => Cop.sem_neg v ty
+  | Oabsfloat => Cop.sem_absfloat v ty
+  end.
+
+Definition sc_boolval v t :=
+  match classify_bool t with
+  | bool_case_i =>
+      match v with
+      | Vptr b ofs => if Archi.ptr64 then True else weak_valid_pointer v
+      | _ => True
+      end
+  | bool_case_l =>
+      match v with
+      | Vptr b ofs => if negb Archi.ptr64 then True else weak_valid_pointer v
+      | _ => True
+      end
+  | _ => True
+  end.
+
+Definition sc_unop op t1 v1 :=
+  match op with
+  | Onotbool => sc_boolval v1 t1
+  | _ => True
+  end.
+
+Lemma sc_boolval_sound : forall v t m,
+  ⊢ sc_boolval v t -∗ mem_auth m -∗
+  ⌜Cop.bool_val v t m = bool_val' v t⌝.
+Proof.
+  intros; iIntros "H Hm".
+  rewrite /sc_boolval /Cop.bool_val /bool_val'.
+  destruct (classify_bool t); simpl; try done.
+  destruct v; simpl; try done.
+  simple_if_tac; try done.
+  by rewrite /Mem.weak_valid_pointer; iDestruct (weak_valid_pointer_dry with "[$]") as %->.
+Qed.
+
+Lemma sc_unop_sound : forall op t1 v1 m,
+  ⊢ sc_unop op t1 v1 -∗ mem_auth m -∗
+  ⌜Cop.sem_unary_operation op v1 t1 m = sem_unary_operation' op v1 t1⌝.
+Proof.
+  intros; iIntros "H Hm".
+  rewrite /sc_unop /Cop.sem_unary_operation /sem_unary_operation'.
+  destruct op; try done.
+  rewrite /Cop.sem_notbool /sem_notbool'.
+  by iDestruct (sc_boolval_sound with "H Hm") as %->.
+Qed.
+
+Lemma wp_unop_sc : forall E op t1 v1 v P,
+  sem_unary_operation' op v1 t1 = Some v →
+  ⎡sc_unop op t1 v1⎤ ∧ P v ⊢ wp_unop E op t1 v1 P.
+Proof.
+  intros; rewrite /wp_unop.
+  iIntros "H !>" (?) "Hm !>".
+  iDestruct (sc_unop_sound with "[H] Hm") as %->; first by rewrite bi.and_elim_l.
+  rewrite bi.and_elim_r; eauto with iFrame.
 Qed.
 
 Definition cast_pointer_to_bool t1 t2 :=
