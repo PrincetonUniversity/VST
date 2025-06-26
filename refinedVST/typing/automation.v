@@ -483,7 +483,7 @@ Local Open Scope clight_scope.
     iIntros.
     simpl.
     repeat liRStep.
-    
+  Abort.
 
 End automation_tests.
 

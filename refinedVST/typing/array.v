@@ -674,14 +674,10 @@ Section array.
                                      ((l arr_ofs{elm_cty, length tys - i}ₗ i) @ &own (array_ptr elm_cty l i $ length tys)))
     ⊢ typed_bin_op ge l ⎡l ◁ₗ{β} array elm_cty tys⎤ v ⎡v ◁ᵥₐₗ|ofs_cty| i @ int ofs_cty⎤ Oadd (tptr elm_cty) ofs_cty (tptr elm_cty) T.
   Proof.
-    iIntros "( % & % & HT)".
+    iIntros "( % & % & HT) (% & Hl) Hv" (Φ) "HΦ".
+    iDestruct (ty_own_val_int_in_range with "Hv") as "%".
     unfold int; simpl_type.
-    iIntros "(% & Hl) (% & % & %)" (Φ) "HΦ".
-    apply val_to_Z_in_range in H4 as ?.
-    2: {
-      (* TODO ty_own_val_int_in_range*)
-      admit.
-    }
+    iDestruct "Hv" as "(% & % & %)".
     rewrite !Z.add_0_l.
     iApply wp_binop_sc.
     {
@@ -689,16 +685,16 @@ Section array.
       match goal with | |- ?x = _ =>
       instantiate (1:=adr2val (l.1, l.2 + expr.sizeof elm_cty * i)) end.
       rewrite /sem_add; destruct ofs_cty; try done; simpl.
-      - destruct i0, v, s eqn:Hs; try done; rewrite /val_to_Z /= in H4; inversion H4;
+      - destruct i0, v, s eqn:Hs; try done; rewrite /val_to_Z /= in H5; inv H5;
         rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //=.
-        + repeat f_equal. apply Int.signed_eq_unsigned. inv H5. simpl in *. rep_lia.
-        + repeat f_equal. apply Int.signed_eq_unsigned. inv H5. simpl in *. rep_lia.
-        + repeat f_equal. apply Int.signed_eq_unsigned. inv H5. simpl in *. rep_lia.
+        + repeat f_equal. apply Int.signed_eq_unsigned. inv H2. simpl in *. rep_lia.
+        + repeat f_equal. apply Int.signed_eq_unsigned. inv H2. simpl in *. rep_lia.
+        + repeat f_equal. apply Int.signed_eq_unsigned. inv H2. simpl in *. rep_lia.
       - simpl. destruct v; try done. rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //=.
-        destruct s; inv H4; try done.
-        repeat f_equal. rewrite Int64.unsigned_signed //. rewrite /Int64.lt /=. if_tac ; try rep_lia. inv H5.
-        simpl in *. rewrite -H7 in H4, H0.
-        rewrite Int64.signed_zero in H2.
+        destruct s; inv H5; try done.
+        repeat f_equal. rewrite Int64.unsigned_signed //. rewrite /Int64.lt /=. if_tac ; try rep_lia. inv H2.
+        simpl in *. rewrite -H7 in H5, H0.
+        rewrite Int64.signed_zero in H3.
         rep_lia.
     }
     iSplit => //.
@@ -712,7 +708,7 @@ Section array.
     rewrite /ty_own_val_at /ty_own_val /=.
     iSplit => //. iSplit => //. iSplit => //.
     iPureIntro. eapply has_layout_loc_array_ofs; try done. simpl. done.
-  Admitted.
+  Qed.
   Definition type_bin_op_offset_array_inst := [instance type_bin_op_offset_array].
   Global Existing Instance type_bin_op_offset_array_inst.
 
@@ -747,7 +743,7 @@ Section array.
     iSplit => //. iSplit => //. iSplit => //.
     iPureIntro.
     eapply has_layout_loc_array_ofs in H4; try done.
-  Admitted.
+  Qed.
   Definition type_bin_op_offset_array_ptr_inst := [instance type_bin_op_offset_array_ptr].
   Global Existing Instance type_bin_op_offset_array_ptr_inst.
 
@@ -782,7 +778,7 @@ Section array.
     iSplit => //. iSplit => //. iSplit => //.
     iPureIntro.
     eapply has_layout_loc_array_ofs in H4; try done.
-  Admitted.
+  Qed.
   Definition type_bin_op_neg_offset_array_ptr_inst := [instance type_bin_op_neg_offset_array_ptr].
   Global Existing Instance type_bin_op_neg_offset_array_ptr_inst.
 
