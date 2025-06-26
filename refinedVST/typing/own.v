@@ -117,8 +117,11 @@ Section own.
 
   Lemma simplify_goal_frac_ptr_val_unrefined cty ty (v : val) β T:
     (∃ p : address, <affine> ⌜v = p⌝ ∗ p ◁ₗ{β} ty ∗ T)
-      ⊢ simplify_goal (v ◁ᵥₐₗ|cty| frac_ptr β ty) T.
-  Proof. iIntros "[% [-> [? $]]]". iExists _. iSplit. Admitted.
+      ⊢ simplify_goal (v ◁ᵥₐₗ|tptr cty| frac_ptr β ty) T.
+  Proof. iIntros "[% [-> [? $]]]".
+         rewrite /ty_own_val_at /ty_own_val /=.
+         iExists _. iSplit; auto.
+  Qed.
   Definition simplify_goal_frac_ptr_val_unrefined_inst :=
     [instance simplify_goal_frac_ptr_val_unrefined with 0%N].
   Global Existing Instance simplify_goal_frac_ptr_val_unrefined_inst.
@@ -189,9 +192,7 @@ Section own.
     iIntros "HT1 Hl".
     iDestruct ("HT1" with "Hl") as "HT".
     iStopProof; f_equiv; iIntros "HT".
-    rewrite /adr2val /bool_val /=.
-    rewrite andb_false_r /=.
-    eauto.
+    rewrite /adr2val /bool_val /= andb_false_r /=; eauto.
   Qed.
   Definition type_if_ptr_own_inst := [instance type_if_ptr_own].
   Global Existing Instance type_if_ptr_own_inst.
@@ -688,7 +689,7 @@ Section null.
 
   Lemma type_if_null cty v t T1 T2:
     valid_val v ∧ T2
-    ⊢ typed_if (tptr t) v (v  ◁ᵥₐₗ|tptr cty| null) (valid_val v) T1 T2.
+    ⊢ typed_if (tptr t) v (v ◁ᵥₐₗ|tptr cty| null) (valid_val v) T1 T2.
   Proof.
     iIntros "Hv HT2".
     iSplit.
