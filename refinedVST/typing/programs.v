@@ -183,7 +183,8 @@ Section judgements.
   (*** statements *)
 (*  Definition typed_stmt_post_cond (fn : function) (ls : list address) (R : val → type → iProp Σ) (v : val) : iProp Σ :=
     (∃ ty, v ◁ᵥ ty ∗ ([∗ list] l;v ∈ ls;(fn.(f_args) ++ fn.(f_local_vars)), l ↦|v.2|) ∗ R v ty)%I. *)
-  Context (OK_spec : ext_spec OK_ty) (ge : genv).
+  Context (OK_spec : ext_spec OK_ty) (ge_genv : Genv.t Clight.fundef Ctypes.type).
+  #[local] Definition ge := (Build_genv ge_genv cenv_cs).
 
   (* Possibly we will want break-types, continue-types, etc. For now, using option to distinguish between
      fallthrough (normal) type and return type. *)
@@ -564,7 +565,7 @@ Arguments learnable_data {_ _} _.
 (*Arguments learnalign_learn {_ _ _ _ _} _.*)
 
 Section proper.
-  Context `{!typeG OK_ty Σ} {cs : compspecs} (ge: genv).
+  Context `{!typeG OK_ty Σ} {cs : compspecs} (ge : Genv.t Clight.fundef Ctypes.type).
 
   Lemma simplify_hyp_place_eq ty1 ty2 (Heq : ty1 ≡@{type} ty2) l β T:
     (l ◁ₗ{β} ty2 -∗ T) ⊢ simplify_hyp (l◁ₗ{β} ty1) T.
@@ -573,11 +574,6 @@ Section proper.
   Lemma simplify_goal_place_eq ty1 ty2 (Heq : ty1 ≡@{type} ty2) l β T:
     l ◁ₗ{β} ty2 ∗ T ⊢ simplify_goal (l◁ₗ{β} ty1) T.
   Proof. rewrite Heq. iIntros "$". Qed.
-
-  (* Global Instance ty_own_val_le cty: Proper ((⊑)  ==> eq ==> (⊢)) (ty_own_val_at cty).
-  Proof. intros ?? EQ ??->. apply EQ. Qed.
-  Global Instance ty_own_val_proper cty: Proper ((≡) ==> eq ==> (≡)) (ty_own_val_at cty).
-  Proof. intros ?? EQ ??->. apply EQ. Qed. *)
 
   Lemma simplify_hyp_val_eq cty ty1 ty2 (Heq : ty1 ≡@{type} ty2) v T:
     (v ◁ᵥ|cty| ty2 -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| ty1) T.

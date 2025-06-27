@@ -4,7 +4,7 @@ From lithium Require Import hooks normalize.
 From VST.lithium Require Export all.
 From VST.typing Require Export type.
 From VST.typing.automation Require Export proof_state (* solvers simplification loc_eq. *).
-From VST.typing Require Import programs (* function *) singleton (* own *) (* struct *) (* bytes *) int.
+From VST.typing Require Import programs (* function *) singleton array (* struct *) bytes own int.
 Set Default Proof Using "Type".
 Set Nested Proofs Allowed.
 (** * Defining extensions *)
@@ -366,11 +366,11 @@ Ltac split_blocks Pfull Ps :=
   repeat (iApply tac_split_big_sepM; [reflexivity|]; iIntros "?"); iIntros "_".
 *)
 
-
+Import env.
 Section automation_tests.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
   
-  Import env.
+
 
   Goal forall Espec ge f (_x:ident) (x:val),
   temp _x x
@@ -385,10 +385,10 @@ Section automation_tests.
     liShow; try done.
   Qed.
 
-  Goal forall Espec ge f (_x:ident) b  (l:address) ty,
+  Goal forall Espec ge f (_x:ident) b (l:address) ty,
   TCDone (ty_has_op_type ty tint MCNone) ->
   ⊢ lvar _x tint b -∗
-    ⎡ ty_own ty Own (b, Ptrofs.unsigned Ptrofs.zero) ⎤ -∗
+    ⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ ty ⎤ -∗
     typed_stmt Espec ge (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) f
                (λ v t, ⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True).
   Proof.
@@ -422,6 +422,69 @@ Section automation_tests.
   liRStep.
   done.
 Qed.
+
+End automation_tests.
+
+Section automation_tests.
+Import Clightdefs.ClightNotations.
+Local Open Scope Z_scope.
+Local Open Scope string_scope.
+Local Open Scope clight_scope.
+
+  Definition _ar : ident := $"ar".
+  Definition _i : ident := $"i".
+  Definition _j : ident := $"j".
+  Definition _k : ident := $"k".
+  Definition _main : ident := $"main".
+  Definition _permute : ident := $"permute".
+  Definition _t'1 : ident := 128%positive.
+
+  Definition f_permute := {|
+    fn_return := tvoid;
+    fn_callconv := cc_default;
+    fn_params := ((_ar, (tptr tint)) :: (_i, tint) :: (_j, tint) :: nil);
+    fn_vars := nil;
+    fn_temps := ((_k, tint) :: (_t'1, tint) :: nil);
+    fn_body :=
+  (Ssequence
+    (Sset _k
+      (Ederef
+        (Ebinop Oadd (Etempvar _ar (tptr tint)) (Etempvar _i tint) (tptr tint))
+        tint))
+    (Ssequence
+      (Ssequence
+        (Sset _t'1
+          (Ederef
+            (Ebinop Oadd (Etempvar _ar (tptr tint)) (Etempvar _j tint)
+              (tptr tint)) tint))
+        (Sassign
+          (Ederef
+            (Ebinop Oadd (Etempvar _ar (tptr tint)) (Etempvar _i tint)
+              (tptr tint)) tint) (Etempvar _t'1 tint)))
+      (Sassign
+        (Ederef
+          (Ebinop Oadd (Etempvar _ar (tptr tint)) (Etempvar _j tint)
+            (tptr tint)) tint) (Etempvar _k tint))))
+  |}.
+
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  Goal forall Espec ge ar_b i_b j_b (i j: nat) (k t'1: val) (elts:list Z) v1 v2 f,
+    ⊢ lvar _ar (tptr tint) ar_b -∗
+      lvar _i tint i_b -∗
+      ⎡(i_b, 0)↦|tint| (Vint (Int.repr i))⎤ -∗
+      lvar _j tint j_b -∗
+      ⎡(j_b, 0)↦|tint| (Vint (Int.repr j))⎤ -∗
+      temp _k k -∗
+      temp _t'1 t'1 -∗
+      ⎡(ar_b, 0) ◁ₗ (array tint (elts `at_type` int tint)) ⎤-∗
+      <affine> ⌜elts !! i = Some v1⌝ ∗ <affine> ⌜elts !! j = Some v2⌝ ∗ <affine> ⌜i ≠ j⌝ -∗
+    typed_stmt Espec ge (fn_body f_permute) f (λ _ _, ⎡((ar_b, 0) ◁ₗ (array tint (<[j:=v1]>(<[i:=v2]>elts) `at_type` int tint)))⎤).
+  Proof.
+    iIntros.
+    simpl.
+    repeat liRStep.
+  Abort.
+
 End automation_tests.
 
 From VST.typing Require Import automation_test.

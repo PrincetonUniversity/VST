@@ -1,7 +1,8 @@
 From iris.algebra Require Import list.
 From VST.typing Require Export type.
-(* From VST.typing Require Import programs singleton bytes int own.
-From VST.typing Require Import type_options. *)
+From VST.typing Require Import programs singleton (* bytes *) boolean int own.
+Import int.
+From VST.typing Require Import type_options.
 From VST.floyd Require Import aggregate_pred.
 Import aggregate_pred.
 From VST.floyd Require Export field_at.
@@ -138,41 +139,56 @@ Section array.
     Qed.
 
   (* maybe using field_compatible_cons_Tarray/field_compatible_shrink makes proof simpler? *)
-  Lemma has_layout_loc_array_tl l l_1 cty (s:nat) :
-    l_1 = (l.1, l.2 + @expr.sizeof cs cty)%Z →
-    l `has_layout_loc` tarray cty (S s) →
-    l_1 `has_layout_loc` tarray cty s.
+  Lemma has_layout_loc_array_ofs l l_idx cty n (idx:Z) :
+    0 <= idx <= n →
+    l_idx = (l.1, l.2 + expr.sizeof cty * idx)%Z →
+    l `has_layout_loc` tarray cty n →
+    l_idx `has_layout_loc` tarray cty (n - idx).
   Proof.
-    intros Hl_1 l_has_layout_loc.
+    intros Hidx Hl_idx l_has_layout_loc.
     pose proof (sizeof_pos cty) as Hcty_size_pos.
     
     rewrite /has_layout_loc /field_compatible in l_has_layout_loc.
     destruct l_has_layout_loc as (? & ? & ? & ? & ?).
-    rewrite /has_layout_loc /field_compatible Hl_1.
+    rewrite /has_layout_loc /field_compatible Hl_idx.
     destruct (adr2val l) eqn:?; try done.
     simpl in H1. rewrite /adr2val in Heqv. inv Heqv.
+    rewrite Z.max_r in H1; [|lia].
+    assert (sizeof cty * idx ≤ sizeof cty * n). (* don't know why rep_lia can't prove this *)
+    { apply Z.mul_le_mono_nonneg_l; lia. }
     split3; try done.
     split3; try done.
     - rewrite /= Z.max_r; [|lia].
       rewrite -ptrofs_add_repr /expr.sizeof.
       destruct (Ptrofs.unsigned_add_either (Ptrofs.repr l.2) 
-                                            (Ptrofs.repr (sizeof cty))) as [-> | ->].
-      + rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty))]Ptrofs.unsigned_repr; rep_lia.
+                                            (Ptrofs.repr (sizeof cty * idx))) as [-> | ->].
+      + rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty * idx))]Ptrofs.unsigned_repr; rep_lia.
       + rep_lia.
-    - rewrite /SeparationLogic.align_compatible /=.
+    - rewrite /align_compatible_dec.align_compatible /=.
       rewrite -ptrofs_add_repr /expr.sizeof.
-      rewrite /SeparationLogic.align_compatible /= in H2.
+      rewrite /align_compatible_dec.align_compatible /= in H2.
       pose proof (align_mem.align_compatible_rec_Tarray_inv _ _ _ _ _ H2).
       rewrite Ptrofs.unsigned_add_carry.
       rewrite /Ptrofs.add_carry.
       if_tac.
-      + rewrite Ptrofs.unsigned_zero /= Z.mul_0_l Z.sub_0_r.
-        rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty))]Ptrofs.unsigned_repr; last rep_lia.
-        constructor. intros. rewrite -Z.add_assoc Zred_factor2. apply H4. lia.
-      + rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty))]Ptrofs.unsigned_repr in H5; last rep_lia.
-        rewrite Ptrofs.unsigned_zero Z.add_0_r in H5.
-        assert ( Ptrofs.unsigned (Ptrofs.repr l.2) + sizeof cty < Ptrofs.modulus) by rep_lia.
+      + rewrite Ptrofs.unsigned_zero /= Z.sub_0_r.
+        rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty * idx))]Ptrofs.unsigned_repr; try rep_lia.
+        constructor. intros. rewrite -Z.add_assoc -Z.mul_add_distr_l. apply H5. lia.
+      + rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty * idx))]Ptrofs.unsigned_repr in H6; last rep_lia.
+        rewrite Ptrofs.unsigned_zero Z.add_0_r in H6.
+        assert (Ptrofs.unsigned (Ptrofs.repr l.2) + sizeof cty * idx < Ptrofs.modulus) by rep_lia.
         contradiction.
+  Qed.
+
+  Lemma has_layout_loc_array_tl l l_1 cty (s:nat) :
+    l_1 = (l.1, l.2 + @expr.sizeof cs cty)%Z →
+    l `has_layout_loc` tarray cty (S s) →
+    l_1 `has_layout_loc` tarray cty s.
+  Proof.
+    intros.
+    replace (Z.of_nat s) with (Z.of_nat (S s) - 1) by lia.
+    eapply has_layout_loc_array_ofs; try rep_lia; try done.
+    rewrite Z.mul_1_r //.
   Qed.
 
   Lemma has_layout_loc_array_hd l cty s :
@@ -196,8 +212,8 @@ Section array.
       apply Zplus_le_compat_l.
       destruct (decide (sizeof cty = 0)); try rep_lia.
       apply Z.le_mul_diag_r; lia.
-    - rewrite /SeparationLogic.align_compatible /=.
-      rewrite /SeparationLogic.align_compatible /= in H2.
+    - rewrite /align_compatible_dec.align_compatible /=.
+      rewrite /align_compatible_dec.align_compatible /= in H2.
       pose proof (align_mem.align_compatible_rec_Tarray_inv _ _ _ _ _ H2 0).      
       rewrite Z.mul_0_r Z.add_0_r in H4. apply H4. lia.
   Qed.
@@ -420,8 +436,9 @@ Section array.
     destruct tys as [|ty' tys] => //; simpl in *; simplify_eq;
     iDestruct "Ha" as "[$ Ha]".
     { rewrite /place /=; iFrame. rewrite /ty_own //. }
-    rewrite !offset_sub_S. setoid_rewrite offset_sub_S.
+    setoid_rewrite offset_sub_S.
     iDestruct ("IH" with "[//] Ha") as "[Hb2 $]" => //.
+    Unshelve. constructor. 
   Qed.
 
   Lemma array_put_type (i : nat) cty tys ty l β:
@@ -437,13 +454,13 @@ Section array.
     iInduction (i) as [|i] "IH" forall (l tys Hlt);
     destruct tys as [|ty' tys] => //; simpl in *; try lia.
     - iFrame. iDestruct "Ha" as "[? $]". by iFrame.
-    - rewrite offset_sub_S.
-      setoid_rewrite offset_sub_S.
+    - setoid_rewrite offset_sub_S.
       iDestruct "Ha" as "[$ Ha]".
       iDestruct ("IH" with "[] [Hl] Ha") as "[Hb2 ?]" => //; iClear "IH".
       { iPureIntro. lia. }
       setoid_rewrite <-Nat.succ_lt_mono.
       iFrame.
+      Unshelve. constructor.
   Qed.
 
   (* Global Instance array_alloc_alive ly tys β P `{!TCExists (λ ty, AllocAlive ty β P) tys} :
@@ -468,20 +485,21 @@ Section array.
   Definition subsume_array_alloc_alive_inst := [instance subsume_array_alloc_alive].
   Global Existing Instance subsume_array_alloc_alive_inst | 10. *)
   (*** array_ptr *)
-  (* Program Definition array_ptr (ly : layout) (base : loc) (idx : Z) (len : nat) : type := {|
+  Program Definition array_ptr (cty : Ctypes.type) (base : address) (idx : Z) (len : nat) : type := {|
     ty_own β l := (
-      ⌜l = base offset{ly}ₗ idx⌝ ∗
-      ⌜l `has_layout_loc` ly⌝ ∗
-      ⌜0 ≤ idx ≤ len⌝ ∗
-      loc_in_bounds base (ly_size (mk_array_layout ly len))
+      <affine> ⌜l = base arr_ofs{cty, len}ₗ idx⌝ ∗
+      <affine> ⌜l `has_layout_loc` (tarray cty (len-idx))⌝ ∗
+      <affine> ⌜0 ≤ idx ≤ len⌝ ∗
+      <affine> ⌜base `has_layout_loc` (tarray cty len)⌝ (* functions as loc_in_bounds, allows shifting array_ptr left *)
+      (* loc_in_bounds base (ly_size (mk_array_layout ly len)) *)
     )%I;
     ty_has_op_type _ _ := False%type;
-    ty_own_val _ := True%I;
+    ty_own_val _ _ := True%I;
   |}.
   Solve Obligations with try done.
   Next Obligation. iIntros (ly base idx len l E ?) "(%&%&$)". done. Qed.
 
-  Global Instance array_ptr_loc_in_bounds ly base idx β len : LocInBounds (array_ptr ly base idx len) β ((len - Z.to_nat idx) * ly_size ly).
+  (* Global Instance array_ptr_loc_in_bounds ly base idx β len : LocInBounds (array_ptr ly base idx len) β ((len - Z.to_nat idx) * ly_size ly).
   Proof.
     constructor. iIntros (?) "(->&%&%&Hl)".
     iApply (loc_in_bounds_offset with "Hl") => /=; unfold addr in *; [done|lia|].
@@ -611,58 +629,160 @@ Section array.
   Definition type_place_array_inst := [instance type_place_array].
   Global Existing Instance type_place_array_inst. *)
 
-  Lemma type_bin_op_offset_array l β ly it v tys i T:
-    (* TODO: Should we make layout_wf ly part of array such that we don't need to require it here? *)
-    ⌜layout_wf ly⌝ ∗ ⌜0 ≤ i ≤ length tys⌝ ∗ (l ◁ₗ{β} array ly tys -∗ T (val_of_loc (l offset{ly}ₗ i)) ((l offset{ly}ₗ i) @ &own (array_ptr ly l i (length tys))))
-    ⊢ typed_bin_op v (v ◁ᵥ i @ int it) l (l ◁ₗ{β} array ly tys) (PtrOffsetOp ly) (IntOp it) PtrOp T.
+  (* for adding a pointer offset v to a pointer location l,
+    i.e. expressions such as
+      `Ebinop Oadd (Exxx (tptr tint)) (Exxx tint) (tptr tint)`
+  *)
+    Ltac simpl_type :=
+  simpl;
+   repeat match goal with
+        | |- context C [ty_own {| ty_own := ?f |}] => let G := context C [f] in change G
+        | |- context C [ty_own_val {| ty_own_val := ?f |}] => let G := context C [f] in change G
+        | |- context C [ty_own (?x @ {| rty := ?f |} )] =>
+            let G := context C [let '({| ty_own := y |} ) := (f x) in y ] in
+            change G
+        | |- context C [ty_own_val (?x @ {| rty := ?f |} )] =>
+            let G := context C [let '({| ty_own_val := y |} ) := (f x) in y ] in
+            change G
+        | |- context C [ty_own_val_at ?cty (?x @ {| rty := ?f |} )] =>
+            let G := context C [let '({| ty_own_val := y |} ) := (f x) in y cty ] in
+            change G
+     end; simpl.
+  
+  (* Lemma has_layout_loc_array_offset l elm_cty arr_len (i:nat):
+    0 ≤ i ≤ arr_len →
+    l `has_layout_loc` tarray elm_cty arr_len →
+    (l.1, l.2 + expr.sizeof elm_cty * i) `has_layout_loc` tarray elm_cty (arr_len - i).
   Proof.
-    iIntros "[% [% HT]]". unfold int; simpl_type.
-    iIntros "%Hv (%&#Hlib&Hl)" (Φ) "HΦ".
-    iApply wp_ptr_offset => //; [by apply val_to_of_loc | | ].
-    { iApply (loc_in_bounds_offset with "Hlib"); simpl; [done| destruct l => /=; lia | destruct l => /=; nia]. }
-    iModIntro. iApply "HΦ"; [|iApply "HT"; iFrame; by iSplit].
-    unfold frac_ptr; simpl_type. iSplit; [done|]. iSplit; [done|].
-    iSplit; [| by iSplit].
-    iPureIntro. by apply: has_layout_loc_offset_loc.
+    intros.
+    pose proof (field_compatible_nested_field (tarray elm_cty arr_len) (cons (ArraySubsc i) nil) l).
+    destruct l.
+    rewrite /offset_val /= ptrofs_add_repr Z.add_0_l in H1.
+    rewrite /has_layout_loc /= /adr2val /=.
+    apply H1.
+    simpl.   *)
+
+  Context (ge_genv: Genv.t Clight.fundef Ctypes.type).
+  #[local] Definition ge := (Build_genv ge_genv cenv_cs).
+
+  Lemma type_bin_op_offset_array (l:address) β elm_cty ofs_cty v tys (i:nat) (T:val→type→assert) :
+    (* <affine> ⌜ofs_cty = tint⌝ ∗ *)
+     (* TODO generalize this *)
+    <affine> ⌜0 < length tys⌝ ∗
+    <affine> ⌜0 ≤ i ≤ length tys⌝ ∗
+    (⎡l ◁ₗ{β} array elm_cty tys⎤ -∗ T (adr2val $ l arr_ofs{elm_cty, length tys - i}ₗ i)
+                                     ((l arr_ofs{elm_cty, length tys - i}ₗ i) @ &own (array_ptr elm_cty l i $ length tys)))
+    ⊢ typed_bin_op ge l ⎡l ◁ₗ{β} array elm_cty tys⎤ v ⎡v ◁ᵥₐₗ|ofs_cty| i @ int ofs_cty⎤ Oadd (tptr elm_cty) ofs_cty (tptr elm_cty) T.
+  Proof.
+    iIntros "( % & % & HT) (% & Hl) Hv" (Φ) "HΦ".
+    iDestruct (ty_own_val_int_in_range with "Hv") as "%".
+    unfold int; simpl_type.
+    iDestruct "Hv" as "(% & % & %)".
+    rewrite !Z.add_0_l.
+    iApply wp_binop_sc.
+    {
+      rewrite /=.
+      match goal with | |- ?x = _ =>
+      instantiate (1:=adr2val (l.1, l.2 + expr.sizeof elm_cty * i)) end.
+      rewrite /sem_add; destruct ofs_cty; try done; simpl.
+      - destruct i0, v, s eqn:Hs; try done; rewrite /val_to_Z /= in H5; inv H5;
+        rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //=.
+        + repeat f_equal. apply Int.signed_eq_unsigned. inv H2. simpl in *. rep_lia.
+        + repeat f_equal. apply Int.signed_eq_unsigned. inv H2. simpl in *. rep_lia.
+        + repeat f_equal. apply Int.signed_eq_unsigned. inv H2. simpl in *. rep_lia.
+      - simpl. destruct v; try done. rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //=.
+        destruct s; inv H5; try done.
+        repeat f_equal. rewrite Int64.unsigned_signed //. rewrite /Int64.lt /=. if_tac ; try rep_lia. inv H2.
+        simpl in *. rewrite -H7 in H5, H0.
+        rewrite Int64.signed_zero in H3.
+        rep_lia.
+    }
+    iSplit => //.
+    { rewrite /sc_binop /sc_add. destruct ofs_cty; try done. simpl. destruct i0; done. }
+    iApply "HΦ".
+    2: {
+    iSpecialize ("HT" with "[Hl]").
+    { iSplit => //. }
+    iStopProof; f_equiv. done. }
+    destruct l; rewrite /adr2val /=.
+    rewrite /ty_own_val_at /ty_own_val /=.
+    iSplit => //. iSplit => //. iSplit => //.
+    iPureIntro. eapply has_layout_loc_array_ofs; try done. simpl. done.
   Qed.
   Definition type_bin_op_offset_array_inst := [instance type_bin_op_offset_array].
   Global Existing Instance type_bin_op_offset_array_inst.
 
-  Lemma type_bin_op_offset_array_ptr l β ly it v i idx (len : nat) base T:
-    ⌜layout_wf ly⌝ ∗ ⌜0 ≤ idx + i ≤ len⌝ ∗ (l ◁ₗ{β} array_ptr ly base idx len -∗ T (val_of_loc (base offset{ly}ₗ (idx + i))) ((base offset{ly}ₗ (idx + i)) @ &own (array_ptr ly base (idx + i) len)))
-    ⊢ typed_bin_op v (v ◁ᵥ i @ int it) l (l ◁ₗ{β} array_ptr ly base idx len) (PtrOffsetOp ly) (IntOp it) PtrOp T.
+  Lemma type_bin_op_offset_array_ptr l β elm_cty it v i idx (len : nat) base (T:val→type→assert):
+    <affine> ⌜it = tint⌝ ∗ (* TODO generalize this *)
+    <affine> ⌜0 < len⌝ ∗
+    <affine> ⌜0 ≤ idx + i ≤ len⌝ ∗
+    (⎡l ◁ₗ{β} array_ptr elm_cty base idx len⎤ -∗ T (adr2val $ base arr_ofs{elm_cty, len - (idx+i)}ₗ (idx+i)) 
+                                                 ((base arr_ofs{elm_cty, len - (idx+i)}ₗ (idx+i)) @ &own (array_ptr elm_cty base (idx + i) len)))
+    ⊢ typed_bin_op ge l ⎡l ◁ₗ{β} array_ptr elm_cty base idx len⎤ v ⎡v ◁ᵥₐₗ|it| i @ int it⎤ Oadd (tptr elm_cty) it (tptr elm_cty) T.
   Proof.
-    iIntros "[% [% HT]]". unfold int; simpl_type.
-    iIntros "%Hv (->&%&%&#Hlib)" (Φ) "HΦ".
-    iApply wp_ptr_offset => //; [by apply val_to_of_loc | | ].
-    { iApply (loc_in_bounds_offset with "Hlib"); simpl; unfold addr in *; [done|nia|].
-      rewrite {3}/ly_size/=. nia. }
-    rewrite offset_loc_offset_loc.
-    iModIntro. iApply "HΦ"; [|iApply "HT"]; unfold frac_ptr; simpl_type; iFrame "Hlib"; iPureIntro; [|done].
-    split_and! => //; try lia. rewrite -offset_loc_offset_loc.
-    by apply has_layout_loc_offset_loc.
+    iIntros "(-> & % & % & HT)".
+    set (base arr_ofs{elm_cty, len - (idx + i)}ₗ(idx + i)) as base_ptr.
+    unfold int; simpl_type.
+    iIntros "(% & % & % & %) (% & % & %)" (Φ) "HΦ".
+    destruct v eqn:Hv; try done.
+    iApply wp_binop_sc.
+    { rewrite /= /sem_add //. }
+    iSplit => //.
+    iSpecialize ("HT" with "[]").
+    { rewrite /ty_own /=. iPureIntro; done.  }
+    rewrite /val_to_Z /= in H7. inv H7.
+    match goal with | |- context [Φ ?ptr] => assert (adr2val base_ptr = ptr) as <- end.
+    { 
+      destruct base; rewrite /adr2val /=.
+      pose proof (sizeof_pos elm_cty) as Hcty_size_pos.
+      f_equiv.
+      rewrite /= /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr.  f_equal. rep_lia.
+    }
+    iApply ("HΦ" with "[] [HT]"); [|done].
+    rewrite /ty_own_val_at /ty_own_val /=.
+    iSplit => //. iSplit => //. iSplit => //.
+    iPureIntro.
+    eapply has_layout_loc_array_ofs in H4; try done.
   Qed.
   Definition type_bin_op_offset_array_ptr_inst := [instance type_bin_op_offset_array_ptr].
   Global Existing Instance type_bin_op_offset_array_ptr_inst.
 
-  Lemma type_bin_op_neg_offset_array_ptr l β ly it v i idx (len : nat) base T:
-    ⌜layout_wf ly⌝ ∗ ⌜0 ≤ idx - i ≤ len⌝ ∗ (l ◁ₗ{β} array_ptr ly base idx len -∗ T (val_of_loc (base offset{ly}ₗ (idx - i))) ((base offset{ly}ₗ (idx - i)) @ &own (array_ptr ly base (idx - i) len)))
-    ⊢ typed_bin_op v (v ◁ᵥ i @ int it) l (l ◁ₗ{β} array_ptr ly base idx len) (PtrNegOffsetOp ly) (IntOp it) PtrOp T.
+  Lemma type_bin_op_neg_offset_array_ptr l β elm_cty it v i idx (len : nat) base (T:val→type→assert):
+    <affine> ⌜it = tint⌝ ∗ (* TODO generalize this *)
+    <affine> ⌜0 < len⌝ ∗
+    <affine> ⌜0 ≤ idx - i ≤ len⌝ ∗
+    (⎡l ◁ₗ{β} array_ptr elm_cty base idx len⎤ -∗ T (adr2val $ base arr_ofs{elm_cty, len - (idx-i)}ₗ (idx-i)) 
+                                                 ((base arr_ofs{elm_cty, len - (idx-i)}ₗ (idx-i)) @ &own (array_ptr elm_cty base (idx-i) len)))
+    ⊢ typed_bin_op ge l ⎡l ◁ₗ{β} array_ptr elm_cty base idx len⎤ v ⎡v ◁ᵥₐₗ|it| i @ int it⎤ Osub (tptr elm_cty) it (tptr elm_cty) T.
   Proof.
-    iIntros "[% [% HT]]". unfold int; simpl_type.
-    iIntros "%Hv (->&%&%&#Hlib)" (Φ) "HΦ".
-    iApply wp_ptr_neg_offset => //; [by apply val_to_of_loc | | ].
-    { iApply (loc_in_bounds_offset with "Hlib"); simpl; unfold addr in *; [done|nia|].
-      rewrite {3}/ly_size/=. nia. }
-    rewrite offset_loc_offset_loc Z.add_opp_r.
-    iModIntro. iApply "HΦ"; [|iApply "HT"]; unfold frac_ptr; simpl_type; iFrame "Hlib"; iPureIntro; [|done].
-    split_and! => //; try lia. rewrite -Z.add_opp_r -offset_loc_offset_loc.
-    by apply has_layout_loc_offset_loc.
+    iIntros "(-> & % & % & HT)".
+    set (base arr_ofs{elm_cty, len - (idx - i)}ₗ(idx - i)) as base_ptr.
+    unfold int; simpl_type.
+    iIntros "(% & % & % & %) (% & % & %)" (Φ) "HΦ".
+    destruct v eqn:Hv; try done.
+    iApply wp_binop_sc.
+    { rewrite /= /sem_sub //. }
+    iSplit => //.
+    iSpecialize ("HT" with "[]").
+    { rewrite /ty_own /=. iPureIntro; done. }
+    rewrite /val_to_Z /= in H7. inv H7.
+    match goal with | |- context [Φ ?ptr] => assert (adr2val base_ptr = ptr) as <- end.
+    { 
+      destruct base; rewrite /adr2val /=.
+      pose proof (sizeof_pos elm_cty) as Hcty_size_pos.
+      f_equiv.
+      rewrite /= /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_sub_repr. f_equal. rep_lia.
+    }
+    iApply ("HΦ" with "[] [HT]"); [|done].
+    rewrite /ty_own_val_at /ty_own_val /=.
+    iSplit => //. iSplit => //. iSplit => //.
+    iPureIntro.
+    eapply has_layout_loc_array_ofs in H4; try done.
   Qed.
   Definition type_bin_op_neg_offset_array_ptr_inst := [instance type_bin_op_neg_offset_array_ptr].
   Global Existing Instance type_bin_op_neg_offset_array_ptr_inst.
 
-  Lemma type_bin_op_diff_array_ptr_array l1 β l2 ly idx (len : nat) tys T:
+  (* Lemma type_bin_op_diff_array_ptr_array l1 β l2 ly idx (len : nat) tys T:
     (l1 ◁ₗ{β} array_ptr ly l2 idx len -∗
     l2 ◁ₗ{β} array ly tys -∗
     ⌜0 < ly.(ly_size)⌝ ∗
@@ -693,9 +813,9 @@ Section array.
     unfold int; simpl_type. iPureIntro. by apply: val_to_of_Z.
   Qed.
   Definition type_bin_op_diff_array_ptr_array_inst := [instance type_bin_op_diff_array_ptr_array].
-  Global Existing Instance type_bin_op_diff_array_ptr_array_inst.
+  Global Existing Instance type_bin_op_diff_array_ptr_array_inst. *)
 
-  Lemma subsume_array_ptr_alloc_alive A β l ly base idx len T:
+  (* Lemma subsume_array_ptr_alloc_alive A β l ly base idx len T:
     (alloc_alive_loc base ∗ ∃ x, T x)
     ⊢ subsume (l ◁ₗ{β} array_ptr ly base idx len) (λ x : A, alloc_alive_loc l) T.
   Proof.
@@ -749,7 +869,7 @@ Section array.
     by iApply ("HT" with "[//] Harray Hty").
   Qed.
   Definition simplify_hyp_array_ptr_inst := [instance simplify_hyp_array_ptr with 50%N].
-  Global Existing Instance simplify_hyp_array_ptr_inst | 50.
+  Global Existing Instance simplify_hyp_array_ptr_inst | 50. *)
 End array.
 
 Notation "array< ty , tys >" := (array ty tys)
