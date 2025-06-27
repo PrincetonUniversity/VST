@@ -12,33 +12,37 @@ Section bytewise.
   (* Because ty_own_val is at the val level, for now this is defined only for bytewise representations
      of vals, rather than arbitrary byte arrays that happen to have the right layout. *)
 
-  Program Definition bytewise (P : memval → Prop) (ly : Ctypes.type) : type := {|
-    ty_has_op_type ot mt := ot = ly;
+  Program Definition bytewise (P : memval → Prop) (cty : Ctypes.type) : type := {|
+    ty_has_op_type ot mt := (ot = cty ∧ type_is_by_value cty = true)%type;
     (* Does bytewise make sense for non-by-value types? Structs do have
        defined layouts in memory, but we don't have a function for interpreting memvals as structs.
        We could consider lifting the definition of ↦[β] all the way to data_at? *)
     ty_own β l :=
-      ∃ v, <affine> ⌜field_compatible ly [] l⌝ ∗
-           <affine> ⌜∃ ch bl, access_mode ly = By_value ch ∧ encode_val ch v = bl ∧ Forall P bl⌝ ∗
-           l ↦_ly[β] v;
-    ty_own_val v := (<affine> ⌜∃ ch bl, access_mode ly = By_value ch ∧ encode_val ch v = bl ∧ Forall P bl⌝)%I;
+      ∃ (v:val), <affine> ⌜(valinject cty v) `has_layout_val` cty⌝ ∗
+           <affine> ⌜l `has_layout_loc` cty⌝ ∗
+           <affine> ⌜∃ ch bl, access_mode cty = By_value ch ∧ encode_val ch v = bl ∧ Forall P bl⌝ ∗
+           l ↦[β]|cty| (valinject cty v);
+    ty_own_val cty' v_rep := 
+      <affine> ⌜cty' = cty⌝ ∗ 
+      <affine> ⌜v_rep `has_layout_val` cty'⌝ ∗
+      <affine> ⌜∃ ch bl, access_mode cty = By_value ch ∧ encode_val ch (repinject cty' v_rep) = bl ∧ Forall P bl⌝;
   |}%I.
   Next Obligation.
-    iIntros (?????). iDestruct 1 as (?) "(?&?&Hl)".
+    iIntros (?????). iDestruct 1 as (?) "(?&?&?&Hl)".
     iMod (heap_mapsto_own_state_share with "Hl") as "Hl".
     eauto with iFrame.
   Qed.
-  Next Obligation. iIntros (?????->). by iDestruct 1 as (???) "_". Qed.
-  Next Obligation. iIntros (?????->). Admitted.
-  Next Obligation. iIntros (?????->). iDestruct 1 as (???) "?". by eauto. Qed.
-  Next Obligation. iIntros (????? v -> ?) "? [%%]". iExists v. iFrame. eauto. Qed.
+  Next Obligation. iIntros (?????[-> ?]). by iDestruct 1 as (???) "_". Qed.
+  Next Obligation. iIntros (?????[-> ?](?&?&?)). done. Qed.
+  Next Obligation. iIntros (?????[-> ?]). iDestruct 1 as (????) "?". iFrame. rewrite repinject_valinject //. Qed.
+  Next Obligation. iIntros (????? v [-> ?] ?) "? [% [% %]]". iExists (repinject cty v). rewrite valinject_repinject //. iFrame. eauto. Qed.
 (*   Next Obligation. iIntros (ly P v ot mt st ?). apply mem_cast_compat_Untyped. destruct ot; naive_solver. Qed. *)
 
   Lemma bytewise_weaken l β P1 P2 ly:
     (∀ b, P1 b → P2 b) →
     l ◁ₗ{β} bytewise P1 ly -∗ l ◁ₗ{β} bytewise P2 ly.
   Proof.
-    iIntros (?). iDestruct 1 as (?? HP) "H". iExists _; iFrame.
+    iIntros (?). iDestruct 1 as (??? HP) "H". iExists _; iFrame.
     iPureIntro; split_and! => //. edestruct HP as (? & ? & ? & ? & ?%Forall_impl); eauto.
   Qed.
 
