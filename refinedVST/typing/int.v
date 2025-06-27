@@ -394,6 +394,7 @@ Section programs.
             -- trans (Int.lt i0 i1); last by destruct i, s.
                destruct s; inv Hv1; rewrite /Int.lt; try by if_tac; case_bool_decide.
                lapply (bitsize_small i); last by intros ->.
+               rewrite two_power_pos_equiv in H, H0.
                intros; rewrite !Int.signed_eq_unsigned; [if_tac; case_bool_decide; done | destruct i; try done; try rep_lia..].
                { destruct H0; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
                { destruct H; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
@@ -411,6 +412,7 @@ Section programs.
             -- trans (Int.lt i1 i0); last by destruct i, s.
                destruct s; inv Hv1; rewrite /Int.lt; try by if_tac; case_bool_decide; lia.
                lapply (bitsize_small i); last by intros ->.
+               rewrite two_power_pos_equiv in H, H0.
                intros; rewrite !Int.signed_eq_unsigned; [if_tac; case_bool_decide; lia | destruct i; try done; try rep_lia..].
                { destruct H; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
                { destruct H0; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
@@ -428,6 +430,7 @@ Section programs.
             -- trans (negb (Int.lt i1 i0)); last by destruct i, s.
                destruct s; inv Hv1; rewrite /Int.lt; try by if_tac; case_bool_decide; lia.
                lapply (bitsize_small i); last by intros ->.
+               rewrite two_power_pos_equiv in H, H0.
                intros; rewrite !Int.signed_eq_unsigned; [if_tac; case_bool_decide; lia | destruct i; try done; try rep_lia..].
                { destruct H; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
                { destruct H0; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
@@ -445,6 +448,7 @@ Section programs.
             -- trans (negb (Int.lt i0 i1)); last by destruct i, s.
                destruct s; inv Hv1; rewrite /Int.lt; try by if_tac; case_bool_decide; lia.
                lapply (bitsize_small i); last by intros ->.
+               rewrite two_power_pos_equiv in H, H0.
                intros; rewrite !Int.signed_eq_unsigned; [if_tac; case_bool_decide; lia | destruct i; try done; try rep_lia..].
                { destruct H0; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
                { destruct H; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
@@ -594,6 +598,7 @@ Section programs.
              ++ inv Hv1.
                 rewrite /Int.divs.
                 lapply (bitsize_small i); last by intros ->. intros.
+                rewrite two_power_pos_equiv in H, H0.
                 rewrite !Int.signed_eq_unsigned //; destruct i; try done; try rep_lia.
                 { destruct H0; subst; computable. }
                 { destruct H; subst; computable. }
@@ -641,6 +646,7 @@ Section programs.
              ++ inv Hv1.
                 rewrite /Int.mods.
                 lapply (bitsize_small i); last by intros ->. intros.
+                rewrite two_power_pos_equiv in H, H0.
                 rewrite !Int.signed_eq_unsigned //; destruct i; try done; try rep_lia.
                 { destruct H0; subst; computable. }
                 { destruct H; subst; computable. }
@@ -741,6 +747,7 @@ Section programs.
              ++ inv Hv1.
                 rewrite /Int.shr Int.signed_eq_unsigned //.
                 { lapply (bitsize_small i); last by intros ->; intros.
+                  rewrite two_power_pos_equiv in H, H0.
                   destruct i; try done; try rep_lia.
                   intros; destruct H; subst; computable. }
         * simpl in *.

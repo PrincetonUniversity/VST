@@ -3,7 +3,6 @@ From VST.veric Require Import lifting.
 From compcert.cfrontend Require Import Clight.
 From VST.lithium Require Export proof_state.
 From lithium Require Import hooks definitions.
-From VST.floyd Require Import globals_lemmas.
 From VST.typing Require Export type type_options programs.
 
 (** A [Strict] boolean can only have value 0 (false) or 1 (true). A [Relaxed]

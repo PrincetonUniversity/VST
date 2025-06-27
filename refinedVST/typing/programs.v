@@ -4,7 +4,6 @@ From VST.lithium Require Export proof_state.
 From lithium Require Import hooks.
 From VST.typing Require Export type.
 From VST.typing Require Import type_options.
-From VST.floyd Require Import globals_lemmas.
 
 Open Scope Z.
 
@@ -57,7 +56,7 @@ Proof.
     + rewrite Int.unsigned_repr; rep_lia.
   - destruct s.
     + rewrite two_power_pos_equiv Int.signed_repr; rep_lia.
-    + rewrite Int.unsigned_repr; rep_lia.
+    + rewrite two_power_pos_equiv Int.unsigned_repr; rep_lia.
   - destruct (decide (n = 0)); subst; auto.
     assert (n = 1) as -> by lia; auto.
 Qed.
@@ -103,6 +102,7 @@ Proof.
   destruct v; try done; destruct t; try done; simpl; intros.
   - destruct i0; [destruct s; inv H; hnf; simpl; try rep_lia..|].
     + rewrite two_power_pos_equiv in H0; lia.
+    + rewrite two_power_pos_equiv in H0; rep_lia.
     + destruct H0, s; inv H; hnf.
       * by rewrite Int.signed_zero.
       * by rewrite Int.unsigned_zero.
@@ -1305,7 +1305,7 @@ Section typing.
     iIntros (v ty) "H (% & ty_write)".
     iSplit; [done|].
     iApply wp_lvalue_mono.
-    { intros; apply derives_refl. }
+    { intros; iIntros "A"; iApply "A". }
     iApply "ty_write".
     iIntros ((b, o)) "upd".
     iMod ("upd" with "H") as "(%Hot & Hl & upd)"; iModIntro.
@@ -1392,7 +1392,7 @@ Section typing.
         subst; destruct s; inv Hv.
         * apply (val_lemmas.signed_inj _ Int.zero) in H0 as ->.
           rewrite Int.eq_true // in Heq.
-        * apply (client_lemmas.unsigned_eq_eq _ Int.zero) in H0 as ->.
+        * apply (unsigned_eq_eq _ Int.zero) in H0 as ->.
           rewrite Int.eq_true // in Heq.
     - destruct v; try done.
       iFrame.

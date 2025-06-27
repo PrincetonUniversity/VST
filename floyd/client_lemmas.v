@@ -988,14 +988,6 @@ Proof.
  - autorewrite with subst. f_equiv; auto.
 Qed.
 
-Lemma unsigned_eq_eq: forall i j, Int.unsigned i = Int.unsigned j -> i = j.
-Proof.
-  intros.
-  rewrite <- (Int.repr_unsigned i), <- (Int.repr_unsigned j).
-  rewrite H.
-  reflexivity.
-Qed.
-
 Lemma wand_join:
   forall {BI : bi} (x1 x2 y1 y2: BI),
     (x1 -∗ y1) ∗ (x2 -∗ y2) ⊢ ((x1 ∗ x2) -∗ (y1 ∗ y2)).

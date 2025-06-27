@@ -1,30 +1,7 @@
-Require Import VST.veric.Clight_core.
+From VST.veric Require Import env Clight_core.
 From VST.typing Require Export type.
 From VST.typing Require Import programs bytes.
 From VST.typing Require Import type_options.
-
-(* Can we just use typed_stmt fn_body?
-Definition introduce_typed_stmt {Σ} `{!typeG Σ} (fn : function) (ls : list loc) (R : val → type → iProp Σ) : iProp Σ :=
-  let Q := (subst_stmt (zip (fn.(f_args).*1 ++ fn.(f_local_vars).*1)
-                            (val_of_loc <$> ls))) <$> fn.(f_code) in
-  typed_stmt (Goto fn.(f_init)) fn ls R Q.
-Global Typeclasses Opaque introduce_typed_stmt.
-Arguments introduce_typed_stmt : simpl never.
-
-Section introduce_typed_stmt.
-  Context `{!typeG Σ}.
-
-  Lemma introduce_typed_stmt_wand R1 R2 fn locs :
-    introduce_typed_stmt fn locs R1 -∗
-    (∀ v ty, R1 v ty -∗ R2 v ty) -∗
-    introduce_typed_stmt fn locs R2.
-  Proof.
-    rewrite /introduce_typed_stmt. iIntros "HR1 Hwand" (Hlen).
-    iApply (wps_wand with "[HR1]"). { by iApply "HR1". }
-    iIntros (v) "(%ty & Hty & Hargs & Hret)".
-    iExists ty. iFrame. by iApply "Hwand".
-  Qed.
-End introduce_typed_stmt. *)
 
 Section function.
   Context `{!typeG OK_ty Σ} {cs : compspecs} {A : TypeTree}. (* should we fix this to ConstType? *)
@@ -52,28 +29,36 @@ Section function.
     fp_fr: fp_rtype → fn_ret;
   }.
 
-  Definition opt_ty_own_val t o :=
-    match o with Some v => v ◁ᵥ t | None => emp end.
+  Definition opt_ty_own_val cty t o :=
+    match o with Some v => v ◁ᵥₐₗ|cty| t | None => emp end.
 
-  Global Instance opt_ty_own_val_proper : Proper (equiv ==> eq ==> equiv) opt_ty_own_val.
+  Global Instance opt_ty_own_val_proper cty : Proper (equiv ==> eq ==> equiv) (opt_ty_own_val cty).
   Proof. intros ??? [|] ??; subst; simpl; by rewrite ?H. Qed.
 
-  Definition fn_ret_prop {B} (fr : B → fn_ret) : option val → type → assert :=
-    (λ v ty, ⎡opt_ty_own_val ty v⎤ -∗ ∃ x, ⎡opt_ty_own_val (fr x).(fr_rty) v⎤ ∗ ⎡(fr x).(fr_R)⎤ ∗ True)%I.
+  Definition fn_ret_prop {B} cty (fr : B → fn_ret) : option val → type → assert :=
+    (λ v ty, ⎡opt_ty_own_val cty ty v⎤ -∗ ∃ x, ⎡opt_ty_own_val cty (fr x).(fr_rty) v⎤ ∗ ⎡(fr x).(fr_R)⎤ ∗ True)%I.
 
   Definition FP_wf {B} (atys : list type) Pa (fr : B → fn_ret)  :=
     FP atys Pa B fr.
 
-  Context (Espec : ext_spec OK_ty) (ge : genv).
+  Context (Espec : ext_spec OK_ty) (ge : Genv.t Clight.fundef Ctypes.type).
 
-  Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
+  (* Do we need a ty_own_temp, ty_own_var, etc. as well? *)
+  Definition typed_var_block (idt: ident * Ctypes.type): assert :=
+  ⌜(Ctypes.sizeof (snd idt) <= Ptrofs.max_unsigned)%Z⌝ ∧
+  ∃ b, lvar (fst idt) (snd idt) b ∗ ⎡(b, 0) ◁ₗ uninit (snd idt)⎤.
+
+  Definition typed_stackframe (f: Clight.function) (lv: list val) : assert :=
+    ([∗ list] idt ∈ fn_vars f, typed_var_block idt) ∗
+    ([∗ list] idt;v ∈ (Clight.fn_params f ++ fn_temps f);lv, temp (fst idt) v).
+
+  Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : assert :=
     (∀ x, <affine> ⌜Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn)⌝ ∗
-      <affine> ⌜∀ (lsa : vec val (length (fp x).(fp_atys))) (lsv : vec address (length (fn_vars fn))),
-          ⎡[∗ list] v;t∈lsa;(fp x).(fp_atys), v ◁ᵥ t⎤ ∗
-          ([∗ list] '(i,_);v ∈ (Clight.fn_params fn);lsa, <affine> local (locald_denote (temp i v))) ∗
-          ([∗ list] '(i,t);v ∈ fn_vars fn;lsv, (<affine> local (locald_denote (lvar i t (adr2val v)))) ∗ ⎡v ◁ₗ uninit t⎤) ∗
-          ⎡(fp x).(fp_Pa)⎤ ⊢
-          typed_stmt Espec ge (fn.(fn_body)) fn (fn_ret_prop (fp x).(fp_fr))⌝
+      (*<affine> ⌜*) □ ∀ (lsa : vec val (length (fp x).(fp_atys))),
+          ⎡[∗ list] v;'(cty,t)∈lsa;zip (map snd (Clight.fn_params fn)) (fp x).(fp_atys), v ◁ᵥₐₗ|cty| t⎤ ∗
+          typed_stackframe fn (lsa ++ repeat Vundef (length fn.(fn_temps))) ∗
+          ⎡(fp x).(fp_Pa)⎤ -∗
+          typed_stmt Espec ge (fn.(fn_body)) fn (fn_ret_prop (fn_return fn) (fp x).(fp_fr))(*⌝*)
     )%I.
 
   Global Instance typed_function_persistent fn fp : Persistent (typed_function fn fp) := _.
@@ -95,24 +80,27 @@ Section function.
   Proof.
     iIntros (-> Hly Hfn) "HT".
     rewrite /typed_function.
-    iIntros (x). iDestruct ("HT" $! x) as ([Hlen Hall]%Forall2_same_length_lookup) "%HT".
+    iIntros (x). iDestruct ("HT" $! x) as ([Hlen Hall]%Forall2_same_length_lookup) "#HT".
     have [Heq [Hatys [HPa Hret]]] := Hfn x.
     iSplit; [done|].
-    iPureIntro; intros. iIntros "(Ha & Hparams & stack)". rewrite -HPa.
+    iIntros "!> %  (Ha & stack)". rewrite -HPa.
     have [|lsa' Hlsa]:= vec_cast _ lsa (length (fp_atys (fp1 x))). { by rewrite Hatys. }
-    iApply typed_stmt_mono; last iApply (HT lsa').
+    iApply typed_stmt_mono; last iApply ("HT" $! lsa').
     - iIntros (v ?) "HR Hty".
       iDestruct ("HR" with "Hty") as (y) "[?[??]]".
       have [-> ->]:= Hret y.
       iExists (rew [λ x : Type, x] Heq in y). iFrame.
     - iFrame. rewrite Hlsa; iFrame.
+      iClear "HT". 
       iStopProof. split => rho; monPred.unseal.
-      apply bi.equiv_entails_1_1, big_sepL2_proper_2; [done..|].
+      apply bi.equiv_entails_1_1, big_sepL2_proper_2; [try done..|].
+      { rewrite Hatys //. }
       intros ??????? Hy. inv Hy.
       move: Hatys => /list_equiv_lookup Hatys.
-      intros Haty2 Haty1.
-      have := Hatys k. rewrite Haty1 Haty2=> /(Some_equiv_eq _ _)[?[? [? Heqv]]] ?.
-      rewrite -Heqv. by simplify_eq.
+      intros (? & ? & -> & Hty2 & Haty2)%lookup_zip_with_Some (? & ? & -> & Hty1 & Haty1)%lookup_zip_with_Some.
+      rewrite Hty2 in Hty1; inv Hty1.
+      have := Hatys k. rewrite Haty1 Haty2=> /(Some_equiv_eq _ _)[?[? [? Heqv]]] [_ ?].
+      by f_equiv.
   Qed.
 
   (* The design of this in RefinedC is to associate a function pointer with actual function code,

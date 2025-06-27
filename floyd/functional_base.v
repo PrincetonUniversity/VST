@@ -59,6 +59,14 @@ Qed.
 Lemma cons_inv {A} (a a':A) l l': a::l = a'::l' -> a=a' /\ l=l'.
 Proof. intros. inv H; eauto. Qed.
 
+Lemma unsigned_eq_eq: forall i j, Int.unsigned i = Int.unsigned j -> i = j.
+Proof.
+  intros.
+  rewrite <- (Int.repr_unsigned i), <- (Int.repr_unsigned j).
+  rewrite H.
+  reflexivity.
+Qed.
+
 #[export] Hint Rewrite 
    (@Znth_map val _) (@Znth_map int _) (@Znth_map byte _)
    (@Znth_map int64 _) (@Znth_map ptrofs _) (@Znth_map float _)
