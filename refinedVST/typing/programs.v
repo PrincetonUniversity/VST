@@ -188,21 +188,21 @@ Section judgements.
 
   (* Possibly we will want break-types, continue-types, etc. For now, using option to distinguish between
      fallthrough (normal) type and return type. *)
-  Definition typed_stmt_post_cond (R : option val → type → assert) : ret_assert :=
+  Definition typed_stmt_post_cond cty (R : option val → type → assert) : ret_assert :=
     {| RA_normal := R None tytrue;
        RA_break := False;
        RA_continue := False;
        RA_return ret := let v := force_val ret in 
-                        ∃ cty ty, ⎡(valinject cty v) ◁ᵥ|cty| ty⎤ ∗ R (Some v) ty |}.
+                        ∃ ty, ⎡(valinject cty v) ◁ᵥ|cty| ty⎤ ∗ R (Some v) ty |}.
   Definition typed_stmt s f (R : option val → type → assert) : assert :=
-    wp OK_spec ge ⊤ f s (typed_stmt_post_cond R)%I.
+    wp OK_spec ge ⊤ f s (typed_stmt_post_cond (fn_return f) R)%I.
   Global Arguments typed_stmt _ _ _%_I.
 
   Lemma typed_stmt_mono s f R1 R2 : (∀ v t, R1 v t ⊢ R2 v t) →
     typed_stmt s f R1 ⊢ typed_stmt s f R2.
   Proof.
     intros. rewrite /typed_stmt. apply wp_conseq; intros; simpl; rewrite ?H; auto.
-    iIntros "(% & % & ? & ?)"; rewrite H; eauto with iFrame.
+    iIntros "(% & ? & ?)"; rewrite H; eauto with iFrame.
   Qed.
 
 (*  Definition typed_block (P : iProp Σ) (b : label) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
@@ -288,13 +288,13 @@ Section judgements.
 
   (* can we rewrite this to take vals directly after all? We'd have to replace typed_stmt with sufficient
      conditions for a call to be safe. *)
-  Definition typed_call (e : expr) (P : assert) (el : list expr) (tys : list type) (T : option val → type → assert) : assert :=
+  Definition typed_call f i (e : expr) (P : assert) (el : list expr) (tys : list type) (T : option val → type → assert) : assert :=
     match typeof e with
-    | Tfunction ts _ _ => (∀ f, P -∗ (*(typed_exprs el ts (λ _ tl, <affine> ⌜tl = tys⌝)) -∗*) typed_stmt (Scall None e el) f T)%I
+    | Tfunction ts _ _ => (P -∗ (*(typed_exprs el ts (λ _ tl, <affine> ⌜tl = tys⌝)) -∗*) typed_stmt (Scall i e el) f T)%I
     | _ => False
     end.
-  Class TypedCall (e : expr) (P : assert) (el : list expr) (tys : list type) : Type :=
-    typed_call_proof T : iProp_to_Prop (typed_call e P el tys T).
+  Class TypedCall f i (e : expr) (P : assert) (el : list expr) (tys : list type) : Type :=
+    typed_call_proof T : iProp_to_Prop (typed_call f i e P el tys T).
 
 (* There does not seem to be a copy stmt in Clight, just Sassign 
   Definition typed_copy_alloc_id (v1 : val) (P1 : iProp Σ) (v2 : val) (P2 : iProp Σ) (ot : op_type) (T : val → type → iProp Σ) : iProp Σ :=
@@ -549,7 +549,7 @@ Global Hint Mode TypedIf + + + + + : typeclass_instances.
 Global Hint Mode TypedValue + + + + + + : typeclass_instances.
 Global Hint Mode TypedBinOp + + + + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedUnOp + + + + + + + + + : typeclass_instances.
-Global Hint Mode TypedCall + + + + + + + + + + : typeclass_instances.
+Global Hint Mode TypedCall + + + + + + + + + + + + : typeclass_instances.
 (*Global Hint Mode TypedCopyAllocId + + + + + + + : typeclass_instances. *)
 Global Hint Mode TypedReadEnd + + + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedWriteEnd + + + + + + + + + + + + : typeclass_instances.
@@ -1341,26 +1341,20 @@ Section typing.
   Qed.
 
   Lemma type_return_some Espec ge f e (T : option val → type -> assert):
-    cast_pointer_to_bool (typeof e) (fn_return f) = false ->
-    (typed_val_expr ge f e (λ v ty, ⌜tc_val (typeof e) v⌝ ∧ ⌜Clight_Cop2.sem_cast (typeof e) (fn_return f) v = Some v⌝ ∧
-                                T (Some v) ty)
-    ⊢ typed_stmt Espec ge (Sreturn $ Some e) f T).
+    typed_val_expr ge f (Ecast e (fn_return f)) (λ v ty, T (Some v) ty)
+    ⊢ typed_stmt Espec ge (Sreturn $ Some e) f T.
   Proof.
     intros.
     unfold typed_stmt.
     iIntros "H".
     iApply wp_return.
     simpl.
-    iApply wp_cast; first done.
-    iApply "H". 
-    iIntros (v ty) "H1 (H2 & (%H3 & H4))".
-    iFrame.
-    iPureIntro.
-    split; auto.
+    iApply "H".
+    by iIntros (??) "? $".
   Qed.
 
-  Lemma type_return_none Espec ge f (T : option val → type -> assert) cty ty:
-    ⎡Vundef ◁ᵥₐₗ|cty| ty⎤ ∗ T (Some Vundef) ty
+  Lemma type_return_none Espec ge f (T : option val → type -> assert) ty:
+    ⎡Vundef ◁ᵥₐₗ|fn_return f| ty⎤ ∗ T (Some Vundef) ty
     ⊢ typed_stmt Espec ge (Sreturn $ None) f T.
   Proof.
     unfold typed_stmt.

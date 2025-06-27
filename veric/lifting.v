@@ -1587,11 +1587,17 @@ Proof.
   by destruct IHeval_exprlist as [-> ->].
 Qed.
 
+Definition set_temp_opt ret vl R :=
+  match ret with
+  | Some id => (∃ v0, temp id v0) ∗ (temp id (val_lemmas.force_val vl) -∗ R)
+  | _ => R
+  end.
+
 (* Under most circumstances stack_retainer can be framed out, but we might need it
    to do whole-stackframe reasoning. *)
 Definition internal_call_assert E f args ret R := up1 (stack_retainer f -∗ stackframe_of' ge f (args  ++ repeat Vundef (length f.(fn_temps))) -∗
   ▷ wp E f f.(fn_body) (frame_ret_assert (function_body_ret_assert f.(fn_return)
-      (λ vl, match ret with Some id => down1 ((∃ v0, temp id v0) ∗ (temp id (val_lemmas.force_val vl) -∗ RA_normal R)) | _ => down1 (RA_normal R) end))
+      (λ vl, down1 (set_temp_opt ret vl (RA_normal R))))
       (stack_retainer f ∗ ∃ vs, stackframe_of' ge f vs)))%I.
 
 Lemma internal_call_assert_mask_mono : forall E1 E2 f args ret R, E1 ⊆ E2 →
@@ -1610,7 +1616,7 @@ Definition external_call_assert E f vs i R :=
       ▷ ∀ ret m' z', ⌜Val.has_type_list vs (map proj_xtype (sig_args (ef_sig f)))
                    ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig f))⌝
                   → ⌜ext_spec_post OK_spec f x (genv_symb_injective ge) (sig_res (ef_sig f)) ret z' m'⌝ →
-              |={E}=> ⎡state_interp m' z'⎤ ∗ match i with Some id => (∃ v0, temp id v0) ∗ (temp id (force_val ret) -∗ RA_normal R) | _ => RA_normal R end.
+              |={E}=> ⎡state_interp m' z'⎤ ∗ set_temp_opt i ret (RA_normal R).
 
 Lemma external_call_assert_mask_mono : forall E1 E2 f args ret R, E1 ⊆ E2 →
   external_call_assert E1 f args ret R ⊢ external_call_assert E2 f args ret R.
@@ -1680,7 +1686,7 @@ Proof.
     iIntros (????) "Hr (%Henv' & %Hstack') %Hty'".
     iApply jsafe_step; rewrite /jstep_ex.
     iIntros (?) "(Hm & Ho)".
-    destruct ret; simpl.
+    unfold set_temp_opt; destruct ret; simpl.
     + rewrite /wp_expr; monPred.unseal.
       iMod ("Hret" with "[//] [$] [//] [$]") as ">(% & Hret & ? & ? & (% & H) & (Hstack & %vs' & Hstack'))".
       iPoseProof (monPred_in_entails with "[Hstack Hstack']") as "Hstack"; first by apply (stackframe_of_eq' f vs').
@@ -1813,7 +1819,7 @@ Lemma wp_extcall_inline: forall E f0 i e es R,
     classify_fun (typeof e) = fun_case_f tys retty cc /\ ef_inline f && ef_deterministic f = true⌝ ∧
     wp_exprs E f0 es tys (λ vs,
        ∀ m, ⎡mem_auth m⎤ ={E}=∗ ∃ t ret m', ⌜Events.external_call f ge vs m t ret m'⌝ ∧
-         ▷ |={E}=> ⎡mem_auth m'⎤ ∗ match i with Some id => (∃ v0, temp id v0) ∗ (temp id ret -∗ RA_normal R) | _ => RA_normal R end)) ⊢
+         ▷ |={E}=> ⎡mem_auth m'⎤ ∗ set_temp_opt i (Some ret) (RA_normal R))) ⊢
   wp E f0 (Scall i e es) R.
 Proof.
   intros; rewrite /wp.
