@@ -340,17 +340,17 @@ Section judgements.
   the read. The typing rule for [typed_read] typechecks [e] and then
   dispatches to [typed_read_end] *)
   (* FIXME cast need whole memory? *)
-Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast : bool) (m: mem) (T : val → type → assert) : assert :=
-    let E := if atomic then ∅ else ⊤ in
+Definition typed_read f (e : expr) (ot : Ctypes.type) (memcast : bool) (m: mem) (T : val → type → assert) : assert :=
     (∀ (Φ: val->assert),
        (∀ (l:address), 
-          (|={⊤, E}=> ∃ v q (ty : type), ⌜l `has_layout_loc` ot⌝ ∗ ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
-                        ⎡ l ↦{q}|ot| (valinject ot v) ⎤ ∗ ▷ ⎡(valinject ot v) ◁ᵥ|ot| ty⎤ ∗ 
-                        ▷ (∀ st, ⎡ l ↦{q}|ot| (valinject ot v) ⎤ -∗ ⎡(valinject ot v) ◁ᵥ|ot| ty⎤ ={E, ⊤}=∗ 
-                        ∃ (ty' : type) v', 
-                          ⌜Some v'=if memcast then Cop.sem_cast v ot st m else Some v⌝ ∧
-                          ⎡(valinject (if memcast then st else ot) v') ◁ᵥ|(if memcast then st else ot)| ty'⎤ ∗
-                          T v' ty')) 
+          (∃ v q (ty : type), <affine> ⌜l `has_layout_loc` ot⌝ ∗ <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
+            <affine> ⌜readable_share q⌝ ∗ <affine> ⌜v ≠ Vundef⌝ ∗
+            ⎡ l ↦{q}|ot| (valinject ot v) ⎤ ∗ ⎡(valinject ot v) ◁ᵥ|ot| ty⎤ ∗ 
+            (∀ st, ⎡ l ↦{q}|ot| (valinject ot v) ⎤ -∗ ⎡(valinject ot v) ◁ᵥ|ot| ty⎤ -∗ 
+            ∃ (ty' : type) v', 
+              <affine> ⌜Some v'=if memcast then Cop.sem_cast v ot st m else Some v⌝ ∗
+              ⎡(valinject (if memcast then st else ot) v') ◁ᵥ|(if memcast then st else ot)| ty'⎤ ∗
+              T v' ty')) 
         -∗ Φ l) -∗
      wp_expr ge ⊤ f e Φ)%I.
 
@@ -365,18 +365,19 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast :
   ot of the location [l] with type [l ◁ₗ{β} ty]. [atomic] says whether the read is an
   atomic read, [E] gives the current mask, and [memcast] says whether a memcast is
   performed during the read. *)
-  Definition typed_read_end (atomic : bool) (E : coPset) (l : address) (β : own_state) (ty : type) (ot : Ctypes.type) (memcast : bool) (m:mem) (T : val → type → type → assert) : assert :=
-    (let E' := if atomic then ∅ else E in
-    ⎡l◁ₗ{β}ty⎤ ={E, E'}=∗ ∃ q v (ty2 : type),
-    ⌜l `has_layout_loc` ot⌝ ∗ ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
+  Definition typed_read_end (l : address) (β : own_state) (ty : type) (ot : Ctypes.type) (memcast : bool) (m:mem) (T : val → type → type → assert) : assert :=
+    (
+    ⎡l◁ₗ{β}ty⎤ -∗ ∃ q v (ty2 : type),
+    <affine> ⌜l `has_layout_loc` ot⌝ ∗ <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
+    <affine> ⌜readable_share q⌝ ∗ <affine> ⌜v ≠ Vundef⌝ ∗
     ⎡l↦{q}|ot| valinject ot v⎤ ∗ ▷ ⎡(valinject ot v) ◁ᵥ|ot| ty2⎤ ∗
-         ▷ (∀ st, ⎡l↦{q}|ot| (valinject ot v)⎤ -∗ ⎡(valinject ot v) ◁ᵥ|ot| ty2⎤ ={E', E}=∗
-            ∃ ty' (ty3 : type) (v':val), ⌜Some v'=if memcast then Cop.sem_cast v ot st m else Some v⌝ ∧
+         ▷ (∀ st, ⎡l↦{q}|ot| (valinject ot v)⎤ -∗ ⎡(valinject ot v) ◁ᵥ|ot| ty2⎤ -∗
+            ∃ ty' (ty3 : type) (v':val), ⌜Some v'=if memcast then Cop.sem_cast v ot st m else Some v⌝ ∗
               ⎡(valinject (if memcast then st else ot) v') ◁ᵥ|(if memcast then st else ot)| ty3⎤ ∗
               ⎡l◁ₗ{β} ty'⎤ ∗ T v' ty' ty3))%I.
 
-  Class TypedReadEnd (atomic : bool) (E : coPset) (l : address) (β : own_state) (ty : type) (ot : Ctypes.type) (m:mem) (memcast : bool) : Type :=
-    typed_read_end_proof T : iProp_to_Prop (typed_read_end atomic E l β ty ot memcast m T).
+  Class TypedReadEnd (l : address) (β : own_state) (ty : type) (ot : Ctypes.type) (m:mem) (memcast : bool) : Type :=
+    typed_read_end_proof T : iProp_to_Prop (typed_read_end l β ty ot memcast m T).
 
   (** [typed_write atomic E ot v1 ty1 l2 β2 ty2] typechecks a write with op_type
   ot of value [v1] of type [ty1] to the location [l2] with type [l2 ◁ₗ{β2} ty].
@@ -548,7 +549,7 @@ Global Hint Mode TypedBinOp + + + + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedUnOp + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedCall + + + + + + + + + + + + + + : typeclass_instances.
 (*Global Hint Mode TypedCopyAllocId + + + + + + + : typeclass_instances. *)
-Global Hint Mode TypedReadEnd + + + + + + + + + + + + : typeclass_instances.
+Global Hint Mode TypedReadEnd + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedWriteEnd + + + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedAddrOfEnd + + + + + + + : typeclass_instances.
 (* Global Hint Mode TypedPlace + + + + + + : typeclass_instances. *)
@@ -1735,22 +1736,36 @@ Qed.
     typed_macro_expr m es T
     ⊢ typed_val_expr (MacroE m es) T.
   Proof. done. Qed.
+*)
 
-  Lemma type_use ot T e o mc:
-    ⌜if o is Na2Ord then False else True⌝ ∗ typed_read (if o is ScOrd then true else false) e ot mc T
-    ⊢ typed_val_expr (use{ot, o, mc} e) T.
+  Lemma type_deref genv_t f cty T e m:
+    type_is_by_value cty = true ->
+    typed_read (ge genv_t) f e cty false m T 
+    ⊢ typed_val_expr (ge genv_t) f (Ederef e cty) T.
   Proof.
-    iIntros "[% Hread]" (Φ) "HΦ".
-    wp_bind. iApply "Hread".
-    iIntros (l) "Hl". rewrite /Use.
-    destruct o => //.
-    1: iApply wp_atomic.
-    2: iApply fupd_wp; iApply wp_fupd.
-    all: iMod "Hl" as (v q ty Hly Hv) "(Hl&Hv&HT)"; iModIntro.
-    all: iApply (wp_deref with "Hl") => //; try by eauto using val_to_of_loc.
-    all: iIntros "!# %st Hl".
-    all: iMod ("HT" with "Hl Hv") as (ty') "[Hv HT]"; iModIntro.
-    all: by iApply ("HΦ" with "Hv HT").
+    intros Hcty.
+    iIntros "H" (Φ) "HΦ".
+    rewrite -wp_expr_mapsto /=.
+    rewrite -wp_deref.
+    rewrite /typed_read.
+    iApply "H".
+    iIntros (l) "(%v & %q & %ty & %Hl & %Hv & %Hq & %v_not_undef & own_l & own_v & H)".
+    iExists _, _.
+    iSplit => //.
+    destruct l.
+    iExists _ ,_.
+    iSplit; first shelve.
+    iSplit.
+    { rewrite /mapsto.
+      destruct Hv as [? ?].
+      rewrite by_value_data_at_rec_nonvolatile //.
+      rewrite /adr2val repinject_valinject //=  Ptrofs.repr_unsigned.
+      iFrame.
+    }
+    iDestruct ("H" $! _ with "own_l own_v") as "(%ty' & %v' & % & own_v & T)".
+    inv H.
+    iApply ("HΦ" $! _ _  with "own_v T").
+    Unshelve. all: done.
   Qed.
 
   Lemma type_read T T' e ot (a : bool) mc:
@@ -1800,7 +1815,7 @@ Qed.
   Qed.
   Definition type_read_copy_inst := [instance type_read_copy].
   Global Existing Instance type_read_copy_inst | 10.
-*)
+
 
   (* for expr `e:=v` => eval_expr e = l ∧ typed l v  *)
   (* typed_lvalue e (typed_write_end ...)   *)
