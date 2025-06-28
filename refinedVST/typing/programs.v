@@ -283,16 +283,13 @@ Section judgements.
 
   (* FIXME this probably does not work; maybe providing a list of cty?  *)
   Definition typed_exprs f (el : list expr) (tl : list Ctypes.type) (T : list val → list type → assert) : assert :=
-    (∀ Φ, (∀ vl (tys : list type), ([∗ list] v;ty∈vl;tys, ∃ cty, ⎡v ◁ᵥₐₗ|cty| ty⎤) -∗ T vl tys -∗ Φ vl) -∗ wp_exprs ge ⊤ f el tl Φ).
+    (∀ Φ, (∀ vl (tys : list type), ([∗ list] v;'(cty,ty)∈vl;zip tl tys, ⎡v ◁ᵥₐₗ|cty| ty⎤) -∗ T vl tys -∗ Φ vl) -∗ wp_exprs ge ⊤ f el tl Φ).
   Global Arguments typed_exprs _ _ _ _%_I.
 
   (* can we rewrite this to take vals directly after all? We'd have to replace typed_stmt with sufficient
      conditions for a call to be safe. *)
   Definition typed_call f i (e : expr) (P : assert) (el : list expr) (tys : list type) (T : option val → type → assert) : assert :=
-    match typeof e with
-    | Tfunction ts _ _ => (P -∗ (*(typed_exprs el ts (λ _ tl, <affine> ⌜tl = tys⌝)) -∗*) typed_stmt (Scall i e el) f T)%I
-    | _ => False
-    end.
+    (P -∗ (*(typed_exprs el ts (λ _ tl, <affine> ⌜tl = tys⌝)) -∗*) typed_stmt (Scall i e el) f T)%I.
   Class TypedCall f i (e : expr) (P : assert) (el : list expr) (tys : list type) : Type :=
     typed_call_proof T : iProp_to_Prop (typed_call f i e P el tys T).
 
@@ -1311,8 +1308,7 @@ Section typing.
     iMod ("upd" with "H") as "(%Hot & Hl & upd)"; iModIntro.
     iExists Tsh.
     iSplit; [auto|].
-    rewrite mapsto_layout_iff_mapsto_and_layout.
-    iDestruct "Hl" as (v_rep) "[%Hl ↦]".
+    iDestruct "Hl" as (v_rep) "(%Hv & %Hl & ↦)".
     iSplitR "upd".
     - rewrite /mapsto 
       -mapsto_mapsto_ /adr2val /=.
@@ -1816,8 +1812,8 @@ Qed.
     iDestruct (ty_size_eq with "Hv'") as %?; [done|].
     iDestruct (ty_size_eq with "Hv") as %?; [done|].
     iApply fupd_mask_intro; [destruct a; solve_ndisj|]. iIntros "Hmask".
-    iSplit; [done|]. iSplitL "Hl". 
-    { rewrite mapsto_layout_iff_mapsto_and_layout. iExists _. iSplit;done. }
+    iSplit; [done|]. iSplitL "Hl".
+    { iExists _. by iFrame. }
     iIntros "!# Hl". iMod "Hmask". iModIntro.
     iExists _.
     iPoseProof (ty_ref with "[] Hl Hv") as "$"; try done.

@@ -183,40 +183,50 @@ Notation "bytewise< P , ly >" := (bytewise P ly)
 
 Global Typeclasses Opaque bytewise.
 
-Notation uninit := (bytewise (λ _, True%type)).
-
 Section uninit.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-(*   Context `{!externalGS OK_ty Σ}.
-  #[export] Instance VSTGS0 : VSTGS OK_ty Σ := Build_VSTGS _ _ _ _.
+  (* RefinedC defines uninit in terms of bytewise, but that's an unnecessary complication when vals aren't
+     already at the memval level. *)
+  Program Definition uninit cty : type := {|
+    ty_has_op_type ot mt := ot = cty;
+    ty_own β l :=
+      ∃ v, <affine> ⌜v `has_layout_val` cty⌝ ∗
+           <affine> ⌜l `has_layout_loc` cty⌝ ∗
+           l ↦[β]|cty| v;
+    ty_own_val cty' v := (<affine> ⌜cty' = cty⌝ ∗ <affine> ⌜v `has_layout_val` cty'⌝)%I;
+  |}%I.
+  Next Obligation.
+    iIntros (????). iDestruct 1 as (?) "(?&?&Hl)".
+    iMod (heap_mapsto_own_state_share with "Hl") as "Hl".
+    eauto with iFrame.
+  Qed.
+  Next Obligation. iIntros (????->). by iDestruct 1 as (???) "_". Qed.
+  Next Obligation. by iIntros (????-> [??]). Qed.
+  Next Obligation. iIntros (????->). iDestruct 1 as (???) "?". by eauto. Qed.
+  Next Obligation. iIntros (???? v -> ?) "? [%%]". iExists v. by iFrame. Qed.
 
   Lemma uninit_own_spec l ly:
-    (l ◁ₗ uninit ly)%I ≡ (data_at_ Tsh ly l)%I.
-  Proof.
-    rewrite /ty_own/=; iSplit.
-    - iDestruct 1 as (?? _) "Hl". rewrite /heap_mapsto_own_state. admit.
-    - iDestruct 1 as (?) "Hl". iExists v; iFrame. by rewrite Forall_forall.
-  Qed. *)
+    (l ◁ₗ uninit ly)%I ≡ (mapsto_layout l Tsh ly)%I.
+  Proof. done. Qed.
 
-(*   (* This only works for [Own] since [ty] might have interior mutability. *)
+   (* This only works for [Own] since [ty] might have interior mutability. *)
   Lemma uninit_mono A l ty ly `{!TCDone (ty.(ty_has_op_type) ly MCNone)} T:
-    (∀ v, v ◁ᵥ ty -∗ ∃ x, T x)
+    (∀ v, v ◁ᵥ|ly| ty -∗ ∃ x, T x)
     ⊢ subsume (l ◁ₗ ty) (λ x : A, l ◁ₗ uninit ly) T.
   Proof.
     unfold TCDone in *; subst. iIntros "HT Hl".
     iDestruct (ty_aligned with "Hl") as %?; [done|].
     iDestruct (ty_deref with "Hl") as (v) "[Hl Hv]"; [done|].
-(*     iDestruct (ty_size_eq with "Hv") as %?; [done|]. *)
-    iDestruct ("HT" with "Hv") as (?) "?". iExists _. iFrame.
-    iExists v. iFrame. iSplit; first done. 
+    iDestruct (ty_size_eq with "Hv") as %?; [done|].
+    iDestruct ("HT" with "Hv") as (?) "?". iExists _. by iFrame.
   Qed.
   (* This rule is handled with a definition and an [Hint Extern] (not
   with an instance) since this rule should only apply ty is not uninit
   as this case is covered by the rules for bytes and the CanSolve can
   be quite expensive. *)
   Definition uninit_mono_inst := [instance uninit_mono].
- *)
+
 (*   (* Typing rule for [Return] (used in [theories/typing/automation.v]). *)
   Lemma type_return Q e fn ls R:
     typed_val_expr e (λ v ty,
@@ -271,11 +281,11 @@ Section void.
 
   Definition void : type := uninit Tvoid.
 
-(*   Lemma type_void T:
-    T void ⊢ typed_value Vundef T.
-  Proof. iIntros "HT". iExists _. iFrame. unfold void, bytewise; simpl_type. Qed.
+  Lemma type_void T:
+    T void ⊢ typed_value tvoid Vundef T.
+  Proof. iIntros "HT". iExists _. iFrame. iPureIntro; split3; auto. intros ?; done. Qed.
   Definition type_void_inst := [instance type_void].
-  Global Existing Instance type_void_inst. *)
+  Global Existing Instance type_void_inst.
 End void.
 
 Notation zeroed := (bytewise (λ b, b = Byte Byte.zero)).

@@ -123,10 +123,10 @@ Admitted.
 Definition adr2val (l : address) := Vptr l.1 (Ptrofs.repr l.2).
 Coercion adr2val : address >-> val.
 
-(* overwrites res_predicates.val2address; unsgined seem to make more sense *)
+(* overwrites res_predicates.val2address; unsigned seems to make more sense *)
 Definition val2adr (v: val) : option address := 
   match v with Vptr b ofs => Some (b, Ptrofs.unsigned ofs) | _ => None end.
-  
+
 (* Ptrofs.intval Ptrofs.repr *)
 Definition norm_adr (l:address) : address := (l.1, (Ptrofs.unsigned $ Ptrofs.repr l.2)).
 
@@ -142,7 +142,7 @@ Section CompatRefinedC.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   (* refinedC only checks if `v` fits in the size of cty *)
-  (* this is implied by the current mapsto(i.e. data_at_rec_value_fits) *)
+  (* this is implied by the current mapsto (i.e. data_at_rec_value_fits) *)
   Definition has_layout_val (cty:Ctypes.type) (v:reptype cty) : Prop :=
     value_fits cty v ∧ type_is_volatile cty = false.
 
@@ -188,22 +188,8 @@ Section CompatRefinedC.
     data_at_rec q cty v l.
 
   Definition mapsto_layout (l : address) (q : Share.t) (cty : Ctypes.type) : mpred :=
-    ∃ v, data_at q cty v l. 
+    ∃ v, <affine> ⌜has_layout_val cty v⌝ ∗ <affine> ⌜has_layout_loc l cty⌝ ∗ mapsto l q cty v.
 
-  Lemma mapsto_layout_iff_mapsto_and_layout: ∀ l q cty,
-    mapsto_layout l q cty ⊣⊢
-      ∃ v, <affine>⌜has_layout_loc l cty⌝ ∗ mapsto l q cty v.
-  Proof.
-    intros. 
-    rewrite /mapsto_layout /data_at /mapsto /field_at /has_layout_loc /mapsto_memory_block.at_offset
-    /nested_field_type /adr2val /=
-    ptrofs_add_repr_0_r.
-    iIntros. iSplit.
-    - iIntros "[%v H]". iExists v.
-    rewrite bi.persistent_and_affinely_sep_l //.
-    - iIntros "[%v H]". iExists v.
-    rewrite bi.persistent_and_affinely_sep_l //.
-  Qed.
 End CompatRefinedC.
 
 Definition shrN : namespace := nroot.@"shrN".
