@@ -478,17 +478,19 @@ Global Existing Instance ty_shr_pers.
   Qed.
 End memcast.*)
 
-Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} (ty : type) := {
-  copy_own_persistent cty v : Persistent (ty.(ty_own_val) cty v);
-  copy_own_affine cty v : Affine (ty.(ty_own_val) cty v);
+Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} (cty:Ctypes.type) (ty : type) := {
+  copy_own_persistent v : Persistent (ty.(ty_own_val) cty v);
+  copy_own_affine v : Affine (ty.(ty_own_val) cty v);
+  copy_own_val_affine q l : Affine (ty.(ty_own) q l);
   copy_shr_acc E l :
     mtE ⊆ E →
-    ty.(ty_own) Shr l ={E}=∗ ∃ cty, <affine> ⌜l `has_layout_loc` cty⌝ ∗
+    ty.(ty_own) Shr l ={E}=∗ <affine> ⌜l `has_layout_loc` cty⌝ ∗
        (* TODO: the closing conjuct does not make much sense with True *)
-       ∃ q' vl, l ↦{q'}|cty| vl ∗ ▷ ty.(ty_own_val) cty vl ∗ (▷l ↦{q'}|cty| vl ={E}=∗ True)
+       ∃ q' vl, <affine> ⌜readable_share q'⌝ ∗ l ↦{q'}|cty| vl ∗ ▷ ty.(ty_own_val) cty vl ∗ (▷l ↦{q'}|cty| vl ={E}=∗ emp)
 }.
 Global Existing Instance copy_own_persistent.
 Global Existing Instance copy_own_affine.
+Global Existing Instance copy_own_val_affine.
 
 (* we require a nonzero size, since unlike in Caesium a size-0 allocation isn't enough
    to obtain valid_pointer *)
@@ -664,12 +666,11 @@ Coercion ty_of_rty : rtype >-> type.
 Section rmovable.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  Global Program Instance copyable_ty_of_rty A r `{!∀ x : A, Copyable (x @ r)} : Copyable r.
+  Global Program Instance copyable_ty_of_rty A r cty `{!∀ x : A, Copyable cty (x @ r)} : Copyable cty r.
   Next Obligation.
-    iIntros (A r ? E l ?). iDestruct 1 as (x) "Hl".
+    iIntros (A r cty ? E l ?). iDestruct 1 as (x) "Hl".
     iMod (copy_shr_acc with "Hl") as (? q' vl) "(%&?&?&?)" => //.
-    iExists _.
-    iSplitR => //. iExists _, _. iFrame. auto.
+    iSplitR => //. iExists _, _. iFrame. done.
   Qed.
 End rmovable.
 
