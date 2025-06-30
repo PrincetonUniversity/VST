@@ -2040,27 +2040,53 @@ Proof.
   iExists _; simpl; eauto.
 Qed.
 
-Lemma guarded_stop : forall E f (P : assert),
+Definition finished_ret_assert P :=
+  {|
+    RA_normal := P None;
+    RA_break := False;
+    RA_continue := False;
+    RA_return := P
+  |}.
+
+Lemma guarded_stop : forall E f (P : option val → assert),
   f.(fn_vars) = [] →
-  (P O -∗ ∀ m z, state_interp m z -∗ ⌜∃ i, ext_spec_exit OK_spec (Some (Vint i)) z m⌝) ⊢
-  guarded E f Kstop (function_body_ret_assert Tvoid (λ _, P)).
+  (∀ v, P v O -∗ ∀ m z, state_interp m z -∗ ⌜∃ i, ext_spec_exit OK_spec (Some (Vint i)) z m⌝) ⊢
+  guarded E f Kstop (finished_ret_assert P).
 Proof.
   intros; iIntros "H".
   iSplit.
-  - rewrite /assert_safe /= /bind_ret; monPred.unseal; iIntros "(_ & ?)".
+  - rewrite /assert_safe /=; iIntros "?".
     iIntros (????) "? (% & _) %".
     iApply safe_return; try done.
     { by apply typecheck_var_match_venv. }
     iFrame; iIntros; by iApply ("H" with "[$]").
   - do 2 (iSplit; first by simpl; monPred.unseal; iIntros "[]").
     iIntros ([|]); simpl.
-    + iIntros "He" (????) "Hr %%".
+    + iIntros "He" (????) "Hr (% & %) %Hmatch".
       iApply jsafe_step.
       rewrite /wp_expr /jstep_ex.
       iIntros (?) "(Hm & ?)".
       rewrite /bind_ret; monPred.unseal.
-      iMod ("He" with "[%] Hm [%] Hr") as ">(% & ? & ? & ? & [] & ?)"; done.
-    + rewrite /assert_safe /= /bind_ret; monPred.unseal; iIntros "(_ & ?)".
+      iMod ("He" with "[%] Hm [%] Hr") as ">(% & Heval & ? & ? & ?)"; [done..|].
+      rewrite monPred_at_affinely; iDestruct "Heval" as %Heval.
+      apply typecheck_var_match_venv in Hmatch.
+      exploit Heval; eauto; intros Hcast.
+      rewrite H in Hmatch.
+      inv Hcast.
+      iIntros "!>"; iExists _, _; iSplit.
+      { iPureIntro; econstructor; eauto.
+        rewrite /blocks_of_env.
+        destruct (PTree.elements ve) as [|(id, (?, ?))] eqn: Hel; first done.
+        specialize (Hmatch id); rewrite make_env_spec in Hmatch.
+        erewrite PTree.elements_complete in Hmatch; last by rewrite Hel; simpl; auto.
+        done. }
+      iFrame.
+      rewrite jsafe_unfold /jsafe_pre.
+      iIntros "!> !> !>" (?) "?"; iLeft.
+      iDestruct ("H" with "[$] [$]") as %(? & ?).
+      iExists _; simpl; eauto.
+      { inv H2. }
+    + rewrite /assert_safe /=; iIntros "?".
       iIntros (????) "?%%".
       iApply safe_return; try done.
       { by apply typecheck_var_match_venv. }
@@ -2250,11 +2276,11 @@ Qed.
 (* This is a "whole-program" adequacy theorem; we may also want a per-function one. *)
 Lemma wp_adequacy: forall `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK_ty Σ}, ext_spec OK_ty} {dryspec : ext_spec OK_ty}
   (Hdry : forall `{!VSTGS OK_ty Σ}, ext_spec_entails Espec dryspec)
-  ge m z f s (R : forall `{!VSTGS OK_ty Σ}, assert) ve te (Hf : f.(fn_vars) = [])
-  (EXIT: forall `{!VSTGS OK_ty Σ}, ⊢ (R O -∗ ∀ m z, state_interp m z -∗ ⌜∃ i, ext_spec_exit Espec (Some (Vint i)) z m⌝)),
+  ge m z f s (R : forall `{!VSTGS OK_ty Σ}, option val → assert) ve te (Hf : f.(fn_vars) = [])
+  (EXIT: forall `{!VSTGS OK_ty Σ} v, ⊢ (R v O -∗ ∀ m z, state_interp m z -∗ ⌜∃ i, ext_spec_exit Espec (Some (Vint i)) z m⌝)),
   (∀ `{HH : invGS_gen HasNoLc Σ}, ⊢ |={⊤}=> ∃ _ : gen_heapGS share address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : envGS Σ, ∃ _ : externalGS OK_ty Σ,
     let H : VSTGS OK_ty Σ := Build_VSTGS _ _ (HeapGS _ _ _ _) _ _ in
-    stack_level 0 ∗ ⎡state_interp m z⎤ ∗ ⌜typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f))⌝ ∧ ⎡env_auth (init_stack ge ve te)⎤ ∗ wp Espec ge ⊤ f s (function_body_ret_assert Tvoid (λ _, R))) →
+    stack_level 0 ∗ ⎡state_interp m z⎤ ∗ ⌜typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f))⌝ ∧ ⎡env_auth (init_stack ge ve te)⎤ ∗ wp Espec ge ⊤ f s (finished_ret_assert R)) →
        (forall n,
         @dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem ge) dryspec
             ge n z (State f s Kstop ve te) m (*∧ φ*)) (* note that this includes ext_spec_exit if the program halts *).
@@ -2279,7 +2305,7 @@ Proof.
   iApply ("H" with "[//] [//] [//] [L] [//] [] E").
   { done. }
   iApply guarded_stop; auto.
-  iApply EXIT.
+  by iIntros (?) "R"; iApply EXIT.
   { iPureIntro; apply init_stack_matches. }
   { done. }
 Qed.
