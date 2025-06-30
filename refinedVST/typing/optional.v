@@ -419,11 +419,11 @@ Section optionalO.
   Lemma type_eq_optionalO A (v1 v2 : val) (cty : Ctypes.type) (ty : A → type) optty (ot1 ot2 : Ctypes.type)
     `{!∀ x, Optionable cty (ty x) optty ot1 ot2}
     `{!Affine (v2 ◁ᵥₐₗ|cty| optty)} (b : option A) `{!Inhabited A} (T : _ → _ → assert):
-   ⎡opt_pre (ty (default inhabitant b)) v1 v2⎤ ∧ 
+   ⎡opt_pre (ty (option.default inhabitant b)) v1 v2⎤ ∧ 
     case_destruct b (λ b _,
         li_trace (TraceOptionalO, b) (∀ v, ⎡if b is Some x then v1 ◁ᵥₐₗ|cty| ty x else v1 ◁ᵥₐₗ|cty| optty⎤ -∗
          T v ((if b is Some x then false else true) @ boolean tint)))
-      ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|cty| b @ optionalO cty ty optty⎤ v2 ⎡v2 ◁ᵥₐₗ|cty| optty⎤ Oeq ot1 ot2 cty T.
+      ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|cty| b @ optionalO cty ty optty⎤ v2 ⎡v2 ◁ᵥₐₗ|cty| optty⎤ Oeq ot1 ot2 tint T.
   Proof.
     unfold li_trace. iIntros "HT Hv1 Hv2". iIntros (Φ) "HΦ".
     destruct b.
@@ -437,7 +437,8 @@ Section optionalO.
       }
       iDestruct "HT" as "[_ [% HT]]".
       iDestruct ("HT" with "Hv1") as "HT". iFrame.
-      iApply "HΦ" => //. iExists _. iSplit; iPureIntro; done.
+      iApply "HΦ" => //. rewrite /ty_own_val_at /ty_own_val /=. iSplit; first done.
+      iExists _. iSplit; iPureIntro; done.
     - iIntros "!>" (?) "Hctx !>".
       iExists (i2v (bool_to_Z true) tint).
       iSplit. {
@@ -448,17 +449,18 @@ Section optionalO.
       }
       iDestruct "HT" as "[_ [% HT]]".
       iDestruct ("HT" with "Hv1") as "HT". iFrame.
-      iApply "HΦ" => //. iExists _. iSplit; iPureIntro; done.
+      iApply "HΦ" => //. rewrite /ty_own_val_at /ty_own_val /=. iSplit; first done.
+      iExists _. iSplit; iPureIntro; done.
   Qed.
   Definition type_eq_optionalO_inst := [instance type_eq_optionalO].
   Global Existing Instance type_eq_optionalO_inst.
 
-  Lemma type_neq_optionalO ge A v1 v2 (ty : A → type) optty ot1 ot2 `{!∀ x, Optionable (ty x) optty ot1 ot2}
-    `{!Affine (v2 ◁ᵥ optty)} b `{!Inhabited A} T :
-    ⎡opt_pre (ty (default inhabitant b)) v1 v2⎤ ∧
+  Lemma type_neq_optionalO A v1 v2 cty (ty : A → type) optty ot1 ot2 `{!∀ x, Optionable cty (ty x) optty ot1 ot2}
+    `{!Affine (v2 ◁ᵥₐₗ|cty| optty)} b `{!Inhabited A} T :
+    ⎡opt_pre (ty (option.default inhabitant b)) v1 v2⎤ ∧
     case_destruct b (λ b _,
-      li_trace (TraceOptionalO, b) (∀ v, ⎡if b is Some x then v1 ◁ᵥ ty x else v1 ◁ᵥ optty⎤ -∗ T v ((if b is Some x then true else false) @ boolean tint)))
-    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ b @ optionalO ty optty⎤ v2 ⎡v2 ◁ᵥ optty⎤ Cop.One ot1 ot2 T.
+      li_trace (TraceOptionalO, b) (∀ v, ⎡if b is Some x then v1 ◁ᵥₐₗ|cty| ty x else v1 ◁ᵥₐₗ|cty| optty⎤ -∗ T v ((if b is Some x then true else false) @ boolean tint)))
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|cty| b @ optionalO cty ty optty⎤ v2 ⎡v2 ◁ᵥₐₗ|cty| optty⎤ Cop.One ot1 ot2 tint T.
   Proof.
     unfold li_trace. iIntros "HT Hv1 Hv2". iIntros (Φ) "HΦ".
     destruct b.
@@ -472,7 +474,8 @@ Section optionalO.
       }
       iDestruct "HT" as "[_ [% HT]]".
       iDestruct ("HT" with "Hv1") as "HT". iFrame.
-      iApply "HΦ" => //. iExists _. iSplit; iPureIntro; done.
+      iApply "HΦ" => //. rewrite /ty_own_val_at /ty_own_val /=. iSplit; first done.
+      iExists _. iSplit; iPureIntro; done.
     - iIntros "!>" (?) "Hctx !>".
       iExists (i2v (bool_to_Z false) tint).
       iSplit. {
@@ -483,7 +486,8 @@ Section optionalO.
       }
       iDestruct "HT" as "[_ [% HT]]".
       iDestruct ("HT" with "Hv1") as "HT". iFrame.
-      iApply "HΦ" => //. iExists _. iSplit; iPureIntro; done.
+      iApply "HΦ" => //. rewrite /ty_own_val_at /ty_own_val /=. iSplit; first done.
+      iExists _. iSplit; iPureIntro; done.
   Qed.
   Definition type_neq_optionalO_inst := [instance type_neq_optionalO].
   Global Existing Instance type_neq_optionalO_inst.
@@ -499,13 +503,13 @@ Section optionalO.
   Definition read_optionalO_case_inst := [instance read_optionalO_case].
   Global Existing Instance read_optionalO_case_inst | 1001.
 *)
-  Global Program Instance optionalO_copyable A (ty : A → type) optty x `{!∀ x, Copyable (ty x)} `{!Copyable optty} : Copyable (x @ optionalO ty optty).
+  Global Program Instance optionalO_copyable A cty (ty : A → type) optty x `{!∀ x, Copyable (ty x)} `{!Copyable optty} : Copyable (x @ optionalO cty ty optty).
   Next Obligation. Admitted.
   Next Obligation.
-    iIntros (A ty optty x ? ? E ly l ? [Hty ?]). unfold optionalO; simpl_type. destruct x.
+    iIntros (A ? ty optty x ? ? E l ?). unfold optionalO; simpl_type. destruct x.
     all: iIntros "Hl".
-    all: iMod (copy_shr_acc with "Hl") as (Hl ? ?) "[?[??]]" => //; try apply: Hty.
-    all: iModIntro; iSplit => //=.
+    all: iMod (copy_shr_acc with "Hl") as (? Hl ? ?) "[?[??]]" => //; try apply: Hty.
+    all: iModIntro; iExists _; iSplit => //=.
     all: iExists _, _; iFrame.
   Qed.
 End optionalO.
