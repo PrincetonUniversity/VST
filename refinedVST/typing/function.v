@@ -151,6 +151,7 @@ Section function.
     ([∗ list] k↦x;y ∈ l;m, Φ k x y) i ⊣⊢ [∗ list] k↦x;y ∈ l;m, Φ k x y i.
   Proof. rewrite !big_sepL2_alt. monPred.unseal; rewrite monPred_at_big_sepL //. Qed. *)
 
+  (* see process_stackframe_of *)
   Lemma stackframe_of_typed : forall f lv, stackframe_of' cenv_cs f lv ⊢ typed_stackframe f lv.
   Proof.
     intros; rewrite /stackframe_of' /typed_stackframe.
@@ -168,55 +169,36 @@ Section function.
     admit. (* volatile *)
   Admitted.
 
-  Lemma type_call_fnptr f l i e el fp tys T:
-    match typeof e with Tpointer (Tfunction ctl retty cc) _ =>
-    (typed_exprs ge f el ctl (λ vl tl, ⌜tl = tys⌝ ∧ ∃ x,
-      (([∗ list] v;'(cty,ty)∈vl;zip ctl tys, ⎡v ◁ᵥₐₗ|cty| ty⎤) -∗
-       ([∗ list] v;'(cty,ty)∈vl;zip ctl (fp x).(fp_atys), ⎡v ◁ᵥₐₗ|cty| ty⎤)) ∗
+  Lemma type_call_fnptr l i v vl ctys retty cc tys fp (T : _ → _ → assert) :
+    length vl = length ctys →
+    (⎡([∗ list] v;'(cty,ty)∈vl; zip ctys tys, v ◁ᵥₐₗ|cty| ty)⎤ -∗ ∃ x,
+      ⎡([∗ list] v;'(cty,ty)∈vl; zip ctys (fp x).(fp_atys), v ◁ᵥₐₗ|cty| ty)⎤ ∗
       ⎡(fp x).(fp_Pa)⎤ ∗ ∀ v x',
       ⎡((fp x).(fp_fr) x').(fr_R)⎤ -∗
       set_temp_opt i v (⎡opt_ty_own_val retty ((fp x).(fp_fr) x').(fr_rty) v⎤ -∗
-        T None tytrue)))
-    | _ => False end
-    ⊢ typed_call Espec ge f i e (typed_val_expr ge f e (λ v ty, ⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ ⎡v ◁ᵥₐₗ|typeof e| l @ function_ptr fp⎤)) el tys T.
+      T None tytrue))
+    ⊢ typed_call Espec ge i v ⎡v ◁ᵥₐₗ|tptr (Tfunction ctys retty cc)| l @ function_ptr fp⎤ vl ctys retty cc tys T.
   Proof.
-    rewrite /typed_exprs /typed_call.
-    destruct (typeof e) eqn: Hargty; try by iIntros "[]".
-    destruct t; try by iIntros "[]".
-    iIntros "HT He".
-    iApply wp_call; iApply "He".
-    iIntros (??) "Hty Hfp".
-    rewrite Hargty; iSpecialize ("Hfp" with "Hty").
-    iDestruct "Hfp" as (? ([=] & Hv) Htbl) "Hfp"; simpl in Hv; subst.
-    iExists (map snd (Clight.fn_params fn)), (fn_return fn), (fn_callconv fn); iSplit; first done.
-    iApply "HT".
-    iIntros (??) "Hvl (-> & Hpre) %Hlen".
-    iDestruct "Hpre" as (x) "(Hargs & Hpre & Hret)".
-    iSpecialize ("Hargs" with "Hvl").
-    rewrite map_length in Hlen.
+    iIntros (Hlen) "HT (%fn&(%&%)&%He&Hfn)".
+    simpl in *; subst.
+    inv H.
+    rewrite /type_of_params map_length in Hlen.
     iExists (Internal fn); iSplit.
-    { iPureIntro.
-      destruct l, Htbl as (-> & H & ?).
-      rewrite -Genv.find_funct_ptr_iff in H.
-      exists b; simpl; tauto. }
-    iNext; rewrite /= /internal_call_assert.
+    { iPureIntro; destruct l, He as (-> & ? & ?); rewrite /adr2val /=; eexists; split3; eauto.
+      { rewrite Genv.find_funct_ptr_iff //. }
+      tauto. }
+    iIntros "Htys !>"; iDestruct ("HT" with "Htys") as "(%x&Hvl&HPa&Hr)".
+    iDestruct ("Hfn" $! x) as "[%Hl #Hfn]".
     iStopProof.
-    split => n; monPred.unseal.
-    rewrite !monPred_at_big_sepL2.
-    iIntros "(Hf & Hatys & HP & Hpost) %% Hret %% Hstack !>".
-    rewrite /typed_function.
-    iSpecialize ("Hf" $! x).
-    iDestruct "Hf" as "(%Hop & #Hf)".
-    pose proof (Forall2_length Hop) as Hlena.
+    split => n. repeat monPred.unseal.
+    rewrite monPred_at_intuitionistically.
+    iIntros "(Hfn & Hvl & HPa & Hpost) %% Hret %% Hstack !>".
+    pose proof (Forall2_length Hl) as Hlena.
     rewrite Hlena -Hlen.
-    iPoseProof ("Hf" $! _ (Vector.of_list vl) with "[Hatys Hstack $HP]") as "Hbody"; iClear "Hf".
-    { rewrite vec_to_list_to_vec.
-      iSplitL "Hatys".
-      - iApply (big_sepL2_mono with "Hatys").
-        intros ?? (?, ?); done.
-      - iStopProof; apply monPred_in_entails, stackframe_of_typed. }
+    iSpecialize ("Hfn" $! _ (Vector.of_list vl) with "[Hvl $HPa Hstack]").
+    { rewrite vec_to_list_to_vec stackframe_of_typed; iFrame. }
     iApply (monPred_in_entails with "[-]"); first apply wp_strong_mono.
-    rewrite monPred_at_sep; iFrame "Hbody"; monPred.unseal.
+    rewrite monPred_at_sep; iFrame "Hfn"; monPred.unseal.
     iSplit.
     - rewrite /fn_ret_prop /set_temp_opt /Clight_seplog.bind_ret; iIntros (??) "H !>"; monPred.unseal.
       rewrite monPred_at_affinely; iDestruct "H" as "(% & H)".

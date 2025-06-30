@@ -1597,7 +1597,7 @@ Definition set_temp_opt ret vl R :=
    to do whole-stackframe reasoning. *)
 Definition internal_call_assert E f args ret R := up1 (stack_retainer f -∗ stackframe_of' ge f (args  ++ repeat Vundef (length f.(fn_temps))) -∗
   ▷ wp E f f.(fn_body) (frame_ret_assert (function_body_ret_assert f.(fn_return)
-      (λ vl, down1 (set_temp_opt ret vl (RA_normal R))))
+      (λ vl, down1 (set_temp_opt ret vl R)))
       (stack_retainer f ∗ ∃ vs, stackframe_of' ge f vs)))%I.
 
 Lemma internal_call_assert_mask_mono : forall E1 E2 f args ret R, E1 ⊆ E2 →
@@ -1616,7 +1616,7 @@ Definition external_call_assert E f vs i R :=
       ▷ ∀ ret m' z', ⌜Val.has_type_list vs (map proj_xtype (sig_args (ef_sig f)))
                    ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig f))⌝
                   → ⌜ext_spec_post OK_spec f x (genv_symb_injective ge) (sig_res (ef_sig f)) ret z' m'⌝ →
-              |={E}=> ⎡state_interp m' z'⎤ ∗ set_temp_opt i ret (RA_normal R).
+              |={E}=> ⎡state_interp m' z'⎤ ∗ set_temp_opt i ret R.
 
 Lemma external_call_assert_mask_mono : forall E1 E2 f args ret R, E1 ⊆ E2 →
   external_call_assert E1 f args ret R ⊢ external_call_assert E2 f args ret R.
@@ -1651,7 +1651,7 @@ Lemma call_safe : forall E f0 k ve te ρ ora f vs i R
   (Htc : typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f0)))
   (Hf : fundef_wf f vs),
 ⊢ stack_level (stack_depth k) -∗ ⎡ guarded E f0 k R ⎤ -∗ ⎡ env_auth ρ ⎤ -∗
-  call_assert E f vs i R -∗
+  call_assert E f vs i (RA_normal R) -∗
   ⎡ |={E}=> jsafeN E ora (Callstate f vs (Kcall i f0 ve te k)) ⎤.
 Proof.
   intros; iIntros "#Hd Hk Hr H".
@@ -1781,13 +1781,13 @@ Proof.
     by iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
 Qed.
 
-Lemma wp_call: forall E f0 i e es R,
-  wp_expr ge E f0 e (λ v, ∃ tys retty cc, <affine> ⌜classify_fun (typeof e) = fun_case_f tys retty cc⌝ ∗
+Lemma wp_call: forall E f0 i e es tys retty cc R,
+  classify_fun (typeof e) = fun_case_f tys retty cc →
+  wp_expr ge E f0 e (λ v,
     wp_exprs E f0 es tys
-    (λ vs, <affine> ⌜length vs = length tys⌝ -∗
-     ∃ f, <affine> ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some f /\
+    (λ vs, ∃ f, <affine> ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some f /\
        type_of_fundef f = Tfunction tys retty cc /\ fundef_wf f vs⌝ ∗
-       ▷ call_assert E f vs i R)) ⊢
+       ▷ call_assert E f vs i (RA_normal R))) ⊢
   wp E f0 (Scall i e es) R.
 Proof.
   intros; rewrite /wp.
@@ -1796,7 +1796,7 @@ Proof.
   rewrite /jstep_ex /wp_expr /wp_exprs /=.
   iIntros (?) "(Hm & Ho)".
   iMod (fupd_mask_subseteq E) as "Hclose"; first done.
-  iMod ("H" with "Hm Hr") as ">(% & He & Hm & Hr & % & % & % & % & H)"; [done..|].
+  iMod ("H" with "Hm Hr") as ">(% & He & Hm & Hr & H)"; [done..|].
   iMod ("H" with "Hm Hr") as (vs) "(Hes & Hm & Hr & H)"; [done..|].
   iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
   iPoseProof (env_match_intro with "Hd") as "#?"; first done.
@@ -1804,7 +1804,7 @@ Proof.
   pose proof (typecheck_var_match_venv _ _ Hty).
   assert (length vs = length tys).
   { apply eval_exprlist_length in Hes as (_ & Hlen); done. }
-  iDestruct ("H" with "[//]") as (? (? & -> & ? & ? & ?)) "H".
+  iDestruct ("H") as (? (? & -> & ? & ? & ?)) "H".
   iExists _, _; iSplit.
   { iPureIntro; econstructor; eauto. }
   iFrame.
@@ -1814,9 +1814,10 @@ Proof.
 Qed.
 
 (* not sure we'll ever use this *)
-Lemma wp_extcall_inline: forall E f0 i e es R,
-  wp_expr ge E f0 e (λ v, ∃ f tys retty cc, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (External f tys retty cc) /\
-    classify_fun (typeof e) = fun_case_f tys retty cc /\ ef_inline f && ef_deterministic f = true⌝ ∧
+Lemma wp_extcall_inline: forall E f0 i e es tys retty cc R,
+  classify_fun (typeof e) = fun_case_f tys retty cc →
+  wp_expr ge E f0 e (λ v, ∃ f, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (External f tys retty cc) /\
+    ef_inline f && ef_deterministic f = true⌝ ∧
     wp_exprs E f0 es tys (λ vs,
        ∀ m, ⎡mem_auth m⎤ ={E}=∗ ∃ t ret m', ⌜Events.external_call f ge vs m t ret m'⌝ ∧
          ▷ |={E}=> ⎡mem_auth m'⎤ ∗ set_temp_opt i (Some ret) (RA_normal R))) ⊢
@@ -1828,8 +1829,8 @@ Proof.
   rewrite /jstep_ex /wp_expr /wp_exprs /=.
   iIntros (?) "(Hm & Ho)".
   iMod (fupd_mask_subseteq E) as "Hclose"; first done.
-  iMod ("H" with "Hm Hr") as ">(% & He & Hm & Hr & %f & %tys & %retty & %cc & %Hb & H)"; [done..|].
-  destruct Hb as (b & -> & Hb & ? & ?).
+  iMod ("H" with "Hm Hr") as ">(% & He & Hm & Hr & %f & %Hb & H)"; [done..|].
+  destruct Hb as (b & -> & Hb & ?).
   iMod ("H" with "Hm Hr") as (vs) "(Hes & Hm & Hr & H)"; [done..|].
   iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
   iPoseProof (env_match_intro with "Hd") as "#?"; first done.
@@ -1877,7 +1878,7 @@ Qed.
    stack is a bit different *)
 Definition initial_internal_call_assert E f args R : assert := (stack_retainer f -∗ stackframe_of' ge f (args  ++ repeat Vundef (length f.(fn_temps))) -∗
   ▷ wp E f f.(fn_body) (frame_ret_assert (function_body_ret_assert f.(fn_return)
-      (λ vl, RA_normal R))
+      (λ vl, R))
       (stack_retainer f ∗ ∃ vs, stackframe_of' ge f vs)))%I.
 
 Definition initial_call_assert E f args R :=
@@ -1886,10 +1887,10 @@ Definition initial_call_assert E f args R :=
   | External f tys retty cc => external_call_assert E f args None R
   end.
 
-Lemma call_safe_stop : forall E ρ ora f vs R
+Lemma call_safe_stop : forall E ρ ora f vs (R : assert)
   (Hge : ∀ i : ident, Genv.find_symbol ge i = (ρ.1 !! i)%stdpp)
   (Hstack : ∀ i : nat, (ρ.2 !! i)%stdpp = None)
-  (Hexit : ∀ m ora, state_interp m ora -∗ RA_normal R O -∗ ⌜∃ i, ext_spec_exit OK_spec (Some (Vint i)) ora m⌝)
+  (Hexit : ∀ m ora, state_interp m ora -∗ R O -∗ ⌜∃ i, ext_spec_exit OK_spec (Some (Vint i)) ora m⌝)
   (Hf : fundef_wf f vs),
 ⊢ stack_level O -∗ ⎡ env_auth ρ ⎤ -∗
   initial_call_assert E f vs R -∗
@@ -2068,7 +2069,7 @@ Qed.
 
 End mpred.
 
-(* adequacy: copied from veric/SequentialClight *)
+(* adequacy *)
 Require Import VST.veric.external_state.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.semantics.
@@ -2217,6 +2218,33 @@ Proof.
     split3; simpl; intros; rewrite /Map.get /gmap_to_fun make_env_spec //.
   - done.
   - intros; rewrite lookup_insert_ne //; lia.
+Qed.
+
+Lemma wp_adequacy_call: forall `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK_ty Σ}, ext_spec OK_ty} {dryspec : ext_spec OK_ty}
+  (Hdry : forall `{!VSTGS OK_ty Σ}, ext_spec_entails Espec dryspec)
+  (ge : genv) m z f vs (R : forall `{!VSTGS OK_ty Σ}, assert)
+  (Hwf : fundef_wf ge f vs)
+  (EXIT: forall `{!VSTGS OK_ty Σ}, ⊢ (R O -∗ ∀ m z, state_interp m z -∗ ⌜∃ i, ext_spec_exit Espec (Some (Vint i)) z m⌝)),
+  (∀ `{HH : invGS_gen HasNoLc Σ}, ⊢ |={⊤}=> ∃ _ : gen_heapGS share address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : envGS Σ, ∃ _ : externalGS OK_ty Σ,
+    let H : VSTGS OK_ty Σ := Build_VSTGS _ _ (HeapGS _ _ _ _) _ _ in
+    stack_level 0 ∗ ⎡state_interp m z⎤ ∗ ⎡env_auth (make_env (Genv.genv_symb ge), ∅)⎤ ∗ initial_call_assert Espec ge ⊤ f vs R) →
+       (forall n,
+        @dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem ge) dryspec
+            ge n z (Callstate f vs Kstop) m (*∧ φ*)) (* note that this includes ext_spec_exit if the program halts *).
+Proof.
+  intros.
+  eapply ouPred.pure_soundness, (step_fupdN_soundness_no_lc'(Σ := Σ) _ (S n) O); [apply _..|].
+  simpl; intros. apply (embed_emp_valid_inj(PROP2 := monPred stack_index _)). iIntros "_".
+  iMod (H Hinv) as (????) "(? & ? & E & ?)".
+  iPoseProof (call_safe_stop with "[$] [E] [$]") as "Hsafe"; try done.
+  { intros; rewrite make_env_spec //. }
+  { done. }
+  { iIntros; by iApply (EXIT with "[$]"). }
+  iStopProof; split => ?; monPred.unseal.
+  rewrite -step_fupd_intro // -bi.later_intro.
+  set (HH := Build_VSTGS _ _ _ _ _).
+  rewrite -step_fupdN_mono; last by apply bi.pure_mono, (ext_spec_entails_safe _ (Espec _)).
+  apply (adequacy(VSTGS0 := HH)(OK_spec := Espec HH)).
 Qed.
 
 (* This is a "whole-program" adequacy theorem; we may also want a per-function one. *)

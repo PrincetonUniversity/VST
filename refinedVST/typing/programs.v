@@ -286,12 +286,12 @@ Section judgements.
     (∀ Φ, (∀ vl (tys : list type), ([∗ list] v;'(cty,ty)∈vl;zip tl tys, ⎡v ◁ᵥₐₗ|cty| ty⎤) -∗ T vl tys -∗ Φ vl) -∗ wp_exprs ge ⊤ f el tl Φ).
   Global Arguments typed_exprs _ _ _ _%_I.
 
-  (* can we rewrite this to take vals directly after all? We'd have to replace typed_stmt with sufficient
-     conditions for a call to be safe. *)
-  Definition typed_call f i (e : expr) (P : assert) (el : list expr) (tys : list type) (T : option val → type → assert) : assert :=
-    (P -∗ (*(typed_exprs el ts (λ _ tl, <affine> ⌜tl = tys⌝)) -∗*) typed_stmt (Scall i e el) f T)%I.
-  Class TypedCall f i (e : expr) (P : assert) (el : list expr) (tys : list type) : Type :=
-    typed_call_proof T : iProp_to_Prop (typed_call f i e P el tys T).
+  Definition typed_call i v (P : assert) (vl : list val) ctys retty cc (tys : list type) (T : option val → type → assert) : assert :=
+    (P -∗ ∃ f, <affine> ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some f /\
+       type_of_fundef f = Tfunction ctys retty cc /\ fundef_wf ge f vl⌝ ∗
+    (⎡[∗ list] v;'(cty,ty)∈vl;zip ctys tys, v ◁ᵥₐₗ|cty| ty⎤ -∗ ▷ call_assert OK_spec ge ⊤ f vl i (T None tytrue)))%I.
+  Class TypedCall i (v : val) (P : assert) (vl : list val) ctys retty cc (tys : list type) : Type :=
+    typed_call_proof T : iProp_to_Prop (typed_call i v P vl ctys retty cc tys T).
 
 (* There does not seem to be a copy stmt in Clight, just Sassign 
   Definition typed_copy_alloc_id (v1 : val) (P1 : iProp Σ) (v2 : val) (P2 : iProp Σ) (ot : op_type) (T : val → type → iProp Σ) : iProp Σ :=
@@ -546,7 +546,7 @@ Global Hint Mode TypedIf + + + + + : typeclass_instances.
 Global Hint Mode TypedValue + + + + + + : typeclass_instances.
 Global Hint Mode TypedBinOp + + + + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedUnOp + + + + + + + + + : typeclass_instances.
-Global Hint Mode TypedCall + + + + + + + + + + + + : typeclass_instances.
+Global Hint Mode TypedCall + + + + + + + + + + + + + + : typeclass_instances.
 (*Global Hint Mode TypedCopyAllocId + + + + + + + : typeclass_instances. *)
 Global Hint Mode TypedReadEnd + + + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedWriteEnd + + + + + + + + + + + + : typeclass_instances.
@@ -1579,27 +1579,55 @@ Qed.
     iApply ("HΦ" with "[$]"). done.
   Qed.
 
-(*  Lemma type_call_syn T ef es:
-    typed_val_expr (Call ef es) T :-
-      vf, tyf ← {typed_val_expr ef};
-      vl, tys ← iterate: es with [], [] {{e T vl tys,
-                  v, ty ← {typed_val_expr e};
+  Lemma type_call_syn Espec ge f T i ef es ctys retty cc:
+    typed_stmt Espec ge (Scall i ef es) f T :-
+      exhale <affine> ⌜classify_fun (typeof ef) = fun_case_f ctys retty cc /\ length es = length ctys⌝;
+      vf, tyf ← {typed_val_expr ge f ef};
+      vl, tys ← iterate: zip es ctys with [], [] {{'(e, t) T vl tys,
+                  v, ty ← {typed_val_expr ge f (Ecast e t)};
                   return T (vl ++ [v]) (tys ++ [ty])}};
-      {typed_call vf (vf ◁ᵥ tyf) vl tys T}.
+      {typed_call Espec ge i vf ⎡vf ◁ᵥₐₗ|typeof ef| tyf⎤ vl ctys retty cc tys T}.
   Proof.
-    iIntros "He". iIntros (Φ) "HΦ".
-    iApply wp_call_bind. iApply "He". iIntros (vf tyf) "Hvf HT".
-    iAssert ([∗ list] v;ty∈[];[], v ◁ᵥ ty)%I as "-#Htys". { done. }
-    move: {2 3 5}[] => vl. move: {2 3}(@nil type) => tys.
-    iInduction es as [|e es] "IH" forall (vl tys) => /=. 2: {
-      iApply "HT". iIntros (v ty) "Hv Hnext". iApply ("IH" with "HΦ Hvf Hnext"). by iFrame.
+    iIntros "((% & %Hlen) & He)".
+    iApply wp_call; first done. iApply "He". iIntros (vf tyf) "Hvf HT".
+    iAssert ⎡[∗ list] v;'(cty,ty)∈[];zip [] [], v ◁ᵥₐₗ|cty| ty⎤ as "-#Htys". { rewrite embed_emp //. }
+    match goal with |-context[wp_exprs _ _ _ _ _ ?P] =>
+      change P with (λ vs : list val,
+     ∃ f0 : Clight.fundef,
+       <affine>
+       ⌜∃ b : Values.block,
+          vf = Vptr b Ptrofs.zero
+          ∧ Genv.find_funct_ptr (programs.ge ge) b = Some f0
+            ∧ type_of_fundef f0 = Tfunction ctys retty cc
+              ∧ fundef_wf (programs.ge ge) f0 ([] ++ vs)⌝ ∗
+       ▷ call_assert Espec (programs.ge ge) ⊤ f0 ([] ++ vs) i
+           (RA_normal (typed_stmt_post_cond (fn_return f) T))) end.
+    assert (length (@nil Ctypes.type) = length (@nil type)) as Hlen' by done. revert Hlen'.
+    move: {2 3 4 5}(@nil val) => vl. move: {1 3 4}(@nil type) => tys.
+    set (ctys' := ctys). fold ctys' in Hlen. unfold ctys' at 2 4.
+    assert (ctys = [] ++ ctys') as Heq by done; revert Heq.
+    move: (@nil Ctypes.type) => ctys0. clear H. clearbody ctys'.
+    intros; iInduction es as [|e es] "IH" forall (vl ctys0 ctys' tys Hlen Hlen' Heq) => /=. 2: {
+      iApply wp_exprs_intro.
+      destruct ctys'; first done.
+      iApply "HT". iIntros (v ty) "Hv Hnext".
+      iApply wp_exprs_mono; last iApply ("IH" $! (vl ++ [v]) (ctys0 ++ [t]) with "[%] [%] [%] Hvf Hnext").
+      - intros; rewrite -fupd_intro; setoid_rewrite <- app_assoc; done.
+      - by inv Hlen.
+      - by rewrite !app_length Hlen'.
+      - rewrite -app_assoc //.
+      - rewrite zip_with_app // big_sepL2_snoc; iFrame.
     }
-    by iApply ("HT" with "Hvf Htys").
+    iApply wp_exprs_intro.
+    destruct ctys'; last done.
+    rewrite !app_nil_r in Heq |- *; subst.
+    iDestruct ("HT" with "Hvf") as "(% & $ & HT)".
+    by iApply "HT".
   Qed.
   Lemma type_call : [type_from_syntax type_call_syn].
   Proof. exact type_call_syn. Qed.
 
-  Lemma type_copy_alloc_id e1 e2 ot T:
+(*  Lemma type_copy_alloc_id e1 e2 ot T:
     typed_val_expr e1 (λ v1 ty1, typed_val_expr e2 (λ v2 ty2, typed_copy_alloc_id v1 (v1 ◁ᵥ ty1) v2 (v2 ◁ᵥ ty2) ot T))
     ⊢ typed_val_expr (CopyAllocId ot e1 e2) T.
   Proof.
