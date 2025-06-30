@@ -77,15 +77,15 @@ Section tyexist.
   Definition simplify_goal_place_tyexists_inst := [instance simplify_goal_place_tyexists with 0%N].
   Global Existing Instance simplify_goal_place_tyexists_inst.
 
-  Lemma simplify_hyp_val_tyexists x v ty T :
-    (v ◁ᵥ ty x -∗ T) ⊢ simplify_hyp (v◁ᵥ x @ tyexists (A:=A) ty) T.
+  Lemma simplify_hyp_val_tyexists x cty v ty T :
+    (v ◁ᵥ|cty| ty x -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| x @ tyexists (A:=A) ty) T.
   Proof. iIntros "HT Hl". rewrite tyexists_eq. by iApply "HT". Qed.
 
   Definition simplify_hyp_val_tyexists_inst := [instance simplify_hyp_val_tyexists with 0%N].
   Global Existing Instance simplify_hyp_val_tyexists_inst.
 
-  Lemma simplify_goal_val_tyexists x v ty T:
-    v ◁ᵥ ty x ∗ T ⊢ simplify_goal (v◁ᵥ x @ tyexists (A:=A) ty) T.
+  Lemma simplify_goal_val_tyexists x cty v ty T:
+    v ◁ᵥ|cty| ty x ∗ T ⊢ simplify_goal (v ◁ᵥ|cty| x @ tyexists (A:=A) ty) T.
   Proof. iIntros "[? $]". by rewrite tyexists_eq. Qed.
 
   Definition simplify_goal_val_tyexists_inst := [instance simplify_goal_val_tyexists with 0%N].
@@ -101,14 +101,14 @@ Section tyexist.
     SimpleSubsumePlace ty1 (x @ tyexists ty2) P.
   Proof. iIntros (l β) "HP Hl". rewrite ! tyexists_eq. iApply (@simple_subsume_place with "HP Hl"). Qed.
 
-  Global Program Instance tyexist_optional x (ty : A → _) optty ot1 ot2
-    `{!∀ x, Optionable (ty x) optty ot1 ot2} : Optionable (x @ tyexists ty) optty ot1 ot2 := {|
+  Global Program Instance tyexist_optional x cty (ty : A → _) optty ot1 ot2
+    `{!∀ x, Optionable cty (ty x) optty ot1 ot2} : Optionable cty (x @ tyexists ty) optty ot1 ot2 := {|
     opt_pre v1 v2 := opt_pre (ty x) v1 v2
   |}.
   Next Obligation.
-    move => ????????????. rewrite {1}/ty_own_val/= ty_exists_rty_eq /ty_has_op_type/ty_own_val. apply opt_bin_op.
+    move => ????????????. rewrite {1}/ty_own_val_at {1}/ty_own_val/= ty_exists_rty_eq /ty_has_op_type /ty_own_val_at /ty_own_val. apply opt_bin_op.
   Qed.
-  
+
   Global Instance optionable_agree_tyexists (ty2 : A → type) ty1
     `{!∀ x, OptionableAgree (ty2 x) ty1} : OptionableAgree (tyexists ty2) ty1.
   Proof. done. Qed.

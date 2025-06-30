@@ -15,7 +15,7 @@ Section own_constrained.
   Program Definition own_constrained (P : own_state → mpred) `{!OwnConstraint P} (ty : type) : type := {|
     ty_has_op_type ot mt := ty.(ty_has_op_type) ot mt;
     ty_own β l := (l ◁ₗ{β} ty ∗ P β)%I;
-     ty_own_val v := (v ◁ᵥ ty ∗ P Own)%I;
+     ty_own_val cty v := (v ◁ᵥ|cty| ty ∗ P Own)%I;
   |}.
   Next Obligation. iIntros (??????) "(H1 & H2)".
                    iMod (ty_share with "[$H1]") as "$" => //.
@@ -62,25 +62,25 @@ Section own_constrained.
     [instance simplify_goal_place_own_constrained with 0%N].
   Global Existing Instance simplify_goal_place_own_constrained_inst.
 
-  Lemma simplify_hyp_val_own_constrained P v ty `{!OwnConstraint P} T:
-    (P Own -∗ v ◁ᵥ ty -∗ T) ⊢ simplify_hyp (v ◁ᵥ own_constrained P ty) T.
+  Lemma simplify_hyp_val_own_constrained P cty v ty `{!OwnConstraint P} T:
+    (P Own -∗ v ◁ᵥ|cty| ty -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| own_constrained P ty) T.
   Proof. iIntros "HT [Hl HP]". by iApply ("HT" with "HP"). Qed.
   Definition simplify_hyp_val_own_constrained_inst :=
     [instance simplify_hyp_val_own_constrained with 0%N].
   Global Existing Instance simplify_hyp_val_own_constrained_inst.
 
-  Lemma simplify_goal_val_own_constrained P v ty `{!OwnConstraint P} T:
-    v ◁ᵥ ty ∗ P Own ∗ T ⊢ simplify_goal (v ◁ᵥ own_constrained P ty) T.
+  Lemma simplify_goal_val_own_constrained P cty v ty `{!OwnConstraint P} T:
+    v ◁ᵥ|cty| ty ∗ P Own ∗ T ⊢ simplify_goal (v ◁ᵥ|cty| own_constrained P ty) T.
   Proof. iIntros "[$ [$ $]]". Qed.
   Definition simplify_goal_val_own_constrained_inst :=
     [instance simplify_goal_val_own_constrained with 0%N].
   Global Existing Instance simplify_goal_val_own_constrained_inst.
 
-  Global Program Instance own_constrained_optional ty P optty ot1 ot2 `{!OwnConstraint P} `{!Optionable ty optty ot1 ot2} : Optionable (own_constrained P ty) optty ot1 ot2 := {|
+  Global Program Instance own_constrained_optional cty ty P optty ot1 ot2 `{!OwnConstraint P} `{!Optionable cty ty optty ot1 ot2} : Optionable cty (own_constrained P ty) optty ot1 ot2 := {|
     opt_pre v1 v2 := opt_pre ty v1 v2
   |}.
   Next Obligation.
-    iIntros (???????[]?????) "Hpre H1 H2". 1: iDestruct "H1" as "[H1 _]".
+    iIntros (????????[]?????) "Hpre H1 H2". 1: iDestruct "H1" as "[H1 _]".
     - by iApply (opt_bin_op true with "Hpre H1 H2").
     - by iApply (opt_bin_op false with "Hpre H1 H2").
   Qed.

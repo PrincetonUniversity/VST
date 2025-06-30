@@ -695,9 +695,9 @@ Section mono.
     ty_own ty1 β l ⊢ ty_own ty2 β l.
   Proof. by move => [-> ?]. Qed.
 
-  Global Instance ty_own_val_le cty: Proper ((⊑)  ==> eq ==> (⊢)) (ty_own_val_at cty).
+  Global Instance ty_own_val_at_le cty: Proper ((⊑) ==> eq ==> (⊢)) (ty_own_val_at cty).
   Proof. intros ?? EQ ??->. apply EQ. Qed.
-  Global Instance ty_own_val_proper cty: Proper ((≡) ==> eq ==> (≡)) (ty_own_val_at cty).
+  Global Instance ty_own_val_at_proper cty: Proper ((≡) ==> eq ==> (≡)) (ty_own_val_at cty).
   Proof. intros ?? EQ ??->. apply EQ. Qed.
 
   Lemma ty_of_rty_le A rty1 rty2 :

@@ -2,16 +2,16 @@ From VST.typing Require Export type.
 From VST.typing Require Import programs exist constrained.
 From VST.typing Require Import type_options.
 
-Definition type_fixpoint_def `{!typeG Σ} {cs : compspecs} {A} : ((A -> type) → (A -> type)) → (A → type) :=
+Definition type_fixpoint_def `{!typeG OK_ty Σ} {cs : compspecs} {A} : ((A -> type) → (A -> type)) → (A → type) :=
   λ T x, tyexists (λ ty, constrained (ty x) (⌜∀ x, ty x ⊑ T ty x⌝)).
 Definition type_fixpoint_aux : seal (@type_fixpoint_def). Proof. by eexists. Qed.
 Definition type_fixpoint := type_fixpoint_aux.(unseal).
-Global Arguments type_fixpoint {Σ _ _ A} _ _.
-Lemma type_fixpoint_unseal `{!typeG Σ} {cs : compspecs} {A} : type_fixpoint = @type_fixpoint_def Σ _ _ A.
+Global Arguments type_fixpoint {_ Σ _ _ A} _ _.
+Lemma type_fixpoint_unseal `{!typeG OK_ty Σ} {cs : compspecs} {A} : type_fixpoint = @type_fixpoint_def OK_ty Σ _ _ A.
 Proof. rewrite -type_fixpoint_aux.(seal_eq) //. Qed.
 
 Section fixpoint.
-  Context `{!typeG Σ} {cs : compspecs} {A : Type}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs} {A : Type}.
   Implicit Types (T : (A -> type) → (A -> type)).
 
   Local Lemma type_fixpoint_own_eq T x l β :
@@ -24,11 +24,12 @@ Section fixpoint.
     - iIntros "(%H1 & $)". done.
   Qed.
 
-  Local Lemma type_fixpoint_own_val_eq T x v :
-    v ◁ᵥ type_fixpoint T x ⊣⊢ ∃ ty, <affine>⌜∀ x, ty x ⊑ T ty x⌝ ∗ v ◁ᵥ ty x.
+  Local Lemma type_fixpoint_own_val_eq T x cty v :
+    v ◁ᵥ|cty| type_fixpoint T x ⊣⊢ ∃ ty, <affine>⌜∀ x, ty x ⊑ T ty x⌝ ∗ v ◁ᵥ|cty| ty x.
   Proof.
-    rewrite type_fixpoint_unseal {1}/ty_own_val/=. f_equiv => ?.
-    rewrite tyexists_eq. rewrite /own_constrained/persistent_own_constraint; simpl_type.
+    rewrite type_fixpoint_unseal {1}/ty_own_val_at {1}/ty_own_val/=. f_equiv => ?.
+    rewrite {1}/ty_own_val /= ty_exists_rty_eq {1}/ty_own_val /=.
+    rewrite /own_constrained/persistent_own_constraint; simpl_type.
     iSplit.
     - iIntros "($ & %H2)". by iApply bi.intuitionistically_elim.
     - iIntros "(%H1 & $)". done.
@@ -40,7 +41,7 @@ Section fixpoint.
   Proof.
     move => Hle. constructor.
     - iIntros (β l) "Hl". rewrite type_fixpoint_own_eq. iExists _. by iFrame.
-    - iIntros (v) "Hv". rewrite type_fixpoint_own_val_eq. iExists _. by iFrame.
+    - iIntros (? v) "Hv". setoid_rewrite type_fixpoint_own_val_eq. iExists _. by iFrame.
   Qed.
 
   Lemma type_fixpoint_unfold_1 T `{!TypeMono T}:
@@ -53,8 +54,8 @@ Section fixpoint.
       destruct (Hle x) as [-> ?].
       edestruct (TypeMono0 ty (type_fixpoint T)) as [Hown2 ?]; [|by iApply Hown2].
       intros ?. by apply type_fixpoint_greatest.
-    - rewrite type_fixpoint_own_val_eq. iIntros "[%ty [%Hle HA]]".
-      destruct (Hle x) as [? ->].
+    - setoid_rewrite type_fixpoint_own_val_eq. iIntros "[%ty [%Hle HA]]".
+      destruct (Hle x) as [? Hlex]; setoid_rewrite Hlex.
       edestruct (TypeMono0 ty (type_fixpoint T)) as [? Hown2]; [|by iApply Hown2].
       intros ?. by apply type_fixpoint_greatest.
   Qed.
@@ -65,7 +66,7 @@ Section fixpoint.
     intros x. constructor => *.
     - rewrite type_fixpoint_own_eq. iIntros "?". iExists _. iSplit; [|done].
       iPureIntro. intros. apply TypeMono0. intros ?. by apply type_fixpoint_unfold_1.
-    - rewrite type_fixpoint_own_val_eq. iIntros "?". iExists _. iSplit; [|done].
+    - setoid_rewrite type_fixpoint_own_val_eq. iIntros "?". iExists _. iSplit; [|done].
       iPureIntro. intros. apply TypeMono0. intros ?. by apply type_fixpoint_unfold_1.
   Qed.
 
@@ -82,7 +83,7 @@ Section fixpoint.
 End fixpoint.
 
 Section fixpoint.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Lemma type_fixpoint_proper {A} x1 x2 (T1 T2 : (A → type) → (A → type)) :
     x1 = x2 → (∀ f x, T1 f x ≡ T2 f x) →
@@ -91,7 +92,7 @@ Section fixpoint.
     move => -> HT.
     constructor => *.
     - rewrite !type_fixpoint_own_eq. by setoid_rewrite HT.
-    - rewrite !type_fixpoint_own_val_eq. by setoid_rewrite HT.
+    - setoid_rewrite type_fixpoint_own_val_eq. by setoid_rewrite HT.
   Qed.
 End fixpoint.
 
@@ -100,7 +101,7 @@ Global Typeclasses Opaque type_fixpoint.
 (*** Tests *)
 Local Set Default Proof Using "Type*".
 Section tests.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
   Context (own_ptr : type → type) {HT: Proper ((⊑) ==> (⊑)) own_ptr}.
 
   Definition fixpoint_test_rec : (nat → type) → (nat → type) := (λ self, λ n, own_ptr (self (S n))).
