@@ -939,7 +939,7 @@ assert  (TC5: typecheck_glob_environ (filter_genv psi) (glob_types Delta)). {
 assert (⊢ ▷ (<absorb> P a (filter_genv psi, args) ∗ funassert Delta psi ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) -∗
   jsafeN OK_spec psi (E a) z (Clight_core.Callstate f args Kstop))) as Hsafe; last by apply bi.wand_entails, ouPred.later_soundness.
 assert (⊢ ▷ ((globals_auth (make_env (Genv.genv_symb psi)) ∗ <absorb> P a (filter_genv psi, args) ∗ funassert Delta psi) -∗
-  <absorb> initial_call_assert OK_spec (globalenv prog) (E a) f args (Clight_seplog.normal_ret_assert ⎡(∃ v, Q a v) ∗ funassert Delta psi⎤) O)) as Hpre.
+  <absorb> initial_call_assert OK_spec (globalenv prog) (E a) f args ⎡(∃ v, Q a v) ∗ funassert Delta psi⎤ O)) as Hpre.
 2: { rewrite /bi_emp_valid Hpre; f_equiv.
      iIntros "H (P & F & E)"; iDestruct (env_auth_globals with "E") as "(E & G)".
      iMod ("H" with "[$G $P $F]") as "H".

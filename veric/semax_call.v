@@ -784,14 +784,13 @@ Proof.
   { exists id; eauto. }
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
   pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
-  iApply wp_call.
+  iApply wp_call; first done.
   iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit; first by rewrite !bi.and_elim_l; auto.
   iIntros "E" (?).
-  iExists _, _, _; iSplit; first done.
   iApply (wp_tc_exprlist(CS := CS) with "E"); [done..|].
   iSplit; first by rewrite bi.and_elim_l bi.and_elim_r; auto.
-  iIntros "E" (TCargs Hlen).
+  iIntros "E" (TCargs).
   iDestruct "B'" as "[BE|BI]".
   - rewrite /believe_external Ha Genv.find_funct_find_funct_ptr.
     destruct (Genv.find_funct_ptr psi b) as [[|]|] eqn: Hb; try by rewrite embed_pure.
@@ -867,6 +866,7 @@ Proof.
       destruct t; try destruct i, s; try destruct f; try (specialize (TC5 eq_refl)); iFrame; first done; destruct v; contradiction.
   - iDestruct "BI" as (?? (Ha' & ? & Hcomplete & ? & ? & Hvars & [=] & <-)) "BI".
     rewrite Ha' in Ha; inv Ha.
+    pose proof (tc_vals_length _ _ TCargs) as Hlen.
     iExists _; iSplit.
     { iPureIntro; exists b; split3; eauto; split3; auto.
       { eapply Forall_impl; first apply Hcomplete.
@@ -874,7 +874,7 @@ Proof.
       split3; auto; split.
       { rewrite /var_sizes_ok !Forall_forall in Hcomplete Hvars |- *.
         intros; rewrite cenv_sub_sizeof //; auto. }
-      { rewrite Hlen map_length //. } }
+      { rewrite -Hlen map_length //. } }
     iSpecialize ("BI" with "[%] [%]").
     { intros; apply tycontext_sub_refl. }
     { apply cenv_sub_refl. }
@@ -906,7 +906,7 @@ Proof.
     assert (NoDup (zip (map fst (fn_params f) ++ map fst (fn_temps f))
         (eval_exprlist(CS := CS) (type_of_params (fn_params f)) bl rho ++ repeat Vundef (length (fn_temps f)))).*1).
     { rewrite -norepet_NoDup fst_zip //.
-      rewrite map_length in Hlen; rewrite !app_length !map_length Hlen repeat_length //. }
+      rewrite map_length in Hlen; rewrite !app_length !map_length -Hlen repeat_length //. }
     assert (forall n i t, lookup n (fn_params f) = Some (i, t) ->
         exists v, lookup n (eval_exprlist(CS := CS) (type_of_params (fn_params f)) bl rho) = Some v /\
           lookup i (te_of rho0) = Some v) as Hte.
@@ -958,7 +958,7 @@ Proof.
     + do 2 (iSplit; first iIntros (??) "((% & ([] & ?) & ?) & ?)").
       iIntros (r ? [=]) "((%rho' & (Q & stack) & Htc & E') & F)".
       rewrite monPred_at_affinely; iDestruct "Htc" as %Htc.
-      rewrite bind_ret_eq; monPred.unseal; rewrite monPred_at_affinely. iDestruct "Q" as (Hr) "Q".
+      rewrite bind_ret_eq /set_temp_opt; monPred.unseal; rewrite monPred_at_affinely. iDestruct "Q" as (Hr) "Q".
       rewrite ofe_morO_equivI; iSpecialize ("HQ" $! fx).
       rewrite discrete_fun_equivI; iSpecialize ("HQ" $! r).
       iRewrite "HQ" in "Q".
