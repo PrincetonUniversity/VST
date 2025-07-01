@@ -1039,7 +1039,7 @@ Proof.
   rewrite !sepcon_assoc.
   view_shift (ghost_snap_forget(ORD := list_order _) (list_singleton (length lg + i) g)).
   { apply list_incl_singleton.
-    erewrite length_app, upto_app, map_app, app_nth2; erewrite length_map, upto_length, app_length,
+    erewrite length_app, upto_app, map_app, app_nth2; erewrite length_map, upto_length, length_app,
       repeat_length; try lia.
     replace (_ - _)%nat with O by lia; simpl.
     rewrite Nat2Z.inj_add, Z.add_0_r.

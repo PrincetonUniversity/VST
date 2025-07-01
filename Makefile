@@ -303,9 +303,10 @@ CGFLAGS =  -DCOMPCERT -short-idents
 
 # ##### Interaction Trees Flags #####
 
-ifneq ($(wildcard InteractionTrees/theories),)
-EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
-endif
+# the following commented out, because we get from opam instead of submodules
+# ifneq ($(wildcard InteractionTrees/theories),)
+# EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
+# endif
 
 # ##### FCF (Foundational Cryptography Framework) Flags #####
 
@@ -315,9 +316,10 @@ endif#
 
 # ##### PaCo (Parameterized Coinduction) Flags #####
 
-ifneq ($(wildcard paco/src),)
-EXTFLAGS:=$(EXTFLAGS) -Q paco/src Paco
-endif
+# the following commented out, because we get from opam instead of submodules
+# ifneq ($(wildcard paco/src),)
+# EXTFLAGS:=$(EXTFLAGS) -Q paco/src Paco
+# endif
 
 # ##### SSReflect Flags #####
 
@@ -327,7 +329,10 @@ endif
 
 # ##### Flag summary #####
 
-COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) # -Q ../stdpp/theories stdpp -Q ../iris/iris iris -Q ../InteractionTrees/theories ITree -Q ../paco/src Paco -Q ../coq-ext-lib/theories ExtLib -Q ../fcf/src/fcf FCF
+COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) # -Q ../stdpp/theories stdpp -Q ../iris/iris iris -Q ../fcf/src/fcf FCF
+
+# old version with InteractionTrees, paco, coq-ext-lib; we now obtain these from opam environment instead of submodules
+# COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) # -Q ../stdpp/theories stdpp -Q ../iris/iris iris -Q ../InteractionTrees/theories ITree -Q ../paco/src Paco -Q ../coq-ext-lib/theories ExtLib -Q ../fcf/src/fcf FCF
 
 
 DEPFLAGS:=$(COQFLAGS)
@@ -923,15 +928,16 @@ endif
 # ifneq ($(wildcard coq-ext-lib/theories),)
 # 	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
 # endif
-ifneq ($(wildcard InteractionTrees/theories),)
-#	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
-	$(COQDEP) -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
-endif
+
+# the following commented out, because we get from opam instead of submodules
+# ifneq ($(wildcard InteractionTrees/theories),)
+# 	$(COQDEP) -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
+# endif
+# ifneq ($(wildcard paco/src),)
+# 	$(COQDEP) -Q paco/src Paco paco/src/*.v >>.depend
+# endif
 ifneq ($(wildcard fcf/src/FCF),)
 	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend
-endif
-ifneq ($(wildcard paco/src),)
-	$(COQDEP) -Q paco/src Paco paco/src/*.v >>.depend
 endif
 	wc .depend
 

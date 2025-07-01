@@ -17,10 +17,7 @@
 (** This module defines the type of values that is used in the dynamic
   semantics of all our intermediate languages. *)
 
-Require Import Coqlib.
-Require Import AST.
-Require Import Integers.
-Require Import Floats.
+Require Import Coqlib AST Integers Floats.
 
 Definition block : Type := positive.
 Definition eq_block := peq.
@@ -859,6 +856,13 @@ Definition rolml (v: val) (amount: int) (mask: int64): val :=
   | Vlong n => Vlong(Int64.rolm n (Int64.repr (Int.unsigned amount)) mask)
   | _ => Vundef
   end.
+
+Theorem rolml_zero:
+  forall x m,
+  rolml x Int.zero m = andl x (Vlong m).
+Proof.
+  intros; destruct x; simpl; auto. decEq. apply Int64.rolm_zero.
+Qed.
 
 Definition zero_ext_l (nbits: Z) (v: val) : val :=
   match v with
