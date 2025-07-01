@@ -216,7 +216,7 @@ Ltac Omega1 := Omega (helper1 || helper2).
 Ltac Omega1 := rep_lia.
 
 Ltac MyOmega :=
-  rewrite ?repeat_length, ?skipn_length, ?map_length,
+  rewrite ?repeat_length, ?length_skipn, ?length_map,
    ?Zlength_map, ?Zlength_nil;
   pose proof CBLOCK_eq;
 (*  pose proof CBLOCKz_eq;*)

@@ -147,10 +147,10 @@ unfold size_compatible.
 rewrite prop_true_andp. rewrite TT_andp.
 rewrite memory_block_data_at_.
 cancel.
-split3; auto. apply Coq.Init.Logic.I.
+split3; auto. apply Logic.I.
 split3; auto.
 apply la_env_cs_sound; auto.
-apply Coq.Init.Logic.I.
+apply Logic.I.
 split; auto.
 rewrite memory_block_isptr; normalize.
 rewrite memory_block_isptr; normalize.
@@ -1010,7 +1010,7 @@ eapply (semax_call_id1_x_wow_nil H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
- | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
+ | apply Logic.I | apply Logic.I | reflexivity
  | (clear; let H := fresh in intro H; inversion H)
  | match_postcondition
  | prove_delete_temp
@@ -1025,7 +1025,7 @@ eapply (semax_call_id1_x_wow H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
- | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
+ | apply Logic.I | apply Logic.I | reflexivity
  | (clear; let H := fresh in intro H; inversion H)
  | match_postcondition
  | prove_delete_temp
@@ -1040,7 +1040,7 @@ eapply (semax_call_id1_y_wow_nil H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
- | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
+ | apply Logic.I | apply Logic.I | reflexivity
  | (clear; let H := fresh in intro H; inversion H)
  | match_postcondition
  | prove_delete_temp
@@ -1055,7 +1055,7 @@ eapply (semax_call_id1_y_wow H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
- | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
+ | apply Logic.I | apply Logic.I | reflexivity
  | (clear; let H := fresh in intro H; inversion H)
  | match_postcondition
  | prove_delete_temp
@@ -1069,7 +1069,7 @@ let H := fresh in intro H;
 eapply (semax_call_id01_wow_nil H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
- [ apply Coq.Init.Logic.I 
+ [ apply Logic.I 
  | match_postcondition
  | unify_postcondition_exps
  | prove_PROP_preconditions
@@ -1080,7 +1080,7 @@ let H := fresh in intro H;
 eapply (semax_call_id01_wow H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
- [ apply Coq.Init.Logic.I 
+ [ apply Logic.I 
  | match_postcondition
  | unify_postcondition_exps
  | prove_PROP_preconditions
@@ -1946,13 +1946,13 @@ Proof.
   destruct v; match type of H with | None = Some true => inv H | _ => idtac end.
   + destruct Archi.ptr64 eqn:Hp; destruct (Int.eq i Int.zero); inv H.
   + destruct Archi.ptr64 eqn:Hp; destruct (Int64.eq i Int64.zero); inv H.
-  + apply Coq.Init.Logic.I.
+  + apply Logic.I.
 Qed.
 
 Lemma typed_false_ptr_e:
  forall t v, typed_false (tptr t) v -> v=nullval.
 Proof.
- intros. destruct v; inv H; try apply Coq.Init.Logic.I.
+ intros. destruct v; inv H; try apply Logic.I.
 unfold nullval.
 f_equal.
 try (pose proof (Int64.eq_spec i Int64.zero);

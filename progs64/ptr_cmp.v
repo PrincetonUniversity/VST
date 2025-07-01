@@ -1,4 +1,4 @@
-From Coq Require Import String List ZArith.
+From Stdlib Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Local Open Scope Z_scope.
 Local Open Scope string_scope.

@@ -140,7 +140,7 @@ Proof.
   remember (s0 0%nat) as s0_0.
   destruct s0_0; try solve [inversion H].
   inv H.
-  rewrite app_length.
+  rewrite length_app.
   simpl. replace (length l + 1)%nat with (S (length l)) by lia.
   rewrite IHk' with (s':=s0) (s:=s); auto.
 Qed.

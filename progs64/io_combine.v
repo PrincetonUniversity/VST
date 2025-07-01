@@ -11,7 +11,7 @@ Require Import VST.concurrency.conclib.
 Require Import VST.sepcomp.semantics.
 Require Import ITree.ITree.
 Require Import ITree.Interp.Traces.
-Require Import Ensembles.
+From Stdlib Require Import Ensembles.
 Require Import VST.progs64.io_specs.
 Require Import VST.progs64.io_dry.
 Require Import VST.progs64.io_os_specs.

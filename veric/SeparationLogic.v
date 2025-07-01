@@ -649,12 +649,12 @@ Definition globvars2pred (gv: globals)  (vl: list (ident * globvar type)): mpred
 
 Definition initializer_aligned (z: Z) (d: init_data) : bool :=
   match d with
-  | Init_int16 n => Zeq_bool (z mod 2) 0
-  | Init_int32 n => Zeq_bool (z mod 4) 0
-  | Init_int64 n => Zeq_bool (z mod 8) 0
-  | Init_float32 n =>  Zeq_bool (z mod 4) 0
-  | Init_float64 n =>  Zeq_bool (z mod 8) 0
-  | Init_addrof symb ofs =>  Zeq_bool (z mod (size_chunk Mptr)) 0
+  | Init_int16 n => Z.eqb (z mod 2) 0
+  | Init_int32 n => Z.eqb (z mod 4) 0
+  | Init_int64 n => Z.eqb (z mod 8) 0
+  | Init_float32 n =>  Z.eqb (z mod 4) 0
+  | Init_float64 n =>  Z.eqb (z mod 8) 0
+  | Init_addrof symb ofs =>  Z.eqb (z mod (size_chunk Mptr)) 0
   | _ => true
   end.
 
@@ -993,7 +993,7 @@ Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 
 Definition all_initializers_aligned (prog: program) :=
   forallb (fun idv => andb (initializers_aligned 0 (gvar_init (snd idv)))
-                                 (Zlt_bool (init_data_list_size (gvar_init (snd idv))) Ptrofs.modulus))
+                                 (Z.ltb (init_data_list_size (gvar_init (snd idv))) Ptrofs.modulus))
                       (prog_vars prog) = true.
 
 Definition loop1_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
@@ -1922,7 +1922,7 @@ Axiom semax_adapt: forall {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
 
 End PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC.
 
-Require Import Coq.Classes.Morphisms.
+Require Import Stdlib.Classes.Morphisms.
 
 #[export] Instance prop_Proper:
   Proper (iff ==> (@eq mpred)) (prop).

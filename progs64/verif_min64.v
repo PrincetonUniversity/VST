@@ -10,8 +10,8 @@ Require Import VST.progs64.min64.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
-Require Import ZArith.
-Require Import List.
+From Stdlib Require Import ZArith.
+From Stdlib Require Import List.
 Import ListNotations.
 Open Scope Z.
 

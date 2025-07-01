@@ -1098,7 +1098,7 @@ Proof.
       rewrite Z2Nat.inj_add, repeat_plus by omega; simpl.
       rewrite !combine_app, map_app, sepcon_app; simpl.
       unfold atomic_entry, atomic_loc_hist; entailer!.
-      { rewrite combine_length, repeat_length, Zlength_correct, Nat2Z.id, Nat.min_l; auto.
+      { rewrite length_combine, repeat_length, Zlength_correct, Nat2Z.id, Nat.min_l; auto.
         apply Nat2Z.inj_le; rewrite <- !Zlength_correct; omega. }
       { apply Nat2Z.inj; rewrite <- !Zlength_correct; omega. }
   - Intros entries ghosts.

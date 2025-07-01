@@ -322,7 +322,7 @@ Proof.
   + split; trivial.
     eapply semax_external_binaryintersection. apply EXT1. apply EXT2.
       apply BI.
-      rewrite Sig2; simpl. rewrite map_length. trivial. 
+      rewrite Sig2; simpl. rewrite length_map. trivial. 
 Qed.
 
 Lemma find_funspec_sub: forall specs' specs 

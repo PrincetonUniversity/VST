@@ -388,13 +388,13 @@ Proof.
   destruct e; simpl in *; auto.
   elim H0.
   replace (length l + 0) with (length l0).
-  rewrite rev_length.
+  rewrite length_rev.
   apply subst_closed'.
   replace (S (length l0)) with (length G); auto.
-  rewrite <- rev_length.
+  rewrite <- length_rev.
   rewrite H3; simpl.
   auto.
-  rewrite <- (rev_length l0).
+  rewrite <- (length_rev l0).
   revert H4; generalize (rev l0); clear.
   induction l; intros.
   destruct l; simpl in H4.

@@ -7,7 +7,7 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.res_predicates.
 
-Require Import List. Import ListNotations.
+From Stdlib Require Import List. Import ListNotations.
 Import compcert.lib.Maps.
 
 Import Ctypes. 

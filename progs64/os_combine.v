@@ -21,7 +21,7 @@ Notation "' p <- t1 ;; t2" :=
   (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
 (at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 Require Import ITree.Interp.Traces.
-Require Import Ensembles.
+From Stdlib Require Import Ensembles.
 
 Section ext_trace.
 

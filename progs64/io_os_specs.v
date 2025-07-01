@@ -5,8 +5,7 @@ Require Import compcert.common.AST.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values.
 Require Import Decimal.
-Require Import List.
-Require Import ZArith.
+From Stdlib Require Import List ZArith.
 Open Scope Z.
 
 (** Utils *)

@@ -1,6 +1,6 @@
 Require Import VST.msl.msl_standard.
 Require Import VST.msl.Coqlib2.
-Require Import Coq.ZArith.ZArith.
+Require Import Stdlib.ZArith.ZArith.
 Require Import VST.zlist.sublist.
 Set Implicit Arguments.
 

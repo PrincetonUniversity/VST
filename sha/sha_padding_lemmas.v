@@ -37,7 +37,7 @@ Lemma fstpad_len :
 Proof.
   intros msg.
   simpl.
-  rewrite -> app_length.
+  rewrite -> length_app.
   simpl.
   rewrite -> repeat_length.
   reflexivity.
@@ -73,7 +73,7 @@ Proof.
   intros msg.
   unfold pad.
   rewrite -> Zlength_correct.
-  repeat rewrite -> app_length.
+  repeat rewrite -> length_app.
   simpl.
   assert (succ: forall (n : nat), S n = (n + 1)%nat).
     intros. induction n. reflexivity. lia.
@@ -162,7 +162,7 @@ Proof.
   pose proof pad_len_64_nat msg as pad_len_64_nat.
 
   unfold pad in *.
-  repeat rewrite -> app_length in *.
+  repeat rewrite -> length_app in *.
   destruct pad_len_64_nat.
   assert (sym: (64 * x)%nat = (x * 64)%nat) by lia.
   rewrite -> sym in *. clear sym.

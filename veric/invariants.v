@@ -231,7 +231,7 @@ Qed.
 Lemma singleton_length : forall {A} n (a : A), length (list_singleton n a) = S n.
 Proof.
   intros; unfold list_singleton.
-  erewrite app_length, repeat_length; simpl; lia.
+  erewrite length_app, repeat_length; simpl; lia.
 Qed.
 
 Lemma list_join_singleton : forall {P : Ghost} n a c l
@@ -239,7 +239,7 @@ Lemma list_join_singleton : forall {P : Ghost} n a c l
   list_join (list_singleton n a) l (replace_nth n l (Some c)).
 Proof.
   induction l using rev_ind; simpl; intros; try lia.
-  rewrite app_length in Hn; simpl in Hn.
+  rewrite length_app in Hn; simpl in Hn.
   destruct (eq_dec n (length l)).
   - subst.
     erewrite app_nth2, Nat.sub_diag in Hjoin by lia; simpl in Hjoin.
@@ -410,13 +410,13 @@ Proof.
       change [] with (core b); apply core_unit.
     + assert (a <> []) by (intro; subst; discriminate).
       erewrite (app_removelast_last None) in H, Heqn by auto.
-      erewrite app_length in Heqn; simpl in Heqn.
+      erewrite length_app in Heqn; simpl in Heqn.
       erewrite Nat.add_1_r in Heqn; inv Heqn.
       specialize (IHn _ eq_refl).
       destruct (IHn b c) as (c' & ? & ?); auto.
       { destruct H as [Hlen H].
         split.
-        { rewrite app_length in Hlen; simpl in *; lia. }
+        { rewrite length_app in Hlen; simpl in *; lia. }
         intros ?? Hnth.
         specialize (H n a0).
         rewrite app_nth in H.
@@ -432,7 +432,7 @@ Proof.
            apply join_comm in H2; auto.
         -- split.
             { destruct H.
-              erewrite app_length in *; simpl in *; lia. }
+              erewrite length_app in *; simpl in *; lia. }
             intros ?? Hnth.
             rewrite app_nth in Hnth.
             if_tac in Hnth; [apply H3; auto|].
@@ -870,13 +870,13 @@ Proof.
     exists (x ++ [Some (Some tt)]); split; simpl; auto.
     erewrite !map_app, own.map_repeat; simpl.
     pose proof (list_join_length _ _ _ H1) as Hlen.
-    rewrite map_length in Hlen.
+    rewrite length_map in Hlen.
     apply join_comm in H1.
     pose proof (list_join_length _ _ _ H1) as Hlen'.
     apply (join_comm(Perm_alg := list_Perm)), (list_join_over c).
-    { erewrite app_length, map_length, repeat_length, Nat.add_comm, Nat.sub_add; auto. }
+    { erewrite length_app, length_map, repeat_length, Nat.add_comm, Nat.sub_add; auto. }
     apply (join_comm(Perm_alg := list_Perm)), (list_join_filler(P := token_PCM));
-      [|rewrite map_length; auto].
+      [|rewrite length_map; auto].
     apply join_comm in H1; auto. }
   rewrite exp_sepcon1; apply exp_left; intro.
   rewrite !sepcon_andp_prop1; apply prop_andp_left; intros [i ?]; subst.
@@ -895,12 +895,12 @@ Proof.
                        | Some _ => Some (Znth j ((lg ++ repeat O i) ++ [g]))
                        | None => None
                        end) (upto (length ((l ++ repeat emp i) ++ [P']))))).
-  { rewrite <- !app_assoc, app_length, upto_app, map_app.
+  { rewrite <- !app_assoc, length_app, upto_app, map_app.
     split.
-    { erewrite app_length, !map_length; lia. }
+    { erewrite length_app, !length_map; lia. }
     intros ?? Hn.
-    erewrite app_nth, map_length.
-    if_tac; [|erewrite nth_overflow in Hn by (rewrite map_length; lia); discriminate].
+    erewrite app_nth, length_map.
+    if_tac; [|erewrite nth_overflow in Hn by (rewrite length_map; lia); discriminate].
     erewrite nth_map' with (d' := 0) in * by auto.
     erewrite upto_length in *.
     assert (Z.of_nat n < Zlength l).
@@ -911,7 +911,7 @@ Proof.
   rewrite !sepcon_assoc.
   view_shift (ghost_snap_forget(ORD := list_order _) (list_singleton (length lg + i) g)).
   { apply list_incl_singleton.
-    erewrite app_length, upto_app, map_app, app_nth2; erewrite map_length, upto_length, app_length,
+    erewrite length_app, upto_app, map_app, app_nth2; erewrite length_map, upto_length, length_app,
       repeat_length; try lia.
     replace (_ - _)%nat with O by lia; simpl.
     rewrite Nat2Z.inj_add, Z.add_0_r.
@@ -921,8 +921,8 @@ Proof.
   apply exp_right with ((l ++ repeat emp i) ++ [P']).
   rewrite exp_sepcon1; apply exp_right with ((lg ++ repeat O i) ++ [g]).
   rewrite exp_sepcon1; apply exp_right with ((lb ++ repeat None i) ++ [Some true]).
-  erewrite !(app_length (_ ++ _)); simpl.
-  erewrite prop_true_andp by (erewrite !app_length, !repeat_length; lia).
+  erewrite !(length_app (_ ++ _)); simpl.
+  erewrite prop_true_andp by (erewrite !length_app, !repeat_length; lia).
   erewrite upto_app, iter_sepcon_app; simpl.
   erewrite Z.add_0_r, <- Zlength_correct, !app_Znth2; erewrite !Zlength_app, !coqlib4.Zlength_repeat; try lia.
   erewrite Hlg, Hlb, Zminus_diag, !Znth_0_cons.
@@ -935,11 +935,11 @@ Proof.
       repeat destruct (lt_dec _ _); auto; try discriminate.
       destruct (x - _)%nat; [|destruct n0]; inv X.
     - destruct (lt_dec x (length lb)).
-      rewrite !app_nth, app_length.
+      rewrite !app_nth, length_app.
       destruct (lt_dec _ _); [|lia].
       destruct (lt_dec _ _); [auto | lia].
       { rewrite nth_overflow in X by lia; discriminate. } }
-  erewrite app_length, upto_app, iter_sepcon_app.
+  erewrite length_app, upto_app, iter_sepcon_app.
   rewrite sepcon_assoc; apply sepcon_derives.
   - eapply derives_trans with (_ * emp)%pred; [rewrite sepcon_emp; apply derives_refl|].
     apply sepcon_derives.
@@ -990,7 +990,7 @@ Proof.
     exists (map (fun o => match o with Some true => Some (Some tt) | _ => None end)
       ((lb ++ repeat None (i - length lb)) ++ [Some true])).
     pose proof (list_join_length _ _ _ H1) as Hlen.
-    rewrite map_length in Hlen.
+    rewrite length_map in Hlen.
     split.
     { exists (i - length lg)%nat; rewrite H, H0; split; auto.
       rewrite Nat.add_comm, Nat.sub_add; auto; lia. }
@@ -999,13 +999,13 @@ Proof.
     apply join_comm in H1.
     rewrite app_assoc; apply (join_comm(Perm_alg := list_Perm)), (list_join_over c).
     { apply list_join_length in H1.
-      rewrite app_length, map_length, repeat_length, Nat.add_comm, Nat.sub_add; auto; lia. }
+      rewrite length_app, length_map, repeat_length, Nat.add_comm, Nat.sub_add; auto; lia. }
     replace (i - length lb)%nat with ((length x - length lb) + (i - length x))%nat by lia.
     rewrite repeat_app, app_assoc; apply (list_join_over c).
     { apply list_join_length in H1.
-      rewrite app_length, map_length, repeat_length; lia. }
+      rewrite length_app, length_map, repeat_length; lia. }
     apply (join_comm(Perm_alg := list_Perm)), (list_join_filler(P := token_PCM));
-      [|rewrite map_length; auto].
+      [|rewrite length_map; auto].
     apply join_comm in H1; auto. }
   rewrite exp_sepcon1; apply exp_left; intro.
   rewrite !sepcon_andp_prop1; apply prop_andp_left; intros [i []]; subst.
@@ -1023,12 +1023,12 @@ Proof.
                        | Some _ => Some (Znth j ((lg ++ repeat O i) ++ [g]))
                        | None => None
                        end) (upto (length ((l ++ repeat emp i) ++ [P]))))).
-  { rewrite <- !app_assoc, app_length, upto_app, map_app.
+  { rewrite <- !app_assoc, length_app, upto_app, map_app.
     split.
-    { erewrite app_length, !map_length; lia. }
+    { erewrite length_app, !length_map; lia. }
     intros ?? Hn.
-    erewrite app_nth, map_length.
-    if_tac; [|erewrite nth_overflow in Hn by (rewrite map_length; lia); discriminate].
+    erewrite app_nth, length_map.
+    if_tac; [|erewrite nth_overflow in Hn by (rewrite length_map; lia); discriminate].
     erewrite nth_map' with (d' := 0) in * by auto.
     erewrite upto_length in *.
     assert (Z.of_nat n < Zlength l).
@@ -1039,7 +1039,7 @@ Proof.
   rewrite !sepcon_assoc.
   view_shift (ghost_snap_forget(ORD := list_order _) (list_singleton (length lg + i) g)).
   { apply list_incl_singleton.
-    erewrite app_length, upto_app, map_app, app_nth2; erewrite map_length, upto_length, app_length,
+    erewrite length_app, upto_app, map_app, app_nth2; erewrite length_map, upto_length, app_length,
       repeat_length; try lia.
     replace (_ - _)%nat with O by lia; simpl.
     rewrite Nat2Z.inj_add, Z.add_0_r.
@@ -1049,8 +1049,8 @@ Proof.
   apply exp_right with ((l ++ repeat emp i) ++ [P]).
   rewrite exp_sepcon1; apply exp_right with ((lg ++ repeat O i) ++ [g]).
   rewrite exp_sepcon1; apply exp_right with ((lb ++ repeat None i) ++ [Some true]).
-  erewrite !(app_length (_ ++ _)); simpl.
-  erewrite prop_true_andp by (erewrite !app_length, !repeat_length; lia).
+  erewrite !(length_app (_ ++ _)); simpl.
+  erewrite prop_true_andp by (erewrite !length_app, !repeat_length; lia).
   erewrite upto_app, iter_sepcon_app; simpl.
   erewrite Z.add_0_r, <- Zlength_correct, !app_Znth2; erewrite !Zlength_app, !coqlib4.Zlength_repeat; try lia.
   erewrite Hlg, Hlb, Zminus_diag, !Znth_0_cons.
@@ -1063,11 +1063,11 @@ Proof.
       repeat destruct (lt_dec _ _); auto; try discriminate.
       destruct (x - _)%nat; [|destruct n0]; inv X.
     - destruct (lt_dec x (length lb)).
-      rewrite !app_nth, app_length.
+      rewrite !app_nth, length_app.
       destruct (lt_dec _ _); [|lia].
       destruct (lt_dec _ _); [auto | lia].
       { rewrite nth_overflow in X by lia; discriminate. } }
-  erewrite app_length, upto_app, iter_sepcon_app.
+  erewrite length_app, upto_app, iter_sepcon_app.
   rewrite sepcon_assoc; apply sepcon_derives.
   - eapply derives_trans with (_ * emp)%pred; [rewrite sepcon_emp; apply derives_refl|].
     apply sepcon_derives.
@@ -1128,7 +1128,7 @@ Proof.
     apply prop_derives; intros Hincl.
     apply list_incl_singleton in Hincl.
     destruct (lt_dec i (length lg));
-      [|rewrite nth_overflow in Hincl by (rewrite map_length, upto_length; lia); discriminate].
+      [|rewrite nth_overflow in Hincl by (rewrite length_map, upto_length; lia); discriminate].
     rewrite nth_map' with (d' := 0) in Hincl by (rewrite upto_length; lia).
     rewrite nth_upto in Hincl by lia.
     destruct (Znth (Z.of_nat i) lb); inversion Hincl; eauto. }
@@ -1215,7 +1215,7 @@ Proof.
     apply prop_derives; intros Hincl.
     apply list_incl_singleton in Hincl.
     destruct (lt_dec i (length lg));
-      [|rewrite nth_overflow in Hincl by (rewrite map_length, upto_length; lia); discriminate].
+      [|rewrite nth_overflow in Hincl by (rewrite length_map, upto_length; lia); discriminate].
     rewrite nth_map' with (d' := 0) in Hincl by (rewrite upto_length; lia).
     rewrite nth_upto in Hincl by lia.
     destruct (Znth (Z.of_nat i) lb); inversion Hincl; eauto. }
@@ -1279,7 +1279,7 @@ Proof.
   { unfold ghost_list. erewrite <- ghost_op; [apply derives_refl|].
     rewrite map_replace_nth.
     apply (list_join_singleton(P := token_PCM)).
-    { rewrite map_length; lia. }
+    { rewrite length_map; lia. }
     rewrite nth_map' with (d' := None) by lia.
     rewrite Hi'; constructor. }
 Qed.

@@ -9,8 +9,7 @@ Require Import VST.msl.eq_dec.
 Require Import VST.msl.sepalg.
 Require Import VST.msl.boolean_alg.
 
-Require Import Recdef.
-Require Import ZArith.
+From Stdlib Require Import Recdef ZArith.
 
 (** This module implements a share model
     via binary trees with boolean-labeled leaves.

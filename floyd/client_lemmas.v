@@ -399,7 +399,7 @@ Lemma liftx_local_retval:
 Proof. intros. reflexivity. Qed.
 #[export] Hint Rewrite liftx_local_retval : norm2.
 
-#[export] Hint Rewrite bool_val_notbool_ptr using apply Coq.Init.Logic.I : norm.
+#[export] Hint Rewrite bool_val_notbool_ptr using apply Logic.I : norm.
 
 Lemma Vint_inj': forall i j,  (Vint i = Vint j) =  (i=j).
 Proof. intros; apply prop_ext; split; intro; congruence. Qed.
@@ -464,7 +464,7 @@ destruct x; try tauto; intuition (try congruence);
 revert H0; simple_if_tac; intro H0; inv H0.
 Qed.
 
-#[export] Hint Rewrite typed_true_isptr using apply Coq.Init.Logic.I : norm.
+#[export] Hint Rewrite typed_true_isptr using apply Logic.I : norm.
 
 Ltac super_unfold_lift_in H :=
    cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T
@@ -585,7 +585,7 @@ try rewrite (is_true_negb _ H); try rewrite (is_true_negb _ H0);
 destruct v; inv H1; auto.
 Qed.
 
-#[export] Hint Rewrite sem_cast_pointer2' using (try apply Coq.Init.Logic.I; try assumption; reflexivity) : norm.
+#[export] Hint Rewrite sem_cast_pointer2' using (try apply Logic.I; try assumption; reflexivity) : norm.
 
 Lemma sem_cast_pointer2:
   forall v t1 t2 t3 t1' t2',
@@ -1823,7 +1823,7 @@ Lemma isptr_force_ptr'' : forall p Q,
 Proof.
 intros.
 apply X.
-destruct p; inv H; apply Coq.Init.Logic.I.
+destruct p; inv H; apply Logic.I.
 Qed.
 
 Lemma isptr_offset_val'': forall i p Q,
@@ -1832,7 +1832,7 @@ Lemma isptr_offset_val'': forall i p Q,
 Proof.
 intros.
 apply X.
-destruct p; inv H; apply Coq.Init.Logic.I.
+destruct p; inv H; apply Logic.I.
 Qed.
 
 Lemma ptr_eq_e': forall v1 v2 B,

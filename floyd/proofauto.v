@@ -58,7 +58,7 @@ Require VST.floyd.linking.
   "Require Import Require Import VST.floyd.Funspec_old_Notation."
   Global Close Scope funspec_scope.*)
 
-Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
+Arguments semax {CS} {Espec} Delta Pre%_assert cmd%_C Post%_assert.
 Export ListNotations.
 Export Clight_Cop2.
  

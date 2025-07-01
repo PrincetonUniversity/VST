@@ -2,7 +2,7 @@ Require Export VST.msl.Axioms.
 
 (* NO AXIOMS AFTER THIS POINT *)
 
-Require Import Coq.Logic.EqdepFacts.
+Require Import Stdlib.Logic.EqdepFacts.
 
 (* From EqdepTh we obtain inj_pair and inj_pairT2 without
    use of excluded middle:
@@ -136,7 +136,7 @@ Ltac f_equal :=
    | |- existT _ _ _ = existT _ _ _ => apply existT_ext
   end;
    try reflexivity; try congruence)
-   || Coq.Init.Prelude.f_equal.
+   || Corelib.Init.Prelude.f_equal.
 
 Lemma exist_ext' : forall A F (x y:@sig A F),
   proj1_sig x = proj1_sig y -> x = y.

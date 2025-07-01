@@ -29,7 +29,7 @@ Function toBlocks (l : Blist) {measure length l} : list Blist :=
 Proof.
   intros. subst. remember ((b :: l0)%list) as l. clear Heql.
   apply leb_complete_conv in teq0.
-  rewrite skipn_length; lia.
+  rewrite length_skipn; lia.
 Qed.
 
 Lemma toBlocks_injective: forall l1 l2 (BLKS: toBlocks l1 = toBlocks l2)
@@ -50,7 +50,7 @@ Proof.
     destruct l1; try discriminate. destruct l2; try discriminate.
     inversion F1; clear F1. rewrite H0 in Heql.
     assert (L1: (511 < length (front ++ back))%nat).
-      rewrite app_length, H. lia.
+      rewrite length_app, H. lia.
     rewrite leb_correct_conv in Heql; trivial.
     rewrite firstn_exact in Heql; trivial.
     rewrite skipn_exact in Heql; trivial.
@@ -58,7 +58,7 @@ Proof.
 
     inversion F2; clear F2. rewrite H4 in BLKS.
     assert (L2: (511 < length (front0 ++ back0))%nat).
-      rewrite app_length, H3. lia.
+      rewrite length_app, H3. lia.
     rewrite leb_correct_conv in BLKS; trivial.
     rewrite firstn_exact in BLKS; trivial.
     rewrite skipn_exact in BLKS; trivial.
@@ -80,7 +80,7 @@ Proof. intros.
   induction l. simpl; intros. constructor.
   simpl; intros. rewrite toBlocks_equation in Heql. destruct b. discriminate.
   inversion H; clear H.
-  rewrite H1, app_length, H0 in Heql.
+  rewrite H1, length_app, H0 in Heql.
   rewrite leb_correct_conv in Heql. 2: lia.
   rewrite firstn_exact in Heql; trivial.
   rewrite skipn_exact in Heql; trivial. inversion Heql; clear Heql.
@@ -104,8 +104,8 @@ Proof.
     rewrite -> toBlocks_equation.
     destruct full.
       assert (@length bool nil = length (front ++ back)). rewrite <- H0; reflexivity.
-      rewrite app_length, H in H1. remember (length back). clear - H1. rewrite Nat.add_comm in H1. simpl in H1. lia.
-    rewrite H0, app_length, H, leb_correct_conv. 2: lia.
+      rewrite length_app, H in H1. remember (length back). clear - H1. rewrite Nat.add_comm in H1. simpl in H1. lia.
+    rewrite H0, length_app, H, leb_correct_conv. 2: lia.
     rewrite -> firstn_exact; trivial.
     rewrite -> skipn_exact; trivial.
     (*rewrite -> length_not_emp.*)
@@ -156,7 +156,7 @@ Proof.
     apply len_l.
     apply in_cons.
     apply H.
-  - rewrite -> app_length.
+  - rewrite -> length_app.
     assert (length l = 512%nat). apply len_l. unfold In. auto.
     rewrite -> H.
     specialize (len_min ls).
@@ -179,7 +179,7 @@ Proof.
   rewrite -> length_not_emp.
   apply fold_ind.
   * apply len_ls.
-  * rewrite -> app_length.
+  * rewrite -> length_app.
     rewrite len_l.
     specialize (len_min ls).
     lia.
@@ -228,13 +228,13 @@ Qed.*)
 Lemma toBlocks_app_split l1 l2: length l1 = 512%nat ->
       toBlocks (l1 ++ l2) = toBlocks l1 ++ toBlocks l2.
 Proof. intros.
-  rewrite toBlocks_equation. rewrite app_length.
+  rewrite toBlocks_equation. rewrite length_app.
   rewrite firstn_exact; trivial.
   rewrite skipn_exact; trivial.
   remember (l1 ++ l2).
   destruct l.
   { assert (@length bool nil = length (l1 ++ l2)). rewrite <- Heql; trivial.
-    rewrite app_length, H in H0. rewrite Nat.add_comm in H0. simpl in H0. lia. }
+    rewrite length_app, H in H0. rewrite Nat.add_comm in H0. simpl in H0. lia. }
   { rewrite  leb_correct_conv. 2: rewrite H, Nat.add_comm; lia.
     remember (toBlocks l2).
     rewrite toBlocks_equation.

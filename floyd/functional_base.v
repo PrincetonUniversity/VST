@@ -1,5 +1,5 @@
-Require Export Coq.Lists.List.
-Require Export Coq.ZArith.ZArith.
+Require Export Stdlib.Lists.List.
+Require Export Stdlib.ZArith.ZArith.
 Require Export compcert.lib.Coqlib.
 Require Export compcert.lib.Integers.
 Require Export compcert.lib.Floats.
@@ -8,7 +8,7 @@ Require Export VST.msl.eq_dec.
 Require Export VST.msl.Coqlib2.
 Require Export VST.floyd.coqlib3.
 Require Export VST.zlist.sublist.
-Require Export Lia.
+From Stdlib Require Export Lia.
 Require Export VST.zlist.list_solver.
 
 Definition Vubyte (c: Byte.int) : val :=

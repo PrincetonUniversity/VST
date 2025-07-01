@@ -5,7 +5,7 @@ Require Import VST.floyd.type_induction.
 Require Import VST.floyd.aggregate_type.
 Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.proj_reptype_lemmas.
-Require Import Coq.Classes.RelationClasses.
+Require Import Stdlib.Classes.RelationClasses.
 Require Import VST.zlist.sublist.
 Require Import VST.floyd.stronger.
 
