@@ -565,11 +565,13 @@ Section Invariants.
     intros Hin; apply in_combine_l in Hin; easy.
   Qed.
 
+Require Import FinFun.
+
   Lemma mkRecvEvents_NoDup : forall logIdx cs,
     NoDup (mkRecvEvents logIdx cs).
   Proof.
     unfold mkRecvEvents, enumerate; intros.
-    apply FinFun.Injective_map_NoDup; auto using combine_NoDup, seq_NoDup.
+    apply Injective_map_NoDup; auto using combine_NoDup, seq_NoDup.
     red; intros (? & ?) (? & ?); intros; inj; auto.
   Qed.
 
