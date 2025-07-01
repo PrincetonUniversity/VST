@@ -1737,7 +1737,7 @@ Qed.
 *)
 
   (* l↦v, [[e]]=l, v:cty *)
-  (* Lemma type_deref genv_t f atomic cty T e m:
+  Lemma type_deref genv_t f atomic cty T e m:
     type_is_by_value cty = true ->
     typed_read (ge genv_t) f atomic e cty m T 
     ⊢ typed_val_expr (ge genv_t) f (Ederef e cty) T.
@@ -1746,16 +1746,19 @@ Qed.
     iIntros "H" (Φ) "HΦ".
     rewrite -wp_expr_mapsto /=.
     rewrite -wp_deref.
+    iApply wp_expr_mono; first by intros; apply derives_refl.
     iApply "H".
     iIntros (l) "H".
-
-     (* destruction pattern for H:
-      (%v & %q & %ty & %Hl & %Hv & %Hq & %v_not_undef & own_l & own_v & H) *)
+    iMod "H" as "(%v & %q & %ty & %Hl & %Hv & %Hq & %v_not_undef & own_l & own_v & H)".
     iExists _, _.
+    rewrite -fupd_frame_l.
     iSplit => //.
     destruct l.
     iExists _ ,_.
-    iSplit; first shelve.
+    rewrite -fupd_frame_l.
+    iSplit => //.
+
+(*    iSplit; first shelve.
     iSplit.
     { rewrite /mapsto.
       destruct Hv as [? ?].
@@ -1768,6 +1771,7 @@ Qed.
     iMod "Hclose".
     Unshelve. all: done.
   Qed. *)
+Admitted.
 
   (* l↦v, [[e]]=l, v:cty *)
   Lemma type_read_simple genv_t f a  e β1 cty m T:
