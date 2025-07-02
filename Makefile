@@ -303,10 +303,10 @@ CGFLAGS =  -DCOMPCERT -short-idents
 
 # ##### Interaction Trees Flags #####
 
-# the following commented out, because we get from opam instead of submodules
-# ifneq ($(wildcard InteractionTrees/theories),)
-# EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
-# endif
+# as of 1 July 2025, coq-itree package seems not compatible with rocq 9.2+alpha, so still using submodule
+ifneq ($(wildcard InteractionTrees/theories),)
+EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
+endif
 
 # ##### FCF (Foundational Cryptography Framework) Flags #####
 
@@ -329,9 +329,9 @@ endif
 
 # ##### Flag summary #####
 
-COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) # -Q ../stdpp/theories stdpp -Q ../iris/iris iris -Q ../fcf/src/fcf FCF
+COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) # -Q ../stdpp/theories stdpp -Q ../iris/iris iris -Q ../InteractionTrees/theories ITree -Q ../fcf/src/fcf FCF
 
-# old version with InteractionTrees, paco, coq-ext-lib; we now obtain these from opam environment instead of submodules
+# old version with paco, coq-ext-lib; we now obtain these from opam environment instead of submodules
 # COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) # -Q ../stdpp/theories stdpp -Q ../iris/iris iris -Q ../InteractionTrees/theories ITree -Q ../paco/src Paco -Q ../coq-ext-lib/theories ExtLib -Q ../fcf/src/fcf FCF
 
 
@@ -929,10 +929,10 @@ endif
 # 	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
 # endif
 
+ifneq ($(wildcard InteractionTrees/theories),)
+	$(COQDEP) -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
+endif
 # the following commented out, because we get from opam instead of submodules
-# ifneq ($(wildcard InteractionTrees/theories),)
-# 	$(COQDEP) -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
-# endif
 # ifneq ($(wildcard paco/src),)
 # 	$(COQDEP) -Q paco/src Paco paco/src/*.v >>.depend
 # endif

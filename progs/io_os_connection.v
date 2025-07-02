@@ -1,6 +1,6 @@
-Require Import List.
-Require Import ZArith.
-Require Import Psatz.
+From Stdlib Require Import List.
+From Stdlib Require Import ZArith.
+From Stdlib Require Import Psatz.
 Require Import ITree.ITree.
 Require Import ITree.Interp.Traces.
 Require Import compcert.lib.Maps.
@@ -15,6 +15,9 @@ Require Import VST.progs.io_os_specs.
 Require Import VST.zlist.sublist.
 Require Import VST.progs.os_combine.
 Import ExtLib.Structures.Monad.
+From Stdlib Require Import FinFun.
+
+Opaque eq_dec.eq_dec.
 
 Local Ltac inj :=
   repeat match goal with
@@ -567,7 +570,7 @@ Section Invariants.
     NoDup (mkRecvEvents logIdx cs).
   Proof.
     unfold mkRecvEvents, enumerate; intros.
-    apply FinFun.Injective_map_NoDup; auto using combine_NoDup, seq_NoDup.
+    apply Injective_map_NoDup; auto using combine_NoDup, seq_NoDup.
     red; intros (? & ?) (? & ?); intros; inj; auto.
   Qed.
 
@@ -575,7 +578,7 @@ Section Invariants.
     Zlength (enumerate xs) = Zlength xs.
   Proof.
     unfold enumerate; intros.
-    rewrite Zlength_combine, !Zlength_correct, seq_length; lia.
+    rewrite Zlength_combine, !Zlength_correct, length_seq; lia.
   Qed.
 
   Lemma seq_nth_app : forall len start n pre post,
@@ -585,7 +588,7 @@ Section Invariants.
     intros * Heq.
     enough (n = nth (length pre) (seq start len) O); subst.
     { rewrite Heq, app_nth2, Nat.sub_diag, seq_nth; auto; cbn.
-      rewrite <- (seq_length len start), Heq, length_app; cbn; lia.
+      rewrite <- (length_seq len start), Heq, length_app; cbn; lia.
     }
     rewrite Heq, app_nth2, Nat.sub_diag; auto.
   Qed.
@@ -599,7 +602,7 @@ Section Invariants.
     rewrite combine_fst, map_app in Heq; cbn in Heq.
     apply seq_nth_app in Heq; subst; cbn; auto using length_map.
     rewrite <- Nat2Z.id, <- Zlength_length; rewrite <- Zlength_correct.
-    - rewrite !Zlength_correct, seq_length; auto.
+    - rewrite !Zlength_correct, length_seq; auto.
     - apply Zlength_nonneg.
   Qed.
 
@@ -1913,7 +1916,7 @@ Import functional_base.
       split; auto; cbn in *.
       rewrite Int.signed_repr by (cbn; lia).
       destruct (Coqlib.zeq z1 (-1)); subst; auto.
-      if_tac; try easy.
+      destruct (eq_dec.eq_dec _ _); try easy.
       rewrite Zle_imp_le_bool by lia.
       destruct Hput as (? & [(? & ?) | (? & ?)]); subst; auto; try lia.
       rewrite Zmod_small; auto; functional_base.rep_lia.
