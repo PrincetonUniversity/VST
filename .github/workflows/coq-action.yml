@@ -46,7 +46,7 @@ jobs:
               opam install -y ${{ matrix.coq_version == 'dev' && 'coq-flocq' || matrix.bit_size == 32 && 'coq-compcert-32.3.13.1' || 'coq-compcert.3.13.1' }}
               # Required by test2
               opam install -y coq-ext-lib
-	      opam install -y coq-paco
+              opam install -y coq-paco
             endGroup
           # See https://github.com/coq-community/docker-coq-action/tree/v1#permissions
           before_script: |
