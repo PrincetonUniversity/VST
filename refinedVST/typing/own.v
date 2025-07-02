@@ -592,22 +592,19 @@ Section null.
           T v ((if op is Cop.Oeq then true else false) @ boolean tint))
       ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|tptr cty| null⎤ v2 ⎡v2 ◁ᵥₐₗ|tptr cty| null⎤ op (tptr t1) (tptr t2) (tint) T.
   Proof.
-    iIntros "(% & HT)" (?) "H".
+    iIntros "(% & HT)" (?) "%"; simpl in *; subst.
     iIntros (Φ) "HΦ".
     iIntros "!>" (?) "$ !>".
     iExists (Val.of_bool (if op is Oeq then true else false)); iSplit.
-    - iStopProof; split => rho; monPred.unseal.
-      apply bi.pure_intro.
-      rewrite /repinject /= in H0; subst.
+    - iPureIntro.
       eapply eval_bin_op_ptr_cmp with (b := true); eauto.
-      admit. (* fix me*)
     - iApply "HΦ" => //.
-      rewrite / ty_own_val_at /ty_own_val /=.
+      rewrite /ty_own_val_at /ty_own_val /=.
       iSplit; auto.
       iExists _. iSplit; iPureIntro => //.
-      { rewrite /repinject /= in H0; subst; by destruct op. }
-      { split; auto; rewrite /repinject /= in H0; subst; by destruct op. }
-  Admitted.
+      { by destruct op. }
+      { split; auto; by destruct op. }
+  Qed.
   Definition type_binop_null_null_inst := [instance type_binop_null_null].
   Global Existing Instance type_binop_null_null_inst.
 
@@ -706,7 +703,11 @@ Section null.
   Global Existing Instance type_if_null_inst.
 End null.
 
-(*
+(* up *)
+Lemma repinject_by_value : forall {cs : compspecs} t v,
+  repinject t v ≠ Vundef → type_is_by_value t = true.
+Proof. by destruct t. Qed.
+
 Section optionable.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
@@ -716,26 +717,18 @@ Section optionable.
   |}.
   Next Obligation.
     intros.
-    iIntros "Hpre H1 H2 Hctx".
+    iIntros "Hpre H1 %H2 Hctx".
+    exploit repinject_by_value; first (by setoid_rewrite H2); intros Hcty.
+    rewrite repinject_valinject // in H2; subst.
     destruct bty.
-    { iDestruct "H1" as "(% & Hty)".
+    - iDestruct "H1" as "(% & Hty)".
+      rewrite repinject_valinject // in H; subst.
       iDestruct ("Hpre" with "Hty") as "Hlib".
-      rewrite repinject_valinject in H.
-      {
-        rewrite /ty_own_val_at / ty_own_val /= repinject_valinject; last first. { admit. }
-        iDestruct "H2" as %->.
-        { iDestruct (valid_pointer.valid_pointer_dry0 with "[$Hctx $Hlib]") as %Hvalid; iPureIntro.
-          destruct beq => /=; rewrite /Cop.sem_cmp /= /cmp_ptr /nullval /=; change Archi.ptr64 with true; rewrite /=.
-          {
-            destruct v1; simpl in *.
-
-
-    
-    destruct bty; [ iDestruct "H1" as (->) "Hty" | iDestruct "H1" as %-> ].
-    - iDestruct ("Hpre" with "Hty") as "Hlib".
       iDestruct (valid_pointer.valid_pointer_dry0 with "[$Hctx $Hlib]") as %Hvalid; iPureIntro.
       destruct beq => /=; rewrite /Cop.sem_cmp /= /cmp_ptr /nullval /=; change Archi.ptr64 with true; rewrite /= Hvalid /= /Vtrue /Vfalse /Int.zero /Int.one; split; congruence.
-    - rewrite eval_bin_op_ptr_cmp // /= ?Int.eq_true ?Int64.eq_true; destruct beq => //.
+    - iDestruct "H1" as %H1.
+      rewrite repinject_valinject // in H1; subst.
+      rewrite eval_bin_op_ptr_cmp // /= ?Int.eq_true ?Int64.eq_true; destruct beq => //.
   Qed.
   Global Program Instance frac_ptr_optional_agree ty1 ty2 β : OptionableAgree (frac_ptr β ty1) (frac_ptr β ty2).
   Next Obligation. done. Qed.
