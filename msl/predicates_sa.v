@@ -1,8 +1,8 @@
 Require Import VST.msl.base.
 Require Import VST.msl.sepalg.
 
-Require Import Coq.funind.Recdef.
-Require Coq.Wellfounded.Wellfounded. (* Can't Import this, because that brings the identifier B into
+Require Import Stdlib.funind.Recdef.
+Require Stdlib.Wellfounded.Wellfounded. (* Can't Import this, because that brings the identifier B into
            scope, which breaks things like `{ageable B}  in this file.
           Stupid feature of Coq, that the B in `{ageable B} is not unambiguously a
         binding occurrence of B.  *)

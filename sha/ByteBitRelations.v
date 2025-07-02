@@ -296,9 +296,9 @@ Proof.
     intros n len.
     rewrite -> H0.
     rewrite -> bitsToBytes_app.
-    rewrite -> app_length.
+    rewrite -> length_app.
     rewrite -> H0 in len.
-    rewrite -> app_length in len.
+    rewrite -> length_app in len.
     rewrite -> H in len.
 
     destruct n as [ | n'].

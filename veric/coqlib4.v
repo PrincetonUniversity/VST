@@ -1,13 +1,11 @@
-Require Import Coq.Arith.EqNat.
-Require Import Coq.Relations.Relations.
-Require Import Coq.Sorting.Permutation.
+From Stdlib Require Import Arith.EqNat Relations.Relations Sorting.Permutation.
 
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
 
 Require Import VST.msl.Coqlib2.
 Require Export VST.msl.eq_dec.
-Require Export Lia.
+From Stdlib Require Export Lia.
 
 (* Global Set Warnings "-deprecated-hint-rewrite-without-locality".  Delete this line after we abandon Coq 8.13 *)
 
@@ -253,12 +251,12 @@ Proof.
   - inversion N; auto.
 Qed.
 
-Require Import Coq.Sets.Ensembles.
+Require Import Stdlib.Sets.Ensembles.
 
 Definition Ensemble_join {A} (X Y Z: Ensemble A): Prop :=
   (forall a, Z a <-> X a \/ Y a) /\ (forall a, X a -> Y a -> False).
 
-Require Coq.Logic.ConstructiveEpsilon.
+Require Stdlib.Logic.ConstructiveEpsilon.
 
 Lemma decidable_countable_ex_sig {A} (f : nat -> A)
       (Hf : forall a, exists n, a = f n)

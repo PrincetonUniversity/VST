@@ -170,7 +170,7 @@ Intros snuff. rename H into Snuff.
 
 destruct (QuadChunks2ValList_bytes (map littleendian_invert snuff)) as [sr_bytes [SRBL SNR]].
 assert (SRL: Zlength sr_bytes = 64). {
-  rewrite map_length, (Snuffle20_length _ _ Snuff) in SRBL.
+  rewrite length_map, (Snuffle20_length _ _ Snuff) in SRBL.
   rewrite Zlength_correct, SRBL. reflexivity.
   apply prepare_data_length.
 }
@@ -322,7 +322,7 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
   Intros snuff. rename H into Snuff.
   destruct (QuadChunks2ValList_bytes (map littleendian_invert snuff)) as [sr_bytes [SRBL SNR]].
   assert (Zlength sr_bytes = 64).
-    rewrite map_length, (Snuffle20_length _ _ Snuff) in SRBL.
+    rewrite length_map, (Snuffle20_length _ _ Snuff) in SRBL.
     rewrite Zlength_correct, SRBL. reflexivity.
     apply prepare_data_length.
   rename H into SRL.

@@ -780,7 +780,7 @@ intros.
 unfold decode_int.
 unfold rev_if_be.
 destruct Archi.big_endian.
-rewrite <- rev_length.
+rewrite <- length_rev.
 apply int_of_bytes_range.
 apply int_of_bytes_range.
 Qed.

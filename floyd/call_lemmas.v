@@ -141,7 +141,7 @@ eapply semax_pre_post'; [ | |
    apply (semax_call_subsume fs A Pre Post NEPre NEPost argsig retty cc Hsub
                Delta ts x (PROPx P (LOCALx Q (SEPx R))) None a bl H)].
 3:{ split; intros; congruence. }
-3:{ apply Coq.Init.Logic.I. }
+3:{ apply Logic.I. }
 + intro rho; normalize.
   autorewrite with norm1 norm2; normalize.
   unfold func_ptr'.

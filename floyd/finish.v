@@ -1,5 +1,7 @@
 From Ltac2 Require Import Ltac2.
 
+Set Warnings "-ltac2-unused-variable".
+
 Require Import VST.floyd.base2.
 Require Import VST.floyd.functional_base.
 Require Import VST.floyd.client_lemmas.

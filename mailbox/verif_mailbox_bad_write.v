@@ -89,7 +89,7 @@ Proof.
       entailer!.
       rewrite upd_Znth_eq with (d := Vundef); [|auto].
       apply derives_refl'; erewrite map_ext_in; [reflexivity|].
-      intros; rewrite In_upto, map_length, upto_length in *; simpl in *.
+      intros; rewrite In_upto, length_map, upto_length in *; simpl in *.
       erewrite Znth_map, Znth_upto; simpl; auto; try lia.
       erewrite sublist_split with (mid := i)(hi := i + 1), sublist_len_1 with (d := 0); auto; try lia.
       destruct (in_dec eq_dec a (sublist 0 i lasts ++ [Znth i lasts 0])); rewrite in_app in *.
@@ -1070,7 +1070,7 @@ Proof.
       rewrite !Zlength_app, !Zlength_cons, !Zlength_nil; entailer!.
       rewrite !sepcon_assoc; apply sepcon_derives.
       * apply derives_refl'; f_equal.
-        erewrite upd_Znth_eq, !map_length, upto_length, !map_map;
+        erewrite upd_Znth_eq, !length_map, upto_length, !map_map;
           [|rewrite !Zlength_map, Zlength_upto; unfold N in *; auto].
         apply map_ext_in; intros; rewrite In_upto in *.
         replace (Zlength t') with (Zlength h').

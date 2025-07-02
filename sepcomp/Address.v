@@ -3,7 +3,7 @@ Require Import compcert.lib.Integers.
 Require Import compcert.lib.Floats.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
-Require Import Coq.micromega.Lia.
+From Stdlib Require Import micromega.Lia.
 Require Import VST.msl.eq_dec.
 
 Definition address : Type := (block * Z)%type.

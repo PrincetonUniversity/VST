@@ -9,8 +9,8 @@ Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.closed_lemmas.
-Require Import Coq.Classes.RelationClasses.
-Require Import Coq.Classes.Morphisms.
+Require Import Stdlib.Classes.RelationClasses.
+Require Import Stdlib.Classes.Morphisms.
 Require Import VST.zlist.sublist.
 
 Local Open Scope logic.

@@ -1356,7 +1356,7 @@ Proof.
   - if_tac.
     + subst; rewrite nth_error_app2, Nat.sub_diag; auto.
     + intro X; apply H; rewrite nth_error_app1 in X; auto.
-      assert (t < length (l ++ [e]))%nat; [|rewrite app_length in *; simpl in *; lia].
+      assert (t < length (l ++ [e]))%nat; [|rewrite length_app in *; simpl in *; lia].
       rewrite <- nth_error_Some, X; discriminate.
 Qed.
 
@@ -1527,7 +1527,7 @@ Proof.
     + pose proof (hist_list_lt _ _ Hl) as Hn.
       intro t; specialize (Hn t).
       subst h0; simpl; if_tac; [contradiction|].
-      intro X; specialize (Hn X); rewrite app_length in Hn; simpl in Hn; lia.
+      intro X; specialize (Hn X); rewrite length_app in Hn; simpl in Hn; lia.
     + apply IHl.
       intros t e; specialize (Hl t e).
       subst h0; simpl; if_tac.
@@ -1537,7 +1537,7 @@ Proof.
         { erewrite nth_error_app1 by auto; reflexivity. }
         split; intro X.
         -- assert (t < length (l ++ [x]))%nat by (rewrite <- nth_error_Some, X; discriminate);
-             rewrite app_length in *; simpl in *; lia.
+             rewrite length_app in *; simpl in *; lia.
         -- assert (t < length l)%nat by (rewrite <- nth_error_Some, X; discriminate); contradiction.
     + unfold map_upd; subst h0; simpl.
       extensionality k'; if_tac; subst; auto.

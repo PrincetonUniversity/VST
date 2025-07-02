@@ -421,7 +421,7 @@ Qed.
 Ltac prove_it_now :=
  first [ splittable; fail 1
         | computable
-        | apply Coq.Init.Logic.I
+        | apply Logic.I
         | reflexivity
         | rewrite ?intsigned_intrepr_bytesigned; rep_lia
         | prove_signed_range
@@ -525,7 +525,7 @@ Ltac entailer' :=
  repeat (progress (ent_iter; normalize));
  try simple apply prop_and_same_derives;
  prune_conjuncts;
- try rewrite (prop_true_andp True) by apply Coq.Init.Logic.I;
+ try rewrite (prop_true_andp True) by apply Logic.I;
  try solve_valid_pointer;
  try first [apply derives_refl
               | simple apply FF_left
@@ -553,7 +553,7 @@ Ltac my_auto_iter H :=
        | red in H (* remove conjuncts_marker*); apply H
        ].
 
-Ltac all_True :=  solve [repeat simple apply conj; simple apply Coq.Init.Logic.I].
+Ltac all_True :=  solve [repeat simple apply conj; simple apply Logic.I].
 
 Ltac my_auto_reiter :=
  first [simple apply conj; [all_True | ]; my_auto_reiter

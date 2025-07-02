@@ -6,7 +6,7 @@ Require Import VST.zlist.sublist.
 Require Export VST.concurrency.lock_specs.
 Require Export VST.atomics.verif_lock.
 Require Import mailbox.mailbox.
-Require Import Lia.
+From Stdlib Require Import Lia.
 Open Scope funspec_scope.
 
 (* standard VST prelude *)

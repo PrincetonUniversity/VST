@@ -1,7 +1,4 @@
-Require Import Coq.ZArith.ZArith.
-Require Import Coq.ZArith.Znumtheory.
-Require Import Coq.Lists.List.
-Require Import Coq.Bool.Bool.
+From Stdlib Require Import ZArith.ZArith ZArith.Znumtheory Lists.List Bool.Bool.
 Require Import compcert.cfrontend.Ctypes.
 
 Definition in_eq: forall {A: Type} (a:A) l, In a (a::l) :=

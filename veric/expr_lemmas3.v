@@ -1,4 +1,4 @@
-Require Import Coq.Reals.Rdefinitions.
+Require Import Stdlib.Reals.Rdefinitions.
 Require Import VST.msl.msl_standard.
 Require Import VST.veric.Clight_base.
 Require Import VST.veric.compcert_rmaps.
@@ -30,10 +30,10 @@ Definition empty_tenv := PTree.empty val.
 Definition empty_environ cenv : environ :=
 mkEnviron (filter_genv (empty_genv cenv)) (Map.empty _) (Map.empty _).
 
-Lemma Zle_bool_rev: forall x y, Zle_bool x y = Zge_bool y x.
+Lemma Zle_bool_rev: forall x y, Z.leb x y = Z.geb y x.
 Proof.
 intros. pose proof (Zle_cases x y). pose proof (Zge_cases y x).
-destruct (Zle_bool x y); destruct (Zge_bool y x); auto;
+destruct (Z.leb x y); destruct (Z.geb y x); auto;
 exfalso; lia.
 Qed.
 

@@ -135,7 +135,7 @@ Module InvMachine.
     Lemma length_enum n : List.length (enums_equality.enum n) = n.
     Proof.
       unfold enums_equality.enum.
-      rewrite Coq.Lists.List.rev_length.
+      rewrite Stdlib.Lists.List.length_rev.
       apply length_enum_from.
     Qed.
 
@@ -197,7 +197,7 @@ Module InvMachine.
         apply unlift_m_inv in Heq; auto.
         { repeat match goal with |-context[nth_error ?l ?i] =>
             destruct (nth_error_None l i) as [_ H];
-            erewrite H by (rewrite rev_length length_enum_from; omega); clear H end; auto. }
+            erewrite H by (rewrite length_rev length_enum_from; omega); clear H end; auto. }
       - unfold ordinal_pos_incr; simpl.
         replace (introT _ _) with (pos_incr_lt (num_threads tp)) by apply proof_irr.
         rewrite unlift_none; auto.

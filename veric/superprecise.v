@@ -1,4 +1,4 @@
-Require Import Reals.
+From Stdlib Require Import Reals.
 Require Export VST.veric.base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.res_predicates.
@@ -48,7 +48,7 @@ Proof.
  intros. rewrite <- (rev_involutive i). rewrite <- (rev_involutive j).
  f_equal.
  assert (length (rev i) = length (rev j)).
- repeat rewrite rev_length; auto.
+ repeat rewrite length_rev; auto.
  eapply int_of_bytes_uniq; eauto.
  apply int_of_bytes_uniq.
 Qed.
@@ -191,7 +191,7 @@ rewrite <- (Bits.bits_of_binary_float_of_bits 52 11 (refl_equal _) (refl_equal _
 f_equal; apply H.
 Qed.
 
-Require Import ZArith.
+From Stdlib Require Import ZArith.
 Import Binary Zaux Generic_fmt.
 
 (* This lemma could be edited slightly to work again, but it's in support of

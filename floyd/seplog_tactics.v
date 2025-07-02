@@ -59,7 +59,7 @@ Definition not_a_prop (P: mpred) := True.
 
 Ltac not_a_prop := match goal with
   | |- not_a_prop  (prop _) => fail 1
-  | |- _ => apply Coq.Init.Logic.I
+  | |- _ => apply Logic.I
 end.
 
 Lemma flip_prop: forall P Q,

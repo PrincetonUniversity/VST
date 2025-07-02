@@ -2,7 +2,7 @@ Require Import VST.msl.Extensionality.
 Require Import VST.msl.seplog.
 Require Import VST.msl.sepalg.
 Require Import VST.msl.ghost.
-Require Import Ensembles List.
+From Stdlib Require Import Ensembles List.
 
 Local Open Scope logic.
 

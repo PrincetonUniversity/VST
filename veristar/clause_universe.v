@@ -513,7 +513,7 @@ intros.
  unfold In.
  destruct x as [l' ?].
  simpl in *.
- replace (length (proj1_sig x')) with (length l') by (rewrite <- H2; apply map_length).
+ replace (length (proj1_sig x')) with (length l') by (rewrite <- H2; apply length_map).
  clear - n0 H1 H0.
  rename l' into l.
  revert F n n0 H0 H1; induction l; simpl; intros.

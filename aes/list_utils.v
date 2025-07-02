@@ -37,7 +37,7 @@ Qed.
 Lemma repeat_op_table_nat_length: forall {T: Type} (i: nat) (x: T) (f: T -> T),
   length (repeat_op_table_nat i x f) = i.
 Proof.
-  intros. induction i. reflexivity. simpl. rewrite app_length. simpl.
+  intros. induction i. reflexivity. simpl. rewrite length_app. simpl.
   rewrite IHi. lia.
 Qed.
 

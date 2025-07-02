@@ -162,7 +162,7 @@ Proof.
                (Z.of_nat n0 * 32 + 32 - Z.of_nat 32)) as result; destruct result.
     simpl.
     rewrite Zlength_correct.
-    rewrite app_length.
+    rewrite length_app.
     rewrite Nat2Z.inj_add.
     do 2 rewrite <- Zlength_correct.
     rewrite Hlength.

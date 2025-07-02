@@ -112,7 +112,7 @@ Proof.
   * unfold HMAC_Concat.app_fpad.
 
     constructor. 2: constructor.
-    rewrite app_length. rewrite <- FOLD_hash_blocks_eq.
+    rewrite length_app. rewrite <- FOLD_hash_blocks_eq.
       2: apply BLxor_length; trivial.
       2: apply sap_b.
     assert (C: length (fold_left h (BLxor k ip :: sap m) iv) =c).

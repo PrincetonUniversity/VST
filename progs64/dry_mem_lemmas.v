@@ -749,7 +749,7 @@ Lemma encode_vals_length : forall lv,
   length (concat (map (encode_val Mint8unsigned) lv)) = length lv.
 Proof.
   induction lv; auto; simpl.
-  rewrite app_length, IHlv.
+  rewrite length_app, IHlv.
   unfold encode_val; simpl.
   destruct a; auto.
 Qed.

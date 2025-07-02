@@ -442,7 +442,7 @@ Lemma id2pred_star_ZnthV_Tint  {cs: compspecs} :
 Proof.
   intros. subst n mdata.
   replace (Zlength (map  (inttype2init_data sz) data)) with (Zlength data)
-    by (repeat rewrite Zlength_correct; rewrite map_length; auto).
+    by (repeat rewrite Zlength_correct; rewrite length_map; auto).
   go_lowerx.
   match goal with |- ?F _ _ _ _ _ _ |-- _ => change F with @id2pred_star end.
   change (offset_strict_in_range (sizeof (Tint sz sign noattr) * Zlength data) v) in H1.
@@ -579,7 +579,7 @@ Lemma id2pred_star_ZnthV_tint  {cs: compspecs}:
   !! offset_strict_in_range (sizeof tint * n) v &&
   `(id2pred_star Delta gz sh v mdata) |--
   `(data_at sh (tarray tint n) (map Vint data) v).
-Proof. intros; apply id2pred_star_ZnthV_Tint; auto; apply Coq.Init.Logic.I.
+Proof. intros; apply id2pred_star_ZnthV_Tint; auto; apply Logic.I.
 Qed.
 
 Lemma offset_zero_globals_of_env: forall rho i,
@@ -694,7 +694,7 @@ Lemma id2pred_star_ZnthV_tfloat  {cs: compspecs}:
 Proof. intros.
   subst n mdata.
   replace (Zlength (map  (floattype2init_data sz) data)) with (Zlength data)
-    by (repeat rewrite Zlength_correct; rewrite map_length; auto).
+    by (repeat rewrite Zlength_correct; rewrite length_map; auto).
   go_lowerx.
   match goal with |- ?F _ _ _ _ _ _ |-- _ => change F with @id2pred_star end.
   change (offset_strict_in_range (sizeof (Tfloat sz noattr) * Zlength data) v) in H1.
@@ -785,7 +785,7 @@ destruct sz; apply derives_refl.
   apply align_compatible_rec_by_value with (ch:=ch); auto.
    apply Z.divide_add_r; auto.
   clear - H8. subst t. 
-  destruct sz; inv H8; simpl; (apply Zmod_divide; [lia | reflexivity]).
+  destruct sz; inv H8; simpl; (apply Z.mod_divide; [lia | reflexivity]).
   unfold Ptrofs.max_unsigned.
   lia.
  }
@@ -819,7 +819,7 @@ destruct sz; apply derives_refl.
   apply Z.divide_mul_l; auto.
   clear - t H4.
   subst t.
-  destruct sz; inv H4; simpl; (apply Zmod_divide; [lia | reflexivity]).
+  destruct sz; inv H4; simpl; (apply Z.mod_divide; [lia | reflexivity]).
   pose proof (Zlength_nonneg data); lia.
 Qed.
 
@@ -1749,7 +1749,7 @@ Ltac process_one_globvar' :=
            unify (is_array_type (gvar_info v)) true
      end;
      (*simple*) eapply process_globvar_array;
-      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply Coq.Init.Logic.I
+      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply Logic.I
       | compute; clear; congruence
       | repeat eapply map_instantiate; symmetry; apply map_nil
       | compute; split; clear; congruence  ]

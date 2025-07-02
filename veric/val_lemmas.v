@@ -1,6 +1,4 @@
-Require Import Coq.Arith.EqNat.
-Require Import Coq.Relations.Relations.
-Require Import Lia.
+From Stdlib Require Import Arith.EqNat Relations.Relations Lia.
 
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.

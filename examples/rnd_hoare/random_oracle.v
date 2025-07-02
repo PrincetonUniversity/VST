@@ -862,7 +862,7 @@ Lemma length_firstn_list_from_fun: forall {A} (f: nat -> A) n, length (fisrtn_li
 Proof.
   intros.
   induction n; simpl; auto.
-  rewrite app_length, IHn.
+  rewrite length_app, IHn.
   simpl.
   omega.
 Qed.

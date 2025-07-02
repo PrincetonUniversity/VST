@@ -4050,7 +4050,7 @@ Proof.
    unfold cardinal.
     intros; rewrite fold_spec.
    rewrite <- List.fold_left_rev_right.
-   rewrite <- List.rev_length.
+   rewrite <- List.length_rev.
     unfold elt.
     remember (@rev K.t (elements s)) as  l; clear.
     clear; induction l; simpl; auto.

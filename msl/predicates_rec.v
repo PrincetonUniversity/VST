@@ -8,8 +8,8 @@ Require Import VST.msl.ageable.
 Require Import VST.msl.predicates_hered.
 Require Import VST.msl.subtypes.
 
-Require Import Coq.Wellfounded.Wellfounded.
-Require Import Coq.funind.Recdef.
+Require Import Stdlib.Wellfounded.Wellfounded.
+Require Import Stdlib.funind.Recdef.
 
 Delimit Scope pred with pred.
 Local Open Scope pred.

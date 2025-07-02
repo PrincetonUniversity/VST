@@ -678,18 +678,18 @@ Lemma list_set_set : forall {A} n l (a b : A), (n <= length l)%nat ->
 Proof.
   intros; unfold list_set.
   rewrite (proj2 (Nat.sub_0_le _ _) H).
-  rewrite !app_length, !skipn_app, firstn_app, firstn_length, min_l, Nat.sub_diag, app_nil_r, repeat_length by auto.
+  rewrite !length_app, !skipn_app, firstn_app, length_firstn, min_l, Nat.sub_diag, app_nil_r, repeat_length by auto.
   rewrite firstn_firstn, min_l by auto; f_equal.
-  unfold length; setoid_rewrite skipn_length; f_equal.
+  unfold length; setoid_rewrite length_skipn; f_equal.
   - f_equal. lia.
-  - rewrite skipn_all2, skipn_nil, Nat.sub_0_r; [|rewrite firstn_length; lia].
+  - rewrite skipn_all2, skipn_nil, Nat.sub_0_r; [|rewrite length_firstn; lia].
     rewrite (Nat.add_sub 1); auto.
 Qed.
 
 Lemma nth_list_set : forall {A} n l (a : A) d, nth n (list_set l n a) d = Some a.
 Proof.
   intros; unfold list_set.
-  rewrite 2app_nth2; rewrite ?repeat_length, ?firstn_length; try lia.
+  rewrite 2app_nth2; rewrite ?repeat_length, ?length_firstn; try lia.
   match goal with |- nth ?n _ _ = _ => replace n with O by lia end; auto.
 Qed.
 
@@ -708,7 +708,7 @@ Proof.
     unfold list_set; rewrite !map_app, map_firstn, map_repeat.
     unfold map at 2; setoid_rewrite map_skipn.
     rewrite ghost_fmap_singleton; simpl Datatypes.option_map.
-    erewrite <- map_length.
+    erewrite <- length_map.
     rewrite level_core.
     inv J.
     + inj_pair_tac.
@@ -728,7 +728,7 @@ Proof.
       constructor. rewrite H; eauto.
       Unshelve.
       * inv H0; auto.
-      * rewrite map_length.
+      * rewrite length_map.
         destruct (le_dec (length x) g); [|lia].
         rewrite nth_overflow in H1 by auto; discriminate.
       * apply join_comm, join_valid in H2; auto.

@@ -201,7 +201,7 @@ Fixpoint add_funspecsOracle_rec (ext_link: string -> ident) Z (Espec : juicy_ext
     | cons (i,f) fs' => funspecOracle2jspec Z (add_funspecsOracle_rec ext_link Z Espec fs') ext_link (i,f)
   end.
 
-Require Import Coq.Logic.JMeq.
+Require Import Stdlib.Logic.JMeq.
 
 Lemma add_funspecs_pre  (ext_link: Strings.String.string -> ident)
               {Z fs id sig cc A P Q x args m} Espec tys ge_s phi0 phi1 z :

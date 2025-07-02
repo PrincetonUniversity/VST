@@ -427,17 +427,17 @@ Lemma split3_data_at_Tarray_at_tuchar:
 Proof.
   fold reptype in *.
   assert (Arith1: Zlength (firstn (lo + n) data) = Z.of_nat (lo + n)).
-           repeat rewrite Zlength_correct. rewrite firstn_length, min_l; trivial.
+           repeat rewrite Zlength_correct. rewrite length_firstn, min_l; trivial.
   rewrite split_offset_array_at with (n := (lo + n)%nat); trivial. (* by lia.*)
   rewrite split_offset_array_at with (n := lo) (contents := firstn (lo + n) data); trivial.
     (* by
-    (rewrite firstn_length; rewrite Min.min_l by lia; lia).*)
+    (rewrite length_firstn; rewrite Min.min_l by lia; lia).*)
   assert (!!offset_in_range (sizeof t * Zlength data) d |--
     !! offset_in_range (sizeof t * Zlength (firstn (lo + n) data)) d)%logic.
     remember (sizeof t) as ST; normalize; subst ST.
     apply offset_in_range_mid with (lo := 0%Z) (hi := Zlength data); try assumption.
     rewrite !Zlength_correct.
-    rewrite firstn_length; rewrite Min.min_l by lia. split; try lia.
+    rewrite length_firstn; rewrite Min.min_l by lia. split; try lia.
     apply inj_le, N.
     rewrite Zmult_0_r.
     unfold offset_in_range; destruct d; auto.
@@ -471,17 +471,17 @@ Lemma split3_offset_array_at
 Proof.
   fold reptype in *.
   assert (Arith1: Zlength (firstn (lo + n) data) = Z.of_nat (lo + n)).
-           repeat rewrite Zlength_correct. rewrite firstn_length, min_l; trivial.
+           repeat rewrite Zlength_correct. rewrite length_firstn, min_l; trivial.
   rewrite split_offset_array_at with (n := (lo + n)%nat); trivial. (* by lia.*)
   rewrite split_offset_array_at with (n := lo) (contents := firstn (lo + n) data); trivial.
     (* by
-    (rewrite firstn_length; rewrite Min.min_l by lia; lia).*)
+    (rewrite length_firstn; rewrite Min.min_l by lia; lia).*)
   assert (!!offset_in_range (sizeof t * Zlength data) d |--
     !! offset_in_range (sizeof t * Zlength (firstn (lo + n) data)) d)%logic.
     remember (sizeof t) as ST; normalize; subst ST.
     apply offset_in_range_mid with (lo := 0%Z) (hi := Zlength data); try assumption.
     rewrite !Zlength_correct.
-    rewrite firstn_length; rewrite Min.min_l by lia. split; try lia.
+    rewrite length_firstn; rewrite Min.min_l by lia. split; try lia.
     apply inj_le, N.
     rewrite Zmult_0_r.
     unfold offset_in_range; destruct d; auto.
@@ -528,9 +528,9 @@ intros. subst.
 rewrite (split_offset_Tarray_at (length data1) sh t (Zlength (data1++data2))
          (data1 ++ data2) d H); repeat rewrite Zlength_correct.
 rewrite firstn_exact, skipn_exact; trivial.
-rewrite app_length, Nat2Z.inj_add, Z.add_simpl_l; trivial.
-rewrite app_length, Nat2Z.inj_add. lia.
-rewrite app_length, Nat2Z.inj_add. lia.
+rewrite length_app, Nat2Z.inj_add, Z.add_simpl_l; trivial.
+rewrite length_app, Nat2Z.inj_add. lia.
+rewrite length_app, Nat2Z.inj_add. lia.
 Qed.
 
 Lemma append_split3_Tarray_at
@@ -548,13 +548,13 @@ Lemma append_split3_Tarray_at
 Proof.
   subst.
   erewrite (split3_offset_Tarray_at t A (length data1) (length data2)).
-  2: repeat rewrite app_length; lia.
+  2: repeat rewrite length_app; lia.
   rewrite firstn_exact; trivial.
   rewrite skipn_exact; trivial.
   rewrite firstn_exact; trivial.
-  rewrite app_assoc, skipn_app2. 2: rewrite app_length; lia.
+  rewrite app_assoc, skipn_app2. 2: rewrite length_app; lia.
   assert (Arith1: (length data1 + length data2 - (length data1 + length data2) = 0)%nat) by lia.
-  f_equal. repeat rewrite Zlength_correct. repeat rewrite app_length.
+  f_equal. repeat rewrite Zlength_correct. repeat rewrite length_app.
   rewrite Arith1; clear Arith1. simpl.
   f_equal. repeat rewrite Nat2Z.inj_add. rewrite Z.mul_add_distr_l.
   assert (Arith: Z.of_nat (length data1) + Z.of_nat (length data2) +

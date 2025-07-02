@@ -1,4 +1,4 @@
-Require Import Coq.Lists.List.
+Require Import Stdlib.Lists.List.
 Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2 VST.floyd.coqlib3.
 Require Import VST.floyd.jmeq_lemmas.

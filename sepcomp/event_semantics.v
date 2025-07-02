@@ -6,14 +6,14 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
-Require Import Lia.
+From Stdlib Require Import Lia.
 
 Require Import VST.msl.Extensionality.
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import Coq.micromega.Lia.
+From Stdlib Require Import Lia.
 
 (** * Semantics annotated with Owens-style trace*)
 Inductive mem_event :=
@@ -205,7 +205,7 @@ Proof. eapply ev_perm. eapply ev_step_elim; eassumption. Qed.
 Arguments EvSem G C.
 *)
 
-Require Import List.
+From Stdlib Require Import List.
 Import ListNotations.
 
 Definition in_free_list (b : block) ofs xs :=

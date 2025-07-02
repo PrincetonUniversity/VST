@@ -1,4 +1,4 @@
-Require Export Coq.Sorting.Permutation.
+Require Export Stdlib.Sorting.Permutation.
 Require Import VST.veric.seplog.
 Require Import VST.floyd.base2.
 Import LiftNotation.
@@ -11,7 +11,7 @@ Inductive localdef : Type :=
  | lvar: ident -> type -> val -> localdef   (* local variable *)
  | gvars: globals -> localdef.              (* global variables *)
 
-Arguments temp i%positive v.
+Arguments temp i%_positive v.
 
 Definition lvar_denote (i: ident) (t: type) (v: val) rho :=
      match Map.get (ve_of rho) i with
@@ -502,7 +502,7 @@ Notation "'EX' x .. y , P " :=
 Notation " 'ENTAIL' d ',' P '|--' Q " :=
   (@derives (environ->mpred) _ (andp (local (tc_environ d)) P%assert) Q%assert) (at level 99, P at level 79, Q at level 79).
 
-Arguments semax {CS} {Espec} Delta Pre%assert cmd Post%assert.
+Arguments semax {CS} {Espec} Delta Pre%_assert cmd Post%_assert.
 
 Lemma insert_prop : forall (P: Prop) PP QR, prop P && (PROPx PP QR) = PROPx (P::PP) QR.
 Proof.
@@ -1868,7 +1868,7 @@ Ltac not_conj_notation :=
  | |- not_conj_notation (_ <= _ <= _)%nat => fail 1
  | |- not_conj_notation (_ <= _ < _)%nat => fail 1
  | |- not_conj_notation (_ < _ <= _)%nat => fail 1
- | |- _ => apply Coq.Init.Logic.I
+ | |- _ => apply Logic.I
  end.
 
 Lemma split_first_PROP {A}:
@@ -2670,7 +2670,7 @@ Lemma lvar_isptr:
 Proof.
 intros. hnf in H.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct H; subst; apply Coq.Init.Logic.I.
+destruct H; subst; apply Logic.I.
 Qed.
 
 Lemma gvars_isptr:
@@ -2681,7 +2681,7 @@ subst.
 red in H.
 destruct_glob_types i.
 rewrite Heqo0.
-apply Coq.Init.Logic.I.
+apply Logic.I.
 Qed.
 
 Lemma lvar_isptr_eval_var :

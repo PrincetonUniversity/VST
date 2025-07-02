@@ -282,11 +282,11 @@ Proof.
     destruct (eq_dec i (List.length l)).
     + subst i. simpl. replace (List.length l - 0 - List.length l)%nat with O by omega.
       simpl.
-      apply upd_last. symmetry. apply List.rev_length.
+      apply upd_last. symmetry. apply List.length_rev.
     + simpl in li.
       assert (U : (i < List.length l)%nat) by omega.
       pose proof U as Hi.
-      rewrite <- List.rev_length in U.
+      rewrite <- List.length_rev in U.
       rewrite <-(upd_lt _ x) in U.
       destruct (upd i x (rev l)) as [o|] eqn:Eo. 2:tauto. clear U.
       specialize (IHl i Hi).

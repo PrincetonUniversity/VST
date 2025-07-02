@@ -1,10 +1,7 @@
 Require Import VST.msl.simple_CCC.
 Require Import VST.msl.seplog.
-(* Require Import VST.msl.alg_seplog. *)
 Require Import VST.msl.Extensionality.
-Require Import Coq.Setoids.Setoid.
-
-(* Set Warnings "-deprecated-hint-rewrite-without-locality".  Delete this line after we abandon Coq 8.13 *)
+Require Import Stdlib.Setoids.Setoid.
 
 Create HintDb norm discriminated.
 
@@ -1735,10 +1732,10 @@ Qed.
 
 (****** End contractiveness *****)
 
-Require Import Coq.ZArith.ZArith.
+Require Import Stdlib.ZArith.ZArith.
 Require Import VST.zlist.sublist.
-Require Import Coq.Lists.List.
-Require Import Coq.micromega.Lia.
+Require Import Stdlib.Lists.List.
+From Stdlib Require Import Lia.
 
 Lemma sepcon_app  {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
    forall l1 l2, fold_right sepcon emp (l1 ++ l2) =

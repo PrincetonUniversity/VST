@@ -200,7 +200,7 @@ Proof.
   { rewrite Z.add_simpl_r; split; auto; rewrite Zlength_correct; lia. }
   assert (Znth (Zlength reqs + 1 - 1) (complete MAX (reqs ++ [req])) Vundef = req) as Hnth.
   { rewrite Z.add_simpl_r, Znth_complete;
-      [|repeat rewrite Zlength_correct; rewrite app_length; simpl; Omega0].
+      [|repeat rewrite Zlength_correct; rewrite length_app; simpl; Omega0].
     rewrite app_Znth2, Zminus_diag; [auto | lia]. }
   forward.
   { entailer!.
@@ -357,7 +357,7 @@ Proof.
     { simpl.
       Exists (reqs0 ++ [r]); cancel.
       unfold fold_right at 2; unfold fold_right at 1; cancel.
-      repeat rewrite Zlength_correct; rewrite app_length; simpl.
+      repeat rewrite Zlength_correct; rewrite length_app; simpl.
       rewrite Nat2Z.inj_add.
       repeat rewrite map_app; simpl; rewrite sepcon_app; simpl.
       unfold fold_right at 1; cancel; entailer'.
@@ -411,7 +411,7 @@ Proof.
   - assert (reqs0 <> []) as Hreqs.
     { intro; subst; unfold Zlength in *; simpl in *; contradiction HRE; auto. }
     rewrite (app_removelast_last (Vint (Int.repr 0)) Hreqs) in *.
-    rewrite Zlength_correct, app_length; simpl.
+    rewrite Zlength_correct, length_app; simpl.
     rewrite Nat2Z.inj_add, <- Zlength_correct; simpl.
     rewrite Zlength_app, Zlength_cons, Zlength_nil in *; simpl in *.
     match goal with H : Forall isptr (_ ++ _) |- _ =>

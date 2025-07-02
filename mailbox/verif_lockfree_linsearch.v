@@ -285,7 +285,7 @@ Proof.
   subst; contradiction H; eauto.
 Qed.
 
-Lemma make_map_length : forall h (Hnz : Forall (fun x => value_of_hist (fst x) <> vint 0) h)
+Lemma make_length_map : forall h (Hnz : Forall (fun x => value_of_hist (fst x) <> vint 0) h)
   (Hint : Forall (fun x => Forall int_op (map snd (fst x))) h),
   Zlength (make_map h) = Zlength h.
 Proof.

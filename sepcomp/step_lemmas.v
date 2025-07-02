@@ -7,7 +7,7 @@ Require Import compcert.common.Values.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.semantics_lemmas.
-Require Import Lia.
+From Stdlib Require Import Lia.
 
 Definition has_opttyp (v : option val) (t : option typ) :=
   match v, t with

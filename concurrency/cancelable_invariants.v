@@ -1,5 +1,5 @@
 (* recapitulate iris/base_logic/lib/cancelable_invariants.v *)
-Require Import Ensembles.
+From Stdlib Require Import Ensembles.
 Require Import VST.msl.shares.
 Require Import VST.veric.shares.
 Require Import VST.msl.ghost.

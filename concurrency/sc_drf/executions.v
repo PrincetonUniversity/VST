@@ -261,7 +261,7 @@ Module Executions.
             rewrite <- app_assoc.
             rewrite <- app_assoc in Hexec'''.
             split. eauto.
-            rewrite app_length.
+            rewrite length_app.
             rewrite Hnth.
             ssromega.
     Qed.
@@ -320,9 +320,9 @@ Module Executions.
             rewrite <- app_assoc.
             rewrite <- app_assoc in Hexec'''.
             split. eauto.
-            do 2 rewrite app_length.
+            do 2 rewrite length_app.
             rewrite <- plus_assoc.
-            rewrite app_length in Hnth.
+            rewrite length_app in Hnth.
             rewrite Hnth.
             ssromega.
     Qed.
@@ -411,7 +411,7 @@ Module Executions.
           inversion H2.
           assert (length U = length ((U' ++ (n :: U))%list))
             by (erewrite <- H7; reflexivity).
-          rewrite app_length in H5. clear - H5.
+          rewrite length_app in H5. clear - H5.
           simpl in H5. ssromega.
         + subst.
           eapply IHU with (U' := (U' ++ [:: a])).

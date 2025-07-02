@@ -701,13 +701,13 @@ Proof.
  induction vl; simpl; intros. apply nth_error_nil.
  destruct (eq_dec n (length vl)).
  subst.
- pattern (length vl) at 1; rewrite <- rev_length.
+ pattern (length vl) at 1; rewrite <- length_rev.
  rewrite <- (Nat.add_0_r (length (rev vl))).
  rewrite nth_error_app.
  case_eq (length vl); intros. simpl. auto.
  replace (S n - n - 1)%nat with O by lia.
  simpl; auto.
- rewrite nth_error_app1 by (rewrite rev_length; lia).
+ rewrite nth_error_app1 by (rewrite length_rev; lia).
  rewrite IHvl by lia. clear IHvl.
  destruct n; destruct (length vl). congruence.
  simpl. replace (n-0)%nat with n by lia; auto.
@@ -786,9 +786,9 @@ Proof. intros. subst.
      rewrite map_rev; rewrite nth_error_rev.
              replace (length (map fst vl) - Z.to_nat (Zpos b - 1) - 1)%nat
                         with (length vl - Pos.to_nat b)%nat ; [intuition | ].
-    rewrite map_length.
+    rewrite length_map.
     transitivity (length vl - (Z.to_nat (Z.pos b-1)+1))%nat; try lia.
-    rewrite map_length.
+    rewrite length_map.
     rewrite Zlength_correct in H1.
     forget (Z.pos b-1) as i; forget (length vl) as n; clear - H1.
     apply inj_lt_rev. rewrite Z_to_nat_max; auto.
@@ -807,9 +807,9 @@ Proof. intros. subst.
           by (rewrite <- e; replace (1 + (Z.pos b - 1)) with (Z.pos b) by lia;
                   apply Pos2Z.id).
         clear e b.
-        rewrite <- Zlength_rev. rewrite <- rev_length.
+        rewrite <- Zlength_rev. rewrite <- length_rev.
          replace (length (rev vl)) with (length (rev vl) + 0)%nat by lia.
-         rewrite map_app. rewrite <- map_length with (f:=@fst ident (globdef (fundef F) type)).
+         rewrite map_app. rewrite <- length_map with (f:=@fst ident (globdef (fundef F) type)).
         rewrite nth_error_app.
         apply iff_trans with (i=id); [ | simpl; split; intro; subst; auto; inv H; auto].
         rewrite In_rev in H2. rewrite <- map_rev in H2.
@@ -852,7 +852,7 @@ Proof. intros. subst.
        f_equal. clear - H H2.
        forget (Z.to_nat (Z.pos b-1)) as j.
        replace (length vl) with (length (map fst (rev vl)))
-           by (rewrite map_length; rewrite rev_length; auto).
+           by (rewrite length_map; rewrite length_rev; auto).
        forget (map fst (rev vl)) as al.
        revert al H2 H; clear; induction j; destruct al; simpl; intros; auto. inv H; intuition.
        exfalso; clear - H; induction j; inv H; auto.
@@ -862,21 +862,21 @@ Proof. intros. subst.
       destruct IHvl.
       split; intro.
       - apply H in H1. rewrite nth_error_app1; auto.
-        clear - n Hb. rewrite map_length. rewrite rev_length. rewrite Zlength_correct in Hb,n.
+        clear - n Hb. rewrite length_map. rewrite length_rev. rewrite Zlength_correct in Hb,n.
         assert (Z.pos b-1>=0) by lia.
         pose proof (Z2Nat.id _ (Z.ge_le _ _ H)).
         forget (Z.to_nat(Z.pos b-1)) as j. rewrite <- H0 in *.
         destruct Hb. clear - H2 n. lia.
       - assert (Z.to_nat (Z.pos b-1) < length (map (@fst _ _) (rev vl)))%nat.
         { clear - Hb n H1.
-          rewrite Zlength_correct in n. rewrite map_length; rewrite rev_length.
+          rewrite Zlength_correct in n. rewrite length_map; rewrite length_rev.
           assert (Z.to_nat (Z.pos b-1) <> length vl).
           { contradict n. rewrite <- n.
             rewrite Z2Nat.id; auto. lia. }
           forget (Z.to_nat (Z.pos b-1)) as j.
           clear - H1 H.
           assert (S (length vl) = length (map fst (rev vl) ++ map fst ((i, g) :: nil))).
-          { simpl. rewrite app_length; rewrite map_length; rewrite rev_length; simpl; lia. }
+          { simpl. rewrite length_app; rewrite length_map; rewrite length_rev; simpl; lia. }
           assert (j < S (length vl))%nat; [ | lia].
           rewrite H0. forget (map fst (rev vl) ++ map fst ((i, g) :: nil)) as al.
           clear - H1. revert al H1; induction j; destruct al; simpl in *; intros; inv H1; auto; try lia.
@@ -928,7 +928,7 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))). {
  }
  split.
  rewrite Zlength_correct in RANGE.
- rewrite rev_length in RANGE. lia.
+ rewrite length_rev in RANGE. lia.
  rewrite <- list_norepet_rev in H.
  unfold prog_defs_names in H.
  change (AST.prog_defs prog) with (prog_defs prog) in H.
@@ -943,7 +943,7 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))). {
  destruct p; simpl in H1. inv H1.
  exists g.
  rewrite <- H0. f_equal.
- rewrite rev_length. rewrite map_length.
+ rewrite length_rev. rewrite length_map.
  clear - RANGE.
  rewrite Zlength_rev in RANGE. rewrite Zlength_correct in RANGE.
  rewrite <- (Z2Nat.id (Z.pos b)) in * by lia.
@@ -953,9 +953,9 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))). {
  rewrite Nat2Z.id.
  lia.
  inv H1.
- rewrite rev_length. rewrite map_length.
+ rewrite length_rev. rewrite length_map.
  clear - RANGE. rewrite Zlength_correct in RANGE.
- rewrite rev_length in RANGE.
+ rewrite length_rev in RANGE.
  forget (length (prog_defs prog)) as N.
  assert (Z_of_nat N > 0) by lia.
  destruct N; inv H.

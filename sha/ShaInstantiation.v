@@ -42,7 +42,7 @@ Definition fpad_inner (msg : list byte) : list byte :=
 
 Lemma fpad_inner_length l (L:length l = p): (length (fpad_inner (bitsToBytes l)) * 8)%nat = p.
 Proof.
-  unfold fpad_inner. repeat rewrite app_length.
+  unfold fpad_inner. repeat rewrite length_app.
   rewrite repeat_length, length_intlist_to_bytelist.
   rewrite (Nat.mul_comm 4), Nat.add_comm, Zlength_correct.
   rewrite bitsToBytes_len_gen with (n:=32%nat).
@@ -94,7 +94,7 @@ Lemma pad_inc_length: forall l, exists k, (0 < k /\ length (pad_inc l) = k*64)%n
 Proof. unfold pad_inc.
   induction l.
   simpl. exists (1%nat). lia.
-  destruct IHl as [k [K HK]]. repeat rewrite app_length in *. rewrite repeat_length in *.
+  destruct IHl as [k [K HK]]. repeat rewrite length_app in *. rewrite repeat_length in *.
   rewrite length_intlist_to_bytelist in *.
   remember (BinInt.Z.to_nat
         (BinInt.Z.modulo
@@ -275,7 +275,7 @@ Proof. symmetry in H.
              = length ((l2 ++ Byte.repr 128 :: nil) ++
                 repeat Byte.zero (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)))).
        rewrite H0; trivial.
-       clear H0. repeat rewrite app_length in H.
+       clear H0. repeat rewrite length_app in H.
        repeat rewrite repeat_length in H.
        clear - K n H.
        rewrite (pad_injective_aux l1 l2 k K n) in H. lia.
@@ -344,7 +344,7 @@ destruct d.
               = length ((l2 ++ Byte.repr 128 :: nil) ++
                  repeat Byte.zero (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)))).
           rewrite H0; trivial.
-        clear H0. repeat rewrite app_length in H1.
+        clear H0. repeat rewrite length_app in H1.
         repeat rewrite repeat_length in H1.
         rewrite (pad_injective_aux l2 l1 (k1-k2)) in H1.
           lia.
@@ -446,7 +446,7 @@ Lemma pad_inc_length: forall l, exists k, (0 < k /\ length (pad_inc l) = k*64)%n
 Proof. unfold pad_inc.
   induction l.
   simpl. exists (1%nat). lia.
-  destruct IHl as [k [K HK]]. repeat rewrite app_length in *. rewrite repeat_length in *.
+  destruct IHl as [k [K HK]]. repeat rewrite length_app in *. rewrite repeat_length in *.
   rewrite pure_lemmas.length_intlist_to_Zlist in *.
   remember (BinInt.Z.to_nat
         (BinInt.Z.modulo
@@ -608,7 +608,7 @@ Proof. symmetry in H.
              = length ((l2 ++ 128 :: nil) ++
                 repeat 0 (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)))).
        rewrite H0; trivial.
-       clear H0. repeat rewrite app_length in H.
+       clear H0. repeat rewrite length_app in H.
        repeat rewrite repeat_length in H.
        clear - K n H.
        rewrite (pad_injective_aux l1 l2 k K n) in H. lia.
@@ -677,7 +677,7 @@ destruct d.
               = length ((l2 ++ 128 :: nil) ++
                  repeat 0 (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)))).
           rewrite H0; trivial.
-        clear H0. repeat rewrite app_length in H1.
+        clear H0. repeat rewrite length_app in H1.
         repeat rewrite repeat_length in H1.
         rewrite (pad_injective_aux l2 l1 (k1-k2)) in H1.
           lia.

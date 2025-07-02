@@ -4,7 +4,7 @@
  *)
 
 Require Import VST.msl.base.
-  Require Coq.funind.Recdef.
+  Require Stdlib.funind.Recdef.
 
 Local Open Scope nat_scope.
 
@@ -190,7 +190,7 @@ End RtRft.
 Definition laterR {A} `{ageable A} : relation A := clos_trans A age.
 Definition necR   {A} `{ageable A} : relation A := clos_refl_trans A age.
 
-Require Coq.Wellfounded.Wellfounded.
+Require Stdlib.Wellfounded.Wellfounded.
 Lemma laterR_wf {A} `{ageable A} :
   well_founded (transp _ laterR).
 Proof.

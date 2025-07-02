@@ -76,7 +76,7 @@ Fixpoint eqb_type (a b: type) {struct a} : bool :=
  | Tfloat sa aa, Tfloat sb ab => andb (eqb_floatsize sa sb) (eqb_attr aa ab)
  | Tpointer ta aa, Tpointer tb ab => andb (eqb_type ta tb) (eqb_attr aa ab)
  | Tarray ta sa aa, Tarray tb sb ab => andb (eqb_type ta tb)
-                     (andb (Zeq_bool sa sb) (eqb_attr aa ab))
+                     (andb (Z.eqb sa sb) (eqb_attr aa ab))
  | Tfunction sa ta ca, Tfunction sb tb cb =>
        andb (andb (eqb_list eqb_type sa sb) (eqb_type ta tb)) (eqb_calling_convention ca cb)
  | Tstruct ia aa, Tstruct ib ab => andb (eqb_ident ia ib) (eqb_attr aa ab)
@@ -176,7 +176,7 @@ destruct a,b; simpl; split; auto; try discriminate;
  | H: eqb_attr _ _ = true |- _ => apply eqb_attr_spec in H
  | H: eqb_floatsize _ _ = true |- _ => apply eqb_floatsize_spec in H
  | H: eqb_calling_convention _ _ = true |- _ => apply eqb_calling_convention_prop in H
- | H: Zeq_bool _ _ = true |- _ => apply Zeq_bool_eq in H
+ | H: Z.eqb _ _ = true |- _ => apply Z.eqb_eq in H
  | H: eqb_ident _ _ = true |- _ => apply eqb_ident_spec in H
  | H: eqb_type _ _ = true |- _ => apply REC in H
  | H: Tint _ _ _ = _ |- _ => inv H

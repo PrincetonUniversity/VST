@@ -185,7 +185,7 @@ Definition littleendian_of_SixteenByte (x:SixteenByte): QuadWord :=
         rewrite Zlength_correct, QuadWR_length. trivial. Qed.
      Lemma SixteenWR_length s: length (SixteenWordRep s) = 16%nat.
         destruct s as [[[? ?] ?] ?]. simpl.
-        repeat rewrite app_length. repeat rewrite  QuadWR_length. reflexivity. Qed.
+        repeat rewrite length_app. repeat rewrite  QuadWR_length. reflexivity. Qed.
      Lemma SixteenWR_zlength s: Zlength (SixteenWordRep s) = 16.
         rewrite Zlength_correct, SixteenWR_length. trivial. Qed.
 
@@ -265,7 +265,7 @@ Qed.
     Proof. destruct s as [[[q0 q1] q2] q3]. reflexivity. Qed.
     Lemma SixteenWordRepI_length s: length (SixteenWordRepI s) = 16%nat.
     Proof. destruct s as [[[q0 q1] q2] q3]. simpl.
-      repeat rewrite app_length. repeat rewrite QuadWordRepI_length. reflexivity.
+      repeat rewrite length_app. repeat rewrite QuadWordRepI_length. reflexivity.
     Qed.
 
 Lemma QuadByte2ValList_bytes q: exists bytes, length bytes = 4%nat /\
@@ -282,7 +282,7 @@ Proof. destruct N as [[[q0 q1] q2] q3]. rewrite SixteenByte2ValList_char.
   destruct (QuadByte2ValList_bytes q2) as [bytes2 [L2 Q2]]; rewrite Q2.
   destruct (QuadByte2ValList_bytes q3) as [bytes3 [L3 Q3]]; rewrite Q3.
   exists (bytes0 ++ bytes1 ++ bytes2 ++ bytes3).
-  repeat rewrite map_app. repeat rewrite app_length. rewrite L0, L1, L2, L3.
+  repeat rewrite map_app. repeat rewrite length_app. rewrite L0, L1, L2, L3.
   split; trivial.
 Qed.
 
@@ -302,7 +302,7 @@ Proof. destruct N as [[[q0 q1] q2] q3]. rewrite SixteenByte2ValList_char.
   destruct (QuadByte2ValList_ints q2) as [ints2 [L2 Q2]]; rewrite Q2.
   destruct (QuadByte2ValList_ints q3) as [ints3 [L3 Q3]]; rewrite Q3.
   exists (ints0 ++ ints1 ++ ints2 ++ ints3).
-  repeat rewrite map_app. repeat rewrite app_length. rewrite L0, L1, L2, L3.
+  repeat rewrite map_app. repeat rewrite length_app. rewrite L0, L1, L2, L3.
   split; trivial.
 Qed.
 
@@ -314,7 +314,7 @@ Lemma QuadChunks2ValList_bytes: forall l,
     destruct IHl as [? [X1 X2]]; rewrite X2; clear X2.
     destruct (QuadByte2ValList_bytes a) as [? [Y1 Y2]]; rewrite Y2; clear Y2.
     repeat rewrite <- map_app. exists (x0 ++ x); split; trivial.
-    rewrite app_length, X1, Y1. lia.
+    rewrite length_app, X1, Y1. lia.
   Qed.
 
 Fixpoint upd_upto (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte)) i (l:list val):list val :=

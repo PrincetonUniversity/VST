@@ -139,13 +139,13 @@ change (AST.prog_defs prog) with (prog_defs prog) in Hm.
 forget (prog_defs prog) as dl.
 rewrite <- (rev_involutive dl) in H1,Hm.
 rewrite nth_error_rev in H1.
-2 : { rewrite rev_length. clear - RANGE.
+2 : { rewrite length_rev. clear - RANGE.
       destruct RANGE.
       apply inj_lt_iff. rewrite Z2Nat.id by lia. lia. }
 rename H1 into H5.
 replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
  with (length (rev dl) - Z.to_nat (Z.pos b))%nat in H5.
-2 : { rewrite rev_length.
+2 : { rewrite length_rev.
       clear - RANGE.
       replace (Z.to_nat (Z.pos b-1)) with (Z.to_nat (Z.pos b) - 1)%nat.
       assert (Z.to_nat (Z.pos b) <= length dl)%nat.
@@ -162,7 +162,7 @@ assert (0 < Z.to_nat (Z.pos b) <= length dl)%nat.
 { clear - RANGE. lia. }
 clear RANGE; rename H0 into RANGE.
 rewrite Z2Nat.inj_pos in *.
-rewrite <- rev_length in RANGE.
+rewrite <- length_rev in RANGE.
 forget (rev dl) as dl'; clear dl; rename dl' into dl.
 destruct RANGE.
 rewrite alloc_globals_rev_eq in Hm.
@@ -320,13 +320,13 @@ forget (prog_defs prog) as dl.
 rewrite <- (rev_involutive dl) in H1,Hm.
 rewrite nth_error_rev in H1.
 2 : {
-  rewrite rev_length. clear - RANGE.
+  rewrite length_rev. clear - RANGE.
   destruct RANGE.
   apply inj_lt_iff. rewrite Z2Nat.id by lia. lia. }
 rename H1 into H5.
 replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
   with (length (rev dl) - Z.to_nat (Z.pos b))%nat in H5.
-2 : { rewrite rev_length.
+2 : { rewrite length_rev.
   clear - RANGE.
   replace (Z.to_nat (Z.pos b-1)) with (Z.to_nat (Z.pos b) - 1)%nat.
   assert (Z.to_nat (Z.pos b) <= length dl)%nat.
@@ -343,7 +343,7 @@ assert (0 < Z.to_nat (Z.pos b) <= length dl)%nat.
 { clear - RANGE. lia. }
 clear RANGE; rename H0 into RANGE.
 rewrite Z2Nat.inj_pos in *.
-rewrite <- rev_length in RANGE.
+rewrite <- length_rev in RANGE.
 forget (rev dl) as dl'; clear dl; rename dl' into dl.
 destruct RANGE.
 rewrite alloc_globals_rev_eq in Hm.
