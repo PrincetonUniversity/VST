@@ -109,7 +109,11 @@ Section function.
     (Forall (λ it : ident * Ctypes.type, complete_type cenv_cs it.2 = true) (fn_vars fn)
        ∧ list_norepet (map fst (Clight.fn_params fn) ++ map fst (fn_temps fn))
          ∧ list_norepet (map fst (fn_vars fn))
-           ∧ var_sizes_ok cenv_cs (fn_vars fn)).
+           ∧ var_sizes_ok cenv_cs (fn_vars fn)
+             (* extra conditions to guarantee has_layout *)
+             ∧ Forall (λ it, composite_compute.complete_legal_cosu_type it.2 = true) (fn_vars fn)
+             ∧ Forall (λ it, align_mem.LegalAlignasFacts.LegalAlignasDefs.is_aligned cenv_cs ha_env_cs la_env_cs it.2 0 = true) (fn_vars fn)
+             ∧ Forall (λ it, type_is_volatile it.2 = false) (fn_vars fn)).
 
   Lemma fntbl_entry_inj : forall f fn1 fn2, fntbl_entry f fn1 → fntbl_entry f fn2 → fn1 = fn2.
   Proof.
@@ -146,28 +150,32 @@ Section function.
     erewrite singleton.mapsto_tptr. iFrame. iModIntro. unfold has_layout_loc. rewrite singleton.field_compatible_tptr. do 2 iSplit => //. by iIntros "_".
   Qed. *)
 
-(*   (* up *)
-  Lemma monPred_at_big_sepL2 {BI : bi} {I : biIndex} {B C} i (Φ : nat → B → C → monPred I BI) l m :
-    ([∗ list] k↦x;y ∈ l;m, Φ k x y) i ⊣⊢ [∗ list] k↦x;y ∈ l;m, Φ k x y i.
-  Proof. rewrite !big_sepL2_alt. monPred.unseal; rewrite monPred_at_big_sepL //. Qed. *)
-
-  (* see process_stackframe_of *)
-  Lemma stackframe_of_typed : forall f lv, stackframe_of' cenv_cs f lv ⊢ typed_stackframe f lv.
+  Lemma stackframe_of_typed : forall f lv
+    (Hcomplete : Forall (λ it, composite_compute.complete_legal_cosu_type it.2 = true) (fn_vars f))
+    (Halign : Forall (λ it, align_mem.LegalAlignasFacts.LegalAlignasDefs.is_aligned cenv_cs ha_env_cs la_env_cs it.2 0 = true) (fn_vars f))
+    (Hvolatile : Forall (λ it, type_is_volatile it.2 = false) (fn_vars f)),
+    stackframe_of' cenv_cs f lv ⊢ typed_stackframe f lv.
   Proof.
     intros; rewrite /stackframe_of' /typed_stackframe.
     iIntros "(H & $)".
-    iApply (big_sepL_mono with "H"); intros.
+    iApply (big_sepL_mono with "H"); intros ?? H%elem_of_list_lookup_2.
+    rewrite !Forall_forall in Hcomplete Halign Hvolatile.
+    specialize (Hcomplete _ H); specialize (Halign _ H); specialize (Hvolatile _ H).
     rewrite /var_block' /typed_var_block /ty_own /= /heap_mapsto_own_state /mapsto.
     iIntros "(% & % & $ & H)"; iSplit; first done.
+    iAssert ⌜(b, 0) `has_layout_loc` y.2⌝ as %?. {
+      iPureIntro.
+      split3; simpl; auto.
+      change expr.sizeof with sizeof.
+      rewrite Z.add_0_l; split3; first rep_lia; last done.
+      apply la_env_cs_sound; auto. }
     change (sizeof y.2) with (expr.sizeof y.2).
-    iAssert ⌜(b, 0) `has_layout_loc` y.2⌝ as %?. { admit. }
     rewrite memory_block_data_at_ // /data_at_ /field_at_ /field_at.
     iDestruct "H" as "(_ & $)".
     iPureIntro.
     split; auto; rewrite /has_layout_val /=.
-    split; first apply default_value_fits.
-    admit. (* volatile *)
-  Admitted.
+    split; first apply default_value_fits; done.
+  Qed.
 
   Lemma type_call_fnptr l i v vl ctys retty cc tys fp (T : _ → _ → assert) :
     length vl = length ctys →
@@ -196,7 +204,8 @@ Section function.
     pose proof (Forall2_length Hl) as Hlena.
     rewrite Hlena -Hlen.
     iSpecialize ("Hfn" $! _ (Vector.of_list vl) with "[Hvl $HPa Hstack]").
-    { rewrite vec_to_list_to_vec stackframe_of_typed; iFrame. }
+    { destruct l, He as (_ & _ & _ & _ & _ & _ & ? & ? & ?).
+      rewrite vec_to_list_to_vec stackframe_of_typed //; iFrame. }
     iApply (monPred_in_entails with "[-]"); first apply wp_strong_mono.
     rewrite monPred_at_sep; iFrame "Hfn"; monPred.unseal.
     iSplit.
