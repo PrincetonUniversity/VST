@@ -1292,7 +1292,7 @@ Qed.
 
 Lemma wp_expr_mapsto : forall E f e P,
   wp_lvalue E f e (λ '(b, o), ∃ sh v, <affine> ⌜readable_share sh ∧ v ≠ Vundef⌝ ∗
-    ⎡▷ <absorb> mapsto sh (typeof e) (Vptr b (Ptrofs.repr o)) v⎤ ∧ P v) ⊢
+    ⎡▷ <absorb> mapsto sh (typeof e) (Vptr b (Ptrofs.repr o)) v⎤ ∧ |={E}=> P v) ⊢
   wp_expr E f e P.
 Proof.
   intros; rewrite /wp_lvalue /wp_expr.
@@ -1307,10 +1307,24 @@ Proof.
   { iIntros "((>H & _) & Hm) !>"; iDestruct (core_load_load' with "[$Hm H]") as %?; last done.
     rewrite mapsto_core_load //. }
   rewrite bi.and_elim_r.
-  iModIntro; iExists v; iFrame.
+  iMod "H"; iModIntro; iExists v; iFrame.
   iStopProof; do 7 f_equiv.
   intros ??; econstructor; eauto.
   econstructor; eauto.
+Qed.
+
+Lemma wp_expr_mapsto' : forall E f e P,
+  wp_lvalue E f e (λ '(b, o), ∃ sh v, <affine> ⌜readable_share sh ∧ v ≠ Vundef⌝ ∗
+    ⎡▷ <absorb> mapsto sh (typeof e) (Vptr b (Ptrofs.repr o)) v⎤ ∗
+    (⎡▷ <absorb> mapsto sh (typeof e) (Vptr b (Ptrofs.repr o)) v⎤ -∗ P v)) ⊢
+  wp_expr E f e P.
+Proof.
+  intros; rewrite -wp_expr_mapsto.
+  apply wp_lvalue_mono.
+  iIntros ((?, ?)) "H !>".
+  iDestruct "H" as "(% & % & $ & ? & H)".
+  iSplit; first done.
+  by iApply "H".
 Qed.
 
 End mpred.
