@@ -27,9 +27,6 @@ jobs:
           - 64
         make_target:
           - vst
-        exclude:
-	  - coq_version: dev
-	    bit_size: 32
     steps:
       - uses: actions/checkout@v4
         with:
