@@ -1,5 +1,5 @@
 From VST.typing Require Export type.
-From VST.typing Require Import programs (* optional *) boolean int singleton.
+From VST.typing Require Import programs optional boolean int singleton.
 From VST.typing Require Import type_options.
 
 Section own.
@@ -710,12 +710,27 @@ End null.
 Section optionable.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  Global Program Instance frac_ptr_optional p ty β t1 t2: Optionable (p @ frac_ptr β ty) null (tptr t1) (tptr t2) := {|
+  Global Program Instance frac_ptr_optional p cty ty β t1 t2:
+    Optionable cty (p @ frac_ptr β ty) null (tptr t1) (tptr t2) := {|
     opt_pre v1 v2 := (p ◁ₗ{β} ty -∗ expr.valid_pointer p)%I
   |}.
   Next Obligation.
     intros.
-    iIntros "Hpre H1 -> Hctx".
+    iIntros "Hpre H1 H2 Hctx".
+    destruct bty.
+    { iDestruct "H1" as "(% & Hty)".
+      iDestruct ("Hpre" with "Hty") as "Hlib".
+      rewrite repinject_valinject in H.
+      {
+        rewrite /ty_own_val_at / ty_own_val /= repinject_valinject; last first. { admit. }
+        iDestruct "H2" as %->.
+        { iDestruct (valid_pointer.valid_pointer_dry0 with "[$Hctx $Hlib]") as %Hvalid; iPureIntro.
+          destruct beq => /=; rewrite /Cop.sem_cmp /= /cmp_ptr /nullval /=; change Archi.ptr64 with true; rewrite /=.
+          {
+            destruct v1; simpl in *.
+
+
+    
     destruct bty; [ iDestruct "H1" as (->) "Hty" | iDestruct "H1" as %-> ].
     - iDestruct ("Hpre" with "Hty") as "Hlib".
       iDestruct (valid_pointer.valid_pointer_dry0 with "[$Hctx $Hlib]") as %Hvalid; iPureIntro.
@@ -724,7 +739,7 @@ Section optionable.
   Qed.
   Global Program Instance frac_ptr_optional_agree ty1 ty2 β : OptionableAgree (frac_ptr β ty1) (frac_ptr β ty2).
   Next Obligation. done. Qed.
-
+*)
 
   (* Global Program Instance ptr_optional : ROptionable ptr null PtrOp PtrOp := {| *)
   (*   ropt_opt x := {| opt_alt_sz := _ |} *)
@@ -737,9 +752,9 @@ Section optionable.
   (*   - by etrans; first apply (eval_bin_op_null_null beq); destruct beq => //. *)
   (* Admitted. *)
 
-  Lemma subsume_optional_place_val_null A ty l β b ty' T:
-    (l ◁ₗ{β} ty' -∗ ∃ x, <affine> ⌜b x⌝ ∗ l ◁ᵥ (ty x) ∗ T x)
-    ⊢ subsume (l ◁ₗ{β} ty') (λ x : A, l ◁ᵥ (b x) @ optional (ty x) null) T.
+  Lemma subsume_optional_place_val_null A cty ty l β b ty' T:
+    (l ◁ₗ{β} ty' -∗ ∃ x, <affine> ⌜b x⌝ ∗ l ◁ᵥₐₗ|cty| (ty x) ∗ T x)
+      ⊢ subsume (l ◁ₗ{β} ty') (λ x : A, l ◁ᵥₐₗ|cty| (b x) @ optional (ty x) null) T.
   Proof.
     iIntros "Hsub Hl". iDestruct ("Hsub" with "Hl") as (??) "[Hl ?]".
     iExists _. iFrame. unfold optional; simpl_type. iLeft. by iFrame.
@@ -747,9 +762,9 @@ Section optionable.
   Definition subsume_optional_place_val_null_inst := [instance subsume_optional_place_val_null].
   Global Existing Instance subsume_optional_place_val_null_inst | 20.
 
-  Lemma subsume_optionalO_place_val_null B A (ty : B → A → type) l β b ty' T:
-    (l ◁ₗ{β} ty' -∗ ∃ y x, <affine> ⌜b y = Some x⌝ ∗ l ◁ᵥ ty y x ∗ T y)
-    ⊢ subsume (l ◁ₗ{β} ty') (λ y, l ◁ᵥ (b y) @ optionalO (ty y) null) T.
+  Lemma subsume_optionalO_place_val_null B A (ty : B → A → type) l β b cty ty' T:
+    (l ◁ₗ{β} ty' -∗ ∃ y x, <affine> ⌜b y = Some x⌝ ∗ l ◁ᵥₐₗ|cty| ty y x ∗ T y)
+      ⊢ subsume (l ◁ₗ{β} ty') (λ y, l ◁ᵥₐₗ|cty| (b y) @ optionalO cty (ty y) null) T.
   Proof.
     iIntros "Hsub Hl". iDestruct ("Hsub" with "Hl") as (?? Heq) "[? ?]".
     iExists _. iFrame. rewrite Heq. unfold optionalO; simpl_type. done.
@@ -788,7 +803,7 @@ Section optionable.
   Global Existing Instance type_cast_optionalO_own_ptr_inst. *)
 End optionable.
 
-Global Typeclasses Opaque ptr_type ptr.
+(* Global Typeclasses Opaque ptr_type ptr. *)
 Global Typeclasses Opaque  frac_ptr.
 Global Typeclasses Opaque null.
 
@@ -819,4 +834,3 @@ Section optional_null.
   Definition type_place_optionalO_null_inst := [instance type_place_optionalO_null].
   Global Existing Instance type_place_optionalO_null_inst | 100. *)
 End optional_null.
-*)
