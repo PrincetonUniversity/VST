@@ -254,7 +254,8 @@ Proof.
   apply wp_lvalue_mono.
   iIntros ((?, ?)) "(% & H) !>".
   iExists q, v; iSplit; first done.
-  rewrite embed_later embed_absorbingly //.
+  iSplit; first by rewrite bi.and_elim_l embed_later embed_absorbingly.
+  iModIntro; by rewrite bi.and_elim_r.
 Qed.
 
 Lemma tac_wp_deref `{!VSTGS OK_ty Σ} Δ ge E f e ty Q :

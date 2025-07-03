@@ -265,7 +265,7 @@ Proof.
     { rewrite bi.and_elim_l monPred_at_and; iFrame; auto. }
     rewrite monPred_at_absorbingly /=; unfold_lift.
     by rewrite Hbo. }
-  iNext.
+  iIntros "!> !>".
   rewrite /typeof_temp in Hid0; destruct (temp_types Delta !! id) as [t'|] eqn: Ht; inversion Hid0; subst t'; clear Hid0.
   iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
   iIntros "Hid !>"; iSpecialize ("E" with "Hid"); iFrame.
@@ -321,7 +321,6 @@ Proof.
   rewrite semax_unfold; intros; iIntros "F #?" (?? (TC' & ?)) "E Pre"; destruct HGG.
   rewrite monPred_at_later !monPred_at_and.
   iApply wp_set; iApply wp_cast; first done.
-  iApply wp_expr_mono; first by intros; iIntros "H"; iApply "H".
   iApply wp_expr_mapsto.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
   destruct (eq_dec v2 Vundef).
