@@ -185,7 +185,7 @@ Section own.
   Definition type_cast_ptr_ptr_inst := [instance type_cast_ptr_ptr].
   Global Existing Instance type_cast_ptr_ptr_inst. *)
 
-  Lemma type_if_ptr_own (l:address) β ty t T1 T2:
+  Lemma type_if_ptr_own (l : address) β ty t T1 T2:
     (l ◁ₗ{β} ty -∗ (*(loc_in_bounds l 0 ∗ True) ∧*) valid_val l ∧ T1)
     ⊢ typed_if (tptr t) l (l ◁ₗ{β} ty) (valid_val l) T1 T2.
   Proof.
@@ -300,7 +300,7 @@ Section own.
     - iDestruct "HT" as "(_ & _ & HT)".
       iApply ("HΦ" with "[] HT") => //.
       rewrite / ty_own_val_at /ty_own_val /=.
-      destruct b; iSplit; eauto; iExists _; try done. 
+      destruct b; iSplit; eauto; iExists _; try done.
   Qed.
 
   Definition type_lt_ptr_ptr_inst l1 l2 :=
@@ -403,7 +403,6 @@ Section own.
   Global Existing Instance find_in_context_type_val_P_own_singleton_inst | 30.
 End own.
 
-
 Global Typeclasses Opaque place'.
 Notation "place'< l >" := (place' l) (only printing, format "'place'<' l '>'") : printing_sugar.
 
@@ -415,14 +414,13 @@ Notation "&frac< β , ty >" := (frac_ptr β ty) (only printing, format "'&frac<'
 Notation "&own< ty >" := (frac_ptr Own ty) (only printing, format "'&own<' ty '>'") : printing_sugar.
 Notation "&shr< ty >" := (frac_ptr Shr ty) (only printing, format "'&shr<' ty '>'") : printing_sugar.
 
-
 Section ptr.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   (* Should loc_in_bounds be replaced with valid_pointer'? But that would take a piece of ownership of l'. *)
   Program Definition ptr_type (n : nat) (l' : address) : type := {|
     ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
-                                                                ty_own β l := (<affine> ⌜l `has_layout_loc` (tptr tvoid)⌝ ∗ (*loc_in_bounds l' n ∗*) l ↦[β]|tptr tvoid| l')%I;
+    ty_own β l := (<affine> ⌜l `has_layout_loc` (tptr tvoid)⌝ ∗ (*loc_in_bounds l' n ∗*) l ↦[β]|tptr tvoid| l')%I;
     ty_own_val cty v := (<affine> ⌜repinject cty v = adr2val l'⌝ (*∗ loc_in_bounds l' n*))%I;
   |}.
   Next Obligation.
@@ -476,9 +474,12 @@ Section ptr.
     erewrite (mapsto_tptr _ _ tvoid t).
     repeat iSplit => //.
     { rewrite /has_layout_loc in H |- *. by rewrite field_compatible_tptr. }
-    { rewrite /has_layout_loc in H |- *.
-      admit. }
-  Admitted.
+    { rewrite /has_layout_loc in H |- *. iPureIntro.
+      split; auto.
+      rewrite /value_fits /tc_val' /=.
+      destruct t; try done.
+    }
+  Qed.
   Definition simplify_ptr_hyp_place_inst := [instance simplify_ptr_hyp_place with 0%N].
   Global Existing Instance simplify_ptr_hyp_place_inst.
 
@@ -496,11 +497,10 @@ Section ptr.
     iDestruct (ty_aligned _ (tptr tvoid) MCNone with "Hp") as %?; [eexists; eauto|].
     iDestruct (ty_deref _ (tptr tvoid) MCNone with "Hp") as (v) "(Hp & Hl)"; try done.
     { rewrite /ty_has_op_type /=. eexists; eauto. }
-    {
-      rewrite /ty_own_val /=.
+    { rewrite /ty_own_val /=.
       iDestruct "Hl" as "(% & Hl)".
       rewrite H0.
-      iDestruct ("HT" with "Hl") as (? ->) "?".
+      iDestruct ("HT" with "[$Hl]") as (? ->) "?".
       iExists _. by iFrame "∗".
     }
   Qed.
@@ -610,7 +610,8 @@ Section null.
     rewrite /heap_loc_eq /=. move => ? Heq.
     rewrite /sem_binary_operation; destruct op => //; rewrite /Cop.sem_cmp /= /cmp_ptr /=.
     - rewrite Heq /=; split; congruence.
-    - rewrite /Val.cmpu_bool /Val.cmplu_bool in Heq |- *; destruct l1 => //; destruct l2 => //; simpl in *; simple_if_tac; simpl;
+    - rewrite /Val.cmpu_bool /Val.cmplu_bool in Heq |- *;
+        destruct l1 => //; destruct l2 => //; simpl in *; simple_if_tac; simpl;
         first [inv Heq; split; congruence | try if_tac in Heq; destruct (_ && _); inv Heq; simpl; split; congruence].
   Qed.
 
@@ -641,13 +642,14 @@ Section null.
           T v ((if op is Oeq then false else true) @ boolean tint))
       ⊢ typed_bin_op ge l ⎡l ◁ₗ{β} ty⎤ v ⎡v ◁ᵥₐₗ|tptr cty| null⎤ op (tptr t1) (tptr t2) tint T.
   Proof.
-    iIntros "(% & HT) Hl" (?) "% HΦ"; simpl in *; subst.
+    iIntros "(% & HT) Hl" (?) "% HΦ". simpl in *; subst.
     iIntros "!>" (?) "$ !>".
     iDestruct ("HT" with "[$Hl]") as "HT".
     iExists (Val.of_bool (if op is Oeq then false else true)); iSplit.
     - iStopProof; split => rho; monPred.unseal.
       apply bi.pure_intro.
       intros; eapply eval_bin_op_ptr_cmp with (b := false); eauto.
+      rewrite /heap_loc_eq.
       admit.
     - iApply "HΦ" => //.
       destruct op; try done.
@@ -655,7 +657,8 @@ Section null.
         iSplit; auto. iExists _; done.
       }
       { rewrite /Val.of_bool /Vtrue /= /ty_own_val_at /ty_own_val /=.
-        iSplit; auto. iExists _; done. }
+        iSplit; auto. iExists _; done.
+      }
   Admitted.
   Definition type_binop_ptr_null_inst := [instance type_binop_ptr_null].
   Global Existing Instance type_binop_ptr_null_inst.
@@ -673,19 +676,22 @@ Section null.
     - iStopProof; split => rho; monPred.unseal.
       apply bi.pure_intro.
       intros; eapply (eval_bin_op_ptr_cmp _ _ _ _ _ _ _ _ false); try done.
-      rewrite /heap_loc_eq /=. admit.
+      rewrite /heap_loc_eq /=.
+      change Archi.ptr64 with true; simpl.
+      admit.
     - iApply "HΦ" => //.
       destruct op; try done.
       { rewrite /Val.of_bool /Vfalse /= /ty_own_val_at /ty_own_val /=.
         iSplit; auto. iExists _; done.
       }
       { rewrite /Val.of_bool /Vtrue /= /ty_own_val_at /ty_own_val /=.
-        iSplit; auto. iExists _; done. }
+        iSplit; auto. iExists _; done.
+      }
   Admitted.
   Definition type_binop_null_ptr_inst := [instance type_binop_null_ptr].
   Global Existing Instance type_binop_null_ptr_inst.
 
-(*  Lemma type_cast_null_int it v T:
+(* Lemma type_cast_null_int it v T:
     (T (i2v 0 it) (0 @ int it))
     ⊢ typed_un_op v (v ◁ᵥ null) (CastOp (IntOp it)) PtrOp T.
   Proof.
@@ -767,8 +773,10 @@ Section optionable.
       rewrite repinject_valinject // in H1; subst.
       rewrite eval_bin_op_ptr_cmp // /= ?Int.eq_true ?Int64.eq_true; destruct beq => //.
   Qed.
+  
   Global Program Instance frac_ptr_optional_agree ty1 ty2 β : OptionableAgree (frac_ptr β ty1) (frac_ptr β ty2).
-  Next Obligation. done.
+  Next Obligation.
+    done.
   Qed.
   
   (* Global Program Instance ptr_optional : ROptionable ptr null PtrOp PtrOp := {| *)
@@ -839,9 +847,8 @@ Global Typeclasses Opaque null.
 
 Section optional_null.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
-
   Local Typeclasses Transparent optional_type optional.
-
+  
 (*   Lemma type_place_optional_null K l β1 b ty T:
     ⌜b⌝ ∗ typed_place K l β1 ty T
     ⊢ typed_place K l β1 (b @ optional ty null) T.
