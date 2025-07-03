@@ -518,11 +518,13 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
   (* tricky since stating that they have the same size requires that ty1 *)
   (* and ty2 are movable (which they might not be) *)
   (* Ke: ignoring typed_place_context for now, might need it later *)
-  (* Definition typed_place (l1 : address) (β1 : own_state) (ty1 : type) (T : address → own_state → type → (type → type) → (type → assert) → assert) : assert :=
+  Definition typed_place (l1 : address) (β1 : own_state) (ty1 : type) (T : address → own_state → type → (type → type) → (type → assert) → assert) : assert :=
     (∀ Φ, ⎡l1 ◁ₗ{β1} ty1⎤ -∗
-       (∀ (l2 : address) β2 ty2 typ R, ⎡l2 ◁ₗ{β2} ty2⎤ -∗ (∀ ty', ⎡l2 ◁ₗ{β2} ty'⎤ ={⊤}=∗ ⎡l1 ◁ₗ{β1} typ ty'⎤ ∗ R ty') -∗ T l2 β2 ty2 typ R -∗ Φ l2) -∗ (wp_expr (EConst l) Φ))%I.
+       (∀ (l2 : address) β2 ty2 typ R, ⎡l2 ◁ₗ{β2} ty2⎤ -∗ 
+        (∀ ty', ⎡l2 ◁ₗ{β2} ty'⎤ ={⊤}=∗ ⎡l1 ◁ₗ{β1} typ ty'⎤ ∗ R ty') -∗ T l2 β2 ty2 typ R -∗ Φ l2)
+          -∗ (Φ l1))%I.
   Class TypedPlace  (l1 : address) (β1 : own_state) (ty1 : type) : Type :=
-    typed_place_proof T : iProp_to_Prop (typed_place l1 β1 ty1 T). *)
+    typed_place_proof T : iProp_to_Prop (typed_place l1 β1 ty1 T).
 
 End judgements.
 
@@ -579,18 +581,18 @@ Section proper.
     v ◁ᵥ|cty| ty2 ∗ T ⊢ simplify_goal (v ◁ᵥ|cty| ty1) T.
   Proof. rewrite Heq. iIntros "$". Qed.
 
-(*  Lemma typed_place_subsume' P l ty1 β T :
-    (l ◁ₗ{β} ty1 -∗ ∃ ty2, l ◁ₗ{β} ty2 ∗ typed_place P l β ty2 T) ⊢ typed_place P l β ty1 T.
+  Lemma typed_place_subsume' l ty1 β T :
+    (⎡l ◁ₗ{β} ty1⎤ -∗ ∃ ty2, ⎡l ◁ₗ{β} ty2⎤ ∗ typed_place l β ty2 T) ⊢ typed_place l β ty1 T.
   Proof.
     iIntros "Hsub" (Φ) "Hl HΦ". iDestruct ("Hsub" with "Hl") as (ty2) "[Hl HP]". by iApply ("HP" with "Hl").
   Qed.
 
-  Lemma typed_place_subsume P l ty1 ty2 β T :
-    subsume (l ◁ₗ{β} ty1) (λ _ : unit, l ◁ₗ{β} ty2) (λ _, typed_place P l β ty2 T) ⊢ typed_place P l β ty1 T.
+  Lemma typed_place_subsume l ty1 ty2 β T :
+    subsume (⎡l ◁ₗ{β} ty1⎤) (λ _ : unit, ⎡l ◁ₗ{β} ty2⎤) (λ _, typed_place l β ty2 T) ⊢ typed_place l β ty1 T.
   Proof.
     iIntros "Hsub". iApply typed_place_subsume'.
     iIntros "Hl". iExists _. iDestruct ("Hsub" with "Hl") as (_) "$".
-  Qed.*)
+  Qed.
 
   (** wand lemmas *)
   Lemma typed_val_expr_wand f e T1 T2:
@@ -818,8 +820,8 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
   | typed_bin_op ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8 ?x9 => constr:(TypedBinOp x1 x2 x3 x4 x5 x6 x7 x8 x9)
   | typed_un_op ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedUnOp x1 x2 x3 x4 x5)
 (*  | typed_call ?x1 ?x2 ?x3 ?x4 => constr:(TypedCall x1 x2 x3 x4)
-  | typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedCopyAllocId x1 x2 x3 x4 x5)
-  | typed_place ?x1 ?x2 ?x3 ?x4 => constr:(TypedPlace x1 x2 x3 x4) *)
+  | typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedCopyAllocId x1 x2 x3 x4 x5) *)
+  | typed_place ?x1 ?x2 ?x3 => constr:(TypedPlace x1 x2 x3) 
   | typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 => constr:(TypedReadEnd x1 x2 x3 x4 x5 x6)
   | typed_write_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8 => constr:(TypedWriteEnd x1 x2 x3 x4 x5 x6 x7 x8) 
   | typed_addr_of_end ?x1 ?x2 ?x3 => constr:(TypedAddrOfEnd x1 x2 x3)
@@ -830,7 +832,7 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
 (*   | typed_assert ?x1 ?x2 ?x3 => constr:(TypedAssert x1 x2 x3) *)
 (*   | typed_switch ?x1 ?x2 ?x3 => constr:(TypedSwitch x1 x2 x3) *)
   | typed_annot_stmt ?x1 ?x2 ?x3 => constr:(TypedAnnotStmt x1 x2 x3)
-  | copy_as ?x1 ?x2 ?x3 => constr:(CopyAs x1 x2 x3)
+  | copy_as ?x1 ?x2 ?x3 ?x4 => constr:(CopyAs x1 x2 x3 x4)
   | _ => fail "unknown judgement" c
   end.
 
@@ -1736,33 +1738,8 @@ Qed.
   Proof. done. Qed.
 *)
 
-  
-Lemma wp_expr_mapsto : forall ge E f e P,
-
-  wp_lvalue ge E f e (λ '(b, o), ∃ sh v, <affine> ⌜readable_share sh ∧ v ≠ Vundef⌝ ∗
-   ⎡ ▷ <absorb> mapsto_memory_block.mapsto sh (typeof e) (Vptr b (Ptrofs.repr o)) v ⎤ ∧ 
-                |={E}=> P v) ⊢
-  wp_expr ge E f e P.
-Proof.
-  intros; rewrite /wp_lvalue /wp_expr.
-  f_equiv. iIntros "H" (m ?) "Hm ?".
-  iDestruct ("H" with "Hm [$]") as ">(% & % & ? & Hm & ? & % & % & (% & %) & H)".
-  rewrite Ptrofs.repr_unsigned bi.later_absorbingly embed_absorbingly.
-  iCombine "H Hm" as "H".
-  iDestruct (add_and _ (▷ ⌜∃ ch, access_mode (typeof e) = By_value ch⌝) with "H") as "(H & >(%ch & %Hch))".
-  { iIntros "((>H & _) & Hm) !>".
-    by iDestruct (mapsto_pure_facts with "H") as %(? & _). }
-  iDestruct (add_and _ (▷ ⌜Mem.load ch m b (Ptrofs.unsigned o) = Some v⌝) with "H") as "((H & Hm) & >%Hload)".
-  { iIntros "((>H & _) & Hm) !>"; iDestruct (juicy_mem_lemmas.core_load_load' with "[$Hm H]") as %?; last done.
-    rewrite mapsto_core_load //. }
-    
-  rewrite bi.and_elim_r.
-  iMod "H".
-  iModIntro; iExists v; iFrame.
-  iStopProof; do 7 f_equiv.
-  intros ??; econstructor; eauto.
-  econstructor; eauto.
-Qed.
+  Lemma derives_refl {BI : bi} (P : BI) : P ⊢ P.
+  Proof. done. Qed.
 
   (* l↦v, [[e]]=l, v:cty *)
   Lemma type_deref genv_t f cty T e :
@@ -1800,7 +1777,7 @@ Qed.
   Lemma type_read_simple genv_t f e β cty T:
     typed_val_expr (ge genv_t) f e (λ v_l ty_l,
       ∃ l, <affine> ⌜v_l=adr2val l⌝ ∗
-       ⎡ l ◁ₗ{β} ty_l ⎤ ∗
+      ⎡ l ◁ₗ{β} ty_l ⎤ ∗
       typed_read_end false ⊤ l β ty_l cty (λ v ty_l' ty_v',
         ⎡l ◁ₗ{β} ty_l'⎤ -∗ ⎡l ◁ᵥₐₗ|typeof e| ty_l⎤ -∗ T v ty_v'))
     ⊢ typed_read (ge genv_t) f false e cty T.
@@ -1950,25 +1927,25 @@ Qed.
     by iApply ("HT" with "[$]").
   Qed.
 *)
-(*
+
   Lemma type_place_id l ty β T:
     T l β ty id (λ _, True)
     ⊢ typed_place l β ty T.
   Proof.
     unfold typed_place.
-    iIntros  "HT Hl" (l2 β2 ty2 typ R) "Hl2". iApply ("HΦ" with "Hl [] HT").  by iIntros (ty') "$".
-  Qed.s
+    iIntros "HT" (Φ) "Hl HΦ". iApply ("HΦ" with "Hl [] HT"). by iIntros (ty') "$".
+  Qed.
   Definition type_place_id_inst := [instance type_place_id].
   Global Existing Instance type_place_id_inst | 20.
 
-  Lemma copy_as_id l β ty `{!Copyable ty} T:
-    T ty ⊢ copy_as l β ty T.
+  Lemma copy_as_id l β cty ty `{!Copyable cty ty} T:
+    T ty ⊢ copy_as l β cty ty T.
   Proof. iIntros "HT Hl". iExists _. by iFrame. Qed.
   Definition copy_as_id_inst := [instance copy_as_id].
   Global Existing Instance copy_as_id_inst | 1000.
 
-  Lemma copy_as_refinement A l β (ty : rtype A) {HC: ∀ x, CopyAs l β (x @ ty)} T:
-    (∀ x, (HC x T).(i2p_P)) ⊢ copy_as l β ty T.
+  Lemma copy_as_refinement A l β cty (ty : rtype A) {HC: ∀ x, CopyAs l β cty (x @ ty)} T:
+    (∀ x, (HC x T).(i2p_P)) ⊢ copy_as l β cty ty T.
   Proof.
     iIntros "HT Hl". unfold ty_of_rty; simpl_type. iDestruct "Hl" as (x) "Hl".
     iSpecialize ("HT" $! x). iDestruct (i2p_proof with "HT") as "HT". by iApply "HT".
@@ -1976,7 +1953,7 @@ Qed.
   Definition copy_as_refinement_inst := [instance copy_as_refinement].
   Global Existing Instance copy_as_refinement_inst.
 
-  Lemma annot_share l ty T:
+(*  Lemma annot_share l ty T:
     (l ◁ₗ{Shr} ty -∗ T)
     ⊢ typed_annot_stmt (ShareAnnot) l (l ◁ₗ ty) T.
   Proof.
@@ -2025,22 +2002,12 @@ Qed.
   Qed.
   Definition annot_learn_aligment_inst := [instance annot_learn_aligment].
   Global Existing Instance annot_learn_aligment_inst.*)
-End typing.
-
-(* This must be an Hint Extern because an instance would be a big slowdown . *)
-Global Hint Extern 50 (Subsume (_ ◁ₗ{_} ?ty _) (λ _, _ ◁ₗ{_} ?ty2 _)%I) =>
-  match ty with | ty2 => is_var ty; class_apply subtype_var_inst end : typeclass_instances.
-
-Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_.1ₗ} _)%I) =>
-  (class_apply subsume_place_own_ex_inst) : typeclass_instances.
-
-Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
-  (class_apply subsume_place_ty_ex_inst) : typeclass_instances.
+*)
 
 
 (*Global Typeclasses Opaque typed_block.
 *)
-*)
+
 
   Lemma type_seq Espec ge f s1 s2 T:
     typed_stmt Espec ge s1 f (λ v ty, match v with None => typed_stmt Espec ge s2 f T
@@ -2053,3 +2020,13 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
   Qed.
 
 End typing.
+
+(* This must be an Hint Extern because an instance would be a big slowdown . *)
+Global Hint Extern 50 (Subsume (_ ◁ₗ{_} ?ty _) (λ _, _ ◁ₗ{_} ?ty2 _)%I) =>
+  match ty with | ty2 => is_var ty; class_apply subtype_var_inst end : typeclass_instances.
+
+Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_.1ₗ} _)%I) =>
+  (class_apply subsume_place_own_ex_inst) : typeclass_instances.
+
+Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
+  (class_apply subsume_place_ty_ex_inst) : typeclass_instances.
