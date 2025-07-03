@@ -140,10 +140,10 @@ Ltac liRIntroduceLetInGoal :=
   lazymatch goal with
   | |- @envs_entails ?prop ?Δ ?P =>
     lazymatch P with
-    | @typed_val_expr ?Σ ?tG ?cs ?ge ?f ?e ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_val_expr Σ tG cs ge f e H)))
-    | @typed_write ?Σ ?tG ?cs ?ge ?f ?b ?e ?ot ?v ?ty ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_write Σ tG cs ge f b e ot v ty H)))
+    | @typed_val_expr ?OK_ty ?Σ ?tG ?cs ?ge ?f ?e ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_val_expr OK_ty Σ tG cs ge f e H)))
+    | @typed_write ?OK_ty ?Σ ?tG ?cs ?ge ?f ?b ?e ?ot ?v ?ty ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_write OK_ty Σ tG cs ge f b e ot v ty H)))
     (* | @typed_place ?Σ ?tG ?P ?l1 ?β1 ?ty1 ?T =>
       li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_place Σ tG P l1 β1 ty1 H))) *)
     | @typed_bin_op ?Σ ?tG ?cs ?ge ?v1 ?P1 ?v2 ?P2 ?op ?ot1 ?ot2 ?ot ?T =>
@@ -388,7 +388,7 @@ Section automation_tests.
   Goal forall Espec ge f (_x:ident) b (l:address) ty,
   TCDone (ty_has_op_type ty tint MCNone) ->
   ⊢ lvar _x tint b -∗
-    ⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ ty ⎤ -∗
+    ⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ int tint ⎤ -∗
     typed_stmt Espec ge (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) f
                (λ v t, ⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True).
   Proof.
@@ -420,7 +420,10 @@ Section automation_tests.
   liRStep.
   liRStep.
   liRStep.
-  done.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
 Qed.
 
 End automation_tests.
@@ -495,11 +498,8 @@ Local Open Scope clight_scope.
     apply e.
 
     liRStep.
-
-
-    liRStep. 
     liRStep.
-    
+    liRStep.
     liRStep.
 
     (* FIXME iFrame / liRStep hangs *)
