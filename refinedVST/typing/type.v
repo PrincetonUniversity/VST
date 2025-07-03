@@ -207,7 +207,7 @@ Definition own_state_min (β1 β2 : own_state) : own_state :=
 Definition heap_mapsto_own_state `{!typeG OK_ty Σ} {cs : compspecs} (cty : type) (l : address) (β : own_state) v : iProp Σ :=
   match β with
   | Own => mapsto l Tsh cty v
-  | Shr => inv mtN (∃ q, mapsto l q cty v)
+  | Shr => inv mtN (∃ q, ⌜readable_share q⌝ ∧ mapsto l q cty v)
   end.
 Notation "l ↦[ β ]| cty | v" := (heap_mapsto_own_state cty l β v)
   (at level 20, cty at level 0, β at level 50, format "l ↦[ β ]| cty | v") : bi_scope.
@@ -232,14 +232,47 @@ Section own_state.
 
 (* Caesium uses a ghost heap to track the bounds of each allocation (block) persistently.
    We don't have anything analogous; when it would be required, we use valid_pointer, but
-   that's not a persistent assertion and actually owns part of the memory. *)
+   that's not a persistent assertion and actually owns part of the memory. In particular,
+   shared ownership can't imply valid_pointer without a view shift. I think Caesium is
+   actually defining undefined behavior here: for instance, comparing pointers to once-
+   allocated but now-deallocated memory seems like UB by the C standard. *)
 
-(*  Lemma heap_mapsto_own_state_loc_in_bounds l β v :
-    l ↦[β] v ⊢ loc_in_bounds l (length v).
+  (* Also, for some reason Caesium says that offset 0 is in bounds of a size-0 allocation. *)
+  Definition loc_in_bounds (l : val) (n : nat) := ∀ i, ⌜0 ≤ i < n⌝ →
+    valid_pointer (offset_val i l).
+
+  Lemma data_at_rec_loc_in_bounds : forall q cty v (l : address),
+    q ≠ Share.bot →
+    composite_compute.complete_legal_cosu_type cty = true →
+    0 ≤ l.2 ∧ l.2 + expr.sizeof cty < Ptrofs.modulus →
+    align_mem.align_compatible_rec cenv_cs cty l.2 →
+    data_at_rec q cty v l ⊢ loc_in_bounds l (Z.to_nat (expr.sizeof cty)).
   Proof.
-    destruct β; last by iIntros "[$ _]".
-    iIntros "Hl". by iApply heap_mapsto_loc_in_bounds.
-  Qed.*)
+    intros; rewrite data_at_rec_data_at_rec_ // memory_block_data_at_rec_default_val //.
+    iIntros "Hl" (??); iApply (valid_pointer.memory_block_valid_pointer with "Hl"); auto.
+    rep_lia.
+  Qed.
+
+  Lemma heap_mapsto_own_state_loc_in_bounds E (l : address) β cty v : mtE ⊆ E →
+    (* should we include all these conditions in mapsto? *)
+    composite_compute.complete_legal_cosu_type cty = true →
+    0 ≤ l.2 ∧ l.2 + expr.sizeof cty < Ptrofs.modulus →
+    align_mem.align_compatible_rec cenv_cs cty l.2 →
+    l ↦[β]|cty| v ={E}=∗ loc_in_bounds l (Z.to_nat (expr.sizeof cty)).
+    (* Unfortunately we need the view shift here -- we can't put valid_pointer outside the
+       inv in the Shr case without losing persistence -- but that makes this almost
+       unusable. *)
+  Proof.
+    intros; destruct β; simpl.
+    - iIntros "Hl !>". rewrite /mapsto data_at_rec_loc_in_bounds //; auto.
+    - iIntros "Hl"; iInv "Hl" as ">(% & % & Hl)".
+      rewrite /mapsto.
+      exploit slice.split_readable_share; first done; intros (? & ? & ? & ? & ?).
+      rewrite -data_at_rec_share_join //.
+      iDestruct "Hl" as "($ & Hl)".
+      iIntros "!>"; iSplit; first done.
+      rewrite /mapsto data_at_rec_loc_in_bounds //; auto.
+  Qed.
 
 (*  Lemma heap_mapsto_own_state_nil l β:
     l ↦[β] [] ⊣⊢ loc_in_bounds l 0.
@@ -250,19 +283,19 @@ Section own_state.
   Proof.
     iIntros (?) "Hl".
     destruct β; simpl; eauto with iFrame.
-    iInv "Hl" as ">H". iDestruct "H" as (q) "H".
-    pose proof (slice.cleave_join q) as Hq.
+    iInv "Hl" as ">H". iDestruct "H" as (q ?) "H".
+      exploit slice.split_readable_share; first done; intros (? & ? & ? & ? & ?).
     rewrite /mapsto.
     rewrite -{1}data_at_rec_share_join; last done.
     iDestruct "H" as "(H1 & H2)"; iSplitL "H1"; iExists _; by iFrame.
   Qed.
 
   Lemma heap_mapsto_own_state_from_mt cty (l : address) v E β q:
-    (β = Own → q = Tsh) → mapsto l q cty v ={E}=∗ l ↦[β]|cty| v.
+    readable_share q → (β = Own → q = Tsh) → mapsto l q cty v ={E}=∗ l ↦[β]|cty| v.
   Proof.
-    iIntros (Hb) "Hl" => /=.
+    iIntros (? Hb) "Hl" => /=.
     destruct β => /=; first by rewrite Hb.
-    iApply inv_alloc. iModIntro. iExists _. iFrame.
+    iApply inv_alloc. iModIntro. iExists _. by iFrame.
   Qed.
 
 (*  Lemma heap_mapsto_own_state_alloc l β v :
@@ -278,7 +311,7 @@ Section own_state.
 
   Lemma heap_mapsto_own_state_share t l v E:
     l ↦[Own]|t| v ={E}=∗ l ↦[Shr]|t| v.
-  Proof. by apply heap_mapsto_own_state_from_mt. Qed.
+  Proof. apply heap_mapsto_own_state_from_mt; auto. Qed.
 
   Lemma heap_mapsto_own_state_exist_share t l E:
     l ↦_[Own]|t| ={E}=∗ l ↦_[Shr]|t|.
@@ -338,7 +371,7 @@ Record type `{!typeG OK_ty Σ} {cs : compspecs}  := {
   (* TODO: add
    ty_has_op_type ot mt → ty_has_op_type (UntypedOp (ot_layout ot)) mt
    This property is never used explicitly, but relied on by some typing rules *)
-  ty_has_op_type : Ctypes.type -> memcast_compat_type → Prop;
+  ty_has_op_type : Ctypes.type → memcast_compat_type → Prop;
   (** [ty_own β l ty], also [l ◁ₗ{β} ty], states that the location [l]
   has type [ty]. [β] determines whether the location is fully owned
   [Own] or shared [Shr] (shared is mainly used for global variables). *)
@@ -457,29 +490,47 @@ Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} (ty : type) := {
 Global Existing Instance copy_own_persistent.
 Global Existing Instance copy_own_affine.
 
-(*Class LocInBounds `{!typeG Σ} (ty : type) (β : own_state) (n : nat) := {
+(* we require a nonzero size, since unlike in Caesium a size-0 allocation isn't enough
+   to obtain valid_pointer *)
+Class LocInBounds `{!typeG OK_ty Σ} {cs : compspecs} (ty : type) (β : own_state) (n: nat) := {
+  loc_in_bounds_pos : n > 0;
   loc_in_bounds_in_bounds l : ty.(ty_own) β l -∗ loc_in_bounds l n
+  (* if we make this ={E}=∗ instead, it interacts poorly with ∧ *)
 }.
-Arguments loc_in_bounds_in_bounds {_ _} _ _ _ {_} _.
-Global Hint Mode LocInBounds + + + + - : typeclass_instances.
+Arguments loc_in_bounds_in_bounds {_ _ _ _} _ _ _ {_} _.
+Global Hint Mode LocInBounds + + + + + + - : typeclass_instances.
 
 Section loc_in_bounds.
-  Context `{!typeG Σ}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  Lemma movable_loc_in_bounds ty l ot mt:
-    ty.(ty_has_op_type) ot mt →
-    ty.(ty_own) Own l -∗ loc_in_bounds l (ly_size (ot_layout ot)).
+  Lemma loc_in_bounds_weak_valid_pointer : forall ty β n {LB: LocInBounds ty β n} l,
+    ty.(ty_own) β l -∗ weak_valid_pointer l.
   Proof.
-    iIntros (?) "Hl". iDestruct (ty_deref with "Hl") as (v) "[Hl Hv]"; [done|].
-    iDestruct (ty_size_eq with "Hv") as %<-; [done|]. by iApply heap_mapsto_loc_in_bounds.
+    intros; iIntros "H".
+    iPoseProof (loc_in_bounds_in_bounds with "H") as "H".
+    iSpecialize ("H" $! 0 with "[%]").
+    { apply @loc_in_bounds_pos in LB; lia. }
+    iApply valid_pointer_weak.
+    by iApply valid_pointer_offset_zero.
   Qed.
 
-  Global Instance intro_persistent_loc_in_bounds l n:
+  Lemma movable_loc_in_bounds ty (l : address) ot mt:
+    composite_compute.complete_legal_cosu_type ot = true →
+    0 ≤ l.2 ∧ l.2 + expr.sizeof ot < Ptrofs.modulus →
+    align_mem.align_compatible_rec cenv_cs ot l.2 →
+    ty.(ty_has_op_type) ot mt →
+    ty.(ty_own) Own l -∗ loc_in_bounds l (Z.to_nat (expr.sizeof ot)).
+  Proof.
+    intros; iIntros "Hl". iDestruct (ty_deref with "Hl") as (v) "[Hl Hv]"; [done|].
+    rewrite /mapsto data_at_rec_loc_in_bounds //; auto.
+  Qed. 
+
+(*  Global Instance intro_persistent_loc_in_bounds l n:
     IntroPersistent (loc_in_bounds l n) (loc_in_bounds l n).
-  Proof. constructor. by iIntros "#H !>". Qed.
+  Proof. constructor. by iIntros "#H !>". Qed. *)
 End loc_in_bounds.
 
-Class AllocAlive `{!typeG Σ} (ty : type) (β : own_state) (P : iProp Σ) := {
+(*Class AllocAlive `{!typeG Σ} (ty : type) (β : own_state) (P : iProp Σ) := {
   alloc_alive_alive l : P -∗ ty.(ty_own) β l -∗ alloc_alive_loc l
 }.
 Arguments alloc_alive_alive {_ _} _ _ _ {_} _.
