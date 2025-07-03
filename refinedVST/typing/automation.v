@@ -101,8 +101,8 @@ Ltac liToSyntax_hook ::=
   (* change (typed_call ?x1 ?x2 ?x3 ?x4) with (li.bind2 (typed_call x1 x2 x3 x4)); *)
   (* change (typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind2 (typed_copy_alloc_id x1 x2 x3 x4 x5)); *)
   (* change (typed_place ?x1 ?x2 ?x3 ?x4) with (li.bind5 (typed_place x1 x2 x3 x4)); *)
-  change (typed_read ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind2 (typed_read x1 x2 x3 x4 x5 x6 x7));
-  change (typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8) with (li.bind3 (typed_read_end x1 x2 x3 x4 x5 x6 x7 x8));
+  change (typed_read ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind2 (typed_read x1 x2 x3 x4 x5));
+  change (typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6) with (li.bind3 (typed_read_end x1 x2 x3 x4 x5 x6));
   change (typed_write ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind0 (typed_write x1 x2 x3 x4 x5 x6 x7));
   change (typed_write_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8) with (li.bind1 (typed_write_end x1 x2 x3 x4 x5 x6 x7 x8));
   change (typed_addr_of ?x1 ?x2 ?x3) with (li.bind3 (typed_addr_of x1 x2 x3));
@@ -220,6 +220,7 @@ Ltac liRExpr :=
     | Ecast _ _ => notypeclasses refine (tac_fast_apply (type_Ecast_same_val _ _ _ _ _) _)
     | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _ _ _) _)
     | Ebinop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_bin_op _ _ _ _ _ _ _) _)
+    | Ederef _ _ => notypeclasses refine (tac_fast_apply (type_deref _ _ _ _ _)) 
     | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
@@ -234,9 +235,8 @@ Ltac liRJudgement :=
   lazymatch goal with
     | |- envs_entails _ (typed_write _ _ _ _ _ _ _ _) => 
       notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _ _ _) _)
-    | |- envs_entails _ (typed_read _ _ _ _ _ _ _) =>
-      fail "liRJudgement: type_read not implemented yet"
-      (* notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _) _); [ solve [refine _ ] |] *)
+    | |- envs_entails _ (typed_read _ _ _ _ _ _) =>
+      notypeclasses refine (tac_fast_apply (type_read_simple _ _ _ _ _ _) _)
     | |- envs_entails _ (typed_addr_of _ _ _ _) =>
       fail "liRJudgement: type_addr_of not implemented yet"
       (* notypeclasses refine (tac_fast_apply (type_addr_of_place _ _ _ _) _); [solve [refine _] |] *)
@@ -468,21 +468,46 @@ Local Open Scope clight_scope.
   |}.
 
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
-  Goal forall Espec ge ar_b i_b j_b (i j: nat) (k t'1: val) (elts:list Z) v1 v2 f,
-    ⊢ lvar _ar (tptr tint) ar_b -∗
-      lvar _i tint i_b -∗
-      ⎡(i_b, 0)↦|tint| (Vint (Int.repr i))⎤ -∗
-      lvar _j tint j_b -∗
-      ⎡(j_b, 0)↦|tint| (Vint (Int.repr j))⎤ -∗
-      temp _k k -∗
+  
+    (* Lemma type_deref genv_t f atomic cty T e m:
+    TCDone (type_is_by_value cty = true) ->
+    typed_read genv_t f atomic e cty m T 
+    ⊢ typed_val_expr genv_t f (Ederef e cty) T. *)
+
+  Goal forall Espec genv_t (v_k t'1: val) (v_ar v_i v_j:address) (i j: nat)  (elts:list Z) v1 v2 f,
+    ⊢ temp _ar v_ar -∗
+      temp _i v_i -∗
+      ⎡v_i↦|tint| (Vint (Int.repr i))⎤ -∗
+      temp _j v_j -∗
+      ⎡v_j↦|tint| (Vint (Int.repr j))⎤ -∗
+      temp _k v_k -∗
       temp _t'1 t'1 -∗
-      ⎡(ar_b, 0) ◁ₗ (array tint (elts `at_type` int tint)) ⎤-∗
+      ⎡v_ar ◁ₗ v_ar @ ( &own (array tint (elts `at_type` int tint)) )⎤ -∗
       <affine> ⌜elts !! i = Some v1⌝ ∗ <affine> ⌜elts !! j = Some v2⌝ ∗ <affine> ⌜i ≠ j⌝ -∗
-    typed_stmt Espec ge (fn_body f_permute) f (λ _ _, ⎡((ar_b, 0) ◁ₗ (array tint (<[j:=v1]>(<[i:=v2]>elts) `at_type` int tint)))⎤).
+    typed_stmt Espec genv_t (fn_body f_permute) f (λ _ _, ⎡(v_ar ◁ₗ (array tint (<[j:=v1]>(<[i:=v2]>elts) `at_type` int tint)))⎤).
   Proof.
     iIntros.
     simpl.
-    repeat liRStep.
+    liRStep. liRStep.
+    
+    (* FIXME *)
+    epose  (tac_fast_apply (type_deref _ _ _ _ _ )).
+    apply e.
+
+    liRStep.
+
+
+    liRStep. 
+    liRStep.
+    
+    liRStep.
+
+    (* FIXME iFrame / liRStep hangs *)
+    rewrite /IPM_JANNO.
+    iSelect (temp _ar v_ar) (fun x => iFrame x).
+    liRStep.
+   
+    liRStep.
   Abort.
 
 End automation_tests.

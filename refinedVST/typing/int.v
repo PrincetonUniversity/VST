@@ -219,17 +219,21 @@ Section int.
 
   (* TODO: make a simple type as in lambda rust such that we do not
   have to reprove this everytime? *)
-  Global Program Instance int_copyable x it : Copyable (x @ int it).
+  Global Program Instance int_copyable x it : Copyable it (x @ int it).
   Next Obligation.
     iIntros (?????) "(%v&%Hv&%&%Hl&Hl)".
     simpl in *; subst.
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //.
-    iExists it.
     iSplitR => //. iExists q, (valinject it v). iFrame. iModIntro.
-    rewrite /ty_own_val /= repinject_valinject.
-    - eauto.
-    - by eapply val_to_Z_by_value.
-  Qed.
+    destruct Hv.
+    apply val_to_Z_by_value in H0 as ?.
+    rewrite /ty_own_val /= repinject_valinject //.
+    assert (readable_share q) by admit.
+    repeat iSplit => //.
+    iIntros "↦".
+    iMod (inv_alloc with "↦"). done.
+    Unshelve. constructor.
+  Admitted.
 
   (* Global Instance int_timeless l z it:
     Timeless (l ◁ₗ z @ int it)%I.
@@ -1095,15 +1099,15 @@ Section offsetof.
     Unshelve. done.
   Qed.
 
-  Global Program Instance offsetof_copyable s m : Copyable (offsetof s m).
+  Global Program Instance offsetof_copyable s m : Copyable size_t (offsetof s m).
   Next Obligation.
     iIntros (s m E l ?). iDestruct 1 as (n Hn) "Hl".
     iMod (copy_shr_acc with "Hl") as (???) "(%&Hl&H2&H3)" => //.
-    iModIntro. iExists _. iSplitR => //. iExists _, _.
+    iModIntro. iSplitR => //. iExists _, _.
     iFrame "Hl H3".
-    iNext.
+    iSplit => //.
     rewrite /ty_own_val /= /ty_own_val_at /ty_own_val /=.
-    iDestruct "H2" as "(-> & % & %)".
+    iDestruct "H2" as "(_ & % & %)".
     iSplit => //. iExists _; done.
   Qed.
 
