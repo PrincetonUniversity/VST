@@ -254,12 +254,6 @@ rewrite !denote_tc_assert_andp IHtys // tc_val_sem_cast //.
 unfold_lift; auto.
 Qed.
 
-Lemma tc_vals_length: forall tys vs, tc_vals tys vs -> length tys = length vs.
-Proof.
-induction tys; destruct vs; simpl; intros; auto; try contradiction.
-destruct H; auto.
-Qed.
-
 Lemma tc_vals_HaveTyps : forall tys vs, tc_vals tys vs -> argsHaveTyps vs tys.
 Proof.
   intros ??; revert tys; induction vs; destruct tys; simpl; try done.
@@ -553,13 +547,6 @@ Proof.
              exists n0; rewrite list_lookup_fmap Hn; split; auto.
              rewrite lookup_zip_with Hb /= list_lookup_fmap Hn //. }
         eexists; rewrite /= eqb_type_refl //.
-Qed.
-
-Lemma tc_vals_Vundef {args ids} (TC:tc_vals ids args): Forall (fun v : val => v <> Vundef) args.
-Proof.
-generalize dependent ids. induction args; intros. constructor.
-destruct ids; simpl in TC. contradiction. destruct TC.
-constructor; eauto. intros N; subst. apply (tc_val_Vundef _ H).
 Qed.
 
 Lemma tc_vals_lookup {args ids} (TC:tc_vals ids args):

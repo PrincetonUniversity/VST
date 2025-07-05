@@ -73,6 +73,76 @@ forall OK_spec (x:dtfr A),
       (frame_ret_assert (function_body_ret_assert (fn_return f) (postassert_of (Q x))) (stackframe_of f))
 end.
 
+Definition filter_genv (ge : genv) := Genv.find_symbol ge.
+
+Definition funspec_pre {C: compspecs} {A} Delta ge (P : @dtfr Σ A → (genviron * list val) → mpred) (x : @dtfr Σ A) args : mpred.assert :=
+  let psi := Build_genv ge cenv_cs in
+  ⎡funassert Delta psi⎤ ∗ believe OK_spec Delta psi Delta ∗ ⎡globals_auth (make_env (Genv.genv_symb ge))⎤ ∗
+  ⎡P x (filter_genv psi, args)⎤.
+
+Definition funspec_post {C: compspecs} {A} Delta ge f (Q : @dtfr Σ A → option val → mpred) (x : @dtfr Σ A) v : mpred.assert :=
+  ⎡Q x v⎤ ∗ ∃ rho, <affine> ⌜guard_environ Delta f rho⌝ ∗ ⎡funassert Delta (Build_genv ge cenv_cs)⎤.
+
+Lemma semax_body_triple : forall V G {C: compspecs} f spec ge
+  (Hcomplete : Forall (λ it : ident * type, complete_type cenv_cs it.2 = true) (fn_vars f))
+  (Hvars : list_norepet (map fst (fn_vars f)))
+  (Hparams : list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))
+  (Hglob : typecheck_glob_environ (Genv.find_symbol ge) (make_tycontext_g V G)),
+  semax_body V G f spec -> let '(_, mk_funspec fsig cc A E P Q) := spec in
+  let Delta := func_tycontext f V G [] in
+  ∀ x : dtfr A, ⊢ fun_triple OK_spec (Build_genv ge cenv_cs) (funspec_pre Delta ge P x) f (funspec_post Delta ge f Q x).
+Proof.
+  rewrite /semax_body /fun_triple; intros.
+  destruct spec as (_, []); intros.
+  destruct H as (-> & ?).
+  iIntros "!> % %Htc (F & B & G & P) Hret Hstack".
+  specialize (H OK_spec x); rewrite semax_unfold in H.
+  set (psi := Build_genv _ _).
+  iApply wp_strong_mono; iSplitR. 2: {
+    iDestruct stack_level_intro as "(% & Hl)".
+    iDestruct (stackframe_of'_curr_env psi with "[$G Hret Hstack]") as "(% & % & E & Hstack)"; [try done..|].
+    { apply cenv_sub_refl. }
+    { iPoseProof (stack_level_embed with "Hl Hret") as "$".
+      iPoseProof (stack_level_embed with "Hl Hstack") as "$". }
+    iPoseProof (stack_level_elim with "Hl E") as "E".
+    iApply wp_mask_mono; last iApply (H with "F B [%] E").
+    + done.
+    + apply tycontext_sub_refl.
+    + split; apply cenv_sub_refl.
+    + eapply make_env_guard_environ; eauto.
+    + rewrite /close_precondition monPred_at_sep /=; iFrame; iPureIntro.
+      split; last done; split; last by eapply tc_vals_Vundef.
+      pose proof (tc_vals_length _ _ Htc) as Hlen; rewrite map_length in Hlen.
+      eapply make_te_lookup_args; eauto.
+      rewrite fst_zip.
+      * by apply norepet_NoDup.
+      * rewrite !app_length !map_length repeat_length; lia. }
+  rewrite /= /Clight_seplog.bind_ret; iSplit.
+  - iIntros "((% & H & % & E) & $) !>".
+    rewrite monPred_at_sep; iDestruct "H" as "(Q & Hstack)".
+    destruct (fn_return f); rewrite ?monPred_at_embed ?monPred_at_pure ?embed_pure; [|iDestruct "Q" as "[]"..].
+    iSplitL "Q"; first by eauto.
+    iDestruct stack_level_intro as "(% & Hl)".
+    iDestruct (stackframe_of_eq' psi (func_tycontext f V G []) with "[-]") as "(Hret & Hstack)"; [try done..|].
+    { apply cenv_sub_refl. }
+    { iFrame. by iApply stack_level_embed. }
+    iPoseProof (stack_level_elim with "Hl Hret") as "$".
+    rewrite -monPred_at_exist; iPoseProof (stack_level_elim with "Hl Hstack") as "$".
+  - do 2 (iSplit; first by iIntros "((% & H) & ?)"; rewrite monPred_at_sep embed_sep monPred_at_pure embed_pure; iDestruct "H" as "(([] & ?) & ?)").
+    iIntros (?) "((% & H & % & E) & $) !>".
+    rewrite /bind_ret monPred_at_sep; iDestruct "H" as "(Q & Hstack)".
+    iSplitL "Q".
+    { iFrame "%"; destruct v.
+      * rewrite monPred_at_and monPred_at_pure monPred_at_embed embed_and embed_pure //.
+      * destruct (fn_return f); rewrite ?monPred_at_embed ?monPred_at_pure ?embed_pure; [auto | iDestruct "Q" as "[]"..]. }
+    iDestruct stack_level_intro as "(% & Hl)".
+    iDestruct (stackframe_of_eq' psi (func_tycontext f V G []) with "[-]") as "(Hret & Hstack)"; [try done..|].
+    { apply cenv_sub_refl. }
+    { iFrame. by iApply stack_level_embed. }
+    iPoseProof (stack_level_elim with "Hl Hret") as "$".
+    rewrite -monPred_at_exist; iPoseProof (stack_level_elim with "Hl Hstack") as "$".
+Qed.
+
 Definition genv_contains (ge: Genv.t Clight.fundef type) (fdecs : list (ident * Clight.fundef)) : Prop :=
  forall id f, In (id,f) fdecs ->
               exists b, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some f.
@@ -689,8 +759,6 @@ left; eauto. destruct H. congruence.
 exists f; eauto.
 right; eauto.
 Qed.
-
-Definition filter_genv (ge : genv) := Genv.find_symbol ge.
 
 Lemma tc_ge_denote_initial:
 forall vs G (prog: program),

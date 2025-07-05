@@ -10,11 +10,6 @@ Require Import VST.progs64.swap.
 Import Clight.
 Import Ctypesdefs.
 
-Definition fun_triple `{!VSTGS OK_ty Σ} OK_spec cs (P : list val → assert) f Q : Prop :=
-  forall ge args, P args -∗ stackframe_of' cs f (args ++ repeat Vundef (length (fn_temps f))) -∗
-    wp OK_spec (Build_genv ge cs) ⊤ f (fn_body f)
-       (frame_ret_assert (function_body_ret_assert (fn_return f) Q) (∃ lv, stackframe_of' cs f lv)).
-
 Section swap.
 
 Context `{VSTGS OK_ty Σ}.
@@ -32,14 +27,14 @@ Proof.
   iFrame.
 Qed.
 
-Theorem swap_fun Espec cs : fun_triple Espec cs (λ args, <affine> ⌜exists ix iy, args = [Vint ix; Vint iy]⌝) f_swap (λ _, emp).
+Theorem swap_fun Espec ge : ⊢ fun_triple Espec ge (λ args, <affine> ⌜exists ix iy, args = [Vint ix; Vint iy]⌝) f_swap (λ _, emp).
 Proof.
-  iIntros (??) "(% & % & ->) S"; rewrite /stackframe_of' /=.
+  iIntros "!>" (??) "(% & % & ->) ? S"; rewrite /stackframe_of' /=.
   iDestruct "S" as "(_ & ? & ? & ? & _)".
   wp_set; wp_temp; simpl.
   wp_set; wp_temp; simpl.
   wp_set; wp_temp; simpl.
-  iSplit; first done.
+  iSplit; first done; iFrame.
   iExists [_; _; _]; simpl; iFrame.
 Qed.
 
@@ -104,10 +99,10 @@ Proof.
   rewrite data_at_rec_lemmas.data_at_rec_eq /= -log_normalize.sep_assoc //.
 Qed.
 
-Theorem append_spec Espec lx ly : fun_triple Espec cenv_cs (λ args, ∃ x y, <affine> ⌜args = [x; y]⌝ ∗ listrep Ews lx x ∗ listrep Ews ly y)
+Theorem append_spec Espec ge lx ly : ⊢ fun_triple Espec (Build_genv ge cenv_cs) (λ args, ∃ x y, <affine> ⌜args = [x; y]⌝ ∗ listrep Ews lx x ∗ listrep Ews ly y)
   f_append (λ r, ∃ z, <affine> ⌜r = Some z⌝ ∗ listrep Ews (lx ++ ly) z).
 Proof.
-  iIntros (??) "(% & % & -> & Hx & Hy) S"; rewrite /stackframe_of' /=.
+  iIntros "!>" (??) "(% & % & -> & Hx & Hy) Hret S"; rewrite /stackframe_of' /=.
   set (cenv := _ : composite_env).
   iDestruct "S" as "(_ & Htx & Hty & Ht & Hu & _)".
   wp_if.
@@ -121,7 +116,7 @@ Proof.
     iDestruct (listrep_isptr with "Hy") as %?.
     wp_temp.
     simpl.
-    iSplitL "Hy"; last by iExists [_; _; _; _]; iFrame.
+    iSplitL "Hy"; last by iFrame; iExists [_; _; _; _]; iFrame.
     rewrite /= /bind_ret /=.
     by iFrame.
   - iDestruct "Hx" as "(%tl & Hx & Htl)".
@@ -157,7 +152,7 @@ Proof.
       destruct t; try (destruct Ht; contradiction).
       wp_field. wp_deref. wp_temp.
       wp_return. wp_temp; simpl.
-      iSplitR "Htx Hty Ht Hu"; last by iExists [_; _; _; _]; iFrame.
+      iSplitR "Hret Htx Hty Ht Hu"; last by iFrame; iExists [_; _; _; _]; iFrame.
       rewrite /= /bind_ret /=.
       iSplit; first done; iExists _; iSplit; first done.
       iApply "Hpre"; iFrame.
@@ -179,7 +174,7 @@ Proof.
       wp_field. wp_deref. wp_temp.
       { split; last intros ->; auto. }
       wp_skip; simpl.
-      iApply ("IH" with "[//] Hy [$] [$] [$] [$] [$] Hl'").
+      iApply ("IH" with "[//] Hy [$] [$] [$] [$] [$] [$] Hl'").
       iIntros "H"; iApply "Hpre"; iFrame.
       rewrite list_unfold; by iFrame.
 Qed.
@@ -200,10 +195,10 @@ Hypothesis malloc_spec : forall Espec ge E f x v t, ∀ Φ,
   (∀ p, temp x p -∗ ⎡mapsto_ Tsh t p⎤ -∗ tycontext.RA_normal Φ) -∗
   wp Espec ge E f (Scall (Some x) (Evar _malloc (Tfunction [tulong] (tptr tvoid) cc_default)) [Esizeof t tulong]) Φ.
 
-Theorem test_spec Espec : fun_triple Espec cenv_cs (λ args, <affine> ⌜args = []⌝)
+Theorem test_spec Espec ge : ⊢ fun_triple Espec (Build_genv ge cenv_cs) (λ args, <affine> ⌜args = []⌝)
   f_main (λ r, ⌜r = Some (Vint (Int.repr 10))⌝).
 Proof.
-  iIntros (??) "-> S"; rewrite /stackframe_of' /=.
+  iIntros "!>" (??) "-> Hret S"; rewrite /stackframe_of' /=.
   set (cenv := _ : composite_env).
   iDestruct "S" as "((Hp & _) & Hx & Hq & Ht1 & _)".
   iDestruct "Hp" as "(% & % & Hp & Hdata)"; simpl.
@@ -242,21 +237,20 @@ Proof.
   - wp_skip; simpl.
     wp_skip; simpl.
     replace (Z.of_nat n - 1) with (Z.of_nat (n - 1)) by lia.
-    iApply ("IH" with "[%] [$] [$] [$] [$] [$]"); first by lia.
+    iApply ("IH" with "[%] [$] [$]  [$] [$] [$] [$]"); first by lia.
     rewrite coqlib3.add_repr.
     replace (10 - Z.of_nat n + 1) with (10 - Z.of_nat (n - 1)) by lia.
     done.
   - wp_break; simpl.
     wp_return; wp_deref.
     wp_field; wp_var.
-    iSplitR "Hp Hdata Hx Hq Ht1"; last (iExists [_; _; _]; simpl; iFrame).
+    iSplitR "Hret Hp Hdata Hx Hq Ht1"; last (iFrame; iExists [_; _; _]; simpl; iFrame).
     rewrite /= /bind_ret /=.
     iPureIntro.
     rewrite coqlib3.add_repr.
     assert (n = 1%nat) as -> by rep_lia; auto.
     { iSplit; first done.
-      change (Ctypes.sizeof _) with (sizeof (tptr tint)).
-      rewrite memory_block_mapsto_ //.
+      rewrite (memory_block_mapsto_ _ (tptr tint)) //.
       by iApply mapsto_mapsto_. }
 Qed.
 

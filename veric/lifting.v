@@ -2093,7 +2093,25 @@ Proof.
       iFrame; iIntros; by iApply ("H" with "[$]").
 Qed.
 
+(* {{P}} f {{Q}} *)
+Definition fun_triple (P : list val → assert) f Q : assert :=
+  □ ∀ args, ⌜tc_vals (map snd (fn_params f)) args⌝ → P args -∗ stack_retainer f -∗ stackframe_of' ge f (args ++ repeat Vundef (length (fn_temps f))) -∗
+    wp ⊤ f (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) Q) (stack_retainer f ∗ ∃ lv, stackframe_of' ge f lv)).
+
 End mpred.
+
+Lemma tc_vals_length: forall tys vs, tc_vals tys vs -> length tys = length vs.
+Proof.
+induction tys; destruct vs; simpl; intros; auto; try contradiction.
+destruct H; auto.
+Qed.
+
+Lemma tc_vals_Vundef {args ids} (TC:tc_vals ids args): Forall (fun v : val => v <> Vundef) args.
+Proof.
+generalize dependent ids. induction args; intros. constructor.
+destruct ids; simpl in TC. contradiction. destruct TC.
+constructor; eauto. intros N; subst. apply (tc_val_Vundef _ H).
+Qed.
 
 (* adequacy *)
 Require Import VST.veric.external_state.
