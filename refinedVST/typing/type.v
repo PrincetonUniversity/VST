@@ -281,7 +281,7 @@ Section own_state.
   Hint Resolve readable_share_top: core.
 
   Lemma heap_mapsto_own_state_to_mt t l v E β:
-    ↑mtN ⊆ E → l ↦[β]|t| v ={E}=∗ ∃ q, <affine> ⌜β = Own → q = Tsh⌝ ∗ mapsto l q t v.
+    ↑mtN ⊆ E → l ↦[β]|t| v ={E}=∗ ∃ q, <affine> ⌜β = Own → q = Tsh⌝ ∗ <affine> ⌜readable_share q⌝ ∗ mapsto l q t v.
   Proof.
     iIntros (?) "Hl".
     destruct β; simpl; eauto with iFrame.
