@@ -202,7 +202,7 @@ Definition fn_params_pre `{!VSTGS OK_ty Σ} {cs : compspecs} {A} fn fp (x : @dtf
   ⎡([∗ list] v;'(cty, t) ∈ lsa;zip (map snd (fn_params fn)) (fp_atys (fp x)), v ◁ᵥₐₗ| cty | t) ∗ fp_Pa (fp x)⎤.
 
 Definition fn_params_post `{!VSTGS OK_ty Σ} {cs : compspecs} {A} fn fp (x : @dtfr Σ A) v : assert :=
-  ∃ ty, (⎡opt_ty_own_val (fn_return fn) ty v⎤ -∗ ∃ y, ⎡opt_ty_own_val (fn_return fn) ((fp x).(fp_fr) y).(fr_rty) v⎤ ∗ ⎡((fp x).(fp_fr) y).(fr_R)⎤).
+  ∃ y, ⎡opt_ty_own_val (fn_return fn) ((fp x).(fp_fr) y).(fr_rty) v⎤ ∗ ⎡((fp x).(fp_fr) y).(fr_R)⎤.
 
 Lemma typed_function_triple : forall `{!VSTGS OK_ty Σ} {cs : compspecs} {A} Espec ge f fp
     (Hcomplete : Forall (λ it, composite_compute.complete_legal_cosu_type it.2 = true) (fn_vars f))
@@ -224,14 +224,14 @@ Proof.
   rewrite /= /Clight_seplog.bind_ret; iSplit.
   - rewrite /fn_params_post /=.
     iIntros "($ & H) !>"; iFrame.
-    iDestruct ("H" with "[//]") as "(% & $ & ? & $)".
-    iExists tytrue; iIntros "_"; iFrame.
+    iDestruct ("H" with "[//]") as "(% & $ & $ & $)".
   - do 2 (iSplit; first by iIntros "[]").
     rewrite /fn_params_post /=.
-    iIntros (?) "(% & Hret & % & H)".
+    iIntros (?) "(% & Hret & %Htc & H)".
     iDestruct ("H" with "Hret") as "(% & ? & ? & $)"; iFrame.
-    (* typed ret is inconsistent with function_body_ret_assert *)
-Admitted.
+    destruct v; first by iFrame.
+    by apply tc_val_Vundef in Htc.
+Qed.
 
 Lemma typed_fptr_triple : forall `{!VSTGS OK_ty Σ} {cs : compspecs} {A} Espec ge fp l cty,
   ⎡l ◁ᵥₐₗ|cty| function_ptr Espec ge fp⎤ ⊢ ∃ f, ⌜Genv.find_funct ge l = Some (Internal f)⌝ ∧ ∀ x : dtfr A, ▷ fun_triple Espec (Build_genv ge cenv_cs) (fn_params_pre f fp x) f (fn_params_post f fp x).
