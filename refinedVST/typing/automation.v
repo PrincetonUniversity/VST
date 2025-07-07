@@ -73,7 +73,7 @@ Ltac liExtensible_to_i2p_hook P bind cont ::=
   | typed_assert ?ot ?v ?ty ?s ?fn ?ls ?fr ?Q =>
       cont uconstr:(((_ : TypedAssert _ _ _) _ _ _ _ _))
       *)
-  | typed_read_end ?a ?E ?l ?β ?ty ?ly ?mc ?T =>
+  | typed_read_end ?a ?E ?l ?β ?ty ?ly ?T =>
       cont uconstr:(((_ : TypedReadEnd _ _ _ _ _ _ _) _))
   | typed_write_end ?a ?E ?ot ?v1 ?ty1 ?l2 ?β2 ?ty2 ?T =>
       cont uconstr:(((_ : TypedWriteEnd _ _ _ _ _ _ _ _) _))
@@ -100,9 +100,9 @@ Ltac liToSyntax_hook ::=
   change (typed_un_op ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind2 (typed_un_op x1 x2 x3 x4 x5));
   (* change (typed_call ?x1 ?x2 ?x3 ?x4) with (li.bind2 (typed_call x1 x2 x3 x4)); *)
   (* change (typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind2 (typed_copy_alloc_id x1 x2 x3 x4 x5)); *)
-  (* change (typed_place ?x1 ?x2 ?x3 ?x4) with (li.bind5 (typed_place x1 x2 x3 x4)); *)
-  change (typed_read ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind2 (typed_read x1 x2 x3 x4 x5 x6 x7));
-  change (typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8) with (li.bind3 (typed_read_end x1 x2 x3 x4 x5 x6 x7 x8));
+  change (typed_place ?x1 ?x2 ?x3 ?x4 ?x5 ?x6) with (li.bind5 (typed_place x1 x2 x3 x4 x5 x6));
+  change (typed_read ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind2 (typed_read x1 x2 x3 x4 x5));
+  change (typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6) with (li.bind3 (typed_read_end x1 x2 x3 x4 x5 x6));
   change (typed_write ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind0 (typed_write x1 x2 x3 x4 x5 x6 x7));
   change (typed_write_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8) with (li.bind1 (typed_write_end x1 x2 x3 x4 x5 x6 x7 x8));
   change (typed_addr_of ?x1 ?x2 ?x3) with (li.bind3 (typed_addr_of x1 x2 x3));
@@ -140,10 +140,10 @@ Ltac liRIntroduceLetInGoal :=
   lazymatch goal with
   | |- @envs_entails ?prop ?Δ ?P =>
     lazymatch P with
-    | @typed_val_expr ?Σ ?tG ?cs ?ge ?f ?e ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_val_expr Σ tG cs ge f e H)))
-    | @typed_write ?Σ ?tG ?cs ?ge ?f ?b ?e ?ot ?v ?ty ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_write Σ tG cs ge f b e ot v ty H)))
+    | @typed_val_expr ?OK_ty ?Σ ?tG ?cs ?ge ?f ?e ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_val_expr OK_ty Σ tG cs ge f e H)))
+    | @typed_write ?OK_ty ?Σ ?tG ?cs ?ge ?f ?b ?e ?ot ?v ?ty ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_write OK_ty Σ tG cs ge f b e ot v ty H)))
     (* | @typed_place ?Σ ?tG ?P ?l1 ?β1 ?ty1 ?T =>
       li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_place Σ tG P l1 β1 ty1 H))) *)
     | @typed_bin_op ?Σ ?tG ?cs ?ge ?v1 ?P1 ?v2 ?P2 ?op ?ot1 ?ot2 ?ot ?T =>
@@ -220,7 +220,8 @@ Ltac liRExpr :=
     | Ecast _ _ => notypeclasses refine (tac_fast_apply (type_Ecast_same_val _ _ _ _ _) _)
     | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _ _ _) _)
     | Ebinop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_bin_op _ _ _ _ _ _ _) _)
-    | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _ _ _) _)
+    | Ederef _ _ => notypeclasses refine (tac_fast_apply (type_deref _ _ _ _ _ _) _);[done|]
+    | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
   | |- envs_entails ?Δ (typed_lvalue _ _ ?β ?e ?T) =>
@@ -234,9 +235,8 @@ Ltac liRJudgement :=
   lazymatch goal with
     | |- envs_entails _ (typed_write _ _ _ _ _ _ _ _) => 
       notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _ _ _) _)
-    | |- envs_entails _ (typed_read _ _ _ _ _ _ _) =>
-      fail "liRJudgement: type_read not implemented yet"
-      (* notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _) _); [ solve [refine _ ] |] *)
+    | |- envs_entails _ (typed_read _ _ _ _ _ _) =>
+      notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _ _) _); [ solve [refine _ ] |]
     | |- envs_entails _ (typed_addr_of _ _ _ _) =>
       fail "liRJudgement: type_addr_of not implemented yet"
       (* notypeclasses refine (tac_fast_apply (type_addr_of_place _ _ _ _) _); [solve [refine _] |] *)
@@ -380,15 +380,14 @@ Section automation_tests.
                                 ∗ ⎡ Vint (Int.repr 42) ◁ᵥₐₗ|tint| 42 @ int tint ⎤).
   Proof.
     iIntros.
-    (* usually Info level 0 is able to see the tactic applied *)
     repeat liRStep.
     liShow; try done.
-  Qed.
+  Admitted.
 
   Goal forall Espec ge f (_x:ident) b (l:address) ty,
   TCDone (ty_has_op_type ty tint MCNone) ->
   ⊢ lvar _x tint b -∗
-    ⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ ty ⎤ -∗
+    ⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ int tint ⎤ -∗
     typed_stmt Espec ge (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) f
                (λ v t, ⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True).
   Proof.
@@ -420,7 +419,10 @@ Section automation_tests.
   liRStep.
   liRStep.
   liRStep.
-  done.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
 Qed.
 
 End automation_tests.
@@ -468,21 +470,90 @@ Local Open Scope clight_scope.
   |}.
 
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
-  Goal forall Espec ge ar_b i_b j_b (i j: nat) (k t'1: val) (elts:list Z) v1 v2 f,
-    ⊢ lvar _ar (tptr tint) ar_b -∗
-      lvar _i tint i_b -∗
-      ⎡(i_b, 0)↦|tint| (Vint (Int.repr i))⎤ -∗
-      lvar _j tint j_b -∗
-      ⎡(j_b, 0)↦|tint| (Vint (Int.repr j))⎤ -∗
-      temp _k k -∗
+    
+  Local Open Scope printing_sugar.
+  Arguments find_in_context: simpl never.
+  Goal forall Espec genv_t (v_k t'1: val) (v_ar v_i v_j:address) (i j: nat)  (elts:list Z) v1 v2 f,
+    ⊢ temp _ar v_ar -∗
+      temp _i v_i -∗
+      ⎡ v_i ◁ᵥ| tint | i @ int tint ⎤ -∗
+      temp _j v_j -∗
+      ⎡ v_j ◁ᵥ| tint | j @ int tint⎤ -∗
+      temp _k v_k -∗
       temp _t'1 t'1 -∗
-      ⎡(ar_b, 0) ◁ₗ (array tint (elts `at_type` int tint)) ⎤-∗
+      ⎡v_ar ◁ₗ  (array tint (elts `at_type` int tint))⎤ -∗
       <affine> ⌜elts !! i = Some v1⌝ ∗ <affine> ⌜elts !! j = Some v2⌝ ∗ <affine> ⌜i ≠ j⌝ -∗
-    typed_stmt Espec ge (fn_body f_permute) f (λ _ _, ⎡((ar_b, 0) ◁ₗ (array tint (<[j:=v1]>(<[i:=v2]>elts) `at_type` int tint)))⎤).
+    typed_stmt Espec genv_t (fn_body f_permute) f (λ _ _, ⎡(v_ar ◁ₗ (array tint (<[j:=v1]>(<[i:=v2]>elts) `at_type` int tint)))⎤).
   Proof.
     iIntros.
     simpl.
-    repeat liRStep.
+
+    liRStep.
+    liRStep.
+    liRStep; liShow.
+    liRStep; liShow.
+    
+    (* liRStep; liShow. *)
+    liRStep; liShow.
+
+    liEnsureInvariant; rewrite /find_in_context /=; liShow.
+    iExists _. 
+    iFrame.
+    lazymatch goal with
+  | |- envs_entails _ (find_in_context ?fic ?T) =>
+    let key := open_constr:(_) in
+    (* We exploit that [typeclasses eauto] is multi-success to enable
+    multiple implementations of [FindInContext]. They are tried in the
+    order of their priorities.
+    See https://coq.zulipchat.com/#narrow/stream/237977-Coq-users/topic/Multi-success.20TC.20resolution.20from.20ltac.3F/near/242759123 *)
+    once (simple notypeclasses refine (tac_find_in_context key _ _)
+    ;
+      [ shelve |
+       typeclasses eauto
+        |
+          simpl; repeat liExist false;
+          idtac key
+          (* ; liFindHypOrTrue key *)
+          ]
+      )
+  end.
+  (* liFindHypOrTrue FICSyntactic. *)
+    (* liFindInContext. *)
+      (* FIXME this (and also iFrame) times out; maybe iFrame is trying to unify some
+         implicit arguments for temp first, which it shouldn't? *)
+      progress liFindHyp FICSyntactic.
+
+    liRStep.
+    liRStep.
+    iExists _; rewrite /IPM_JANNO.
+    iSelect (temp _i _) (fun x => iFrame x).
+    liShow.
+    Info 1 liRStep.
+    do 1 liRStep; liShow.
+
+    Set Ltac Backtrace.
+    liEnsureInvariant. Info 2 liExist. Info 1 liStep. liSimpl
+
+
+    Info 1 liRStep.
+    liRStep.
+    iExists _.
+    iSelect (temp _ar _) (fun x => iFrame x).
+    liRStep.
+    
+    iExists _; rewrite /IPM_JANNO.
+
+    
+
+    liRStep.
+    simpl.
+   notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _ _) _).
+
+  1: { refine (find_place_ctx_correct _ _ _ _ _ _); rewrite//=. }
+   simpl.
+    epose (tac_fast_apply (type_read _ _ _ _ _ _ _ _) _).
+    apply e0.
+    (* FIXME *)
   Abort.
 
 End automation_tests.

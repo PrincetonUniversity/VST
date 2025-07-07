@@ -41,6 +41,7 @@ Ltac liUnfoldSyntax :=
   lazymatch goal with
   | |- envs_entails _ (li.all _) => liFromSyntax
   | |- envs_entails _ (li.exist _) => liFromSyntax
+  | |- envs_entails _ (li.monPred_exist _) => liFromSyntax
   | |- envs_entails _ (li.done) => liFromSyntax
   | |- envs_entails _ (li.false) => liFromSyntax
   | |- envs_entails _ (li.and _ _) => liFromSyntax
@@ -55,6 +56,7 @@ Ltac liUnfoldSyntax :=
   | |- envs_entails _ (li.bind5 _ _) => liFromSyntax
   | |- envs_entails _ (⎡li.all _⎤) => liFromSyntax
   | |- envs_entails _ (⎡li.exist _⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.monPred_exist _⎤) => liFromSyntax
   | |- envs_entails _ (⎡li.done⎤) => liFromSyntax
   | |- envs_entails _ (⎡li.false⎤) => liFromSyntax
   | |- envs_entails _ (⎡li.and _ _⎤) => liFromSyntax

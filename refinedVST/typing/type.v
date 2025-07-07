@@ -278,8 +278,10 @@ Section own_state.
     l ↦[β] [] ⊣⊢ loc_in_bounds l 0.
   Proof. destruct β; [ by apply heap_mapsto_nil | by rewrite /= right_id ]. Qed.*)
 
+  Hint Resolve readable_share_top: core.
+
   Lemma heap_mapsto_own_state_to_mt t l v E β:
-    ↑mtN ⊆ E → l ↦[β]|t| v ={E}=∗ ∃ q, ⌜β = Own → q = Tsh⌝ ∗ mapsto l q t v.
+    ↑mtN ⊆ E → l ↦[β]|t| v ={E}=∗ ∃ q, <affine> ⌜β = Own → q = Tsh⌝ ∗ <affine> ⌜readable_share q⌝ ∗ mapsto l q t v.
   Proof.
     iIntros (?) "Hl".
     destruct β; simpl; eauto with iFrame.
@@ -287,7 +289,7 @@ Section own_state.
       exploit slice.split_readable_share; first done; intros (? & ? & ? & ? & ?).
     rewrite /mapsto.
     rewrite -{1}data_at_rec_share_join; last done.
-    iDestruct "H" as "(H1 & H2)"; iSplitL "H1"; iExists _; by iFrame.
+    iDestruct "H" as "(H1 & H2)"; iSplitL "H1"; iExists _; iFrame; try done.
   Qed.
 
   Lemma heap_mapsto_own_state_from_mt cty (l : address) v E β q:
@@ -478,16 +480,18 @@ Global Existing Instance ty_shr_pers.
   Qed.
 End memcast.*)
 
-Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} (ty : type) := {
-  copy_own_persistent cty v : Persistent (ty.(ty_own_val) cty v);
-  copy_own_affine cty v : Affine (ty.(ty_own_val) cty v);
+Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} (cty:Ctypes.type) (ty : type) := {
+  copy_own_val_persistent v : Persistent (ty.(ty_own_val) cty v);
+  copy_own_val_affine v : Affine (ty.(ty_own_val) cty v);
+  copy_own_affine l : Affine (ty.(ty_own) Shr l);
   copy_shr_acc E l :
     mtE ⊆ E →
-    ty.(ty_own) Shr l ={E}=∗ ∃ cty, <affine> ⌜l `has_layout_loc` cty⌝ ∗
+    ty.(ty_own) Shr l ={E}=∗ <affine> ⌜l `has_layout_loc` cty⌝ ∗
        (* TODO: the closing conjuct does not make much sense with True *)
-       ∃ q' vl, l ↦{q'}|cty| vl ∗ ▷ ty.(ty_own_val) cty vl ∗ (▷l ↦{q'}|cty| vl ={E}=∗ True)
+       ∃ q' vl, <affine> ⌜readable_share q'⌝ ∗ l ↦{q'}|cty| vl ∗ ty.(ty_own_val) cty vl ∗ (l ↦{q'}|cty| vl ={E}=∗ ty.(ty_own) Shr l)
 }.
-Global Existing Instance copy_own_persistent.
+Global Existing Instance copy_own_val_persistent.
+Global Existing Instance copy_own_val_affine.
 Global Existing Instance copy_own_affine.
 
 (* we require a nonzero size, since unlike in Caesium a size-0 allocation isn't enough
@@ -664,12 +668,13 @@ Coercion ty_of_rty : rtype >-> type.
 Section rmovable.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  Global Program Instance copyable_ty_of_rty A r `{!∀ x : A, Copyable (x @ r)} : Copyable r.
+  Global Program Instance copyable_ty_of_rty A r cty `{!∀ x : A, Copyable cty (x @ r)} : Copyable cty r.
   Next Obligation.
-    iIntros (A r ? E l ?). iDestruct 1 as (x) "Hl".
-    iMod (copy_shr_acc with "Hl") as (? q' vl) "(%&?&?&?)" => //.
-    iExists _.
-    iSplitR => //. iExists _, _. iFrame. auto.
+    iIntros (A r cty ? E l ?). iDestruct 1 as (x) "Hl".
+    iMod (copy_shr_acc with "Hl") as (? q' vl) "(%&?&?&H)" => //.
+    iSplitR => //. iExists _, _. iFrame. iModIntro. iSplit => //.
+    iIntros "↦". iMod ("H" with "↦") as "Hl".
+    rewrite {2}/ty_own /ty_of_rty /=. by iFrame.
   Qed.
 End rmovable.
 

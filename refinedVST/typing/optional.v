@@ -269,16 +269,16 @@ Section optional.
   Definition type_neq_optional_inst := [instance type_neq_optional].
   Global Existing Instance type_neq_optional_inst.
 
-  (*
-  Global Program Instance optional_copyable b ty optty `{!Copyable ty} `{!Copyable optty} : Copyable (b @ optional ty optty).
+  Global Program Instance optional_copyable b cty ty optty `{!Copyable cty ty} `{!Copyable cty optty} : Copyable cty (b @ optional ty optty).
   Next Obligation.
-    iIntros (b ty optty ? ? E ly l ? [??]) "[[% Hl]|[% Hl]]".
-    all: iMod (copy_shr_acc with "Hl") as (?? ?) "[?[??]]" => //.
+    iIntros (b cty ty optty ? ? E l ?) "[[% Hl]|[% Hl]]".
+    all: iMod (copy_shr_acc with "Hl") as (?? ?) "[?[?[? H]]]" => //.
     all: iModIntro; iSplit => //; rewrite /=?opt_alt_sz => //; iExists _, _; iFrame.
-    - by iLeft; iFrame.
-    - by iRight; iFrame.
+    - iSplit; first by iLeft; iFrame.
+      iIntros "?"; iMod ("H" with "[$]"); iIntros "!>"; by iLeft; iFrame.
+    - iSplit; first by iRight; iFrame.
+      iIntros "?"; iMod ("H" with "[$]"); iIntros "!>"; by iRight; iFrame.
   Qed.
-  *)
 
 End optional.
 Global Typeclasses Opaque optional_type optional.
@@ -503,7 +503,7 @@ Section optionalO.
   Definition read_optionalO_case_inst := [instance read_optionalO_case].
   Global Existing Instance read_optionalO_case_inst | 1001.
 *)
-  Global Program Instance optionalO_copyable A cty (ty : A → type) optty x `{!∀ x, Copyable (ty x)} `{!Copyable optty} : Copyable (x @ optionalO cty ty optty).
+  (* Global Program Instance optionalO_copyable A cty (ty : A → type) optty x `{!∀ x, Copyable cty (ty x)} `{!Copyable cty optty} : Copyable cty (x @ optionalO cty ty optty).
   Next Obligation. Admitted.
   Next Obligation.
     iIntros (A ? ty optty x ? ? E l ?). unfold optionalO; simpl_type. destruct x.
@@ -511,7 +511,7 @@ Section optionalO.
     all: iMod (copy_shr_acc with "Hl") as (? Hl ? ?) "[?[??]]" => //; try apply: Hty.
     all: iModIntro; iExists _; iSplit => //=.
     all: iExists _, _; iFrame.
-  Qed.
+  Qed. *)
 End optionalO.
 Global Typeclasses Opaque optionalO_type optionalO.
 Notation "optionalO< ty , optty >" := (optionalO ty optty)

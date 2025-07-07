@@ -359,7 +359,7 @@ Section own.
   Qed.
 *)
   Lemma find_in_context_type_loc_own l T:
-    (∃ l1 β1 β ty, l1 ◁ₗ{β1} (l @ frac_ptr β ty) ∗ (l1 ◁ₗ{β1} (l @ frac_ptr β (place l)) -∗
+    (∃ l1 β1 β ty, ⎡l1 ◁ₗ{β1} (l @ frac_ptr β ty)⎤ ∗ (⎡l1 ◁ₗ{β1} (l @ frac_ptr β (place l))⎤ -∗
       T (own_state_min β1 β, ty)))
     ⊢ find_in_context (FindLoc l) T.
   Proof.

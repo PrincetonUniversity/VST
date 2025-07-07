@@ -157,10 +157,10 @@ Section judgements.
   step. We need this because copying duplicates a type and we want to
   make it as specific as we can before we do the duplication (e.g.
   destruct all existentials in it). *)
-  Definition copy_as (l : address) (β : own_state) (ty : type) (T : type → iProp Σ) : iProp Σ :=
-    l ◁ₗ{β} ty -∗ ∃ ty', l ◁ₗ{β} ty' ∗ <affine> ⌜Copyable ty'⌝ ∗ T ty'.
-  Class CopyAs (l : address) (β : own_state) (ty : type) : Type :=
-    copy_as_proof T : iProp_to_Prop (copy_as l β ty T).
+  Definition copy_as (l : address) (β : own_state) (cty:Ctypes.type) (ty : type) (T : type → assert) : assert :=
+    (⎡l ◁ₗ{β} ty⎤ -∗ ∃ ty', ⎡l ◁ₗ{β} ty'⎤ ∗ <affine> ⌜Copyable cty ty'⌝ ∗ T ty')%I.
+  Class CopyAs (l : address) (β : own_state) (cty:Ctypes.type) (ty : type) : Type :=
+    copy_as_proof T : iProp_to_Prop (copy_as l β cty ty T).
 
   (* A is the annotation from the code *)
   Definition typed_annot_expr (n : nat) {A} (a : A) (v : val) (P : iProp Σ) (T : iProp Σ) : iProp Σ :=
@@ -184,7 +184,7 @@ Section judgements.
 (*  Definition typed_stmt_post_cond (fn : function) (ls : list address) (R : val → type → iProp Σ) (v : val) : iProp Σ :=
     (∃ ty, v ◁ᵥ ty ∗ ([∗ list] l;v ∈ ls;(fn.(f_args) ++ fn.(f_local_vars)), l ↦|v.2|) ∗ R v ty)%I. *)
   Context (OK_spec : ext_spec OK_ty) (ge_genv : Genv.t Clight.fundef Ctypes.type).
-  #[local] Definition ge := (Build_genv ge_genv cenv_cs).
+  Notation ge := (Build_genv ge_genv cenv_cs).
 
   (* Possibly we will want break-types, continue-types, etc. For now, using option to distinguish between
      fallthrough (normal) type and return type. *)
@@ -339,20 +339,19 @@ Section judgements.
   atomic read and [memcast] says whether a memcast is performed during
   the read. The typing rule for [typed_read] typechecks [e] and then
   dispatches to [typed_read_end] *)
-  (* FIXME cast need whole memory? *)
-Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast : bool) (m: mem) (T : val → type → assert) : assert :=
-    let E := if atomic then ∅ else ⊤ in
+  (* We probably don't need the memcast in refinedC's typed_read; not sure if we need `ty'` or not. *)
+Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val → type → assert) : assert :=
+  let E := if atomic then ∅ else ⊤ in
     (∀ (Φ: val->assert),
        (∀ (l:address), 
-          (|={⊤, E}=> ∃ v q (ty : type), ⌜l `has_layout_loc` ot⌝ ∗ ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
-                        ⎡ l ↦{q}|ot| (valinject ot v) ⎤ ∗ ▷ ⎡(valinject ot v) ◁ᵥ|ot| ty⎤ ∗ 
-                        ▷ (∀ st, ⎡ l ↦{q}|ot| (valinject ot v) ⎤ -∗ ⎡(valinject ot v) ◁ᵥ|ot| ty⎤ ={E, ⊤}=∗ 
-                        ∃ (ty' : type) v', 
-                          ⌜Some v'=if memcast then Cop.sem_cast v ot st m else Some v⌝ ∧
-                          ⎡(valinject (if memcast then st else ot) v') ◁ᵥ|(if memcast then st else ot)| ty'⎤ ∗
-                          T v' ty')) 
+          (|={⊤, E}=>
+            (∃ v q (ty : type), <affine> ⌜l `has_layout_loc` ot⌝ ∗ <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
+            <affine> ⌜readable_share q⌝ ∗ <affine> ⌜v ≠ Vundef⌝ ∗
+            ⎡ l ↦{q}|ot| (valinject ot v) ⎤ ∗ ⎡v ◁ᵥₐₗ|ot| ty⎤ ∗ 
+            (⎡ l ↦{q}|ot| (valinject ot v) ⎤ -∗ ⎡v ◁ᵥₐₗ|ot| ty⎤ ={E, ⊤}=∗
+              ∃ ty', ⎡v ◁ᵥₐₗ|ot| ty'⎤ ∗ T v ty')))
         -∗ Φ l) -∗
-     wp_expr ge ⊤ f e Φ)%I.
+     wp_expr ge E f e Φ)%I.
 
   (** [typed_addr_of e] typechecks an address of operation on the expression [e].
   The typing rule for [typed_addr_of] typechecks [e] and then dispatches to [typed_addr_of_end]*)
@@ -365,18 +364,18 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast :
   ot of the location [l] with type [l ◁ₗ{β} ty]. [atomic] says whether the read is an
   atomic read, [E] gives the current mask, and [memcast] says whether a memcast is
   performed during the read. *)
-  Definition typed_read_end (atomic : bool) (E : coPset) (l : address) (β : own_state) (ty : type) (ot : Ctypes.type) (memcast : bool) (m:mem) (T : val → type → type → assert) : assert :=
-    (let E' := if atomic then ∅ else E in
-    ⎡l◁ₗ{β}ty⎤ ={E, E'}=∗ ∃ q v (ty2 : type),
-    ⌜l `has_layout_loc` ot⌝ ∗ ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
-    ⎡l↦{q}|ot| valinject ot v⎤ ∗ ▷ ⎡(valinject ot v) ◁ᵥ|ot| ty2⎤ ∗
-         ▷ (∀ st, ⎡l↦{q}|ot| (valinject ot v)⎤ -∗ ⎡(valinject ot v) ◁ᵥ|ot| ty2⎤ ={E', E}=∗
-            ∃ ty' (ty3 : type) (v':val), ⌜Some v'=if memcast then Cop.sem_cast v ot st m else Some v⌝ ∧
-              ⎡(valinject (if memcast then st else ot) v') ◁ᵥ|(if memcast then st else ot)| ty3⎤ ∗
-              ⎡l◁ₗ{β} ty'⎤ ∗ T v' ty' ty3))%I.
+  Definition typed_read_end (atomic : bool) (E : coPset) (l : address) (β : own_state) (ty : type) (ot : Ctypes.type) (T : val → type → type → assert) : assert :=
+    let E' := if atomic then ∅ else E in
+    (⎡l◁ₗ{β}ty⎤ ={E, E'}=∗
+      ∃ q v (ty2 : type),
+      <affine> ⌜l `has_layout_loc` ot⌝ ∗ <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
+      <affine> ⌜readable_share q⌝ ∗ <affine> ⌜v ≠ Vundef⌝ ∗
+      ⎡l↦{q}|ot| valinject ot v⎤ ∗  ⎡v ◁ᵥₐₗ|ot| ty2⎤ ∗
+      (⎡l↦{q}|ot| valinject ot v⎤ -∗  ⎡v ◁ᵥₐₗ|ot| ty2⎤ ={E', E}=∗
+       ∃ ty' ty2',  ⎡l◁ₗ{β} ty'⎤ ∗ ⎡v ◁ᵥₐₗ|ot| ty2'⎤ ∗ T v ty' ty2'))%I.
 
-  Class TypedReadEnd (atomic : bool) (E : coPset) (l : address) (β : own_state) (ty : type) (ot : Ctypes.type) (m:mem) (memcast : bool) : Type :=
-    typed_read_end_proof T : iProp_to_Prop (typed_read_end atomic E l β ty ot memcast m T).
+  Class TypedReadEnd (atomic : bool) (E : coPset) (l : address) (β : own_state) (ty : type) (ot : Ctypes.type) : Type :=
+    typed_read_end_proof T : iProp_to_Prop (typed_read_end atomic E l β ty ot T).
 
   (** [typed_write atomic E ot v1 ty1 l2 β2 ty2] typechecks a write with op_type
   ot of value [v1] of type [ty1] to the location [l2] with type [l2 ◁ₗ{β2} ty].
@@ -403,46 +402,65 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast :
   W.ectx_item because of BinOpPCtx since there the root of the place
   expression is not in evaluation position. *)
   (* TODO: Should we track location information here? *)
-(*  Inductive place_ectx_item :=
-  | DerefPCtx (o : order) (ot : op_type) (memcast : bool)
-  | GetMemberPCtx (s : struct_layout) (m : var_name)
-  | GetMemberUnionPCtx (ul : union_layout) (m : var_name)
-  | AnnotExprPCtx (n : nat) {A} (x : A)
-    (* for PtrOffsetOp, second ot must be PtrOp *)
-  | BinOpPCtx (op : bin_op) (ot : op_type) (v : val) (ty : type)
+ Inductive place_ectx_item :=
+  | DerefPCtx (cty : Ctypes.type) (* for Ederef *)
+  (* | GetMemberPCtx (s : struct_layout) (m : var_name) *)
+  (* | GetMemberUnionPCtx (ul : union_layout) (m : var_name) *)
+  (* | AnnotExprPCtx (n : nat) {A} (x : A) *)
+    (* for pointer offset, first operand is pointer: `Ebinop (tptr _) _ (tptr _))`  *)
+  | BinOpPCtx1 (op : Cop.binary_operation) (cty_l cty_v cty : Ctypes.type) (v : val) (ty : type)
+    (* for pointer offset, second operand is pointer: `Ebinop _ (tptr _) (tptr _))`  *)
+  | BinOpPCtx2 (op : Cop.binary_operation) (cty_v cty_l cty : Ctypes.type) (v : val) (ty : type)
     (* for ptr-to-ptr casts, ot must be PtrOp *)
-  | UnOpPCtx (op : un_op)
+  (* | UnOpPCtx (op : Cop.unary_operation) *)
   .
 
   (* Computes the WP one has to prove for the place ectx_item Ki
   applied to the location l. *)
-  Definition place_item_to_wp (Ki : place_ectx_item) (Φ : loc → iProp Σ) (l : loc) : iProp Σ :=
+  Definition place_item_to_wp E (Ki : place_ectx_item) (Φ : address → assert) (l : address) : assert :=
     match Ki with
-    | DerefPCtx o ot mc => WP !{ot, o, mc} l {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }}
-    | GetMemberPCtx sl m => WP l at{sl} m {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }}
+    | DerefPCtx cty =>
+       (* RefinedC can inject a value into an expression; compcert does not have this directly, instead we
+          simulate this by making up a temp var that holds this value `l` which is hopefully fresh *)
+      (* Φ l
+      ∃ _dummy,
+      env.temp _dummy (adr2val l) ∗ *)
+        ∃ (sh : share) (v : val),
+          <affine> ⌜readable_share sh ∧ v ≠ Vundef⌝ ∗
+           ⎡▷ mapsto_memory_block.mapsto sh cty (adr2val l) v⎤ ∗
+            ∃ l', <affine> ⌜v = adr2val l'⌝ ∗
+            (⎡▷ mapsto_memory_block.mapsto sh cty (adr2val l) v⎤ -∗ Φ l')
+            (* wp_expr ge E f (Ederef (Etempvar _dummy (tptr cty)) cty)
+              (λ v, ∃ l' : address, <affine> ⌜v = adr2val l'⌝∗ Φ l')) *)
+    (* | GetMemberPCtx sl m => WP l at{sl} m {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }}
     | GetMemberUnionPCtx ul m => WP l at_union{ul} m {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }}
-    | AnnotExprPCtx n x => WP AnnotExpr n x l {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }}
+    | AnnotExprPCtx n x => WP AnnotExpr n x l {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }} *)
     (* we have proved typed_val_expr e1 before so we can use v ◁ᵥ ty here *)
-    | BinOpPCtx op ot v ty => v ◁ᵥ ty -∗ WP BinOp op ot PtrOp v l {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }}
-    | UnOpPCtx op => WP UnOp op PtrOp l {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }}
+    | BinOpPCtx1 op cty_l cty_v cty v ty => 
+      ⎡v ◁ᵥₐₗ|cty_v| ty⎤ -∗
+      wp_binop ge E op cty_l l cty_v v
+        (λ v, ∃ l' : address, <affine> ⌜v = adr2val l'⌝ ∗ Φ l')
+    | BinOpPCtx2 op cty_v cty_l cty v ty =>
+      ⎡v ◁ᵥₐₗ|cty_v| ty⎤ -∗
+      wp_binop ge E op cty_v v cty_l l
+        (λ v, ∃ l' : address, <affine> ⌜v = adr2val l'⌝ ∗ Φ l')
+    (* | UnOpPCtx op => WP UnOp op PtrOp l {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }} *)
     end%I.
-  Definition place_to_wp (K : list place_ectx_item) (Φ : loc → iProp Σ) : (loc → iProp Σ) := foldr place_item_to_wp Φ K.
-  Lemma place_to_wp_app (K1 K2 : list place_ectx_item) Φ : place_to_wp (K1 ++ K2) Φ = place_to_wp K1 (place_to_wp K2 Φ).
+  Locate "ge".
+  Definition place_to_wp E (K : list place_ectx_item) (Φ : address → assert) : (address → assert) := foldr (place_item_to_wp E) Φ K.
+  Lemma place_to_wp_app E (K1 K2 : list place_ectx_item) Φ : place_to_wp E (K1 ++ K2) Φ = place_to_wp E K1 (place_to_wp E K2 Φ).
   Proof. apply foldr_app. Qed.
 
-  Lemma place_item_to_wp_mono K Φ1 Φ2 l:
-    place_item_to_wp K Φ1 l -∗ (∀ l, Φ1 l -∗ Φ2 l) -∗ place_item_to_wp K Φ2 l.
+  Lemma place_item_to_wp_mono E K Φ1 Φ2 l:
+    place_item_to_wp E K Φ1 l -∗ (∀ l, Φ1 l -∗ Φ2 l) -∗ place_item_to_wp E K Φ2 l.
   Proof.
-    iIntros "HP HΦ". move: K => [o ot mc|sl m|ul m|n A x|op ot v ty|op]//=.
-    5: iIntros "Hv".
-    1-4,6: iApply (@wp_wand with "HP").
-    6: iApply (@wp_wand with "[Hv HP]"); first by iApply "HP".
-    all: iIntros (?); iDestruct 1 as (l' ->) "HΦ1".
-    all: iExists _; iSplit => //; by iApply "HΦ".
-  Qed.
+    iIntros "HP HΦ".
+    rewrite /place_item_to_wp.
+    move: K => [cty|op cty_l cty_v cty v ty|op cty_v cty_l cty v ty]//=.
+  Admitted.
 
-  Lemma place_to_wp_mono K Φ1 Φ2 l:
-    place_to_wp K Φ1 l -∗ (∀ l, Φ1 l -∗ Φ2 l) -∗ place_to_wp K Φ2 l.
+  Lemma place_to_wp_mono E K Φ1 Φ2 l:
+    place_to_wp E K Φ1 l -∗ (∀ l, Φ1 l -∗ Φ2 l) -∗ place_to_wp E K Φ2 l.
   Proof.
     iIntros "HP HΦ".
     iInduction (K) as [] "IH" forall (l) => /=. 1: by iApply "HΦ".
@@ -450,95 +468,140 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast :
     iIntros (l') "HP". by iApply ("IH" with "HP HΦ").
   Qed.
 
-  Fixpoint find_place_ctx (e : W.expr) : option ((list place_ectx_item → loc → iProp Σ) → iProp Σ) :=
+  Definition is_tptr cty : bool := match cty with | Tpointer _ _ => true | _ => false end.
+  #[global] Instance is_tptr_dec cty: Decision (is_tptr cty). Proof. apply _. Qed.
+
+  Fixpoint find_place_ctx f (e : expr) : option ((list place_ectx_item → address → assert) → assert) :=
     match e with
-    | W.Loc l => Some (λ T, T [] l)
-    | W.Deref o ot mc e => T' ← find_place_ctx e; Some (λ T, T' (λ K l, T (K ++ [DerefPCtx o ot mc]) l))
-    | W.GetMember e sl m => T' ← find_place_ctx e; Some (λ T, T' (λ K l, T (K ++ [GetMemberPCtx sl m]) l))
+    | Etempvar _id cty =>
+      Some (λ T, ∃ v, env.temp _id v ∗ (env.temp _id v -∗ ∃ l, <affine> ⌜v = adr2val l⌝ ∗ T [] l))
+    | Ederef e cty => T' ← find_place_ctx f e; Some (λ T, T' (λ K l, T (K ++ [DerefPCtx cty]) l))
+    (* | W.GetMember e sl m => T' ← find_place_ctx e; Some (λ T, T' (λ K l, T (K ++ [GetMemberPCtx sl m]) l))
     | W.GetMemberUnion e ul m => T' ← find_place_ctx e; Some (λ T, T' (λ K l, T (K ++ [GetMemberUnionPCtx ul m]) l))
     | W.AnnotExpr n x e => T' ← find_place_ctx e; Some (λ T, T' (λ K l, T (K ++ [AnnotExprPCtx n x]) l))
-    | W.LocInfoE a e => find_place_ctx e
+    | W.LocInfoE a e => find_place_ctx e *)
     (* Here we use the power of having a continuation available to add
     a typed_val_expr. It is important that this happens before we get
     to place_to_wp_mono since we will need to give up ownership of the
     root of the place expression once we hit it. This allows us to
     support e.g. a[a[0]]. *)
-    | W.BinOp op ot PtrOp e1 e2 => T' ← find_place_ctx e2; Some (λ T, typed_val_expr (W.to_expr e1) (λ v ty, T' (λ K l, T (K ++ [BinOpPCtx op ot v ty]) l)))
-    | W.UnOp op PtrOp e => T' ← find_place_ctx e; Some (λ T, T' (λ K l, T (K ++ [UnOpPCtx op]) l))
+    (* require that either e1 or e2 is a pointer type *)
+    | Ebinop op e1 e2 cty =>
+      let cty1 := typeof e1 in
+      let cty2 := typeof e2 in
+      if is_tptr cty1 then
+        T' ← find_place_ctx f e1; Some (λ T, typed_val_expr f e2 (λ v ty, T' (λ K l, T (K ++ [BinOpPCtx1 op cty1 cty2 cty v ty]) l)))
+      else if is_tptr cty2 then
+        T' ← find_place_ctx f e2; Some (λ T, typed_val_expr f e1 (λ v ty, T' (λ K l, T (K ++ [BinOpPCtx2 op cty1 cty2 cty v ty]) l)))
+      else None
+      
+    (* | W.UnOp op PtrOp e => T' ← find_place_ctx e; Some (λ T, T' (λ K l, T (K ++ [UnOpPCtx op]) l))
     (* TODO: Is the existential quantifier here a good idea or should this be a fullblown judgment? *)
-    | W.UnOp op (IntOp it) e => Some (λ T, typed_val_expr (UnOp op (IntOp it) (W.to_expr e)) (λ v ty, v ◁ᵥ ty -∗ ∃ l, ⌜v = val_of_loc l⌝ ∗ T [] l)%I)
-    | W.LValue e => Some (λ T, typed_val_expr (W.to_expr e) (λ v ty, v ◁ᵥ ty -∗ ∃ l, ⌜v = val_of_loc l⌝ ∗ T [] l)%I)
+    | W.UnOp op (IntOp it) e => Some (λ T, typed_val_expr (UnOp op (IntOp it) (W.to_expr e)) (λ v ty, v ◁ᵥ ty -∗ ∃ l, ⌜v = val_of_loc l⌝ ∗ T [] l)%I) *)
+    (* | W.LValue e => Some (λ T, typed_val_expr (W.to_expr e) (λ v ty, v ◁ᵥ ty -∗ ∃ l, ⌜v = val_of_loc l⌝ ∗ T [] l)%I) *)
     | _ => None
     end.
 
-  Class IntoPlaceCtx (e : expr) (T : (list place_ectx_item → loc → iProp Σ) → iProp Σ) :=
-    into_place_ctx Φ Φ': (⊢ T Φ' -∗ (∀ K l, Φ' K l -∗ place_to_wp K (Φ ∘ val_of_loc) l) -∗ WP e {{ Φ }}).
+  Class IntoPlaceCtx E f (e : expr) (T : (list place_ectx_item → address → assert) → assert) :=
+    into_place_ctx Φ Φ': (⊢ T Φ' -∗ (∀ K l, Φ' K l -∗ place_to_wp  E K (Φ ∘ adr2val) l) -∗ wp_expr ge E f e Φ).
+
+Lemma wp_binop_strong_mono : forall E op t1 v1 t2 v2 P1 P2, 
+  (∀ v, P1 v ={E}=∗ P2 v) ∗ wp_binop ge E op t1 v1 t2 v2 P1 ⊢ wp_binop ge E op t1 v1 t2 v2 P2.
+Proof.
+  intros; rewrite /wp_binop.
+  iIntros "(HP & >H) !>" (?) "?".
+  iMod ("H" with "[$]") as (?) "(? & ? & H)".
+  iMod ("HP" with "H").
+  iIntros "!>"; iExists _; iFrame.
+Qed.
+
+Lemma wp_binop_mono : forall E op t1 v1 t2 v2 P1 P2, (∀ v, P1 v ⊢ |={E}=> P2 v) →
+  wp_binop ge E op t1 v1 t2 v2 P1 ⊢ wp_binop ge E op t1 v1 t2 v2 P2.
+Proof.
+  intros; iIntros; iApply wp_binop_strong_mono; iFrame.
+  by iIntros (?) "?"; iApply H.
+Qed.
 
   Section find_place_ctx_correct.
-  Arguments W.to_expr : simpl nomatch.
-  Lemma find_place_ctx_correct e T:
-    find_place_ctx e = Some T →
-    IntoPlaceCtx (W.to_expr e) T.
+  Lemma find_place_ctx_correct E f e T:
+    find_place_ctx f e = Some T →
+    IntoPlaceCtx E f e T.
   Proof.
-    elim: e T => //= *.
+    elim: e T => //=; intros.
     all: iIntros (Φ Φ') "HT HΦ'".
-    2,3: case_match.
+    3: destruct (is_tptr (typeof e)); [| destruct (is_tptr (typeof e0)); try done].
     all: try match goal with
     |  H : ?x ≫= _ = Some _ |- _ => destruct x as [?|] eqn:Hsome
     end; simplify_eq/=.
+    3: clear H0.
+    4: clear H.
     all: try match goal with
     |  H : context [IntoPlaceCtx _ _] |- _ => rename H into IH
     end.
-    1: iApply @wp_value; by iApply ("HΦ'" with "HT").
-    1: {
-      iApply "HT". iIntros (v ty) "Hv HT".
-      iDestruct ("HT" with "Hv") as (l ?) "HT". subst.
-        by iApply ("HΦ'" $! []).
-    }
-    4: {
-      rewrite /LValue. iApply "HT". iIntros (v ty) "Hv HT".
-      iDestruct ("HT" with "Hv") as (l ?) "HT". subst.
-      by iApply ("HΦ'" $! []).
-    }
-    2: wp_bind; rewrite -!/(W.to_expr _).
-    2: iApply "HT"; iIntros (v ty) "Hv HT".
-    2: iDestruct (IH with "HT") as "HT" => //.
-    1, 3-6: iDestruct (IH with "HT") as " HT" => //.
-    all: wp_bind; iApply "HT".
-    all: iIntros (K l) "HT" => /=.
-    all: iDestruct ("HΦ'" with "HT") as "HΦ"; rewrite place_to_wp_app /=.
-    all: iApply (place_to_wp_mono with "HΦ"); iIntros (l') "HWP" => /=.
-    6: iApply (@wp_wand with "[Hv HWP]"); first by iApply "HWP".
-    1-5: iApply (@wp_wand with "HWP").
-    all: iIntros (?); by iDestruct 1 as (? ->) "$".
-  Qed.
+    - iDestruct "HT" as "(%v & temp_id & H)".
+      iApply wp_tempvar_local.
+      iFrame. iIntros "?".
+      iDestruct ("H" with "[$]") as (l ->) "H".
+      iDestruct ("HΦ'" with "[$]") as "HΦ'" => //.
+    - iDestruct (IH with "HT") as "HT" => //.
+      rewrite -[X in environments.envs_entails _ X]wp_expr_mapsto.
+      rewrite -wp_deref.
+      iApply "HT".
+      iIntros (K l) "Φ'".
+      iDestruct ("HΦ'" with "[$]") as "HΦ".
+      rewrite place_to_wp_app {2}/place_to_wp /foldr /place_item_to_wp.
+      iApply (place_to_wp_mono with "HΦ"); iIntros (l') "(%sh & %v & % & ↦ & %l'' & -> & HWP)" => /=.
+      iExists _, _. iSplit => //.
+      iExists _, _. iSplit => //.
+      rewrite Ptrofs.repr_unsigned.
+      iSplit; first iFrame.
+      iApply ("HWP" with "[$]").
+    - rewrite -wp_binop_rule.
+      (* iApply "HT". *)
+      admit.
+    - rewrite -wp_binop_rule.
+      rewrite /typed_val_expr.
+      replace judgements.ge with ge by admit.
+      replace ⊤ with E by admit.
+      iApply ("HT" $! _ with "[-]").
+      iIntros (v ty) "Hv HT".
+      iDestruct (IH with "HT") as "HT" => //.
+      iApply "HT".
+      iIntros (K l) "Φ'".
+      iDestruct ("HΦ'" with "[$]") as "HΦ".
+      rewrite place_to_wp_app {2}/place_to_wp /foldr /place_item_to_wp.
+      iApply (place_to_wp_mono with "HΦ"); iIntros (l') "H" =>/=.
+      iSpecialize ("H" with "Hv").
+      iApply (wp_binop_mono with "[H]"); last done.
+      by iIntros (?) "(% & -> & ?)".
+  Admitted.
   End find_place_ctx_correct.
-*)
 
   (* TODO: have something like typed_place_cond which uses a fraction? Seems *)
   (* tricky since stating that they have the same size requires that ty1 *)
   (* and ty2 are movable (which they might not be) *)
-  (* Ke: ignoring typed_place_context for now, might need it later *)
-  (* Definition typed_place (l1 : address) (β1 : own_state) (ty1 : type) (T : address → own_state → type → (type → type) → (type → assert) → assert) : assert :=
+  Definition typed_place E (P : list place_ectx_item) (l1 : address) (β1 : own_state) (ty1 : type) (T : address → own_state → type → (type → type) → (type → assert) → assert) : assert :=
     (∀ Φ, ⎡l1 ◁ₗ{β1} ty1⎤ -∗
-       (∀ (l2 : address) β2 ty2 typ R, ⎡l2 ◁ₗ{β2} ty2⎤ -∗ (∀ ty', ⎡l2 ◁ₗ{β2} ty'⎤ ={⊤}=∗ ⎡l1 ◁ₗ{β1} typ ty'⎤ ∗ R ty') -∗ T l2 β2 ty2 typ R -∗ Φ l2) -∗ (wp_expr (EConst l) Φ))%I.
-  Class TypedPlace  (l1 : address) (β1 : own_state) (ty1 : type) : Type :=
-    typed_place_proof T : iProp_to_Prop (typed_place l1 β1 ty1 T). *)
+      (∀ (l2 : address) β2 ty2 typ R,
+        ⎡l2 ◁ₗ{β2} ty2⎤ -∗ 
+        (∀ ty', ⎡l2 ◁ₗ{β2} ty'⎤ ={⊤}=∗ ⎡l1 ◁ₗ{β1} typ ty'⎤ ∗ R ty')
+        -∗ T l2 β2 ty2 typ R -∗ Φ l2)
+      -∗ place_to_wp E P Φ l1)%I.
+  Class TypedPlace E P (l1 : address) (β1 : own_state) (ty1 : type) : Type :=
+    typed_place_proof T : iProp_to_Prop (typed_place E P l1 β1 ty1 T).
 
 End judgements.
 
-(*Ltac solve_into_place_ctx :=
+Ltac solve_into_place_ctx :=
   match goal with
-  | |- IntoPlaceCtx ?e ?T =>
-      let e' := W.of_expr e in
-      change_no_check (IntoPlaceCtx (W.to_expr e') T);
-      refine (find_place_ctx_correct _ _ _); rewrite/=/W.to_expr/=; done
+  | |- IntoPlaceCtx _ _ _ ?e ?T =>
+       refine (find_place_ctx_correct _ _ _ _ _ _); rewrite//=
   end.
-Global Hint Extern 0 (IntoPlaceCtx _ _) => solve_into_place_ctx : typeclass_instances.*)
+Global Hint Extern 0 (IntoPlaceCtx _ _ _ _ _) => solve_into_place_ctx : typeclass_instances.
 
 Global Hint Mode Learnable + + : typeclass_instances.
 (*Global Hint Mode LearnAlignment + + + + - : typeclass_instances.*)
-Global Hint Mode CopyAs + + + + + + + : typeclass_instances.
+Global Hint Mode CopyAs + + + + + + + + : typeclass_instances.
 Global Hint Mode SimpleSubsumePlace + + + + + ! - : typeclass_instances.
 Global Hint Mode SimpleSubsumeVal + + + + + ! ! - : typeclass_instances.
 Global Hint Mode TypedIf + + + + + : typeclass_instances.
@@ -548,10 +611,10 @@ Global Hint Mode TypedBinOp + + + + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedUnOp + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedCall + + + + + + + + + + + + + + : typeclass_instances.
 (*Global Hint Mode TypedCopyAllocId + + + + + + + : typeclass_instances. *)
-Global Hint Mode TypedReadEnd + + + + + + + + + + + + : typeclass_instances.
+Global Hint Mode TypedReadEnd + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedWriteEnd + + + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedAddrOfEnd + + + + + + + : typeclass_instances.
-(* Global Hint Mode TypedPlace + + + + + + : typeclass_instances. *)
+Global Hint Mode TypedPlace + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedAnnotExpr + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedAnnotStmt + + + + + + + : typeclass_instances.
 (* Global Hint Mode TypedMacroExpr + + + + : typeclass_instances. *)
@@ -580,18 +643,18 @@ Section proper.
     v ◁ᵥ|cty| ty2 ∗ T ⊢ simplify_goal (v ◁ᵥ|cty| ty1) T.
   Proof. rewrite Heq. iIntros "$". Qed.
 
-(*  Lemma typed_place_subsume' P l ty1 β T :
-    (l ◁ₗ{β} ty1 -∗ ∃ ty2, l ◁ₗ{β} ty2 ∗ typed_place P l β ty2 T) ⊢ typed_place P l β ty1 T.
+  Lemma typed_place_subsume' E P l ty1 β T :
+    (⎡l ◁ₗ{β} ty1⎤ -∗ ∃ ty2, ⎡l ◁ₗ{β} ty2⎤ ∗ typed_place ge E P l β ty2 T) ⊢ typed_place ge E P l β ty1 T.
   Proof.
     iIntros "Hsub" (Φ) "Hl HΦ". iDestruct ("Hsub" with "Hl") as (ty2) "[Hl HP]". by iApply ("HP" with "Hl").
   Qed.
 
-  Lemma typed_place_subsume P l ty1 ty2 β T :
-    subsume (l ◁ₗ{β} ty1) (λ _ : unit, l ◁ₗ{β} ty2) (λ _, typed_place P l β ty2 T) ⊢ typed_place P l β ty1 T.
+  Lemma typed_place_subsume E P l ty1 ty2 β T :
+    subsume (⎡l ◁ₗ{β} ty1⎤) (λ _ : unit, ⎡l ◁ₗ{β} ty2⎤) (λ _, typed_place ge E P l β ty2 T) ⊢ typed_place ge E P l β ty1 T.
   Proof.
     iIntros "Hsub". iApply typed_place_subsume'.
     iIntros "Hl". iExists _. iDestruct ("Hsub" with "Hl") as (_) "$".
-  Qed.*)
+  Qed.
 
   (** wand lemmas *)
   Lemma typed_val_expr_wand f e T1 T2:
@@ -798,8 +861,10 @@ End proper.
 (*Global Typeclasses Opaque typed_read_end.
 Global Typeclasses Opaque typed_write_end.*)
 
-Definition FindLoc `{!typeG OK_ty Σ} {cs : compspecs} (l : address) :=
-  {| fic_A := own_state * type; fic_Prop '(β, ty):= (l ◁ₗ{β} ty)%I; |}.
+Definition FindTemp `{!typeG OK_ty Σ} {cs : compspecs} (_id: ident) :=
+  {| fic_A := val; fic_Prop v := env.temp _id v; |}.
+Definition FindLoc `{!typeG OK_ty Σ} {cs : compspecs} (l : address) : @find_in_context_info assert :=
+  {| fic_A := own_state * type; fic_Prop '(β, ty):= ⎡l ◁ₗ{β} ty⎤; |}.
 Definition FindVal `{!typeG OK_ty Σ} {cs : compspecs} cty (v : val) : @find_in_context_info assert :=
   {| fic_A := type; fic_Prop ty := ⎡v ◁ᵥₐₗ|cty| ty⎤%I; |}.
 Definition FindValP {B : bi} (v : val) :=
@@ -819,9 +884,9 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
   | typed_bin_op ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8 ?x9 => constr:(TypedBinOp x1 x2 x3 x4 x5 x6 x7 x8 x9)
   | typed_un_op ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedUnOp x1 x2 x3 x4 x5)
 (*  | typed_call ?x1 ?x2 ?x3 ?x4 => constr:(TypedCall x1 x2 x3 x4)
-  | typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedCopyAllocId x1 x2 x3 x4 x5)
-  | typed_place ?x1 ?x2 ?x3 ?x4 => constr:(TypedPlace x1 x2 x3 x4)
-  | typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 => constr:(TypedReadEnd x1 x2 x3 x4 x5 x6 x7) *)
+  | typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedCopyAllocId x1 x2 x3 x4 x5) *)
+  | typed_place ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 => constr:(TypedPlace x1 x2 x3 x4 x5 x6) 
+  | typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 => constr:(TypedReadEnd x1 x2 x3 x4 x5 x6)
   | typed_write_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8 => constr:(TypedWriteEnd x1 x2 x3 x4 x5 x6 x7 x8) 
   | typed_addr_of_end ?x1 ?x2 ?x3 => constr:(TypedAddrOfEnd x1 x2 x3)
 (*   | typed_cas ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 => constr:(TypedCas x1 x2 x3 x4 x5 x6 x7) *)
@@ -831,15 +896,23 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
 (*   | typed_assert ?x1 ?x2 ?x3 => constr:(TypedAssert x1 x2 x3) *)
 (*   | typed_switch ?x1 ?x2 ?x3 => constr:(TypedSwitch x1 x2 x3) *)
   | typed_annot_stmt ?x1 ?x2 ?x3 => constr:(TypedAnnotStmt x1 x2 x3)
-  | copy_as ?x1 ?x2 ?x3 => constr:(CopyAs x1 x2 x3)
+  | copy_as ?x1 ?x2 ?x3 ?x4 => constr:(CopyAs x1 x2 x3 x4)
   | _ => fail "unknown judgement" c
   end.
 
 Section typing.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
+  Lemma find_in_context_tempvar _id T:
+    (∃ v, env.temp _id v ∗ T v)
+    ⊢ find_in_context (FindTemp _id) T.
+  Proof. iDestruct 1 as (v) "[Hl HT]". iExists _ => /=. iFrame. Qed.
+  Definition find_in_context_tempvar_inst :=
+    [instance find_in_context_tempvar with FICSyntactic].
+  Global Existing Instance find_in_context_tempvar_inst | 1.
+
   Lemma find_in_context_type_loc_id l T:
-    (∃ β ty, l ◁ₗ{β} ty ∗ T (β, ty))
+    (∃ β ty, ⎡l ◁ₗ{β} ty⎤ ∗ T (β, ty))
     ⊢ find_in_context (FindLoc l) T.
   Proof. iDestruct 1 as (β ty) "[Hl HT]". iExists (_, _) => /=. iFrame. Qed.
   Definition find_in_context_type_loc_id_inst :=
@@ -926,7 +999,7 @@ Section typing.
     [instance find_in_context_alloc_alive_loc with FICSyntactic].
   Global Existing Instance find_in_context_alloc_alive_loc_inst | 10.
 
-  Global Instance related_to_loc A l β ty : RelatedTo (λ x : A, l ◁ₗ{β x} ty x)%I | 100
+  Global Instance related_to_loc A l β ty : RelatedTo (λ x : A, ⎡l ◁ₗ{β x} ty x⎤)%I | 100
     := {| rt_fic := FindLoc l |}.
   Global Instance related_to_val A cty v ty : RelatedTo (λ x : A, (valinject cty v) ◁ᵥ|cty| ty x)%I | 100
     := {| rt_fic := FindValP v |}.
@@ -1204,7 +1277,8 @@ Section typing.
   Definition typed_cas_simplify_inst := [instance typed_cas_simplify].
   Global Existing Instance typed_cas_simplify_inst | 1000.*)
 
-  Lemma typed_annot_stmt_simplify A (a : A) l P n {SH : SimplifyHyp P (Some n)} T:
+  (* FIXME *)
+  (* Lemma typed_annot_stmt_simplify A (a : A) l (P:assert) n {SH : SimplifyHyp P (Some n)} T:
     (SH (find_in_context (FindLoc l) (λ '(β1, ty1),
        typed_annot_stmt a l (l ◁ₗ{β1} ty1) T))).(i2p_P)
     ⊢ typed_annot_stmt a l P T.
@@ -1224,7 +1298,7 @@ Section typing.
       by iApply ("Hannot" with "[$]").
   Qed.
   Definition typed_annot_expr_simplify_inst := [instance typed_annot_expr_simplify].
-  Global Existing Instance typed_annot_expr_simplify_inst | 1000.
+  Global Existing Instance typed_annot_expr_simplify_inst | 1000. *)
 
   Lemma typed_if_simplify ot v (P F : iProp Σ) n {SH : SimplifyHyp P (Some n)} T1 T2:
     (SH (find_in_context (FindValP v) (λ Q,
@@ -1531,6 +1605,14 @@ Qed.
   Qed.
 
 
+  (* (typed_place basically typed_val_expr and that it can convert to address) 
+      typed_place_expr e (λ ..., typed_read_end ) ⊢ typed_read e  // modified type_read_simple
+      ? ⊢ typed_place_expr (binop  _ ptr_expr ofs_expr (tptr _)) // stuck, don't know which rule
+                                                                   to use: is ptr_expr an array ptr or
+                                                                   something else? while type_place_array
+                                                                   can use `l` and its type as search inputs
+
+     *)
   Lemma type_bin_op ge f o e1 e2 ot T:
     typed_val_expr ge f e1 (λ v1 ty1,
       typed_val_expr ge f e2 (λ v2 ty2,
@@ -1553,11 +1635,13 @@ Qed.
     by iApply ("Hop" with "Hv").
   Qed.
 
-  Lemma type_tempvar ge f _x v cty T ty:
-     env.temp _x v ∗ (env.temp _x v -∗ ⎡v ◁ᵥₐₗ|cty| ty⎤ ∗ T v ty)
+  Lemma type_tempvar ge f _x cty T ty:
+    find_in_context (FindTemp _x) (λ v, env.temp _x v -∗ ⎡v ◁ᵥₐₗ|cty| ty⎤ ∗ T v ty)
     ⊢ typed_val_expr ge f (Etempvar _x cty) T.
   Proof.
-    iIntros "(Hx & HT)" (Φ) "HΦ".
+
+    rewrite /find_in_context. simpl.
+    iIntros "(%b & Hx & HT)" (Φ) "HΦ".
     iApply wp_tempvar_local.
     iFrame.
     iIntros "Hx".
@@ -1565,6 +1649,7 @@ Qed.
     iApply ("HΦ" with "[$]"). done.
   Qed.
 
+  (* FIXME change this to "find_in_context (Findlvar _x) (λ v, env.lvar _x v -∗ ⎡v ◁ᵥₐₗ|c_ty| ty⎤ ∗ T v ty)" *)
   Lemma type_var_local ge f _x b β ty c_ty (T: address -> own_state -> type -> assert) :
     env.lvar _x c_ty b ∗
     (env.lvar _x c_ty b -∗
@@ -1597,10 +1682,10 @@ Qed.
        <affine>
        ⌜∃ b : Values.block,
           vf = Vptr b Ptrofs.zero
-          ∧ Genv.find_funct_ptr (programs.ge ge) b = Some f0
+          ∧ Genv.find_funct_ptr ge b = Some f0
             ∧ type_of_fundef f0 = Tfunction ctys retty cc
-              ∧ fundef_wf (programs.ge ge) f0 ([] ++ vs)⌝ ∗
-       ▷ call_assert Espec (programs.ge ge) ⊤ f0 ([] ++ vs) i
+              ∧ fundef_wf (Build_genv ge cenv_cs) f0 ([] ++ vs)⌝ ∗
+       ▷ call_assert Espec (Build_genv ge cenv_cs) ⊤ f0 ([] ++ vs) i
            (RA_normal (typed_stmt_post_cond (fn_return f) T))) end.
     assert (length (@nil Ctypes.type) = length (@nil type)) as Hlen' by done. revert Hlen'.
     move: {2 3 4 5}(@nil val) => vl. move: {1 3 4}(@nil type) => tys.
@@ -1735,72 +1820,159 @@ Qed.
     typed_macro_expr m es T
     ⊢ typed_val_expr (MacroE m es) T.
   Proof. done. Qed.
+*)
 
-  Lemma type_use ot T e o mc:
-    ⌜if o is Na2Ord then False else True⌝ ∗ typed_read (if o is ScOrd then true else false) e ot mc T
-    ⊢ typed_val_expr (use{ot, o, mc} e) T.
+  Lemma derives_refl {BI : bi} (P : BI) : P ⊢ P.
+  Proof. done. Qed.
+
+  (* l↦v, [[e]]=l, v:cty *)
+  Lemma type_deref ge f cty e T:
+    type_is_by_value cty = true ->
+    typed_read ge f false e cty T 
+    ⊢ typed_val_expr ge f (Ederef e cty) T.
   Proof.
-    iIntros "[% Hread]" (Φ) "HΦ".
-    wp_bind. iApply "Hread".
-    iIntros (l) "Hl". rewrite /Use.
-    destruct o => //.
-    1: iApply wp_atomic.
-    2: iApply fupd_wp; iApply wp_fupd.
-    all: iMod "Hl" as (v q ty Hly Hv) "(Hl&Hv&HT)"; iModIntro.
-    all: iApply (wp_deref with "Hl") => //; try by eauto using val_to_of_loc.
-    all: iIntros "!# %st Hl".
-    all: iMod ("HT" with "Hl Hv") as (ty') "[Hv HT]"; iModIntro.
-    all: by iApply ("HΦ" with "Hv HT").
+    intros.
+    iIntros "typed_read" (Φ) "HΦ".
+    rewrite -wp_expr_mapsto /=.
+    rewrite -wp_deref.
+    iApply wp_expr_mono; first by intros; apply derives_refl.
+    iApply "typed_read".
+    iIntros (l) "typed_read".
+    iMod "typed_read" as "(%v & %q & %ty & %Hl & %Hv & %Hq & %v_not_undef & own_l & own_v & typed_read)".
+    iExists _, _.
+    rewrite -fupd_frame_l.
+    iSplit => //.
+    destruct l.
+    iExists _ ,_.
+    rewrite -fupd_frame_l.
+    iSplit => //.
+    iModIntro.
+    iSplit.
+    {
+      destruct Hv as [? ?].
+      rewrite /mapsto by_value_data_at_rec_nonvolatile // repinject_valinject // Ptrofs.repr_unsigned /=.
+      iFrame.
+    }
+    iMod ("typed_read" with "[$] [$]") as (ty') "[? ?]".
+    iApply ("HΦ" with "[$] [$]").
   Qed.
 
-  Lemma type_read T T' e ot (a : bool) mc:
-    IntoPlaceCtx e T' →
-    T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty1),
-      typed_place K l β1 ty1 (λ l2 β2 ty2 typ R,
-          typed_read_end a ⊤ l2 β2 ty2 ot mc (λ v ty2' ty3,
-            l ◁ₗ{β1} typ ty2' -∗ R ty2' -∗ T v ty3))))
-    ⊢ typed_read a e ot mc T.
+
+  (* l↦v, [[e]]=l, v:cty *)
+  Lemma type_read_simple ge f e β cty T:
+    typed_val_expr ge f e (λ v_l ty_l,
+      ∃ l, <affine> ⌜v_l=adr2val l⌝ ∗
+      ⎡ l ◁ₗ{β} ty_l ⎤ ∗
+      typed_read_end false ⊤ l β ty_l cty (λ v ty_l' ty_v',
+        ⎡l ◁ₗ{β} ty_l'⎤ -∗ ⎡l ◁ᵥₐₗ|typeof e| ty_l⎤ -∗ T v ty_v'))
+    ⊢ typed_read ge f false e cty T.
+  Proof.
+    iIntros "Hl".
+    rewrite /typed_read.
+    iIntros (Φ) "HΦ".
+    iApply "Hl".
+    iIntros (v_l ty_l) "Hl (%l & -> & own_l & typed_read_end)".
+    iApply ("HΦ" $! l).
+    rewrite /typed_read_end.
+    iMod ("typed_read_end" with "own_l") as "(%q & %v & %ty_v & %Hl & %Hv & %Hq & %v_not_undef & own_l & own_v & HT)".
+    iModIntro.
+    iExists _, _, _.
+    repeat iSplit => //.
+    iFrame.
+    iIntros "↦ Hv".
+    iMod ("HT" with "[$] [$]") as "(%ty' & %ty2' & own_l & own_v & H)".
+    iDestruct ("H" with "[$] [$]") as "$".
+    iFrame. done.
+  Qed.
+
+  Lemma type_read ge E f T T' e cty:
+    IntoPlaceCtx ge E f e T' →
+    T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty_l1),
+      typed_place ge E K l β1 ty_l1 (λ l2 β2 ty_l2 typ R,
+          typed_read_end false ⊤ l2 β2 ty_l2 cty (λ v ty_l3 ty_v,
+            ⎡l ◁ₗ{β1} typ ty_l3⎤ -∗ R ty_l3 -∗ T v ty_v))))
+    ⊢ typed_read ge f false e cty T.
   Proof.
     iIntros (HT') "HT'". iIntros (Φ) "HΦ".
-    iApply (HT' with "HT'").
+    rewrite -(wp_expr_mask_mono _ E);last done.
+    
+    rewrite /IntoPlaceCtx in HT'.
+    iApply (HT' with "HT' ").
     iIntros (K l). iDestruct 1 as ([β ty]) "[Hl HP]".
     iApply ("HP" with "Hl").
     iIntros (l' β2 ty2 typ R) "Hl' Hc HT" => /=. iApply "HΦ".
-    rewrite /typed_read_end. iMod ("HT" with "Hl'") as (q v ty3 Hly Hv) "(Hl&Hv&HT)".
-    iModIntro. iExists _,_,_. iFrame "Hl Hv". iSplitR => //. iSplit => //.
-    iIntros "!# %st Hl Hv".
+    rewrite /typed_read_end. iMod ("HT" with "Hl'") as (q v ty3 Hly Hv) "(%&%&Hl&Hv&HT)".
+    iModIntro. iExists _,_,_. iFrame "Hl Hv". do 4 iSplitR => //.
+    iIntros "Hl Hv".
     iMod ("HT" with "Hl Hv") as (ty' ty4) "(Hv&Hl&HT)".
-    iMod ("Hc" with "Hl") as "[? ?]". iExists _. iFrame. by iApply ("HT" with "[$]").
+    iMod ("Hc" with "[$]") as "[? ?]". iExists _. iFrame. by iApply ("HT" with "[$]").
   Qed.
 
-  Lemma type_read_copy a β l ty ly E mc {HC: CopyAs l β ty} T:
-    ((HC (λ ty', ⌜ty'.(ty_has_op_type) ly MCCopy⌝ ∗ ⌜mtE ⊆ E⌝ ∗ ∀ v, T v (ty' : type) ty')).(i2p_P))
-    ⊢ typed_read_end a E l β ty ly mc T.
+  Definition typed_place_expr ge f (e : expr) (T : address → own_state → type → assert) : assert :=
+    (∀ Φ, (∀ v (ty : type) β l, <affine> ⌜v=adr2val l⌝ -∗ ⎡ l ◁ₗ{β} ty ⎤ -∗ T l β ty -∗ Φ v) -∗ wp_expr ge ⊤ f e Φ).
+  Global Arguments typed_place_expr _ _ _ _%_I.
+  Lemma type_read_simple_place_ver genv_t f e cty T:
+    typed_place_expr (Build_genv genv_t _) f e (λ l β ty_l,
+      typed_read_end false ⊤ l β ty_l cty (λ v ty_l' ty_v',
+        ⎡l ◁ₗ{β} ty_l'⎤ -∗ T v ty_v'))
+    ⊢ typed_read genv_t f false e cty T.
   Proof.
-    rewrite /typed_read_end. iIntros "Hs Hl". iDestruct (i2p_proof with "Hs Hl") as (ty') "(Hl&%&%&%&HT)".
+    iIntros "Hl".
+    rewrite /typed_read.
+    iIntros (Φ) "HΦ".
+    iApply "Hl".
+    iIntros (v_l ty_l β l) "% own_l typed_read_end".
+    iSpecialize ("HΦ" $! l).
+    rewrite -H.
+    iApply ("HΦ").
+    rewrite /typed_read_end.
+    iMod ("typed_read_end" with "own_l") as "(%q & %v & %ty_v & %Hl & %Hv & %Hq & %v_not_undef & own_l & own_v & HT)".
+    iModIntro.
+    iExists _, _, _.
+    repeat iSplit => //.
+    iFrame.
+    iIntros "↦ Hv".
+    iMod ("HT" with "[$] [$]") as "(%ty' & %ty2' & own_l & own_v & H)".
+    iDestruct ("H" with "[$]") as "$".
+    iFrame. done.
+  Qed.
+
+  Lemma type_read_copy a β l ty cty E {HC: CopyAs l β cty ty} (T:val → type → type → assert):
+    type_is_by_value cty = true ->
+    ((HC (λ ty', <affine> ⌜ty'.(ty_has_op_type) cty MCCopy⌝ ∗ <affine> ⌜mtE ⊆ E⌝ ∗ ∀ v, <affine>⌜v ≠ Vundef⌝ ∗ T v (ty' : type) ty')).(i2p_P))
+    ⊢ typed_read_end a E l β ty cty T.
+  Proof.
+    intros. iIntros "Hs Hl". iDestruct (i2p_proof with "Hs Hl") as (ty') "(Hl&%&%&%&HT)".
     destruct β.
     - iApply fupd_mask_intro; [destruct a; solve_ndisj|]. iIntros "Hclose".
       iDestruct (ty_aligned with "Hl") as %?; [done|].
       iDestruct (ty_deref with "Hl") as (v) "[Hl #Hv]"; [done|].
       iDestruct (ty_size_eq with "Hv") as %?; [done|].
-      iExists _, _, _. iFrame "∗Hv". do 2 iSplitR => //=.
-      iIntros "!# %st Hl _". iMod "Hclose". iModIntro.
-      iExists _, _. iDestruct (ty_ref with "[//] Hl Hv") as "$"; [done|]. iSplitR "HT" => //.
-      destruct mc => //.
-      by iApply (ty_memcast_compat_copy with "Hv").
+      iExists _, (repinject cty v), _. 
+      rewrite !valinject_repinject /ty_own_val_at //.
+      iFrame "∗Hv". do 2 iSplitR => //=.
+      iSplit; first by (rewrite /Tsh; iPureIntro; apply readable_share_top).
+      iDestruct ("HT" $! (repinject cty v)) as "(% & T)".
+      iSplitR => //.
+      iIntros "Hl #own_v". iFrame. 
+      iDestruct (ty_ref with "[//] Hl own_v") as "$"; [done|].
+      iMod "Hclose". done.
     - iRevert "Hl". iIntros "#Hl".
-      iMod (copy_shr_acc with "Hl") as (? q' v) "[Hmt [Hv Hc]]" => //.
-      iDestruct (ty_size_eq with "Hv") as "#>%"; [done|].
+      iMod (copy_shr_acc with "Hl") as (? q' v) "(% & Hmt & Hv & Hc)" => //.
+      iDestruct (ty_size_eq with "Hv") as "#%"; [done|].
       iApply fupd_mask_intro; [destruct a; solve_ndisj|]. iIntros "Hclose".
-      iExists _, _, _. iFrame. do 2 iSplit => //=.
-      iIntros "!# %st Hmt Hv". iMod "Hclose". iModIntro.
-      iExists _, _. iFrame "Hl". iSplitR "HT"; [|done].
-      destruct mc => //.
-      by iApply (ty_memcast_compat_copy with "Hv").
+      iExists _, (repinject cty v), _.
+      rewrite !valinject_repinject /ty_own_val_at //.
+      iFrame.
+      iDestruct ("HT" $! (repinject cty v)) as "(% & HT)".
+      do 4 iSplitR => //.
+      iIntros "Hmt Hv". iMod "Hclose".
+      iMod ("Hc" with "Hmt") as "?".
+      iExists _, _. iFrame "Hl". iFrame. iModIntro. done.
   Qed.
   Definition type_read_copy_inst := [instance type_read_copy].
   Global Existing Instance type_read_copy_inst | 10.
-*)
+
 
   (* for expr `e:=v` => eval_expr e = l ∧ typed l v  *)
   (* typed_lvalue e (typed_write_end ...)   *)
@@ -1826,7 +1998,7 @@ Qed.
 
   Lemma type_write_own_copy a E ty l2 ty2 v ot (T:type->assert):
     typed_write_end a E ot v ty l2 Own ty2 T where
-    `{!Copyable ty}
+    `{!Copyable ot ty}
     `{!TCDone (ty2.(ty_has_op_type) ot MCNone)} :-
       exhale <affine> ⌜ty.(ty_has_op_type) ot MCNone⌝;
       inhale ⎡v ◁ᵥₐₗ|ot| ty⎤;
@@ -1892,25 +2064,24 @@ Qed.
     by iApply ("HT" with "[$]").
   Qed.
 *)
-(*
-  Lemma type_place_id l ty β T:
+
+  Lemma type_place_id ge E l ty β T:
     T l β ty id (λ _, True)
-    ⊢ typed_place l β ty T.
+    ⊢ typed_place ge E [] l β ty T.
   Proof.
-    unfold typed_place.
-    iIntros  "HT Hl" (l2 β2 ty2 typ R) "Hl2". iApply ("HΦ" with "Hl [] HT").  by iIntros (ty') "$".
-  Qed.s
+    iIntros "HT" (Φ) "Hl HΦ". iApply ("HΦ" with "Hl [] HT"). by iIntros (ty') "$".
+  Qed.
   Definition type_place_id_inst := [instance type_place_id].
   Global Existing Instance type_place_id_inst | 20.
 
-  Lemma copy_as_id l β ty `{!Copyable ty} T:
-    T ty ⊢ copy_as l β ty T.
+  Lemma copy_as_id l β cty ty `{!Copyable cty ty} T:
+    T ty ⊢ copy_as l β cty ty T.
   Proof. iIntros "HT Hl". iExists _. by iFrame. Qed.
   Definition copy_as_id_inst := [instance copy_as_id].
   Global Existing Instance copy_as_id_inst | 1000.
 
-  Lemma copy_as_refinement A l β (ty : rtype A) {HC: ∀ x, CopyAs l β (x @ ty)} T:
-    (∀ x, (HC x T).(i2p_P)) ⊢ copy_as l β ty T.
+  Lemma copy_as_refinement A l β cty (ty : rtype A) {HC: ∀ x, CopyAs l β cty (x @ ty)} T:
+    (∀ x, (HC x T).(i2p_P)) ⊢ copy_as l β cty ty T.
   Proof.
     iIntros "HT Hl". unfold ty_of_rty; simpl_type. iDestruct "Hl" as (x) "Hl".
     iSpecialize ("HT" $! x). iDestruct (i2p_proof with "HT") as "HT". by iApply "HT".
@@ -1918,7 +2089,7 @@ Qed.
   Definition copy_as_refinement_inst := [instance copy_as_refinement].
   Global Existing Instance copy_as_refinement_inst.
 
-  Lemma annot_share l ty T:
+(*  Lemma annot_share l ty T:
     (l ◁ₗ{Shr} ty -∗ T)
     ⊢ typed_annot_stmt (ShareAnnot) l (l ◁ₗ ty) T.
   Proof.
@@ -1967,22 +2138,12 @@ Qed.
   Qed.
   Definition annot_learn_aligment_inst := [instance annot_learn_aligment].
   Global Existing Instance annot_learn_aligment_inst.*)
-End typing.
-
-(* This must be an Hint Extern because an instance would be a big slowdown . *)
-Global Hint Extern 50 (Subsume (_ ◁ₗ{_} ?ty _) (λ _, _ ◁ₗ{_} ?ty2 _)%I) =>
-  match ty with | ty2 => is_var ty; class_apply subtype_var_inst end : typeclass_instances.
-
-Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_.1ₗ} _)%I) =>
-  (class_apply subsume_place_own_ex_inst) : typeclass_instances.
-
-Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
-  (class_apply subsume_place_ty_ex_inst) : typeclass_instances.
+*)
 
 
 (*Global Typeclasses Opaque typed_block.
 *)
-*)
+
 
   Lemma type_seq Espec ge f s1 s2 T:
     typed_stmt Espec ge s1 f (λ v ty, match v with None => typed_stmt Espec ge s2 f T
@@ -1995,3 +2156,13 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
   Qed.
 
 End typing.
+
+(* This must be an Hint Extern because an instance would be a big slowdown . *)
+Global Hint Extern 50 (Subsume (_ ◁ₗ{_} ?ty _) (λ _, _ ◁ₗ{_} ?ty2 _)%I) =>
+  match ty with | ty2 => is_var ty; class_apply subtype_var_inst end : typeclass_instances.
+
+Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_.1ₗ} _)%I) =>
+  (class_apply subsume_place_own_ex_inst) : typeclass_instances.
+
+Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
+  (class_apply subsume_place_ty_ex_inst) : typeclass_instances.

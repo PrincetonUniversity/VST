@@ -122,9 +122,9 @@ Section int.
   later. We cannot call it int_type since that already exists.  *)
   Program Definition int_inner_type (it : Ctypes.type) (n : Z) : type := {|
     ty_has_op_type ot mt := (*is_bool_ot ot it stn*) ot = it;
-    ty_own β l := ∃ v, <affine> ⌜(valinject it v) `has_layout_val` it⌝ ∗
-                       <affine> ⌜val_to_Z v it = Some n⌝ ∗
-                       <affine> ⌜l `has_layout_loc` it⌝ ∗
+    ty_own β l := ∃ v, ⌜(valinject it v) `has_layout_val` it⌝ ∧
+                       ⌜val_to_Z v it = Some n⌝ ∧
+                       ⌜l `has_layout_loc` it⌝ ∧
                        l ↦[β]|it| (valinject it v);
     ty_own_val cty v := <affine> ⌜cty = it⌝ ∗
                         <affine> ⌜v `has_layout_val` cty⌝ ∗
@@ -219,21 +219,25 @@ Section int.
 
   (* TODO: make a simple type as in lambda rust such that we do not
   have to reprove this everytime? *)
-  Global Program Instance int_copyable x it : Copyable (x @ int it).
+  Global Program Instance int_copyable x it : Copyable it (x @ int it).
   Next Obligation.
     iIntros (?????) "(%v&%Hv&%&%Hl&Hl)".
     simpl in *; subst.
-    iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //.
-    iExists it.
+    iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[% [% Hl]]" => //.
     iSplitR => //. iExists q, (valinject it v). iFrame. iModIntro.
-    rewrite /ty_own_val /= repinject_valinject.
-    - eauto.
-    - by eapply val_to_Z_by_value.
+    destruct Hv.
+    apply val_to_Z_by_value in H0 as ?.
+    rewrite /ty_own_val /ty_own /= repinject_valinject //.
+    repeat iSplit => //.
+    iIntros "↦".
+    iExists _.
+    iMod (heap_mapsto_own_state_from_mt with "↦") as "Hl'"; try done.
+    iFrame. done.
   Qed.
 
-  (* Global Instance int_timeless l z it:
+   Global Instance int_timeless l z it:
     Timeless (l ◁ₗ z @ int it)%I.
-  Proof. Admitted. *)
+  Proof. apply _. Qed.
 End int.
 
 Global Hint Resolve val_to_Z_not_Vundef : core.
@@ -1095,16 +1099,19 @@ Section offsetof.
     Unshelve. done.
   Qed.
 
-  Global Program Instance offsetof_copyable s m : Copyable (offsetof s m).
+  Global Program Instance offsetof_copyable s m : Copyable size_t (offsetof s m).
   Next Obligation.
     iIntros (s m E l ?). iDestruct 1 as (n Hn) "Hl".
     iMod (copy_shr_acc with "Hl") as (???) "(%&Hl&H2&H3)" => //.
-    iModIntro. iExists _. iSplitR => //. iExists _, _.
-    iFrame "Hl H3".
-    iNext.
-    rewrite /ty_own_val /= /ty_own_val_at /ty_own_val /=.
-    iDestruct "H2" as "(-> & % & %)".
-    iSplit => //. iExists _; done.
+    iModIntro. iSplitR => //. iExists _, _.
+    iFrame "Hl".
+    iSplit => //.
+    rewrite /ty_own_val {2}/ty_own /offsetof /= /ty_own_val_at /ty_own_val /=.
+    iDestruct "H2" as "(_ & % & %)".
+    iSplitR => //.
+    { iSplitR => //. iExists _. done. }
+    iIntros "↦". iMod ("H3" with "↦") as "H3".
+    iExists _. iFrame "H3". done.
   Qed.
 
 (*  Lemma type_offset_of s m T:
