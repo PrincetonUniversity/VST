@@ -615,29 +615,28 @@ Section array.
     ⊢ typed_place ge (BinOpPCtx1 Oadd (tptr cty1) ofs_cty (tptr cty1) v tyv :: K) l β (array cty2 tys) T.
   Proof.
     iIntros "[-> HT]" (Φ) "(%&Hl) HΦ Hv" => /=.
-    iDestruct ("HT" with "Hv") as (i <-) "HP". unfold int; simpl_type.
-    iDestruct ("HP") as (Hv) "HP".
-    destruct Hv as (? & ? & ?).
+    iDestruct ("HT" with "Hv") as (i <-) "HP".
+    iDestruct "HP" as "(Hv & HP)". iDestruct (ty_own_val_int_in_range with "Hv") as %Hrange.
+    unfold int; simpl_type.
+    iDestruct ("Hv") as %(? & ? & ?).
     apply val_to_Z_by_value in H2 as ?.
     rewrite repinject_valinject // in H2.
     iDestruct "HP" as (? Hlen) "HP".
     have [|ty ?]:= lookup_lt_is_Some_2 tys (Z.to_nat i). 1: lia.
-    iApply wp_binop_sc.
-    {
-      inv H1.
-      instantiate (1:=adr2val (l arr_ofs{tint}ₗ i)).
-      rewrite /= /sem_add. destruct ofs_cty; try done; simpl in *.
-      - destruct i0, v, s eqn:Hs; try done; rewrite /val_to_Z /= in H2; inv H2;
-        rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //= /nested_field_offset /= Z.add_0_l.
-        all: rewrite Int.signed_eq_unsigned; try done. all: admit.
-      - destruct v; try done. rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //= /nested_field_offset /= Z.add_0_l.
-        destruct s; simpl in *; inv H2; try done.
-        repeat f_equal. rewrite Int64.unsigned_signed //. rewrite /Int64.lt /=. if_tac; try rep_lia.
+    iApply (wp_binop_sc _ _ _ _ _ _ _ (adr2val (l arr_ofs{tint}ₗ i))).
+    { destruct H1 as (H1 & Hvol).
+      rewrite /= /sem_add. destruct ofs_cty; try done; simpl in *; hnf in H1; rewrite Hvol in H1;
+        destruct v; try destruct s; inv H2; specialize (H1 ltac:(discriminate)); simpl in H1.
+      - destruct i0; rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //.
+      - destruct i0; rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //= /nested_field_offset /= Z.add_0_l; inv Hrange.
+        all: rewrite Int.signed_eq_unsigned //; try rep_lia.
+        rewrite two_power_pos_equiv in H1; rep_lia.
+      - rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //= /nested_field_offset /= Z.add_0_l; inv Hrange.
+        rewrite Int64.unsigned_signed. rewrite /Int64.lt /=. if_tac; try done.
         (* rewrite -H7 in H5, H0. *)
-        rewrite Int64.signed_zero in H0.
+        rewrite Int64.signed_zero in H3.
         rep_lia.
-      - admit.
-      - admit.
+      - rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //.
     }
     iSplit => //.
     { rewrite /sc_binop /sc_add. destruct ofs_cty; try done. simpl. destruct i0; done. }
@@ -648,7 +647,7 @@ Section array.
     iApply ("HΦ" with "Hl' [-HT] HT"). iIntros (ty') "Hl'".
     iMod ("Htyp" with "Hl'") as "[? $]".
    iSplitR; first by rewrite length_insert. rewrite embed_big_sepL.  iApply ("Hc" with "[$]").
-  Admitted.
+  Qed.
   Definition type_place_array_inst := [instance type_place_array].
   Global Existing Instance type_place_array_inst.
 
