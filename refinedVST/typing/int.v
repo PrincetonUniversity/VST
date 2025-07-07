@@ -227,13 +227,15 @@ Section int.
     iSplitR => //. iExists q, (valinject it v). iFrame. iModIntro.
     destruct Hv.
     apply val_to_Z_by_value in H0 as ?.
-    rewrite /ty_own_val /= repinject_valinject //.
+    rewrite /ty_own_val /ty_own /= repinject_valinject //.
     repeat iSplit => //.
     iIntros "↦".
-    iMod (inv_alloc with "↦"). done.
-    Unshelve. constructor.
+    iExists _.
+    iMod (heap_mapsto_own_state_from_mt with "↦") as "Hl'"; try done.
+    iFrame. done.
   Qed.
 
+  (* NOTE looks like this is not provable *)
   (* Global Instance int_timeless l z it:
     Timeless (l ◁ₗ z @ int it)%I.
   Proof. Admitted. *)
@@ -1103,11 +1105,14 @@ Section offsetof.
     iIntros (s m E l ?). iDestruct 1 as (n Hn) "Hl".
     iMod (copy_shr_acc with "Hl") as (???) "(%&Hl&H2&H3)" => //.
     iModIntro. iSplitR => //. iExists _, _.
-    iFrame "Hl H3".
+    iFrame "Hl".
     iSplit => //.
-    rewrite /ty_own_val /= /ty_own_val_at /ty_own_val /=.
+    rewrite /ty_own_val {2}/ty_own /offsetof /= /ty_own_val_at /ty_own_val /=.
     iDestruct "H2" as "(_ & % & %)".
-    iSplit => //. iExists _; done.
+    iSplitR => //.
+    { iSplitR => //. iExists _. done. }
+    iIntros "↦". iMod ("H3" with "↦") as "H3".
+    iExists _. iFrame "H3". done.
   Qed.
 
 (*  Lemma type_offset_of s m T:

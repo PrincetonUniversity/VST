@@ -488,7 +488,7 @@ Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} (cty:Ctypes.type) (ty : type)
     mtE ⊆ E →
     ty.(ty_own) Shr l ={E}=∗ <affine> ⌜l `has_layout_loc` cty⌝ ∗
        (* TODO: the closing conjuct does not make much sense with True *)
-       ∃ q' vl, <affine> ⌜readable_share q'⌝ ∗ l ↦{q'}|cty| vl ∗ ty.(ty_own_val) cty vl ∗ (l ↦{q'}|cty| vl ={E}=∗ emp)
+       ∃ q' vl, <affine> ⌜readable_share q'⌝ ∗ l ↦{q'}|cty| vl ∗ ty.(ty_own_val) cty vl ∗ (l ↦{q'}|cty| vl ={E}=∗ ty.(ty_own) Shr l)
 }.
 Global Existing Instance copy_own_val_persistent.
 Global Existing Instance copy_own_val_affine.
@@ -671,8 +671,10 @@ Section rmovable.
   Global Program Instance copyable_ty_of_rty A r cty `{!∀ x : A, Copyable cty (x @ r)} : Copyable cty r.
   Next Obligation.
     iIntros (A r cty ? E l ?). iDestruct 1 as (x) "Hl".
-    iMod (copy_shr_acc with "Hl") as (? q' vl) "(%&?&?&?)" => //.
-    iSplitR => //. iExists _, _. iFrame. done.
+    iMod (copy_shr_acc with "Hl") as (? q' vl) "(%&?&?&H)" => //.
+    iSplitR => //. iExists _, _. iFrame. iModIntro. iSplit => //.
+    iIntros "↦". iMod ("H" with "↦") as "Hl".
+    rewrite {2}/ty_own /ty_of_rty /=. by iFrame.
   Qed.
 End rmovable.
 
