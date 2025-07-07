@@ -592,14 +592,12 @@ Qed.
 
 End judgements.
 
-(*Ltac solve_into_place_ctx :=
+Ltac solve_into_place_ctx :=
   match goal with
-  | |- IntoPlaceCtx ?e ?T =>
-      let e' := W.of_expr e in
-      change_no_check (IntoPlaceCtx (W.to_expr e') T);
-      refine (find_place_ctx_correct _ _ _); rewrite/=/W.to_expr/=; done
+  | |- IntoPlaceCtx _ _ _ ?e ?T =>
+       refine (find_place_ctx_correct _ _ _ _ _ _); rewrite//=
   end.
-Global Hint Extern 0 (IntoPlaceCtx _ _) => solve_into_place_ctx : typeclass_instances.*)
+Global Hint Extern 0 (IntoPlaceCtx _ _ _ _ _) => solve_into_place_ctx : typeclass_instances.
 
 Global Hint Mode Learnable + + : typeclass_instances.
 (*Global Hint Mode LearnAlignment + + + + - : typeclass_instances.*)
@@ -863,6 +861,8 @@ End proper.
 (*Global Typeclasses Opaque typed_read_end.
 Global Typeclasses Opaque typed_write_end.*)
 
+Definition FindTemp `{!typeG OK_ty Σ} {cs : compspecs} (_id: ident) :=
+  {| fic_A := val; fic_Prop v := env.temp _id v; |}.
 Definition FindLoc `{!typeG OK_ty Σ} {cs : compspecs} (l : address) : @find_in_context_info assert :=
   {| fic_A := own_state * type; fic_Prop '(β, ty):= ⎡l ◁ₗ{β} ty⎤; |}.
 Definition FindVal `{!typeG OK_ty Σ} {cs : compspecs} cty (v : val) : @find_in_context_info assert :=
@@ -902,6 +902,14 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
 
 Section typing.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
+
+  Lemma find_in_context_tempvar _id T:
+    (∃ v, env.temp _id v ∗ T v)
+    ⊢ find_in_context (FindTemp _id) T.
+  Proof. iDestruct 1 as (v) "[Hl HT]". iExists _ => /=. iFrame. Qed.
+  Definition find_in_context_tempvar_inst :=
+    [instance find_in_context_tempvar with FICSyntactic].
+  Global Existing Instance find_in_context_tempvar_inst | 1.
 
   Lemma find_in_context_type_loc_id l T:
     (∃ β ty, ⎡l ◁ₗ{β} ty⎤ ∗ T (β, ty))
@@ -1627,11 +1635,13 @@ Qed.
     by iApply ("Hop" with "Hv").
   Qed.
 
-  Lemma type_tempvar ge f _x v cty T ty:
-     env.temp _x v ∗ (env.temp _x v -∗ ⎡v ◁ᵥₐₗ|cty| ty⎤ ∗ T v ty)
+  Lemma type_tempvar ge f _x cty T ty:
+    find_in_context (FindTemp _x) (λ v, env.temp _x v -∗ ⎡v ◁ᵥₐₗ|cty| ty⎤ ∗ T v ty)
     ⊢ typed_val_expr ge f (Etempvar _x cty) T.
   Proof.
-    iIntros "(Hx & HT)" (Φ) "HΦ".
+
+    rewrite /find_in_context. simpl.
+    iIntros "(%b & Hx & HT)" (Φ) "HΦ".
     iApply wp_tempvar_local.
     iFrame.
     iIntros "Hx".
@@ -1639,6 +1649,7 @@ Qed.
     iApply ("HΦ" with "[$]"). done.
   Qed.
 
+  (* FIXME change this to "find_in_context (Findlvar _x) (λ v, env.lvar _x v -∗ ⎡v ◁ᵥₐₗ|c_ty| ty⎤ ∗ T v ty)" *)
   Lemma type_var_local ge f _x b β ty c_ty (T: address -> own_state -> type -> assert) :
     env.lvar _x c_ty b ∗
     (env.lvar _x c_ty b -∗
@@ -1815,12 +1826,13 @@ Qed.
   Proof. done. Qed.
 
   (* l↦v, [[e]]=l, v:cty *)
-  Lemma type_deref ge f cty T e :
-    <affine> ⌜type_is_by_value cty = true⌝ ∗
+  Lemma type_deref ge f cty e T:
+    type_is_by_value cty = true ->
     typed_read ge f false e cty T 
     ⊢ typed_val_expr ge f (Ederef e cty) T.
   Proof.
-    iIntros "[% typed_read]" (Φ) "HΦ".
+    intros.
+    iIntros "typed_read" (Φ) "HΦ".
     rewrite -wp_expr_mapsto /=.
     rewrite -wp_deref.
     iApply wp_expr_mono; first by intros; apply derives_refl.
@@ -1926,11 +1938,11 @@ Qed.
   Qed.
 
   Lemma type_read_copy a β l ty cty E {HC: CopyAs l β cty ty} (T:val → type → type → assert):
-    <affine> ⌜type_is_by_value cty = true⌝ ∗
+    type_is_by_value cty = true ->
     ((HC (λ ty', <affine> ⌜ty'.(ty_has_op_type) cty MCCopy⌝ ∗ <affine> ⌜mtE ⊆ E⌝ ∗ ∀ v, <affine>⌜v ≠ Vundef⌝ ∗ T v (ty' : type) ty')).(i2p_P))
     ⊢ typed_read_end a E l β ty cty T.
   Proof.
-    rewrite /typed_read_end. iIntros "[% Hs] Hl". iDestruct (i2p_proof with "Hs Hl") as (ty') "(Hl&%&%&%&HT)".
+    intros. iIntros "Hs Hl". iDestruct (i2p_proof with "Hs Hl") as (ty') "(Hl&%&%&%&HT)".
     destruct β.
     - iApply fupd_mask_intro; [destruct a; solve_ndisj|]. iIntros "Hclose".
       iDestruct (ty_aligned with "Hl") as %?; [done|].
