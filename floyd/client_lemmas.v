@@ -1169,9 +1169,6 @@ Arguments Datatypes.id {A} x / .
     @lift0_later
     : norm2.
 
-Lemma derives_refl {BI : bi} (P : BI) : P ⊢ P.
-Proof. done. Qed.
-
 #[export] Hint Rewrite @fst_unfold @snd_unfold : norm.
 #[export] Hint Rewrite @local_andp_prop @local_andp_prop1 : norm2.
 #[export] Hint Rewrite @local_sepcon_assoc1 @local_sepcon_assoc2 : norm2.

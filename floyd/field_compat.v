@@ -1,7 +1,7 @@
+Require Import VST.veric.log_normalize.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Import VST.floyd.base2.
+Require Import VST.floyd.base.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
@@ -269,7 +269,7 @@ Qed.
 
 Section mpred.
 
-Context `{!VSTGS OK_ty Σ}.
+Context `{!heapGS Σ}.
 
 Lemma andp_prop_eq' : forall P P' (Q Q' : mpred) (Hdec : {P} + {~P} ),
   (P <-> P') -> (P -> (⌜P⌝ ∧ Q) = (⌜P'⌝ ∧ Q')) -> (⌜P⌝ ∧ Q) = (⌜P'⌝ ∧ Q').
@@ -324,8 +324,8 @@ Lemma split2_data_at_Tarray_unfold {cs: compspecs}
     (field_address0 (Tarray t n noattr) (ArraySubsc n1::nil) p).
 Proof.
   intros.
-  assert_PROP (Zlength v' = n). {
-    rewrite data_at_local_facts; apply bi.pure_mono.
+  iIntros "H"; iAssert ⌜Zlength v' = n⌝ as %?. {
+    rewrite data_at_local_facts; iStopProof; apply bi.pure_mono.
     intros [? ?]. destruct H4 as [? _]. rewrite Z.max_r in H4 by lia.
     rewrite <- H0. exact H4.
   }
@@ -347,8 +347,7 @@ Lemma split2_data_at_Tarray_fold {cs: compspecs} sh t n n1 (v v' v1 v2: list (re
    data_at sh (Tarray t n noattr) v p.
 Proof.
   intros.
-  erewrite <-
- split2_data_at_Tarray; eauto.
+  erewrite <- split2_data_at_Tarray; eauto.
 Qed.
 
 Lemma field_compatible0_Tarray_offset:
@@ -459,7 +458,7 @@ Proof.
   eapply field_compatible0_Tarray_offset; try eassumption; try lia.
   f_equal. f_equal. lia.
   unfold data_at, field_at; normalize; rewrite !prop_false_andp; auto.
-  - intros (? & ? & Hcompat).
+  - intros (? & Hcompat).
     unfold field_address0 in Hcompat.
     if_tac in Hcompat; auto.
     destruct Hcompat; done.
@@ -618,7 +617,7 @@ Proof.
   rewrite sizeof_tarray_tuchar; try apply derives_refl; lia.
 Qed.
 
-Lemma memory_block_data_at__tarray_tschar_eq {cs : compspecs} sh p n (N: 0<=n < Ptrofs.modulus):
+Lemma memory_block_data_at__tarray_tschar_eq {cs : compspecs} sh p n (N: 0 <= n < Ptrofs.modulus):
   memory_block sh n p ⊣⊢ data_at_ sh (tarray tschar n) p.
 Proof.
   apply bi.equiv_entails_2. apply memory_block_data_at__tarray_tschar; trivial.
@@ -646,8 +645,8 @@ Lemma data_at_singleton_array {cs : compspecs} sh t vl v p:
 Proof.
   intros. rename H into Heq.
   rewrite data_at_isptr. normalize.
-  assert_PROP (field_compatible (tarray t 1) [] p).
-  { iIntros "H"; iDestruct (data_at_local_facts with "H") as %(? & ?); iPureIntro.
+  iIntros "H"; iAssert ⌜field_compatible (tarray t 1) [] p⌝ as %?.
+  { iDestruct (data_at_local_facts with "H") as %(? & ?); iPureIntro.
     destruct p; auto.
     inv_int i.
     destruct H as [? [? [? [? ?]]]].
@@ -675,8 +674,8 @@ Lemma data_at_singleton_array_inv {cs : compspecs} sh t (vl : list (reptype t)) 
   data_at sh (tarray t 1) vl p ⊢ data_at sh t v p.
 Proof.
   rewrite data_at_isptr. normalize.
-  assert_PROP (field_compatible (tarray t 1) [] p).
-  { rewrite data_at_local_facts; apply bi.pure_mono; tauto. }
+  iIntros "H"; iAssert ⌜field_compatible (tarray t 1) [] p⌝ as %?.
+  { rewrite data_at_local_facts; iStopProof; apply bi.pure_mono; tauto. }
   unfold data_at at 1.
   erewrite field_at_Tarray.
   2: simpl; trivial. 2: reflexivity. 2: lia. 2: apply JMeq_refl.
@@ -986,7 +985,7 @@ Lemma mapsto_zeros_data_atTarrayTptr_nullval_N {cenv : compspecs} N sh t b z:
        ⊢ data_at sh (tarray (Tpointer t noattr) (Z.of_nat N)) (repeat nullval N) (Vptr b z).
 Proof. intros.
   rewrite mapsto_zeros_mapsto_nullval_N; try done.
-  Intros. apply sepconN_mapsto_array; trivial.
+  normalize. apply sepconN_mapsto_array; tauto.
 Qed.
 
 Lemma mapsto_zeros_isptr z sh p : mapsto_zeros z sh p ⊢ ⌜isptr p⌝.

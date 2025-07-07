@@ -326,6 +326,21 @@ Proof.
     fupd_frame_r bi.wand_elim_r fupd_wp_binop.
 Qed.
 
+Lemma wp_binop_strong_mono : forall E op t1 v1 t2 v2 P1 P2, (∀ v, P1 v ={E}=∗ P2 v) ∗ wp_binop E op t1 v1 t2 v2 P1 ⊢ wp_binop E op t1 v1 t2 v2 P2.
+Proof.
+  intros; rewrite /wp_binop.
+  iIntros "(HP & >H) !>" (?) "?".
+  iMod ("H" with "[$]") as (??) "(? & H)".
+  iMod ("HP" with "H").
+  iIntros "!>"; iExists _; by iFrame.
+Qed.
+
+Lemma wp_binop_mono : forall E op t1 v1 t2 v2 P1 P2, (∀ v, P1 v ⊢ |={E}=> P2 v) → wp_binop E op t1 v1 t2 v2 P1 ⊢ wp_binop E op t1 v1 t2 v2 P2.
+Proof.
+  intros; iIntros; iApply wp_binop_strong_mono; iFrame.
+  by iIntros (?) "?"; iApply H.
+Qed.
+
 Lemma wp_binop_rule : forall E f e1 e2 Φ o t, wp_expr E f e1 (λ v1, wp_expr E f e2 (λ v2, wp_binop E o (typeof e1) v1 (typeof e2) v2 Φ))
   ⊢ wp_expr E f (Ebinop o e1 e2 t) Φ.
 Proof.
@@ -334,6 +349,21 @@ Proof.
   iIntros ">H !>" (??) "Hm ?".
   iMod ("H" with "Hm [$]") as "(%v1 & H1 & Hm & ? & >H)".
   iMod ("H" with "Hm [$]") as "(%v2 & H2 & Hm & ? & >H)".
+  iMod ("H" with "Hm") as "(%v & %H & Hm & ?)".
+  iIntros "!>"; iExists _; iFrame.
+  iIntros "!>" (??) "#?"; rewrite !bi.affinely_elim.
+  iDestruct ("H1" with "[$]") as %?; iDestruct ("H2" with "[$]") as %?; iPureIntro.
+  intros; econstructor; eauto.
+Qed.
+
+Lemma wp_binop_rule' : forall E f e1 e2 Φ o t, wp_expr E f e2 (λ v2, wp_expr E f e1 (λ v1, wp_binop E o (typeof e1) v1 (typeof e2) v2 Φ))
+  ⊢ wp_expr E f (Ebinop o e1 e2 t) Φ.
+Proof.
+  intros.
+  rewrite /wp_expr /wp_binop.
+  iIntros ">H !>" (??) "Hm ?".
+  iMod ("H" with "Hm [$]") as "(%v2 & H2 & Hm & ? & >H)".
+  iMod ("H" with "Hm [$]") as "(%v1 & H1 & Hm & ? & >H)".
   iMod ("H" with "Hm") as "(%v & %H & Hm & ?)".
   iIntros "!>"; iExists _; iFrame.
   iIntros "!>" (??) "#?"; rewrite !bi.affinely_elim.

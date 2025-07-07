@@ -457,7 +457,12 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
     iIntros "HP HΦ".
     rewrite /place_item_to_wp.
     move: K => [cty|op cty_l cty_v cty v ty|op cty_v cty_l cty v ty]//=.
-  Admitted.
+    - iDestruct "HP" as "(% & % & $ & $ & % & $ & HP)"; iIntros; by iApply "HΦ"; iApply "HP".
+    - iIntros; iApply wp_binop_strong_mono; iSplitL "HΦ"; last by iApply "HP".
+      iIntros (?) "(% & $ & ?)"; by iApply "HΦ".
+    - iIntros; iApply wp_binop_strong_mono; iSplitL "HΦ"; last by iApply "HP".
+      iIntros (?) "(% & $ & ?)"; by iApply "HΦ".
+  Qed.
 
   Lemma place_to_wp_mono K Φ1 Φ2 l:
     place_to_wp K Φ1 l -∗ (∀ l, Φ1 l -∗ Φ2 l) -∗ place_to_wp K Φ2 l.
@@ -556,10 +561,19 @@ Qed.
       rewrite Ptrofs.repr_unsigned.
       iSplit; first iFrame.
       iApply ("HWP" with "[$]").
-    - (* FIXME need wp_binop_rule that evaluates e2 first *)
-      rewrite -wp_binop_rule.
-      (* iApply ("HT" $! _ with "[-]"). *)
-      admit.
+    - rewrite -wp_binop_rule'.
+      rewrite /typed_val_expr.
+      iApply ("HT" $! _ with "[-]").
+      iIntros (v ty) "Hv HT".
+      iDestruct (IH with "HT") as "HT" => //.
+      iApply "HT".
+      iIntros (K l) "Φ'".
+      iDestruct ("HΦ'" with "[$]") as "HΦ".
+      rewrite place_to_wp_app {2}/place_to_wp /foldr /place_item_to_wp.
+      iApply (place_to_wp_mono with "HΦ"); iIntros (l') "H" =>/=.
+      iSpecialize ("H" with "Hv").
+      iApply (wp_binop_mono with "[H]"); last done.
+      by iIntros (?) "(% & -> & ?)".
     - rewrite -wp_binop_rule.
       rewrite /typed_val_expr.
       iApply ("HT" $! _ with "[-]").
@@ -573,7 +587,7 @@ Qed.
       iSpecialize ("H" with "Hv").
       iApply (wp_binop_mono with "[H]"); last done.
       by iIntros (?) "(% & -> & ?)".
-  Admitted.
+  Qed.
   End find_place_ctx_correct.
 
   (* TODO: have something like typed_place_cond which uses a fraction? Seems *)
