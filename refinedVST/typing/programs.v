@@ -417,7 +417,7 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
 
   (* Computes the WP one has to prove for the place ectx_item Ki
   applied to the location l. *)
-  Definition place_item_to_wp E (Ki : place_ectx_item) (Φ : address → assert) (l : address) : assert :=
+  Definition place_item_to_wp (Ki : place_ectx_item) (Φ : address → assert) (l : address) : assert :=
     match Ki with
     | DerefPCtx cty =>
        (* RefinedC can inject a value into an expression; compcert does not have this directly, instead we
@@ -438,29 +438,29 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
     (* we have proved typed_val_expr e1 before so we can use v ◁ᵥ ty here *)
     | BinOpPCtx1 op cty_l cty_v cty v ty => 
       ⎡v ◁ᵥₐₗ|cty_v| ty⎤ -∗
-      wp_binop ge E op cty_l l cty_v v
+      wp_binop ge ⊤ op cty_l l cty_v v
         (λ v, ∃ l' : address, <affine> ⌜v = adr2val l'⌝ ∗ Φ l')
     | BinOpPCtx2 op cty_v cty_l cty v ty =>
       ⎡v ◁ᵥₐₗ|cty_v| ty⎤ -∗
-      wp_binop ge E op cty_v v cty_l l
+      wp_binop ge ⊤ op cty_v v cty_l l
         (λ v, ∃ l' : address, <affine> ⌜v = adr2val l'⌝ ∗ Φ l')
     (* | UnOpPCtx op => WP UnOp op PtrOp l {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }} *)
     end%I.
-  Locate "ge".
-  Definition place_to_wp E (K : list place_ectx_item) (Φ : address → assert) : (address → assert) := foldr (place_item_to_wp E) Φ K.
-  Lemma place_to_wp_app E (K1 K2 : list place_ectx_item) Φ : place_to_wp E (K1 ++ K2) Φ = place_to_wp E K1 (place_to_wp E K2 Φ).
+
+  Definition place_to_wp (K : list place_ectx_item) (Φ : address → assert) : (address → assert) := foldr place_item_to_wp Φ K.
+  Lemma place_to_wp_app (K1 K2 : list place_ectx_item) Φ : place_to_wp (K1 ++ K2) Φ = place_to_wp K1 (place_to_wp K2 Φ).
   Proof. apply foldr_app. Qed.
 
-  Lemma place_item_to_wp_mono E K Φ1 Φ2 l:
-    place_item_to_wp E K Φ1 l -∗ (∀ l, Φ1 l -∗ Φ2 l) -∗ place_item_to_wp E K Φ2 l.
+  Lemma place_item_to_wp_mono K Φ1 Φ2 l:
+    place_item_to_wp K Φ1 l -∗ (∀ l, Φ1 l -∗ Φ2 l) -∗ place_item_to_wp K Φ2 l.
   Proof.
     iIntros "HP HΦ".
     rewrite /place_item_to_wp.
     move: K => [cty|op cty_l cty_v cty v ty|op cty_v cty_l cty v ty]//=.
   Admitted.
 
-  Lemma place_to_wp_mono E K Φ1 Φ2 l:
-    place_to_wp E K Φ1 l -∗ (∀ l, Φ1 l -∗ Φ2 l) -∗ place_to_wp E K Φ2 l.
+  Lemma place_to_wp_mono K Φ1 Φ2 l:
+    place_to_wp K Φ1 l -∗ (∀ l, Φ1 l -∗ Φ2 l) -∗ place_to_wp K Φ2 l.
   Proof.
     iIntros "HP HΦ".
     iInduction (K) as [] "IH" forall (l) => /=. 1: by iApply "HΦ".
@@ -502,8 +502,8 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
     | _ => None
     end.
 
-  Class IntoPlaceCtx E f (e : expr) (T : (list place_ectx_item → address → assert) → assert) :=
-    into_place_ctx Φ Φ': (⊢ T Φ' -∗ (∀ K l, Φ' K l -∗ place_to_wp  E K (Φ ∘ adr2val) l) -∗ wp_expr ge E f e Φ).
+  Class IntoPlaceCtx f (e : expr) (T : (list place_ectx_item → address → assert) → assert) :=
+    into_place_ctx Φ Φ': (⊢ T Φ' -∗ (∀ K l, Φ' K l -∗ place_to_wp K (Φ ∘ adr2val) l) -∗ wp_expr ge ⊤ f e Φ).
 
 Lemma wp_binop_strong_mono : forall E op t1 v1 t2 v2 P1 P2, 
   (∀ v, P1 v ={E}=∗ P2 v) ∗ wp_binop ge E op t1 v1 t2 v2 P1 ⊢ wp_binop ge E op t1 v1 t2 v2 P2.
@@ -523,9 +523,9 @@ Proof.
 Qed.
 
   Section find_place_ctx_correct.
-  Lemma find_place_ctx_correct E f e T:
+  Lemma find_place_ctx_correct f e T:
     find_place_ctx f e = Some T →
-    IntoPlaceCtx E f e T.
+    IntoPlaceCtx f e T.
   Proof.
     elim: e T => //=; intros.
     all: iIntros (Φ Φ') "HT HΦ'".
@@ -556,13 +556,12 @@ Qed.
       rewrite Ptrofs.repr_unsigned.
       iSplit; first iFrame.
       iApply ("HWP" with "[$]").
-    - rewrite -wp_binop_rule.
-      (* iApply "HT". *)
+    - (* FIXME need wp_binop_rule that evaluates e2 first *)
+      rewrite -wp_binop_rule.
+      (* iApply ("HT" $! _ with "[-]"). *)
       admit.
     - rewrite -wp_binop_rule.
       rewrite /typed_val_expr.
-      replace judgements.ge with ge by admit.
-      replace ⊤ with E by admit.
       iApply ("HT" $! _ with "[-]").
       iIntros (v ty) "Hv HT".
       iDestruct (IH with "HT") as "HT" => //.
@@ -580,24 +579,24 @@ Qed.
   (* TODO: have something like typed_place_cond which uses a fraction? Seems *)
   (* tricky since stating that they have the same size requires that ty1 *)
   (* and ty2 are movable (which they might not be) *)
-  Definition typed_place E (P : list place_ectx_item) (l1 : address) (β1 : own_state) (ty1 : type) (T : address → own_state → type → (type → type) → (type → assert) → assert) : assert :=
+  Definition typed_place (P : list place_ectx_item) (l1 : address) (β1 : own_state) (ty1 : type) (T : address → own_state → type → (type → type) → (type → assert) → assert) : assert :=
     (∀ Φ, ⎡l1 ◁ₗ{β1} ty1⎤ -∗
       (∀ (l2 : address) β2 ty2 typ R,
         ⎡l2 ◁ₗ{β2} ty2⎤ -∗ 
         (∀ ty', ⎡l2 ◁ₗ{β2} ty'⎤ ={⊤}=∗ ⎡l1 ◁ₗ{β1} typ ty'⎤ ∗ R ty')
         -∗ T l2 β2 ty2 typ R -∗ Φ l2)
-      -∗ place_to_wp E P Φ l1)%I.
-  Class TypedPlace E P (l1 : address) (β1 : own_state) (ty1 : type) : Type :=
-    typed_place_proof T : iProp_to_Prop (typed_place E P l1 β1 ty1 T).
+      -∗ place_to_wp P Φ l1)%I.
+  Class TypedPlace P (l1 : address) (β1 : own_state) (ty1 : type) : Type :=
+    typed_place_proof T : iProp_to_Prop (typed_place P l1 β1 ty1 T).
 
 End judgements.
 
 Ltac solve_into_place_ctx :=
   match goal with
-  | |- IntoPlaceCtx _ _ _ ?e ?T =>
-       refine (find_place_ctx_correct _ _ _ _ _ _); rewrite//=
+  | |- IntoPlaceCtx _ _ ?e ?T =>
+       refine (find_place_ctx_correct _ _ _ _ _); rewrite//=
   end.
-Global Hint Extern 0 (IntoPlaceCtx _ _ _ _ _) => solve_into_place_ctx : typeclass_instances.
+Global Hint Extern 0 (IntoPlaceCtx _ _ _ _) => solve_into_place_ctx : typeclass_instances.
 
 Global Hint Mode Learnable + + : typeclass_instances.
 (*Global Hint Mode LearnAlignment + + + + - : typeclass_instances.*)
@@ -614,7 +613,7 @@ Global Hint Mode TypedCall + + + + + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedReadEnd + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedWriteEnd + + + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedAddrOfEnd + + + + + + + : typeclass_instances.
-Global Hint Mode TypedPlace + + + + + + + + + + : typeclass_instances.
+Global Hint Mode TypedPlace + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedAnnotExpr + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedAnnotStmt + + + + + + + : typeclass_instances.
 (* Global Hint Mode TypedMacroExpr + + + + : typeclass_instances. *)
@@ -643,14 +642,14 @@ Section proper.
     v ◁ᵥ|cty| ty2 ∗ T ⊢ simplify_goal (v ◁ᵥ|cty| ty1) T.
   Proof. rewrite Heq. iIntros "$". Qed.
 
-  Lemma typed_place_subsume' E P l ty1 β T :
-    (⎡l ◁ₗ{β} ty1⎤ -∗ ∃ ty2, ⎡l ◁ₗ{β} ty2⎤ ∗ typed_place ge E P l β ty2 T) ⊢ typed_place ge E P l β ty1 T.
+  Lemma typed_place_subsume' P l ty1 β T :
+    (⎡l ◁ₗ{β} ty1⎤ -∗ ∃ ty2, ⎡l ◁ₗ{β} ty2⎤ ∗ typed_place ge P l β ty2 T) ⊢ typed_place ge P l β ty1 T.
   Proof.
     iIntros "Hsub" (Φ) "Hl HΦ". iDestruct ("Hsub" with "Hl") as (ty2) "[Hl HP]". by iApply ("HP" with "Hl").
   Qed.
 
-  Lemma typed_place_subsume E P l ty1 ty2 β T :
-    subsume (⎡l ◁ₗ{β} ty1⎤) (λ _ : unit, ⎡l ◁ₗ{β} ty2⎤) (λ _, typed_place ge E P l β ty2 T) ⊢ typed_place ge E P l β ty1 T.
+  Lemma typed_place_subsume P l ty1 ty2 β T :
+    subsume (⎡l ◁ₗ{β} ty1⎤) (λ _ : unit, ⎡l ◁ₗ{β} ty2⎤) (λ _, typed_place ge P l β ty2 T) ⊢ typed_place ge P l β ty1 T.
   Proof.
     iIntros "Hsub". iApply typed_place_subsume'.
     iIntros "Hl". iExists _. iDestruct ("Hsub" with "Hl") as (_) "$".
@@ -885,7 +884,7 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
   | typed_un_op ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedUnOp x1 x2 x3 x4 x5)
 (*  | typed_call ?x1 ?x2 ?x3 ?x4 => constr:(TypedCall x1 x2 x3 x4)
   | typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedCopyAllocId x1 x2 x3 x4 x5) *)
-  | typed_place ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 => constr:(TypedPlace x1 x2 x3 x4 x5 x6) 
+  | typed_place ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedPlace x1 x2 x3 x4 x5) 
   | typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 => constr:(TypedReadEnd x1 x2 x3 x4 x5 x6)
   | typed_write_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8 => constr:(TypedWriteEnd x1 x2 x3 x4 x5 x6 x7 x8) 
   | typed_addr_of_end ?x1 ?x2 ?x3 => constr:(TypedAddrOfEnd x1 x2 x3)
@@ -1885,17 +1884,15 @@ Qed.
     iFrame. done.
   Qed.
 
-  Lemma type_read ge E f T T' e cty:
-    IntoPlaceCtx ge E f e T' →
+  Lemma type_read ge f T T' e cty:
+    IntoPlaceCtx ge f e T' →
     T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty_l1),
-      typed_place ge E K l β1 ty_l1 (λ l2 β2 ty_l2 typ R,
+      typed_place ge K l β1 ty_l1 (λ l2 β2 ty_l2 typ R,
           typed_read_end false ⊤ l2 β2 ty_l2 cty (λ v ty_l3 ty_v,
             ⎡l ◁ₗ{β1} typ ty_l3⎤ -∗ R ty_l3 -∗ T v ty_v))))
     ⊢ typed_read ge f false e cty T.
   Proof.
     iIntros (HT') "HT'". iIntros (Φ) "HΦ".
-    rewrite -(wp_expr_mask_mono _ E);last done.
-    
     rewrite /IntoPlaceCtx in HT'.
     iApply (HT' with "HT' ").
     iIntros (K l). iDestruct 1 as ([β ty]) "[Hl HP]".
@@ -2065,9 +2062,9 @@ Qed.
   Qed.
 *)
 
-  Lemma type_place_id ge E l ty β T:
+  Lemma type_place_id ge l ty β T:
     T l β ty id (λ _, True)
-    ⊢ typed_place ge E [] l β ty T.
+    ⊢ typed_place ge [] l β ty T.
   Proof.
     iIntros "HT" (Φ) "Hl HΦ". iApply ("HΦ" with "Hl [] HT"). by iIntros (ty') "$".
   Qed.

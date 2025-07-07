@@ -4,7 +4,7 @@ From lithium Require Import hooks normalize.
 From VST.lithium Require Export all.
 From VST.typing Require Export type.
 From VST.typing.automation Require Export proof_state (* solvers simplification loc_eq. *).
-From VST.typing Require Import programs (* function *) singleton array (* struct *) bytes own int.
+From VST.typing Require Import programs function singleton array (* struct *) bytes own int.
 Set Default Proof Using "Type".
 Set Nested Proofs Allowed.
 (** * Defining extensions *)
@@ -61,10 +61,9 @@ Ltac liExtensible_to_i2p_hook P bind cont ::=
   | typed_call ?v ?P ?vl ?tys ?T =>
       cont uconstr:(((_ : TypedCall _ _ _ _) _))
   | typed_copy_alloc_id ?v1 ?ty1 ?v2 ?ty2 ?ot ?T =>
-      cont uconstr:(((_ : TypedCopyAllocId _ _ _ _ _) _))
-  | typed_place ?P ?l1 ?β1 ?ty1 ?T =>
-      cont uconstr:(((_ : TypedPlace _ _ _ _) _))
-  *)    
+      cont uconstr:(((_ : TypedCopyAllocId _ _ _ _ _) _))  *)
+  | typed_place ?genv_t ?P ?l1 ?β1 ?ty1 ?T =>
+      cont uconstr:(((_ : TypedPlace _ _ _ _ _) _))
   | typed_if ?ot ?v ?P ?F ?T1 ?T2 =>
       cont uconstr:(((_ : TypedIf _ _ _ _) _ _))
   (*
@@ -74,7 +73,7 @@ Ltac liExtensible_to_i2p_hook P bind cont ::=
       cont uconstr:(((_ : TypedAssert _ _ _) _ _ _ _ _))
       *)
   | typed_read_end ?a ?E ?l ?β ?ty ?ly ?T =>
-      cont uconstr:(((_ : TypedReadEnd _ _ _ _ _ _ _) _))
+      cont uconstr:(((_ : TypedReadEnd _ _ _ _ _ _) _))
   | typed_write_end ?a ?E ?ot ?v1 ?ty1 ?l2 ?β2 ?ty2 ?T =>
       cont uconstr:(((_ : TypedWriteEnd _ _ _ _ _ _ _ _) _))
   | typed_addr_of_end ?l ?β ?ty ?T =>
@@ -101,7 +100,7 @@ Ltac liToSyntax_hook ::=
   (* change (typed_call ?x1 ?x2 ?x3 ?x4) with (li.bind2 (typed_call x1 x2 x3 x4)); *)
   (* change (typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind2 (typed_copy_alloc_id x1 x2 x3 x4 x5)); *)
   change (typed_place ?x1 ?x2 ?x3 ?x4 ?x5 ?x6) with (li.bind5 (typed_place x1 x2 x3 x4 x5 x6));
-  change (typed_read ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind2 (typed_read x1 x2 x3 x4 x5));
+  change (typed_read ?x1 ?x2 ?x3 ?x4) with (li.bind2 (typed_read x1 x2 x3 x4));
   change (typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6) with (li.bind3 (typed_read_end x1 x2 x3 x4 x5 x6));
   change (typed_write ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind0 (typed_write x1 x2 x3 x4 x5 x6 x7));
   change (typed_write_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8) with (li.bind1 (typed_write_end x1 x2 x3 x4 x5 x6 x7 x8));
@@ -144,10 +143,10 @@ Ltac liRIntroduceLetInGoal :=
       li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_val_expr OK_ty Σ tG cs ge f e H)))
     | @typed_write ?OK_ty ?Σ ?tG ?cs ?ge ?f ?b ?e ?ot ?v ?ty ?T =>
       li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_write OK_ty Σ tG cs ge f b e ot v ty H)))
-    (* | @typed_place ?Σ ?tG ?P ?l1 ?β1 ?ty1 ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_place Σ tG P l1 β1 ty1 H))) *)
-    | @typed_bin_op ?Σ ?tG ?cs ?ge ?v1 ?P1 ?v2 ?P2 ?op ?ot1 ?ot2 ?ot ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_bin_op Σ tG cs ge v1 P1 v2 P2 op ot1 ot2 ot H)))
+    | @typed_place ?OK_ty ?Σ ?tG ?cs ?ge ?P ?l1 ?β1 ?ty1 ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_place OK_ty Σ tG cs ge P l1 β1 ty1 H)))
+    | @typed_bin_op ?OK_ty ?Σ ?tG ?cs ?ge ?v1 ?P1 ?v2 ?P2 ?op ?ot1 ?ot2 ?ot ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_bin_op OK_ty Σ tG cs ge v1 P1 v2 P2 op ot1 ot2 ot H)))
     end
   end.
 
@@ -236,7 +235,7 @@ Ltac liRJudgement :=
     | |- envs_entails _ (typed_write _ _ _ _ _ _ _ _) => 
       notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _ _ _) _)
     | |- envs_entails _ (typed_read _ _ _ _ _ _) =>
-      notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _ _) _); [ solve [refine _ ] |]
+      notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _) _); [ solve [refine _ ] |]
     | |- envs_entails _ (typed_addr_of _ _ _ _) =>
       fail "liRJudgement: type_addr_of not implemented yet"
       (* notypeclasses refine (tac_fast_apply (type_addr_of_place _ _ _ _) _); [solve [refine _] |] *)
@@ -494,66 +493,36 @@ Local Open Scope clight_scope.
     liRStep; liShow.
     
     (* liRStep; liShow. *)
-    liRStep; liShow.
-
-    liEnsureInvariant; rewrite /find_in_context /=; liShow.
-    iExists _. 
-    iFrame.
-    lazymatch goal with
-  | |- envs_entails _ (find_in_context ?fic ?T) =>
-    let key := open_constr:(_) in
-    (* We exploit that [typeclasses eauto] is multi-success to enable
-    multiple implementations of [FindInContext]. They are tried in the
-    order of their priorities.
-    See https://coq.zulipchat.com/#narrow/stream/237977-Coq-users/topic/Multi-success.20TC.20resolution.20from.20ltac.3F/near/242759123 *)
-    once (simple notypeclasses refine (tac_find_in_context key _ _)
-    ;
-      [ shelve |
-       typeclasses eauto
-        |
-          simpl; repeat liExist false;
-          idtac key
-          (* ; liFindHypOrTrue key *)
-          ]
-      )
-  end.
-  (* liFindHypOrTrue FICSyntactic. *)
-    (* liFindInContext. *)
-      (* FIXME this (and also iFrame) times out; maybe iFrame is trying to unify some
-         implicit arguments for temp first, which it shouldn't? *)
-      progress liFindHyp FICSyntactic.
-
     liRStep.
-    liRStep.
+
+    (* liRStep. liRStep. *)
     iExists _; rewrite /IPM_JANNO.
     iSelect (temp _i _) (fun x => iFrame x).
-    liShow.
-    Info 1 liRStep.
-    do 1 liRStep; liShow.
-
-    Set Ltac Backtrace.
-    liEnsureInvariant. Info 2 liExist. Info 1 liStep. liSimpl
-
 
     Info 1 liRStep.
     liRStep.
-    iExists _.
+    liRStep.
+    iExists _; rewrite /IPM_JANNO.
     iSelect (temp _ar _) (fun x => iFrame x).
     liRStep.
-    
     iExists _; rewrite /IPM_JANNO.
-
-    
-
     liRStep.
-    simpl.
-   notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _ _) _).
+    liRStep.
+    liRStep.
+    liRStep.
+    
+    do 3 liRStep.
 
-  1: { refine (find_place_ctx_correct _ _ _ _ _ _); rewrite//=. }
-   simpl.
-    epose (tac_fast_apply (type_read _ _ _ _ _ _ _ _) _).
-    apply e0.
-    (* FIXME *)
+    iExists (li_pair _ tt); simpl. 
+    liRStep.
+    liRStep.
+    liRStep.
+    liRStep.
+    liRStep.
+    liRStep.
+    liRStep.
+    liRStep.
+
   Abort.
 
 End automation_tests.
