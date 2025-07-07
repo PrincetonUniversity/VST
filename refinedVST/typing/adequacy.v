@@ -90,11 +90,11 @@ Lemma refinedc_adequacy: forall `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK
   (EXIT: forall `{!VSTGS OK_ty Σ} v ty, ⊢ (T v ty O -∗ ∀ m z, state_interp m z -∗ ⌜∃ i, ext_spec_exit Espec (Some (Vint i)) z m⌝)),
   (∀ `{HH : invGS_gen HasNoLc Σ}, ⊢ |={⊤}=> ∃ _ : gen_heapGS share address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : envGS Σ, ∃ _ : externalGS OK_ty Σ,
     let H : VSTGS OK_ty Σ := Build_VSTGS _ _ (HeapGS _ _ _ _) _ _ in
-    stack_level 0 ∗ ⎡state_interp m z⎤ ∗ ⌜typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f))⌝ ∧ ⎡env_auth (init_stack (programs.ge ge) ve te)⎤ ∗
+    stack_level 0 ∗ ⎡state_interp m z⎤ ∗ ⌜typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f))⌝ ∧ ⎡env_auth (init_stack (Build_genv ge cenv_cs) ve te)⎤ ∗
     typed_stmt Espec ge s f T) →
        (forall n,
-        @dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem (programs.ge ge)) dryspec
-            (programs.ge ge) n z (Clight_core.State f s Kstop ve te) m).
+        @dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem (Build_genv ge cenv_cs)) dryspec
+            (Build_genv ge cenv_cs) n z (Clight_core.State f s Kstop ve te) m).
 Proof.
   intros; apply wp_adequacy with (R := λ _ : VSTGS OK_ty Σ, λ v,
     (<affine> ⌜v = None⌝ ∗ T _ v tytrue) ∨ (let v := force_val v in 

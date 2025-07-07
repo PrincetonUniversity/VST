@@ -389,11 +389,12 @@ Section inline_function.
   Definition inline_function_ptr (fn : function) : rtype _ :=
     RType (inline_function_ptr_type fn).
 
-  Global Program Instance copyable_inline_function_ptr p fn : Copyable (p @ inline_function_ptr fn).
+  Global Program Instance copyable_inline_function_ptr p fn : Copyable (tptr tvoid) (p @ inline_function_ptr fn).
   Next Obligation.
-    iIntros (p fn E l ?). iDestruct 1 as "(%&Hl&?)".
-    iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //.
-    iExists (tptr tvoid); iFrame. iModIntro. do 2 iSplit => //. by iIntros "_".
+    iIntros (p fn E l ?). iDestruct 1 as "(%&Hl&%)".
+    iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[% [% Hl]]" => //.
+    iFrame. iModIntro. do 3 iSplit => //.
+    iIntros "Hl"; iMod (heap_mapsto_own_state_from_mt with "Hl") as "$"; auto.
   Qed.
 
 
