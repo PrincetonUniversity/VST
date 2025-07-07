@@ -1,7 +1,7 @@
 From lithium Require Export base.
 From VST.lithium Require Import definitions.
 From lithium Require Import hooks.
-
+From iris.bi Require Import monpred.
 Import environments.
 
 Module li.
@@ -19,6 +19,9 @@ Section lithium.
     bi_forall.
   Definition exist {A} : (A → PROP) → PROP :=
     bi_exist.
+
+  Definition monPred_exist {A} {I} : (A → monPred I PROP) → monPred I PROP :=
+    @monPred_exist I PROP A.
 
   Definition done : PROP := emp.
   Definition false : PROP := False.
@@ -92,6 +95,9 @@ Notation "∀ x .. y , P" := (li.all (λ x, .. (li.all (λ y, P)) ..))
 Notation "∃ x .. y , P" := (li.exist (λ x, .. (li.exist (λ y, P)) ..))
     (in custom lithium at level 100, x binder, y binder, P at level 100, right associativity,
         format "'[' ∃  x  ..  y , ']'  '/' P") : lithium_scope.
+Notation "∃monPred x .. y , P" := (li.monPred_exist (λ x, .. (li.monPred_exist (λ y, P)) ..))
+    (in custom lithium at level 100, x binder, y binder, P at level 100, right associativity,
+        format "'[' ∃monPred  x  ..  y , ']'  '/' P") : lithium_scope.
 
 Notation "'done'" := (li.done) (in custom lithium at level 0) : lithium_scope.
 Notation "'false'" := (li.false) (in custom lithium at level 0) : lithium_scope.
@@ -191,9 +197,12 @@ Notation "P ':-' Q" := (Q ⊢ P)
 Notation "'pattern:' x .. y , P ; G" :=
   (li.exist (λ x, .. (li.exist (λ y, li.bind0 (li.exhale P) G)) .. ))
     (in custom lithium at level 100, x binder, y binder, P constr, G at level 100, only parsing) : lithium_scope.
+Notation "'patternMonPred:' x .. y , P ; G" :=
+  (li.monPred_exist (λ x, .. (li.monPred_exist (λ y, li.bind0 (li.exhale P) G)) .. ))
+    (in custom lithium at level 100, x binder, y binder, P constr, G at level 100, only parsing) : lithium_scope.
 
 Declare Reduction liFromSyntax_eval :=
-  cbv [ li.exhale li.inhale li.all li.exist li.done li.false li.and li.and_map
+  cbv [ li.exhale li.inhale li.all li.exist li.monPred_exist li.monPred_exist li.done li.false li.and li.and_map
         li.find_in_context li.case_if li.case_destruct li.drop_spatial li.tactic
         li.accu li.trace li.subsume li.ret li.iterate
         li.bind0 li.bind1 li.bind2 li.bind3 li.bind4 li.bind5 ].
@@ -233,6 +242,7 @@ Ltac liToSyntax :=
   change (bi_wand ?a) with (li.bind0 (li.inhale (liToSyntax_UNFOLD_MARKER a)));
   change (@bi_forall ?PROP ?A) with (@li.all PROP A);
   change (@bi_exist ?PROP ?A) with (@li.exist PROP A);
+  change (@monPred_exist ?I ?PROP ?A) with (@li.monPred_exist PROP A I);
   change (@bi_pure ?PROP True) with (@li.done PROP);
   change (@bi_pure ?PROP False) with (@li.false PROP);
   repeat (progress change (big_opM bi_and ?f ?m) with (li.bind2 (li.and_map m) f));
