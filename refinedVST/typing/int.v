@@ -223,17 +223,16 @@ Section int.
   Next Obligation.
     iIntros (?????) "(%v&%Hv&%&%Hl&Hl)".
     simpl in *; subst.
-    iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //.
+    iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[% [% Hl]]" => //.
     iSplitR => //. iExists q, (valinject it v). iFrame. iModIntro.
     destruct Hv.
     apply val_to_Z_by_value in H0 as ?.
     rewrite /ty_own_val /= repinject_valinject //.
-    assert (readable_share q) by admit.
     repeat iSplit => //.
     iIntros "↦".
     iMod (inv_alloc with "↦"). done.
     Unshelve. constructor.
-  Admitted.
+  Qed.
 
   (* Global Instance int_timeless l z it:
     Timeless (l ◁ₗ z @ int it)%I.

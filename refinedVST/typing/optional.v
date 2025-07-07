@@ -503,7 +503,7 @@ Section optionalO.
   Definition read_optionalO_case_inst := [instance read_optionalO_case].
   Global Existing Instance read_optionalO_case_inst | 1001.
 *)
-  Global Program Instance optionalO_copyable A cty (ty : A → type) optty x `{!∀ x, Copyable (ty x)} `{!Copyable optty} : Copyable (x @ optionalO cty ty optty).
+  (* Global Program Instance optionalO_copyable A cty (ty : A → type) optty x `{!∀ x, Copyable cty (ty x)} `{!Copyable cty optty} : Copyable cty (x @ optionalO cty ty optty).
   Next Obligation. Admitted.
   Next Obligation.
     iIntros (A ? ty optty x ? ? E l ?). unfold optionalO; simpl_type. destruct x.
@@ -511,7 +511,7 @@ Section optionalO.
     all: iMod (copy_shr_acc with "Hl") as (? Hl ? ?) "[?[??]]" => //; try apply: Hty.
     all: iModIntro; iExists _; iSplit => //=.
     all: iExists _, _; iFrame.
-  Qed.
+  Qed. *)
 End optionalO.
 Global Typeclasses Opaque optionalO_type optionalO.
 Notation "optionalO< ty , optty >" := (optionalO ty optty)

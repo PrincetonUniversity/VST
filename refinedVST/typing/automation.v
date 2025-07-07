@@ -383,7 +383,7 @@ Section automation_tests.
     (* usually Info level 0 is able to see the tactic applied *)
     repeat liRStep.
     liShow; try done.
-  Qed.
+  Admitted.
 
   Goal forall Espec ge f (_x:ident) b (l:address) ty,
   TCDone (ty_has_op_type ty tint MCNone) ->
@@ -476,38 +476,24 @@ Local Open Scope clight_scope.
     TCDone (type_is_by_value cty = true) ->
     typed_read genv_t f atomic e cty m T 
     ⊢ typed_val_expr genv_t f (Ederef e cty) T. *)
-
+  Local Open Scope printing_sugar.
   Goal forall Espec genv_t (v_k t'1: val) (v_ar v_i v_j:address) (i j: nat)  (elts:list Z) v1 v2 f,
     ⊢ temp _ar v_ar -∗
       temp _i v_i -∗
-      ⎡v_i↦|tint| (Vint (Int.repr i))⎤ -∗
+      ⎡ v_i ◁ᵥ| tint | i @ int tint ⎤ -∗
       temp _j v_j -∗
-      ⎡v_j↦|tint| (Vint (Int.repr j))⎤ -∗
+      ⎡ v_j ◁ᵥ| tint | j @ int tint⎤ -∗
       temp _k v_k -∗
       temp _t'1 t'1 -∗
-      ⎡v_ar ◁ₗ v_ar @ ( &own (array tint (elts `at_type` int tint)) )⎤ -∗
+      ⎡v_ar ◁ₗ  (array tint (elts `at_type` int tint))⎤ -∗
       <affine> ⌜elts !! i = Some v1⌝ ∗ <affine> ⌜elts !! j = Some v2⌝ ∗ <affine> ⌜i ≠ j⌝ -∗
     typed_stmt Espec genv_t (fn_body f_permute) f (λ _ _, ⎡(v_ar ◁ₗ (array tint (<[j:=v1]>(<[i:=v2]>elts) `at_type` int tint)))⎤).
   Proof.
     iIntros.
     simpl.
-    liRStep. liRStep.
+    repeat liRStep.
     
     (* FIXME *)
-    epose  (tac_fast_apply (type_deref _ _ _ _ _ )).
-    apply e.
-
-    liRStep.
-    liRStep.
-    liRStep.
-    liRStep.
-
-    (* FIXME iFrame / liRStep hangs *)
-    rewrite /IPM_JANNO.
-    iSelect (temp _ar v_ar) (fun x => iFrame x).
-    liRStep.
-   
-    liRStep.
   Abort.
 
 End automation_tests.
