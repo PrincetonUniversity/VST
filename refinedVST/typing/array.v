@@ -604,15 +604,17 @@ Section array.
   (* Definition subsume_array_inst := [instance subsume_array].
   Global Existing Instance subsume_array_inst. *)
 
-  Lemma type_place_array ge E l β v tyv tys cty2 ofs_cty K T:
-    (⎡v ◁ᵥₐₗ|ofs_cty| tyv⎤ -∗ ∃ i, <affine> ⌜tint = cty2⌝ ∗ ⎡v ◁ᵥₐₗ|ofs_cty| i @ int ofs_cty⎤ ∗ <affine> ⌜0 ≤ i⌝ ∗ <affine> ⌜i < length tys⌝ ∗
-     ∀ ty, ⌜tys !! Z.to_nat i = Some ty⌝ -∗
-      typed_place ge E K (l arr_ofs{tint}ₗ i) β ty (λ l2 β2 ty2 typ,
+  Lemma type_place_array ge l β v tyv tys cty1 cty2 ofs_cty K T:
+    <affine> ⌜cty1 = tint⌝ ∗
+    (⎡v ◁ᵥₐₗ|ofs_cty| tyv⎤ -∗ 
+      ∃ i, <affine> ⌜cty1 = cty2⌝ ∗ ⎡v ◁ᵥₐₗ|ofs_cty| i @ int ofs_cty⎤ ∗
+      <affine> ⌜0 ≤ i⌝ ∗ <affine> ⌜i < length tys⌝ ∗
+     ∀ ty, <affine> ⌜tys !! Z.to_nat i = Some ty⌝ -∗
+      typed_place ge K (l arr_ofs{cty2}ₗ i) β ty (λ l2 β2 ty2 typ,
        T l2 β2 ty2 (λ t, array cty2 (<[Z.to_nat i := typ t]>tys))))
-    ⊢ typed_place ge E (BinOpPCtx1 Oadd (tptr tint) ofs_cty (tptr tint) v tyv :: K) l β (array tint tys) T.
+    ⊢ typed_place ge (BinOpPCtx1 Oadd (tptr cty1) ofs_cty (tptr cty1) v tyv :: K) l β (array cty2 tys) T.
   Proof.
-    intros.
-    iIntros "HT" (Φ) "(%&Hl) HΦ Hv" => /=.
+    iIntros "[-> HT]" (Φ) "(%&Hl) HΦ Hv" => /=.
     iDestruct ("HT" with "Hv") as (i <-) "HP". unfold int; simpl_type.
     iDestruct ("HP") as (Hv) "HP".
     destruct Hv as (? & ? & ?).
