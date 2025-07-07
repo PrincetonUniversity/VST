@@ -116,9 +116,12 @@ Section generic_boolean.
     iSplitR; first done. iExists q, (valinject it v); iFrame.
     iIntros "!>".
     rewrite /ty_own_val /= repinject_valinject.
-    - admit.
+    - iDestruct "Hl" as "(% & $)"; iSplit; first done; iSplit; first eauto.
+      rewrite /ty_own /=.
+      iIntros "Hl"; iMod (heap_mapsto_own_state_from_mt with "Hl") as "$"; [done..|].
+      auto.
     - by eapply val_to_Z_by_value.
-  Admitted.
+  Qed.
 
 (*  Global Instance alloc_alive_generic_boolean b stn it β: AllocAlive (b @ generic_boolean stn it) β True.
   Proof.

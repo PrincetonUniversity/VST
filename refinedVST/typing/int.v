@@ -122,9 +122,9 @@ Section int.
   later. We cannot call it int_type since that already exists.  *)
   Program Definition int_inner_type (it : Ctypes.type) (n : Z) : type := {|
     ty_has_op_type ot mt := (*is_bool_ot ot it stn*) ot = it;
-    ty_own β l := ∃ v, <affine> ⌜(valinject it v) `has_layout_val` it⌝ ∗
-                       <affine> ⌜val_to_Z v it = Some n⌝ ∗
-                       <affine> ⌜l `has_layout_loc` it⌝ ∗
+    ty_own β l := ∃ v, ⌜(valinject it v) `has_layout_val` it⌝ ∧
+                       ⌜val_to_Z v it = Some n⌝ ∧
+                       ⌜l `has_layout_loc` it⌝ ∧
                        l ↦[β]|it| (valinject it v);
     ty_own_val cty v := <affine> ⌜cty = it⌝ ∗
                         <affine> ⌜v `has_layout_val` cty⌝ ∗
@@ -235,10 +235,9 @@ Section int.
     iFrame. done.
   Qed.
 
-  (* NOTE looks like this is not provable *)
-  (* Global Instance int_timeless l z it:
+   Global Instance int_timeless l z it:
     Timeless (l ◁ₗ z @ int it)%I.
-  Proof. Admitted. *)
+  Proof. apply _. Qed.
 End int.
 
 Global Hint Resolve val_to_Z_not_Vundef : core.
