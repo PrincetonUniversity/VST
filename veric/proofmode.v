@@ -5,6 +5,7 @@ From compcert.common Require Import Values.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.veric Require Import mpred seplog juicy_base Clight_base Clight_core mapsto_memory_block env tycontext lifting_expr lifting.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
+From VST.floyd Require Import functional_base.
 
 Ltac reshape_seq :=
   lazymatch goal with
@@ -84,7 +85,18 @@ Definition ob_check `{!VSTGS OK_ty Σ} (R : Prop) (P Q : assert) := <affine> ⌜
 (* Not sure we need this.
 Definition ob_check_ex `{!VSTGS OK_ty Σ} {A} R P (Q : assert) := (▷ ∃ x : A, <absorb> P x ∧ ⌜R x⌝) ∧ Q.*)
 
-Ltac ob_check_tac := rewrite /= ?Ptrofs.repr_unsigned;
+#[export] Hint Rewrite Ptrofs.repr_signed : ints.
+#[export] Hint Rewrite Ptrofs.repr_unsigned : ints.
+#[export] Hint Rewrite Int.repr_signed : ints.
+#[export] Hint Rewrite Int.repr_unsigned : ints.
+#[export] Hint Rewrite Ptrofs.signed_repr using rep_lia : ints.
+#[export] Hint Rewrite Ptrofs.unsigned_repr using rep_lia : ints.
+#[export] Hint Rewrite Int.signed_repr using rep_lia : ints.
+#[export] Hint Rewrite Int.unsigned_repr using rep_lia : ints.
+
+Ltac simplify_ofs := rewrite /= ?Ptrofs.repr_unsigned.
+
+Ltac ob_check_tac := simplify_ofs;
   lazymatch goal with
 (*  | |- envs_entails ?Δ (ob_check_ex(A := ?A) _ ?P _) =>
       iSplit; [iNext; let x := fresh "x" in evar (x : A); let i := fresh "i" in evar (i : ident.ident);
@@ -107,7 +119,7 @@ Definition ob_replace `{!VSTGS OK_ty Σ} R (P P' Q : assert) := <affine> ⌜R⌝
 
 (*Definition ob_replace_ex `{!VSTGS OK_ty Σ} {A} P R P' (Q : assert) := ▷ (∃ x : A, P x ∗ <affine> ⌜R x⌝ ∗ (P' x -∗ Q)).*)
 
-Ltac ob_replace_tac := rewrite /= ?Ptrofs.repr_unsigned;
+Ltac ob_replace_tac := simplify_ofs;
   lazymatch goal with
 (*  | |- envs_entails ?Δ (ob_replace_ex(A := ?A) ?P _ _ _) =>
       iNext; let x := fresh "x" in evar (x : A); let i := fresh "i" in evar (i : ident.ident);
@@ -216,10 +228,7 @@ Tactic Notation "wp_binop" := iApply wp_binop_rule.
 Tactic Notation "wp_unop" := iApply wp_unop_rule.
 
 Ltac wp_finish0 :=
-  try wp_value_head;  (* in case we have reached a value, get rid of the WP *)
-  repeat ob_cond_tac;
-  try ob_check_tac;
-  try ob_replace_tac;
+  repeat (wp_value_head || ob_cond_tac || ob_check_tac || ob_replace_tac);
   pm_prettify.        (* prettify ▷s caused by [MaybeIntoLaterNEnvs] and
                          λs caused by wp_value *)
 

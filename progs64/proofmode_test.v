@@ -229,7 +229,7 @@ Proof.
   wp_deref. wp_field.
   wp_deref; wp_temp.
   wp_set; wp_binop; wp_temp.
-  rewrite coqlib3.sub_repr !reptype_lemmas.ptrofs_add_repr_0_r.
+  rewrite coqlib3.sub_repr.
   wp_if; wp_binop; wp_temp.
   iNext; iSplit; first done.
   simpl.
@@ -255,3 +255,96 @@ Proof.
 Qed.
 
 End test.
+
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.field_compat.
+Require Import VST.progs64.permute.
+
+Section permute.
+
+Context `{VSTGS OK_ty Σ}.
+
+#[local] Instance permute_CompSpecs : compspecs. make_compspecs prog. Defined.
+
+Lemma Zlength_insert : forall {A} i (v : A) l, Zlength (<[i:=v]>l) = Zlength l.
+Proof.
+  intros; rewrite !Zlength_correct length_insert //.
+Qed.
+
+Lemma data_at_array_lookup : forall sh (elts : list val) p (i : nat) v
+  (Hi : elts !! i = Some v) (Hsigned : repable_signed i),
+  let pi := offset_val (Ptrofs.unsigned (Ptrofs.repr 4) * Ptrofs.unsigned (Ptrofs.of_ints (Int.repr i))) p in
+  data_at sh (tarray tint (Zlength elts)) elts p ⊢ mapsto sh tint pi v ∗
+    (∀ v', mapsto sh tint pi v' -∗ data_at sh (tarray tint (Zlength elts)) (<[i:=v']> elts) p).
+Proof.
+  intros.
+  iIntros "H"; iDestruct (data_at_local_facts with "H") as %(Hcompat & _).
+  exploit @lookup_lt_is_Some_1; eauto; intros.
+  assert (i < Zlength elts) by (rewrite Zlength_correct; lia).
+  unfold tarray at 1; erewrite (split3_data_at_Tarray _ _ _ i (i + 1)); [|try done; try lia..]; last (by symmetry; apply sublist_same).
+  rewrite Z.add_simpl_l sublist_len_1.
+  rewrite -nth_Znth'; erewrite nth_lookup_Some by done.
+  iDestruct "H" as "(A & H & B)".
+  iPoseProof (data_at_singleton_array_inv with "H") as "H"; first done.
+  iDestruct (data_at_local_facts with "H") as %(? & _).
+  erewrite <- (mapsto_data_at' _ tint v); [|try done..]; last apply jmeq_lemmas.JMeq_refl.
+  assert (field_address0 (Tarray tint (Zlength elts) noattr) (SUB Z.of_nat i) p = pi) as Hpi.
+  { rewrite /field_address0 if_true /pi /nested_field_offset /=; f_equal.
+    rewrite /Ptrofs.of_ints Int.signed_repr // !Ptrofs.unsigned_repr //; rep_lia.
+    { rewrite field_compatible0_cons /=; split; auto; lia. } }
+  rewrite Hpi; iFrame "H".
+  iIntros (?) "H".
+  pose proof (Zlength_insert i v' elts) as Hlen.
+  unfold tarray; erewrite (split3_data_at_Tarray _ _ (Zlength elts) i (i + 1)); [|try done; try lia..]; last (symmetry; apply sublist_same; try done).
+  rewrite !sublist_firstn Nat2Z.id take_insert //; iFrame "A".
+  rewrite sublist_skip; last lia.
+  rewrite -Hlen sublist_skip; last lia.
+  rewrite Hlen drop_insert_gt; last lia.
+  iFrame "B".
+  rewrite Hpi in H2 |- *.
+  erewrite mapsto_data_at'; [|try done..]; last apply jmeq_lemmas.JMeq_refl.
+  rewrite Z.add_simpl_l sublist_len_1; last by rewrite Hlen; lia.
+  iApply data_at_singleton_array; first done.
+  rewrite -nth_Znth'; erewrite nth_lookup_Some; try done.
+  by apply list_lookup_insert.
+  * rewrite Hlen; lia.
+  * intuition lia.
+  * split; try lia. apply Z.le_refl.
+Qed.
+
+Theorem permute_spec Espec ge : forall ar (elts : list val) (i j : nat) vi vj
+  (Hi : elts !! i = Some (Vint vi)) (Hj : elts !! j = Some (Vint vj)) (Hij : i ≠ j),
+  ⊢ fun_triple Espec (Build_genv ge cenv_cs)
+  (λ args, <affine> ⌜args = [ar; Vint (Int.repr i); Vint (Int.repr j)] ∧ repable_signed i ∧ repable_signed j⌝
+    ∗ ⎡data_at Ews (tarray tint (Zlength elts)) elts ar⎤)
+  f_permute (λ _, ⎡data_at Ews (tarray tint (Zlength elts)) (<[j:=Vint vi]>(<[i:=Vint vj]> elts)) ar⎤).
+Proof.
+  intros.
+  iIntros "!>" (? _) "((-> & % & %) & Helts) Hret S"; rewrite /stackframe_of' /=.
+  set (cenv := _ : composite_env).
+  iDestruct "S" as "(_ & Har & Hi & Hj & Hk & _)".
+   iDestruct (data_at_local_facts with "Helts") as %(Har & _); destruct ar; try (destruct Har; contradiction).
+  (* extract element i *)
+  iDestruct (data_at_array_lookup _ _ _ i with "Helts") as "(Hvi & Helts)"; [done..|].
+  wp_set. wp_deref. wp_binop. wp_temp. wp_temp.
+  iPoseProof ("Helts" with "Hvi") as "Helts".
+  rewrite list_insert_id //.
+  iDestruct (data_at_array_lookup _ _ _ j with "Helts") as "(Hvj & Helts)"; [done..|].
+  wp_store. wp_deref. wp_binop. wp_temp. wp_temp.
+  iPoseProof ("Helts" with "Hvj") as "Helts".
+  rewrite list_insert_id //.
+  iDestruct (data_at_array_lookup _ _ _ i with "Helts") as "(Hvi & Helts)"; [done..|].
+  wp_deref. wp_binop. wp_temp. wp_temp.
+  iPoseProof ("Helts" with "Hvi") as "Helts".
+  rewrite -{1}(Zlength_insert i (Vint vj)).
+  iDestruct (data_at_array_lookup _ _ _ j with "Helts") as "(Hvj & Helts)"; [try done..|].
+  { rewrite list_lookup_insert_ne //. }
+  wp_store. wp_temp. wp_deref. wp_binop. wp_temp. wp_temp.
+  iPoseProof ("Helts" with "Hvj") as "Helts".
+  iSplitL "Helts"; last by iFrame; iExists [_; _; _; _]; simpl; iFrame.
+  rewrite /= /bind_ret /=.
+  iSplit; first done.
+  rewrite Zlength_insert //.
+Qed.
+
+End permute.
