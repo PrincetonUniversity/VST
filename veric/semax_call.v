@@ -288,15 +288,6 @@ induction bodyparams; simpl; intros; destruct args; inv BP; simpl; auto.
   rewrite (pass_params_ni _ _ _ _ _ H0 H2) Maps.PTree.gss //.
 Qed.*)
 
-(* up to extend_tc? *)
-Definition globals_auth ge := own(inG0 := envGS_inG) env_name (lib.gmap_view.gmap_view_auth dfrac.DfracDiscarded (to_agree <$> ge), ε).
-
-Lemma curr_env_ge : forall ge f rho, curr_env ge f rho ⊢ curr_env ge f rho ∗
-   <affine> ⌜∀ i : ident, Map.get (ge_of rho) i = Genv.find_symbol ge i⌝ ∗ ⎡globals_auth (make_env (Genv.genv_symb ge))⎤.
-Proof.
-  intros; iIntros "((% & %) & #$ & $)"; auto.
-Qed.
-
 Lemma var_blocks_eq : forall {CS} (ge : genv) lv rho
   (Hcomplete : Forall (λ it : ident * type, complete_type (@cenv_cs CS) it.2 = true) lv)
   (Hsub : cenv_sub (@cenv_cs CS) ge)

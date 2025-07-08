@@ -617,6 +617,9 @@ Proof.
   - apply ucmra_unit_core_id.
 Qed.
 
+Global Instance gvar_affine id b : Affine (gvar id b).
+Proof. apply _. Qed.
+
 Lemma gvar_agree : forall i b1 b2, ⊢ gvar i b1 -∗ gvar i b2 -∗ ⌜b1 = b2⌝.
 Proof.
   intros; iIntros "H1 H2".

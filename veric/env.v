@@ -20,12 +20,22 @@ Definition env_auth (rho : env_state) := own(inG0 := envGS_inG) env_name
     let q := Qp.inv (pos_to_Qp (Pos.of_nat (1 + size ve + size te))) in
     (to_agree q, (1%Qp, (Excl <$> ve : gmap _ (excl _), Excl <$> te : gmap _ (excl _))))) <$> snd rho)).
 
-Global Instance genv_persistent g : Persistent (own(inG0 := envGS_inG) env_name
-      (lib.gmap_view.gmap_view_auth dfrac.DfracDiscarded g, ε)).
+Definition globals_auth ge := own(inG0 := envGS_inG) env_name
+  (lib.gmap_view.gmap_view_auth dfrac.DfracDiscarded (to_agree <$> ge), ε).
+
+Global Instance genv_persistent g : Persistent (globals_auth g).
 Proof.
   apply own_core_persistent, @ora.pair_core_id.
   - apply view_auth_core_id.
   - apply ucmra_unit_core_id.
+Qed.
+
+Lemma env_auth_globals : forall rho, env_auth rho ⊢ globals_auth (fst rho) ∗ env_auth rho.
+Proof.
+  intros.
+  rewrite /env_auth.
+  rewrite pair_split own_op.
+  iIntros "(#$ & ?)"; iFrame.
 Qed.
 
 Definition gmap_to_fun `{Countable A} {B} (g : gmap A B) := fun i => (g !! i)%stdpp.
@@ -97,12 +107,18 @@ Proof.
   apply (map_fmap_equiv_inj Excl), leibniz_equiv in Ht as ->; last apply Excl_inj; done.
 Qed.
 
-Lemma gvar_e : forall `{!heapGS Σ} id v rho, gvar id v ∗ env_auth rho ⊢ ⌜rho.1 !! id = Some v⌝.
+Lemma globals_gvar_e : forall `{!heapGS Σ} id v ge, gvar id v ∗ globals_auth ge ⊢ ⌜ge !! id = Some v⌝.
 Proof.
-  intros; rewrite /gvar /env_auth.
+  intros; rewrite /gvar /globals_auth.
   iIntros "(H1 & H2)"; iDestruct (own_valid_2 with "H2 H1") as %((? & _ & _ & Hid & _ & Hincl)%gmap_view.gmap_view_both_dfrac_valid_discrete_total & _).
   rewrite lookup_fmap in Hid; destruct (lookup _ _); inv Hid.
   apply to_agree_included_L in Hincl as ->; done.
+Qed.
+
+Lemma gvar_e : forall `{!heapGS Σ} id v rho, gvar id v ∗ env_auth rho ⊢ ⌜rho.1 !! id = Some v⌝.
+Proof.
+  intros; rewrite env_auth_globals.
+  iIntros "(H1 & H2 & _)"; iApply globals_gvar_e; iFrame.
 Qed.
 
 Lemma temp_e : forall id v rho n, temp id v n ∗ env_auth rho ⊢ ⌜te_of (env_to_environ rho n) !! id = Some v⌝.
