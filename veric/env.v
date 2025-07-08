@@ -292,3 +292,6 @@ End env.
 Global Instance: Params (@gvar) 3 := {}.
 Global Instance: Params (@lvar) 2 := {}.
 Global Instance: Params (@temp) 2 := {}.
+Global Opaque gvar.
+Global Opaque lvar.
+Global Opaque temp.

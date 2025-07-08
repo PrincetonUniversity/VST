@@ -489,23 +489,21 @@ Local Open Scope clight_scope.
     iIntros.
     simpl.
 
-    do 5 liRStep.
-    iExists _; rewrite /IPM_JANNO.
-    iSelect (temp _i _) (fun x => iFrame x).
+    do 6 liRStep.
 
     liRStep.
     liRStep.
     liRStep.
+    (* possibly this should be through FindInContext *)
     iExists _; rewrite /IPM_JANNO.
-    iSelect (temp _ar _) (fun x => iFrame x).
+    iFrame.
     do 10 liRStep.
 
-    iExists (li_pair _ tt); simpl. 
+    iExists (li_pair _ tt); simpl.
     do 24 liRStep; rewrite /IPM_JANNO.
-    iSelect (temp _k _) (fun x => iFrame x).
+    iFrame.
  
-    do 9 liRStep.
-
+    do 13 liRStep.
   Abort.
 
 End automation_tests.
