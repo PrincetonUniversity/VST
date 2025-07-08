@@ -20,9 +20,6 @@ Class OptionableAgree `{!typeG OK_ty Σ} {cs : compspecs} (ty1 ty2 : type) : Pro
 
 Section optional.
   Context `{!typeG OK_ty Σ} {cs : compspecs} (ge : genv).
-  Check opt_pre .
-  
-  Check Optionable.
 
   Global Program Instance optionable_ty_of_rty A (r : rtype A) `{!Inhabited A} optty ot1 ot2
     `{!∀ x, Optionable cty (x @ r) optty ot1 ot2}: Optionable cty r optty ot1 ot2 := {|
@@ -43,8 +40,6 @@ Section optional.
   Proof. done. Qed.
   Global Instance optionable_agree_id ty : OptionableAgree ty ty.
   Proof. done. Qed.
-
-  Check tptr.
   
   (* Separate definition such that we can make it typeclasses opaque later. *)
   Program Definition optional_type  (ty : type) (optty : type) (b : Prop) : type := {|
@@ -114,8 +109,6 @@ Section optional.
     iSplit => //. iApply (@simple_subsume_place with "HP Hl").
   Qed.
 
-  Check SimpleSubsumeVal.
-
   Global Instance simple_subsume_val_optional ty1 ty2 optty b1 b2
        `{!Affine P} `{!SimpleSubsumeVal cty ty1 ty2 P}:
     SimpleSubsumeVal cty (b1 @ optional ty1 optty) (b2 @ optional ty2 optty) (<affine> ⌜b1 ↔ b2⌝ ∗ P).
@@ -164,8 +157,6 @@ Section optional.
   Inductive trace_optional :=
   | TraceOptionalEq (P : Prop)
   | TraceOptionalNe (P : Prop).
-
-  Check opt_pre.
   
   Lemma type_eq_optional_refined v1 v2 (cty : Ctypes.type) (ty optty : type) (ot1 ot2 : Ctypes.type)
     `{!Optionable cty ty optty ot1 ot2}

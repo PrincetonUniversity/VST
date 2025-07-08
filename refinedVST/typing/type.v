@@ -1,4 +1,4 @@
-From lithium Require Import simpl_classes.
+From VST.lithium Require Import simpl_classes.
 From VST.typing Require Export base annotations.
 From VST.floyd Require Export reptype_lemmas field_at data_at_rec_lemmas.
 Set Default Proof Using "Type".

@@ -481,47 +481,30 @@ Local Open Scope clight_scope.
       temp _k v_k -∗
       temp _t'1 t'1 -∗
       ⎡v_ar ◁ₗ  (array tint (elts `at_type` int tint))⎤ -∗
-      <affine> ⌜elts !! i = Some v1⌝ ∗ <affine> ⌜elts !! j = Some v2⌝ ∗ <affine> ⌜i ≠ j⌝ -∗
+      <affine> ⌜elts !! i = Some v1⌝ -∗
+      <affine> ⌜elts !! j = Some v2⌝ -∗
+      <affine> ⌜i ≠ j⌝ -∗
     typed_stmt Espec genv_t (fn_body f_permute) f (λ _ _, ⎡(v_ar ◁ₗ (array tint (<[j:=v1]>(<[i:=v2]>elts) `at_type` int tint)))⎤).
   Proof.
     iIntros.
     simpl.
 
-    liRStep.
-    liRStep.
-    liRStep; liShow.
-    liRStep; liShow.
-    
-    (* liRStep; liShow. *)
-    liRStep.
-
-    (* liRStep. liRStep. *)
+    do 5 liRStep.
     iExists _; rewrite /IPM_JANNO.
     iSelect (temp _i _) (fun x => iFrame x).
 
-    Info 1 liRStep.
+    liRStep.
     liRStep.
     liRStep.
     iExists _; rewrite /IPM_JANNO.
     iSelect (temp _ar _) (fun x => iFrame x).
-    liRStep.
-    iExists _; rewrite /IPM_JANNO.
-    liRStep.
-    liRStep.
-    liRStep.
-    liRStep.
-    
-    do 3 liRStep.
+    do 10 liRStep.
 
     iExists (li_pair _ tt); simpl. 
-    liRStep.
-    liRStep.
-    liRStep.
-    liRStep.
-    liRStep.
-    liRStep.
-    liRStep.
-    liRStep.
+    do 24 liRStep; rewrite /IPM_JANNO.
+    iSelect (temp _k _) (fun x => iFrame x).
+ 
+    do 9 liRStep.
 
   Abort.
 

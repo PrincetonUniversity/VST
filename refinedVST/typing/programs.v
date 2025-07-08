@@ -1949,11 +1949,11 @@ Qed.
   Qed.
 
   Lemma type_read_copy a β l ty cty E {HC: CopyAs l β cty ty} (T:val → type → type → assert):
-    type_is_by_value cty = true ->
+    <affine> ⌜type_is_by_value cty = true⌝ ∗
     ((HC (λ ty', <affine> ⌜ty'.(ty_has_op_type) cty MCCopy⌝ ∗ <affine> ⌜mtE ⊆ E⌝ ∗ ∀ v, <affine>⌜v ≠ Vundef⌝ ∗ T v (ty' : type) ty')).(i2p_P))
     ⊢ typed_read_end a E l β ty cty T.
   Proof.
-    intros. iIntros "Hs Hl". iDestruct (i2p_proof with "Hs Hl") as (ty') "(Hl&%&%&%&HT)".
+    iIntros "[% Hs] Hl". iDestruct (i2p_proof with "Hs Hl") as (ty') "(Hl&%&%&%&HT)".
     destruct β.
     - iApply fupd_mask_intro; [destruct a; solve_ndisj|]. iIntros "Hclose".
       iDestruct (ty_aligned with "Hl") as %?; [done|].
