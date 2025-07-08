@@ -1984,6 +1984,28 @@ Qed.
   Definition type_read_copy_inst := [instance type_read_copy].
   Global Existing Instance type_read_copy_inst | 10.
 
+  (* FIXME typed_write only needs `wp_lvalue e_l` but IntoPlaceCtx gives `wp_expr l` for typed_read.
+    probably needs separate rules for Ederef, Efield and Evar;
+    Maybe type_write_deref for Ederef, type_write_simple for Evar (or fall back?) *)
+  Lemma type_write_deref ge f ty T T' e v e_ty cty:
+    IntoPlaceCtx ge f e T' →
+    T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty_l1),
+      typed_place ge K l β1 ty_l1 (λ l2 β2 ty_l2 typ R,
+         typed_write_end false ⊤ cty v ty l2 β2 ty_l2 (λ ty_l3, ⎡l ◁ₗ{β1} typ ty_l3⎤ -∗ R ty_l3 -∗ T))))
+    ⊢ typed_write ge f false (Ederef e e_ty) cty v ty T.
+  Proof.
+    iIntros (HT') "HT'". iIntros (Φ) "HΦ".
+    rewrite -wp_deref.
+    iApply (HT' with "HT'"). iIntros (K l). iDestruct 1 as ([β1 ty1]) "[Hl HK]".
+    iApply ("HK" with "Hl"). iIntros (l2 β2 ty2 typ R) "Hl' Hc He".
+    simpl. iExists _, _. iSplit => //. rewrite Ptrofs.unsigned_repr. 2: admit.
+    replace ((l2.1, l2.2)) with l2 by by destruct l2.
+    iApply "HΦ". iIntros "Hv".
+    rewrite /typed_write_end. iMod ("He" with "Hl' Hv") as "[$ [$ Hc2]]".
+    iIntros "!# !# Hl".
+    iMod ("Hc2" with "Hl") as (ty3) "[Hl HT]".
+    iMod ("Hc" with "Hl") as "[? ?]". by iApply ("HT" with "[$]").
+  Admitted.
 
   (* for expr `e:=v` => eval_expr e = l ∧ typed l v  *)
   (* typed_lvalue e (typed_write_end ...)   *)
