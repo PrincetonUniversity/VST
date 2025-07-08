@@ -1409,18 +1409,18 @@ Section typing.
 
   (* sets any v' to v *)
   Lemma type_set Espec ge f (id:ident) e v' (T: option val -> type -> assert):
-    typed_val_expr ge f e (λ v ty, <affine> ⌜v ≠ Vundef⌝ ∗ env.temp id v' ∗ 
+    typed_val_expr ge f e (λ v ty, env.temp id v' ∗
                             (⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ env.temp id v -∗ T None tytrue))%I
       ⊢ typed_stmt Espec ge (Sset id e) f T.
   Proof.
     iIntros "He".
     iApply wp_set.
     iApply "He".
-    iIntros (??) "v_ty (% & $ & H)".
+    iIntros (??) "v_ty ($ & H)".
     rewrite /typed_stmt_post_cond /RA_normal.
     iModIntro.
     iIntros "?".
-    iApply ("H" with "[$]"); try done.
+    by iApply ("H" with "[$]").
   Qed.
 
   Lemma type_return_some Espec ge f e (T : option val → type -> assert):
