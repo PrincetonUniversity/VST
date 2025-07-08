@@ -1,6 +1,6 @@
 From iris.proofmode Require Import coq_tactics reduction.
-From lithium Require Import base hooks normalize solvers.
-From VST.lithium Require Import definitions simpl_classes proof_state syntax.
+From lithium Require Import base hooks normalize.
+From VST.lithium Require Import solvers definitions simpl_classes proof_state syntax.
 From VST.lithium Require Import simpl_instances. (* required for tests *)
 Set Default Proof Using "Type".
 
@@ -1009,7 +1009,7 @@ Ltac liWand :=
           notypeclasses refine (tac_wand_sep_assoc _ _ _ _ _)
       | bi_exist _ => fail "handled by liForall"
       | bi_emp => notypeclasses refine (tac_wand_emp _ _ _)
-      | bi_pure _ => notypeclasses refine (tac_do_intro_pure _ _ _ _)
+      | bi_affinely (bi_pure _) => notypeclasses refine (tac_do_intro_pure _ _ _ _)
       | bi_intuitionistically (bi_sep _ _) => notypeclasses refine (tac_wand_pers_sep _ _ _ _ _)
       | bi_intuitionistically (bi_exist _) => notypeclasses refine (tac_wand_pers_exist _ _ _ _ _)
       | bi_intuitionistically (bi_pure _) => notypeclasses refine (tac_wand_pers_pure _ _ _ _)
