@@ -1,5 +1,6 @@
 From lithium Require Export base.
-From lithium Require Import hooks simpl_classes pure_definitions normalize.
+From lithium Require Import hooks pure_definitions normalize.
+From VST.lithium Require Import simpl_classes.
 From iris.bi Require Import monpred.
 (** This file provides various pure solvers. *)
 
