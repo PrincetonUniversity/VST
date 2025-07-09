@@ -232,8 +232,11 @@ Ltac liRExpr :=
 
 Ltac liRJudgement :=
   lazymatch goal with
-    | |- envs_entails _ (typed_write _ _ _ _ _ _ _ _) => 
-      notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _ _ _) _)
+    | |- envs_entails _ (typed_write _ _ _ ?e _ _ _ _) =>
+      lazymatch e with
+      | (Ederef _ _) => notypeclasses refine (tac_fast_apply (type_write_deref _ _ _ _ _ _ _ _ _ _) _); [ solve [refine _ ] |]
+      | _ => notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _ _ _) _)
+      end
     | |- envs_entails _ (typed_read _ _ _ _ _ _) =>
       notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _) _); [ solve [refine _ ] |]
     | |- envs_entails _ (typed_addr_of _ _ _ _) =>
@@ -308,8 +311,7 @@ in the number of blocks! *)
 (* TODO: don't use i... tactics here *)
 (* FIXME for now the intropattern is just x for the entire array of arguments. *)
 (* was start_function in refinedc; name conflict with the floyd tactic *)
-(* FIXME uncomment this once function.v is working *)
-(* Tactic Notation "type_function" constr(fnname) "(" simple_intropattern(x) ")" :=
+Tactic Notation "type_function" constr(fnname) "(" simple_intropattern(x) ")" :=
   intros;
   repeat iIntros "#?";
   rewrite /typed_function;
@@ -321,7 +323,7 @@ in the number of blocks! *)
   iIntros "!#" (lsa lsb); inv_vec lsb; inv_vec lsa;
   iPureIntro;
   iIntros "(?&?&?&?)";
-  cbn. *)
+  cbn.
 
 Tactic Notation "prepare_parameters" "(" ident_list(i) ")" :=
   revert i; repeat liForall.
@@ -489,22 +491,27 @@ Local Open Scope clight_scope.
     iIntros.
     simpl.
 
-    do 6 liRStep.
-
-    liRStep.
-    liRStep.
-    liRStep.
-    (* possibly this should be through FindInContext *)
-    iExists _; rewrite /IPM_JANNO.
-    iFrame.
-    do 10 liRStep.
-
+    repeat liRStep.
     iExists (li_pair _ tt); simpl.
-    do 24 liRStep; rewrite /IPM_JANNO.
-    iFrame.
- 
-    do 13 liRStep.
-  Abort.
+    repeat liRStep.
+    iExists (li_pair _ tt); simpl.
+    repeat liRStep.
+    iExists (li_pair _ tt); simpl.
+    repeat liRStep.
+    iExists (li_pair _ tt); simpl.
+    repeat liRStep.
+    iExists (li_pair _ tt); simpl.
+    repeat liRStep.
+    iExists (li_pair _ tt); simpl.
+    repeat liRStep.
+    iExists (li_pair _ tt); simpl.
+    repeat liRStep.
+    iExists (li_pair _ tt); simpl.
+    repeat liRStep.
+    liShow; try done.
+    Unshelve. all: unshelve_sidecond; sidecond_hook; prepare_sideconditions; normalize_and_simpl_goal; try solve_goal; unsolved_sidecond_hook.
+    Unshelve. all: try done; try apply: inhabitant; print_remaining_shelved_goal "permute".
+  Admitted.
 
 End automation_tests.
 
@@ -526,9 +533,7 @@ Proof.
   iIntros "H".
   iDestruct "H" as (x) "[HP HT]".
   unfold subsume. iIntros. iExists x. iFrame.
-  iStopProof; go_lowerx.
-  iIntros "[HP Hv]".
-  iApply (@simple_subsume_val with "HP Hv").
+  iApply (@simple_subsume_val with "[$HP] [$]").
 Qed.
 
 Definition simple_subsume_val_to_subsume_embed_inst `{!typeG OK_ty Σ} `{compspecs} := [instance simple_subsume_val_to_subsume_embed].
@@ -538,7 +543,7 @@ Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
     Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
     Definition spec_f_ret_expr :=
-      fn(∀ () : (); emp)%type → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
+      fn(∀ () : (); emp) → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
     Instance CompSpecs : compspecs. make_compspecs prog. Defined.
     Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
