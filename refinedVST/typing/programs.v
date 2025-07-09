@@ -892,12 +892,14 @@ Global Typeclasses Opaque typed_write_end.*)
 
 Definition FindTemp `{!typeG OK_ty Σ} {cs : compspecs} (_id: ident) :=
   {| fic_A := val; fic_Prop v := env.temp _id v; |}.
+Definition FindLvar `{!typeG OK_ty Σ} {cs : compspecs}  (_id: ident) :=
+  {| fic_A := Ctypes.type * Values.block; fic_Prop '(cty , b) := env.lvar _id cty b; |}.
 Definition FindLoc `{!typeG OK_ty Σ} {cs : compspecs} (l : address) : @find_in_context_info assert :=
   {| fic_A := own_state * type; fic_Prop '(β, ty):= ⎡l ◁ₗ{β} ty⎤; |}.
 Definition FindVal `{!typeG OK_ty Σ} {cs : compspecs} cty (v : val) : @find_in_context_info assert :=
   {| fic_A := type; fic_Prop ty := ⎡v ◁ᵥₐₗ|cty| ty⎤%I; |}.
-Definition FindValP {B : bi} (v : val) :=
-  {| fic_A := B; fic_Prop P := P; |}.
+Definition FindValP `{!typeG OK_ty Σ} {cs : compspecs} (v : val) :=
+  {| fic_A := assert; fic_Prop P := P; |}.
 Definition FindValOrLoc {Σ} (v : val) (l : address) :=
   {| fic_A := iProp Σ; fic_Prop P := P; |}.
 Definition FindLocInBounds {Σ} (l : address) :=
@@ -956,18 +958,18 @@ Section typing.
     [instance find_in_context_type_val_id with FICSyntactic].
   Global Existing Instance find_in_context_type_val_id_inst | 1.
 
-  Lemma find_in_context_type_val_P_id cty v T:
-    (∃ ty, v ◁ᵥₐₗ|cty| ty ∗ T (v ◁ᵥₐₗ|cty| ty))
+  Lemma find_in_context_type_val_P_id cty v (T:assert->assert):
+    (∃ ty, ⎡v ◁ᵥₐₗ|cty| ty⎤ ∗ T (⎡v ◁ᵥₐₗ|cty| ty⎤))
     ⊢ find_in_context (FindValP v) T.
-  Proof. iDestruct 1 as (ty) "[Hl HT]". iExists (ty_own_val ty _ _) => /=. iFrame. Qed.
+  Proof. iDestruct 1 as (ty) "[Hl HT]". iExists ⎡ty_own_val ty _ _⎤ => /=. iFrame. Qed.
   Definition find_in_context_type_val_P_id_inst :=
     [instance find_in_context_type_val_P_id with FICSyntactic].
   Global Existing Instance find_in_context_type_val_P_id_inst | 1.
 
-  Lemma find_in_context_type_val_P_loc_id l T:
-    (∃ β ty, l ◁ₗ{β} ty ∗ T (l ◁ₗ{β} ty))
+  Lemma find_in_context_type_val_P_loc_id l (T:assert->assert):
+    (∃ β ty, ⎡l ◁ₗ{β} ty⎤ ∗ T (⎡l ◁ₗ{β} ty⎤))
     ⊢ find_in_context (FindValP l) T.
-  Proof. iDestruct 1 as (β ty) "[Hl HT]". iExists (ty_own _ _ _) => /=. iFrame. Qed.
+  Proof. iDestruct 1 as (β ty) "[Hl HT]". iExists ⎡ty_own _ _ _⎤ => /=. iFrame. Qed.
   Definition find_in_context_type_val_P_loc_id_inst :=
     [instance find_in_context_type_val_P_loc_id with FICSyntactic].
   Global Existing Instance find_in_context_type_val_P_loc_id_inst | 10.
@@ -1030,9 +1032,15 @@ Section typing.
 
   Global Instance related_to_loc A l β ty : RelatedTo (λ x : A, ⎡l ◁ₗ{β x} ty x⎤)%I | 100
     := {| rt_fic := FindLoc l |}.
-  Global Instance related_to_val A cty v ty : RelatedTo (λ x : A, (valinject cty v) ◁ᵥ|cty| ty x)%I | 100
+  (* The x_to_v is necessary because A can be any pattern, such as a tuple that contains x: (... * val * ...) *)
+  Global Instance related_to_temp A _id x_to_v : RelatedTo (λ x : A, env.temp _id (x_to_v x))%I | 100
+    := {| rt_fic := FindTemp _id |}.
+  Global Instance related_to_lvar A _id cty b : RelatedTo (λ x : A, env.lvar _id cty b)%I | 100
+    := {| rt_fic := FindLvar _id  |}.
+  Global Instance related_to_val A cty v ty : RelatedTo (λ x : A, ⎡(valinject cty v) ◁ᵥ|cty| ty x⎤)%I | 100
     := {| rt_fic := FindValP v |}.
-(*  Global Instance related_to_loc_in_bounds A l n : RelatedTo (λ x : A, loc_in_bounds l (n x)) | 100
+(* FIXME
+  Global Instance related_to_loc_in_bounds A l n : RelatedTo (λ x : A, loc_in_bounds l (n x)) | 100
     := {| rt_fic := FindLocInBounds l |}.
   Global Instance related_to_alloc_alive A l : RelatedTo (λ x : A, alloc_alive_loc l) | 100
     := {| rt_fic := FindAllocAlive l |}.
@@ -1191,8 +1199,14 @@ Section typing.
   Definition simple_subsume_place_to_subsume_inst := [instance simple_subsume_place_to_subsume].
   Global Existing Instance simple_subsume_place_to_subsume_inst.
 
-  Lemma simple_subsume_val_to_subsume A cty v ty1 ty2 P `{!∀ x, SimpleSubsumeVal cty ty1 (ty2 x) (P x)} T:
+  Lemma simple_subsume_val_to_subsume_inject A cty v ty1 ty2 P `{!∀ x, SimpleSubsumeVal cty ty1 (ty2 x) (P x)} T:
     (∃ x, P x ∗ T x) ⊢ subsume (v ◁ᵥₐₗ|cty| ty1) (λ x : A, v ◁ᵥₐₗ|cty| ty2 x) T.
+  Proof. iIntros "[% [HP ?]] Hv". iExists _. iFrame. iApply (@simple_subsume_val with "HP Hv"). Qed.
+  Definition simple_subsume_val_to_subsume_inject_inst := [instance simple_subsume_val_to_subsume_inject].
+  Global Existing Instance simple_subsume_val_to_subsume_inject_inst.
+
+  Lemma simple_subsume_val_to_subsume A cty v ty1 ty2 P `{!∀ x, SimpleSubsumeVal cty ty1 (ty2 x) (P x)} T:
+    (∃ x, P x ∗ T x) ⊢ subsume (v ◁ᵥ|cty| ty1) (λ x : A, v ◁ᵥ|cty| ty2 x) T.
   Proof. iIntros "[% [HP ?]] Hv". iExists _. iFrame. iApply (@simple_subsume_val with "HP Hv"). Qed.
   Definition simple_subsume_val_to_subsume_inst := [instance simple_subsume_val_to_subsume].
   Global Existing Instance simple_subsume_val_to_subsume_inst.
@@ -1212,6 +1226,22 @@ Section typing.
   (* This lemma is applied via Hint Extern instead of declared as an instance with a `{!∀ x,
   IsEx (ty2 x)} precondition for better performance. *)
   Definition subsume_place_ty_ex_inst := [instance subsume_place_ty_ex].
+
+  Lemma subsume_temp_ex A _id v x_to_v T:
+    subsume (env.temp _id v) (λ x : A, env.temp _id (x_to_v x)) T :-
+      inhale (env.temp _id v); ∃ x, exhale (<affine> ⌜x_to_v x = v⌝); exhale (env.temp _id (x_to_v x)); return T x.
+  Proof. iIntros "HT Hl". iDestruct ("HT" with "Hl") as "[% [<- [??]]]". iExists _. iFrame. Qed.
+  (* This lemma is applied via Hint Extern instead of declared as an instance with a `{!∀ x,
+  IsEx (β x)} precondition for better performance. *)
+  Definition subsume_temp_ex_inst := [instance subsume_temp_ex].
+
+  Lemma subsume_lvar_ex A _id cty v x_to_v T:
+    subsume (env.lvar _id cty v) (λ x : A, env.lvar _id cty (x_to_v x)) T :-
+      inhale (env.lvar _id cty v); ∃ x, exhale (<affine> ⌜x_to_v x = v⌝); exhale (env.lvar _id cty (x_to_v x)); return T x.
+  Proof. iIntros "HT Hl". iDestruct ("HT" with "Hl") as "[% [<- [??]]]". iExists _. iFrame. Qed.
+  (* This lemma is applied via Hint Extern instead of declared as an instance with a `{!∀ x,
+  IsEx (β x)} precondition for better performance. *)
+  Definition subsume_lvar_ex_inst := [instance subsume_lvar_ex].
 
   Lemma subtype_var {A B} (ty : A → type) x y l β T:
     (∃ z, <affine> ⌜x = y z⌝ ∗ T z)
@@ -1329,7 +1359,7 @@ Section typing.
   Definition typed_annot_expr_simplify_inst := [instance typed_annot_expr_simplify].
   Global Existing Instance typed_annot_expr_simplify_inst | 1000. *)
 
-  Lemma typed_if_simplify ot v (P F : iProp Σ) n {SH : SimplifyHyp P (Some n)} T1 T2:
+  Lemma typed_if_simplify ot v (P F : assert) n {SH : SimplifyHyp P (Some n)} T1 T2:
     (SH (find_in_context (FindValP v) (λ Q,
        typed_if ot v Q F T1 T2))).(i2p_P)
     ⊢ typed_if ot v P F T1 T2.
@@ -2228,3 +2258,9 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_.1ₗ} _)%I) =>
 
 Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
   (class_apply subsume_place_ty_ex_inst) : typeclass_instances.
+
+Global Hint Extern 5 (Subsume (env.temp _ _) (λ _, env.temp _ _.1ₗ)%I) =>
+  (class_apply subsume_temp_ex_inst) : typeclass_instances.
+
+Global Hint Extern 5 (Subsume (env.lvar _ _ _) (λ _, env.lvar _ _ _.1ₗ)%I) =>
+  (class_apply subsume_lvar_ex_inst) : typeclass_instances.

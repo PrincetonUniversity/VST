@@ -367,6 +367,13 @@ Ltac split_blocks Pfull Ps :=
   repeat (iApply tac_split_big_sepM; [reflexivity|]; iIntros "?"); iIntros "_".
 *)
 
+Ltac repeat' tac :=
+  let rec aux n :=
+    tryif tac
+    then (idtac "Step" n; aux (S n))
+    else idtac "Repeated" n "times"
+  in aux 0%nat.
+
 Import env.
 Section automation_tests.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
@@ -429,6 +436,58 @@ Qed.
 
 End automation_tests.
 
+  Open Scope printing_sugar.
+  Arguments find_in_context: simpl never.
+  Arguments subsume: simpl never.
+  Arguments FindVal : simpl never.
+  (* for triggering related_to_val_rep_v *)
+  Arguments repinject: simpl never.
+
+(* TODO move these to programs.v *)
+Section additional_instances.
+
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  Global Instance related_to_val_embed A v cty ty : RelatedTo (λ x : A, (⎡v ◁ᵥₐₗ|cty| ty x⎤))%I | 100
+  := {| rt_fic := FindVal cty v |}.
+  Global Instance related_to_val_embed2 A v cty ty : RelatedTo (λ x : A, (⎡v ◁ᵥₐₗ|cty| ty⎤))%I | 100
+  := {| rt_fic := FindVal cty v |}.
+  Global Instance related_to_val_rep_v A cty v_rep ty :  RelatedTo (λ x : A, ⎡ v_rep ◁ᵥ|cty| ty x⎤:assert)%I | 100
+  := {| rt_fic := FindValP (repinject cty v_rep) |}.
+  
+  Lemma find_in_context_type_val_P_id  cty v (T:assert->assert):
+    (∃ ty , ⎡v ◁ᵥ|cty| ty⎤ ∗ T (⎡v ◁ᵥ|cty| ty⎤))
+    ⊢ find_in_context (FindValP (repinject cty v)) T.
+  Proof. intros. iDestruct 1 as "(% & ? & ?)". iExists ⎡ty_own_val ty _ _⎤ => /=. iFrame. Qed.
+  Definition find_in_context_type_val_P_id_inst :=
+    [instance find_in_context_type_val_P_id with FICSyntactic].
+  Global Existing Instance find_in_context_type_val_P_id_inst | 1.
+
+  Lemma simple_subsume_val_to_subsume_embed_inject (A:Type) (v : val) cty (ty1 : type) (ty2 : A → type) (P:A->mpred)
+    `{!∀ (x:A), SimpleSubsumeVal cty ty1 (ty2 x) (P x)} (T: A-> assert) :
+    (∃ x, (@embed mpred assert _ $ P x) ∗ T x) ⊢@{assert} subsume (⎡v ◁ᵥₐₗ|cty| ty1⎤) (λ x : A, ⎡v ◁ᵥₐₗ|cty| ty2 x⎤) T.
+  Proof.
+    iIntros "H".
+    iDestruct "H" as (x) "[HP HT]".
+    unfold subsume. iIntros. iExists x. iFrame.
+    iApply (@simple_subsume_val with "[$HP] [$]").
+  Qed.
+  Definition simple_subsume_val_to_subsume_embed_inject_inst := [instance simple_subsume_val_to_subsume_embed_inject].
+  Global Existing Instance simple_subsume_val_to_subsume_embed_inject_inst.
+
+  Lemma simple_subsume_val_to_subsume_embed (A:Type) cty (v : reptype cty)  (ty1 : type) (ty2 : A → type) (P:A->mpred)
+    `{!∀ (x:A), SimpleSubsumeVal cty ty1 (ty2 x) (P x)} (T: A-> assert) :
+    (∃ x, (@embed mpred assert _ $ P x) ∗ T x) ⊢@{assert} subsume (⎡v ◁ᵥ|cty| ty1⎤) (λ x : A, ⎡v ◁ᵥ|cty| ty2 x⎤) T.
+  Proof.
+    iIntros "H".
+    iDestruct "H" as (x) "[HP HT]".
+    unfold subsume. iIntros. iExists x. iFrame.
+    iApply (@simple_subsume_val with "[$HP] [$]").
+  Qed.
+  Definition simple_subsume_val_to_subsume_embed_inst := [instance simple_subsume_val_to_subsume_embed].
+  Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
+  
+End additional_instances.
+
 Section automation_tests.
 Import Clightdefs.ClightNotations.
 Local Open Scope Z_scope.
@@ -472,9 +531,7 @@ Local Open Scope clight_scope.
   |}.
 
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
-    
-  Local Open Scope printing_sugar.
-  Arguments find_in_context: simpl never.
+
   Goal forall Espec genv_t (v_k t'1: val) (v_ar v_i v_j:address) (i j: nat)  (elts:list Z) v1 v2 f,
     ⊢ temp _ar v_ar -∗
       temp _i v_i -∗
@@ -491,23 +548,6 @@ Local Open Scope clight_scope.
   Proof.
     iIntros.
     simpl.
-
-    repeat liRStep.
-    iExists (li_pair _ tt); simpl.
-    repeat liRStep.
-    iExists (li_pair _ tt); simpl.
-    repeat liRStep.
-    iExists (li_pair _ tt); simpl.
-    repeat liRStep.
-    iExists (li_pair _ tt); simpl.
-    repeat liRStep.
-    iExists (li_pair _ tt); simpl.
-    repeat liRStep.
-    iExists (li_pair _ tt); simpl.
-    repeat liRStep.
-    iExists (li_pair _ tt); simpl.
-    repeat liRStep.
-    iExists (li_pair _ tt); simpl.
     repeat liRStep.
     liShow; try done.
     Unshelve. all: unshelve_sidecond; sidecond_hook; prepare_sideconditions; normalize_and_simpl_goal; try solve_goal; unsolved_sidecond_hook.
@@ -518,27 +558,6 @@ End automation_tests.
 
 From VST.typing Require Import automation_test.
 
-Global Instance related_to_val_embed `{!typeG OK_ty Σ} {cs : compspecs} A v cty ty : RelatedTo (λ x : A, (⎡v ◁ᵥₐₗ|cty| ty x⎤))%I | 100
-:= {| rt_fic := FindVal cty v |}.
-Global Instance related_to_val_embed2 `{!typeG OK_ty Σ} {cs : compspecs} A v cty ty : RelatedTo (λ x : A, (⎡v ◁ᵥₐₗ|cty| ty⎤))%I | 100
-:= {| rt_fic := FindVal cty v |}.
-
-Arguments find_in_context : simpl never.
-Arguments subsume : simpl never.
-Arguments FindVal : simpl never.
-
-Lemma simple_subsume_val_to_subsume_embed `{!typeG OK_ty Σ} `{compspecs} (A:Type) (v : val) cty (ty1 : type) (ty2 : A → type) (P:A->mpred)
-  `{!∀ (x:A), SimpleSubsumeVal cty ty1 (ty2 x) (P x)} (T: A-> assert) :
-   (∃ x, (@embed mpred assert _ $ P x) ∗ T x) ⊢@{assert} subsume (⎡v ◁ᵥₐₗ|cty| ty1⎤) (λ x : A, ⎡v ◁ᵥₐₗ|cty| ty2 x⎤) T.
-Proof.
-  iIntros "H".
-  iDestruct "H" as (x) "[HP HT]".
-  unfold subsume. iIntros. iExists x. iFrame.
-  iApply (@simple_subsume_val with "[$HP] [$]").
-Qed.
-
-Definition simple_subsume_val_to_subsume_embed_inst `{!typeG OK_ty Σ} `{compspecs} := [instance simple_subsume_val_to_subsume_embed].
-Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
 
 Require Import VST.veric.make_compspecs.
 

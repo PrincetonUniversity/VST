@@ -395,8 +395,8 @@ Section own.
   unfolded as eagerly as place. You probably should not add typing
   rules for place', but for place instead. *)
   Definition place' (l : address) : type := place l.
-  Lemma find_in_context_type_val_P_own_singleton (l : address) T:
-    (emp ∗ T (l ◁ₗ place' l))
+  Lemma find_in_context_type_val_P_own_singleton (l : address) (T:assert->assert):
+    (emp ∗ T (⎡l ◁ₗ place' l⎤))
     ⊢ find_in_context (FindValP l) T.
   Proof. rewrite /place'. iIntros "[_ HT]". iExists _. iFrame "HT" => //=. Qed.
   Definition find_in_context_type_val_P_own_singleton_inst :=
