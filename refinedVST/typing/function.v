@@ -29,16 +29,16 @@ Section function.
     fp_fr: fp_rtype → fn_ret;
   }.
 
-  Definition opt_ty_own_val cty t o :=
-    match o with Some v => v ◁ᵥₐₗ|cty| t | None => emp end.
-
-  Global Instance opt_ty_own_val_proper cty : Proper (equiv ==> eq ==> equiv) (opt_ty_own_val cty).
-  Proof. intros ??? [|] ??; subst; simpl; by rewrite ?H. Qed.
-
-  Definition fn_ret_prop {B} fn (fr : B → fn_ret) : option val → type → assert :=
+  Definition fn_ret_prop {B} fn (fr : B → fn_ret) : option val → type → assert  :=
     (λ v ty, <affine> ⌜match v with Some v => tc_val (fn_return fn) v | None => fn_return fn = Tvoid end⌝ ∗
      (⎡opt_ty_own_val (fn_return fn) ty v⎤ -∗ ∃ x, ⎡opt_ty_own_val (fn_return fn) (fr x).(fr_rty) v⎤ ∗ ⎡(fr x).(fr_R)⎤ ∗
       ∃ lv, stackframe_of' cenv_cs fn lv))%I.
+
+  Definition fn_ret_assert {B} fn (fr : B → fn_ret) : type_ret_assert :=
+   {| T_normal := fn_ret_prop fn fr None tytrue;
+      T_break := False;
+      T_continue := False;
+      T_return := fn_ret_prop fn fr |}.
 
   Definition FP_wf {B} (atys : list type) Pa (fr : B → fn_ret)  :=
     FP atys Pa B fr.
@@ -60,7 +60,7 @@ Section function.
          (([∗ list] v;'(cty,t)∈lsa;zip (map snd (Clight.fn_params fn)) (fp x).(fp_atys), v ◁ᵥₐₗ|cty| t) ∗
           typed_stackframe fn (lsa ++ repeat Vundef (length fn.(fn_temps))) n ∗
           (fp x).(fp_Pa)) -∗
-          typed_stmt Espec ge (fn.(fn_body)) fn (fn_ret_prop fn (fp x).(fp_fr)) n
+          typed_stmt Espec ge (fn.(fn_body)) fn (fn_ret_assert fn (fp x).(fp_fr)) n
     )%I.
 
   Global Instance typed_function_persistent fn fp : Persistent (typed_function fn fp) := _.
@@ -88,7 +88,11 @@ Section function.
     iSplit; [done|].
     iIntros "!> %% (Ha & Hstack)". rewrite -HPa.
     have [|lsa' Hlsa]:= vec_cast _ lsa (length (fp_atys (fp1 x))). { by rewrite Hatys. }
-    iApply monPred_in_entails; first iApply typed_stmt_mono; last iApply ("HT" $! _ lsa').
+    iApply monPred_in_entails; first iApply typed_stmt_mono; last iApply ("HT" $! _ lsa'); simpl; try done.
+    - iIntros "($ & HR) Hty".
+      iDestruct ("HR" with "Hty") as (y) "[?[??]]".
+      have [-> ->]:= Hret y.
+      iExists (rew [λ x : Type, x] Heq in y). iFrame.
     - iIntros (v ?) "($ & HR) Hty".
       iDestruct ("HR" with "Hty") as (y) "[?[??]]".
       have [-> ->]:= Hret y.
@@ -166,10 +170,10 @@ Section function.
     iAssert ⌜(b, 0) `has_layout_loc` y.2⌝ as %?. {
       iPureIntro.
       split3; simpl; auto.
-      change expr.sizeof with sizeof.
+      change expr.sizeof with Ctypes.sizeof.
       rewrite Z.add_0_l; split3; first rep_lia; last done.
       apply la_env_cs_sound; auto. }
-    change (sizeof y.2) with (expr.sizeof y.2).
+    change (Ctypes.sizeof y.2) with (expr.sizeof y.2).
     rewrite memory_block_data_at_ // /data_at_ /field_at_ /field_at.
     iDestruct "H" as "(_ & $)".
     iPureIntro.
@@ -177,14 +181,14 @@ Section function.
     split; first apply default_value_fits; done.
   Qed.
 
-  Lemma type_call_fnptr l i v vl ctys retty cc tys fp (T : _ → _ → assert) :
+  Lemma type_call_fnptr l i v vl ctys retty cc tys fp T :
     length vl = length ctys →
     (⎡([∗ list] v;'(cty,ty)∈vl; zip ctys tys, v ◁ᵥₐₗ|cty| ty)⎤ -∗ ∃ x,
       ⎡([∗ list] v;'(cty,ty)∈vl; zip ctys (fp x).(fp_atys), v ◁ᵥₐₗ|cty| ty)⎤ ∗
       ⎡(fp x).(fp_Pa)⎤ ∗ ∀ v x',
       ⎡((fp x).(fp_fr) x').(fr_R)⎤ -∗
       set_temp_opt i v (⎡opt_ty_own_val retty ((fp x).(fp_fr) x').(fr_rty) v⎤ -∗
-      T None tytrue))
+      T_normal T))
     ⊢ typed_call Espec ge i v ⎡v ◁ᵥₐₗ|tptr (Tfunction ctys retty cc)| l @ function_ptr fp⎤ vl ctys retty cc tys T.
   Proof.
     iIntros (Hlen) "HT (%fn&(%&%)&%He&Hfn)".
@@ -223,9 +227,8 @@ Section function.
       setoid_rewrite monPred_at_affinely; iDestruct "H" as (?) "(? & %Htc & H)".
       unfold sqsubseteq in *; subst; iFrame.
       iDestruct ("H" with "[//] [$]") as (?) "(Hretty & HR & $)".
-      destruct ret; last by apply tc_val_Vundef in Htc.
       iSplit; first done.
-      iSpecialize ("Hpost" $! (Some v) with "[//] HR"); simpl.
+      iSpecialize ("Hpost" $! ret with "[//] HR"); simpl.
       destruct i; simpl.
       * iDestruct "Hpost" as "($ & H)"; iIntros (? ->) "?"; by iApply ("H" with "[//] [$] [//]").
       * by iApply "Hpost".

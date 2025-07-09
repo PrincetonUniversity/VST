@@ -370,15 +370,16 @@ Ltac split_blocks Pfull Ps :=
 Import env.
 Section automation_tests.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
-  
 
+  (* to programs.v *)
+  Definition normal_type_assert R := {| T_normal := R; T_break := False; T_continue := False; T_return := λ _ _, False |}.
 
   Goal forall Espec ge f (_x:ident) (x:val),
   temp _x x
   ⊢ typed_stmt Espec ge (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint)
                                               (Econst_int (Int.repr 1) tint) tint)) f
-                        (λ v t, temp _x (Vint (Int.repr 42))
-                                ∗ ⎡ Vint (Int.repr 42) ◁ᵥₐₗ|tint| 42 @ int tint ⎤).
+                        (normal_type_assert (temp _x (Vint (Int.repr 42))
+                                ∗ ⎡ Vint (Int.repr 42) ◁ᵥₐₗ|tint| 42 @ int tint ⎤)).
   Proof.
     iIntros.
     repeat liRStep.
@@ -390,7 +391,7 @@ Section automation_tests.
   ⊢ lvar _x tint b -∗
     ⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ int tint ⎤ -∗
     typed_stmt Espec ge (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) f
-               (λ v t, ⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True).
+               (normal_type_assert (⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True)).
   Proof.
   iIntros.
 
@@ -486,7 +487,7 @@ Local Open Scope clight_scope.
       <affine> ⌜elts !! i = Some v1⌝ -∗
       <affine> ⌜elts !! j = Some v2⌝ -∗
       <affine> ⌜i ≠ j⌝ -∗
-    typed_stmt Espec genv_t (fn_body f_permute) f (λ _ _, ⎡(v_ar ◁ₗ (array tint (<[j:=v1]>(<[i:=v2]>elts) `at_type` int tint)))⎤).
+    typed_stmt Espec genv_t (fn_body f_permute) f (normal_type_assert (⎡(v_ar ◁ₗ (array tint (<[j:=v1]>(<[i:=v2]>elts) `at_type` int tint)))⎤)).
   Proof.
     iIntros.
     simpl.
@@ -539,13 +540,14 @@ Qed.
 Definition simple_subsume_val_to_subsume_embed_inst `{!typeG OK_ty Σ} `{compspecs} := [instance simple_subsume_val_to_subsume_embed].
 Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
 
+Require Import VST.veric.make_compspecs.
+
   Section f_test1.
     Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
     Definition spec_f_ret_expr :=
       fn(∀ () : (); emp) → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
     Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-    Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
     Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_ret_expr spec_f_ret_expr.
     Proof.
@@ -561,7 +563,6 @@ Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
       fn(∀ () : (); emp) → ∃ z : Z, (z @ (int tint)) ; ⌜z=42⌝.
 
     Local Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-    Local Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
     Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_temps spec_f_temps.
     Proof.

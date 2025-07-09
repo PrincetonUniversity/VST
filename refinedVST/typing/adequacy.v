@@ -23,11 +23,12 @@ Proof.
   rewrite (expr.cenv_sub_sizeof Hsub) //.
 Qed.*)
 
-(* (* wrapper around veric/lifting's adequacy theorem *) *)
+(* wrapper around veric/lifting's adequacy theorem *)
+
 Lemma refinedc_adequacy: forall `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK_ty Σ}, ext_spec OK_ty} {dryspec : ext_spec OK_ty}
   (Hdry : forall `{!VSTGS OK_ty Σ}, ext_spec_entails Espec dryspec) {CS: compspecs}
-  (ge : Genv.t Clight.fundef Ctypes.type) m z s f (T : forall `{!typeG OK_ty Σ}, option val → type → assert) ve te (Hf : f.(fn_vars) = [])
-  (EXIT: forall `{!VSTGS OK_ty Σ} v ty, ⊢ (T v ty O -∗ ∀ m z, state_interp m z -∗ ⌜∃ i, ext_spec_exit Espec (Some (Vint i)) z m⌝)),
+  (ge : Genv.t Clight.fundef Ctypes.type) m z s f (T : forall `{!typeG OK_ty Σ}, type_ret_assert) ve te (Hf : f.(fn_vars) = [])
+  (EXIT: forall `{!VSTGS OK_ty Σ}, ⊢ exit_ret_assert Espec (typed_stmt_post_cond (fn_return f) T)),
   (∀ `{HH : invGS_gen HasNoLc Σ}, ⊢ |={⊤}=> ∃ _ : gen_heapGS share address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : envGS Σ, ∃ _ : externalGS OK_ty Σ,
     let H : VSTGS OK_ty Σ := Build_VSTGS _ _ (HeapGS _ _ _ _) _ _ in
     stack_level 0 ∗ ⎡state_interp m z⎤ ∗ ⌜typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f))⌝ ∧ ⎡env_auth (init_stack (Build_genv ge cenv_cs) ve te)⎤ ∗
@@ -36,16 +37,9 @@ Lemma refinedc_adequacy: forall `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK
         @dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem (Build_genv ge cenv_cs)) dryspec
             (Build_genv ge cenv_cs) n z (Clight_core.State f s Kstop ve te) m).
 Proof.
-  intros; apply wp_adequacy with (R := λ _ : VSTGS OK_ty Σ, λ v,
-    (<affine> ⌜v = None⌝ ∗ T _ v tytrue) ∨ (let v := force_val v in 
-      ∃ ty, ⎡(valinject (fn_return f) v) ◁ᵥ|fn_return f| ty⎤ ∗ T _ (Some v) ty)); [try done..|].
-  { monPred.unseal.
-    iIntros (??) "[(_ & H) | (% & _ & H)]"; by iApply EXIT. }
+  intros; apply wp_adequacy with (R := λ (H : VSTGS OK_ty Σ), typed_stmt_post_cond (fn_return f) (T _)); [try done..|].
   iIntros; iMod H as (????) "($ & $ & $ & $ & H)".
-  iModIntro; iExists _.
-  iApply @wp_conseq; last iApply "H"; auto; simpl.
-  - iIntros "?"; iLeft; auto.
-  - iIntros (?) "(% & ? & ?)"; iRight; eauto with iFrame.
+  iModIntro; eauto.
 Qed.
 
 (** * Tactics for solving conditions in an adequacy proof *)
@@ -105,9 +99,7 @@ Proof.
   - do 2 (iSplit; first by iIntros "[]").
     rewrite /fn_params_post /=.
     iIntros (?) "(% & Hret & %Htc & H)".
-    iDestruct ("H" with "Hret") as "(% & ? & ? & $)"; iFrame.
-    destruct v; first by iFrame.
-    by apply tc_val_Vundef in Htc.
+    iDestruct ("H" with "Hret") as "(% & ? & ? & $)"; by iFrame.
 Qed.
 
 Lemma typed_fptr_triple : forall `{!VSTGS OK_ty Σ} {cs : compspecs} {A} Espec ge fp l cty,

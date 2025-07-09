@@ -2040,27 +2040,28 @@ Proof.
   iExists _; simpl; eauto.
 Qed.
 
-Definition finished_ret_assert P :=
-  {|
-    RA_normal := P None;
-    RA_break := False;
-    RA_continue := False;
-    RA_return := P
-  |}.
+Definition exit_ret_assert R : mpred := ((RA_break R O -∗ False) ∧ (RA_continue R O -∗ False) ∧
+  (∀ v, (RA_normal R ∨ RA_return R v) O -∗ ∀ m z, state_interp m z -∗ ⌜∃ i, ext_spec_exit OK_spec (Some (Vint i)) z m⌝)).
 
-Lemma guarded_stop : forall E f (P : option val → assert),
+Lemma guarded_stop : forall E f R,
   f.(fn_vars) = [] →
-  (∀ v, P v O -∗ ∀ m z, state_interp m z -∗ ⌜∃ i, ext_spec_exit OK_spec (Some (Vint i)) z m⌝) ⊢
-  guarded E f Kstop (finished_ret_assert P).
+  exit_ret_assert R ⊢ guarded E f Kstop R.
 Proof.
   intros; iIntros "H".
   iSplit.
-  - rewrite /assert_safe /=; iIntros "?".
+  - rewrite /assert_safe /=; iIntros "R".
     iIntros (????) "? (% & _) %".
     iApply safe_return; try done.
     { by apply typecheck_var_match_venv. }
-    iFrame; iIntros; by iApply ("H" with "[$]").
-  - do 2 (iSplit; first by simpl; monPred.unseal; iIntros "[]").
+    iFrame; iIntros; iDestruct "H" as "(_ & _ & H)".
+    iApply ("H" $! None with "[R] [$]").
+    monPred.unseal; auto.
+  - simpl; iSplit.
+    { iDestruct "H" as "(H & _)".
+      iIntros "?"; iDestruct ("H" with "[$]") as "[]". }
+    iSplit.
+    { iDestruct "H" as "(_ & H & _)".
+      iIntros "?"; iDestruct ("H" with "[$]") as "[]". }
     iIntros ([|]); simpl.
     + iIntros "He" (????) "Hr (% & %) %Hmatch".
       iApply jsafe_step.
@@ -2082,15 +2083,17 @@ Proof.
         done. }
       iFrame.
       rewrite jsafe_unfold /jsafe_pre.
-      iIntros "!> !> !>" (?) "?"; iLeft.
-      iDestruct ("H" with "[$] [$]") as %(? & ?).
+      iIntros "!> !> !>" (?) "S"; iLeft.
+      iDestruct ("H" with "[-S] S") as %(? & ?).
+      { monPred.unseal; auto. }
       iExists _; simpl; eauto.
       { inv H2. }
     + rewrite /assert_safe /=; iIntros "?".
       iIntros (????) "?%%".
       iApply safe_return; try done.
       { by apply typecheck_var_match_venv. }
-      iFrame; iIntros; by iApply ("H" with "[$]").
+      iFrame; iIntros (?) "S"; iApply ("H" with "[-S] S").
+      monPred.unseal; auto.
 Qed.
 
 (* {{P}} f {{Q}} *)
@@ -2294,11 +2297,11 @@ Qed.
 (* This is a "whole-program" adequacy theorem; we may also want a per-function one. *)
 Lemma wp_adequacy: forall `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK_ty Σ}, ext_spec OK_ty} {dryspec : ext_spec OK_ty}
   (Hdry : forall `{!VSTGS OK_ty Σ}, ext_spec_entails Espec dryspec)
-  ge m z f s (R : forall `{!VSTGS OK_ty Σ}, option val → assert) ve te (Hf : f.(fn_vars) = [])
-  (EXIT: forall `{!VSTGS OK_ty Σ} v, ⊢ (R v O -∗ ∀ m z, state_interp m z -∗ ⌜∃ i, ext_spec_exit Espec (Some (Vint i)) z m⌝)),
+  ge m z f s (R : forall `{!VSTGS OK_ty Σ}, ret_assert) ve te (Hf : f.(fn_vars) = [])
+  (EXIT: forall `{!VSTGS OK_ty Σ}, ⊢ exit_ret_assert Espec R),
   (∀ `{HH : invGS_gen HasNoLc Σ}, ⊢ |={⊤}=> ∃ _ : gen_heapGS share address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : envGS Σ, ∃ _ : externalGS OK_ty Σ,
     let H : VSTGS OK_ty Σ := Build_VSTGS _ _ (HeapGS _ _ _ _) _ _ in
-    stack_level 0 ∗ ⎡state_interp m z⎤ ∗ ⌜typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f))⌝ ∧ ⎡env_auth (init_stack ge ve te)⎤ ∗ wp Espec ge ⊤ f s (finished_ret_assert R)) →
+    stack_level 0 ∗ ⎡state_interp m z⎤ ∗ ⌜typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f))⌝ ∧ ⎡env_auth (init_stack ge ve te)⎤ ∗ wp Espec ge ⊤ f s R) →
        (forall n,
         @dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem ge) dryspec
             ge n z (State f s Kstop ve te) m (*∧ φ*)) (* note that this includes ext_spec_exit if the program halts *).
@@ -2323,7 +2326,7 @@ Proof.
   iApply ("H" with "[//] [//] [//] [L] [//] [] E").
   { done. }
   iApply guarded_stop; auto.
-  by iIntros (?) "R"; iApply EXIT.
+  iApply EXIT.
   { iPureIntro; apply init_stack_matches. }
   { done. }
 Qed.

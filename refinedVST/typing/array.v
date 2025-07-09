@@ -92,7 +92,7 @@ Section array.
     rewrite /mapsto data_at_rec_eq /=.
     rewrite (split_array_pred _ s1); try rep_lia.
     2: { rewrite Hv v_fits; lia. }
-    
+
     rewrite data_at_rec_eq /unfold_reptype /=.
     assert (sublist 0 s1 v = v_hd) as Hsub1.
     { rewrite Hv Hs1 sublist0_app1; last rep_lia.
@@ -176,7 +176,8 @@ Section array.
     split3; try done.
     split3; try done.
     - rewrite /= Z.max_r; [|lia].
-      rewrite -ptrofs_add_repr /expr.sizeof.
+      change Ctypes.sizeof with sizeof in *.
+      rewrite -ptrofs_add_repr.
       destruct (Ptrofs.unsigned_add_either (Ptrofs.repr l.2) 
                                             (Ptrofs.repr (sizeof cty * idx))) as [-> | ->].
       + rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty * idx))]Ptrofs.unsigned_repr; rep_lia.
@@ -187,6 +188,7 @@ Section array.
       pose proof (align_mem.align_compatible_rec_Tarray_inv _ _ _ _ _ H2).
       rewrite Ptrofs.unsigned_add_carry.
       rewrite /Ptrofs.add_carry.
+      change Ctypes.sizeof with sizeof in *.
       if_tac.
       + rewrite Ptrofs.unsigned_zero /= Z.sub_0_r.
         rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty * idx))]Ptrofs.unsigned_repr; try rep_lia.
@@ -221,8 +223,9 @@ Section array.
     destruct (adr2val l) eqn:?; try done.
     rewrite /= Z.max_r in H1; try lia. rewrite /adr2val in Heqv. inv Heqv.
     split3; try done.
+    change Ctypes.sizeof with sizeof in *.
     split3; try done.
-    - rewrite /= /expr.sizeof.
+    - rewrite /=.
       assert (Ptrofs.unsigned (Ptrofs.repr l.2) + sizeof cty <=
               Ptrofs.unsigned (Ptrofs.repr l.2) + sizeof cty * s); try rep_lia.
       apply Zplus_le_compat_l.
@@ -625,10 +628,10 @@ Section array.
     have [|ty ?]:= lookup_lt_is_Some_2 tys (Z.to_nat i). 1: lia.
     iApply (wp_binop_sc _ _ _ _ _ _ _ (adr2val (l arr_ofs{tint}ₗ i))).
     { destruct H1 as (H1 & Hvol).
-      rewrite /= /sem_add. destruct ofs_cty; try done; simpl in *; hnf in H1; rewrite Hvol in H1;
+      rewrite /= /lifting_expr.sem_add. destruct ofs_cty; try done; simpl in *; hnf in H1; rewrite Hvol in H1;
         destruct v; try destruct s; inv H2; specialize (H1 ltac:(discriminate)); simpl in H1.
-      - destruct i0; rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //.
-      - destruct i0; rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //= /nested_field_offset /= Z.add_0_l; inv Hrange.
+      - destruct i0; rewrite /= /adr2val /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //.
+      - destruct i0; rewrite /= /adr2val /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //= /nested_field_offset /= Z.add_0_l; inv Hrange.
         all: rewrite Int.signed_eq_unsigned //; try rep_lia.
         rewrite two_power_pos_equiv in H1; rep_lia.
       - rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //= /nested_field_offset /= Z.add_0_l; inv Hrange.
@@ -725,9 +728,9 @@ Section array.
       rewrite /=.
       match goal with | |- ?x = _ =>
       instantiate (1:=adr2val (l.1, l.2 + expr.sizeof elm_cty * i)) end.
-      rewrite /sem_add; destruct ofs_cty; try done; simpl.
+      rewrite /lifting_expr.sem_add; destruct ofs_cty; try done; simpl.
       - destruct i0, v, s eqn:Hs; try done; rewrite /val_to_Z /= in H5; inv H5;
-        rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //=.
+        rewrite /= /adr2val /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //=.
         + repeat f_equal. apply Int.signed_eq_unsigned. inv H2. simpl in *. rep_lia.
         + repeat f_equal. apply Int.signed_eq_unsigned. inv H2. simpl in *. rep_lia.
         + repeat f_equal. apply Int.signed_eq_unsigned. inv H2. simpl in *. rep_lia.

@@ -186,36 +186,52 @@ Section judgements.
   Context (OK_spec : ext_spec OK_ty) (ge_genv : Genv.t Clight.fundef Ctypes.type).
   Notation ge := (Build_genv ge_genv cenv_cs).
 
+  Definition opt_ty_own_val cty t o :=
+    match o with Some v => v ◁ᵥₐₗ|cty| t | None => emp end.
+
+  Global Instance opt_ty_own_val_proper cty : Proper (equiv ==> eq ==> equiv) (opt_ty_own_val cty).
+  Proof. intros ??? [|] ??; subst; simpl; by rewrite ?H. Qed.
+
+  Record type_ret_assert : Type := {
+    T_normal: assert;
+    T_break: assert;
+    T_continue: assert;
+    T_return: option val -> type -> assert
+  }.
+
   (* Possibly we will want break-types, continue-types, etc. For now, using option to distinguish between
      fallthrough (normal) type and return type. *)
-  Definition typed_stmt_post_cond cty (R : option val → type → assert) : ret_assert :=
-    {| RA_normal := R None tytrue;
-       RA_break := False;
-       RA_continue := False;
-       RA_return ret := let v := force_val ret in 
-                        ∃ ty, ⎡(valinject cty v) ◁ᵥ|cty| ty⎤ ∗ R (Some v) ty |}.
-  Definition typed_stmt s f (R : option val → type → assert) : assert :=
+  Definition typed_stmt_post_cond cty (R : type_ret_assert) : ret_assert :=
+    {| RA_normal := T_normal R;
+       RA_break := T_break R;
+       RA_continue := T_continue R;
+       RA_return v := ∃ ty, ⎡opt_ty_own_val cty ty v⎤ ∗ T_return R v ty |}.
+  Definition typed_stmt s f (R : type_ret_assert) : assert :=
     wp OK_spec ge ⊤ f s (typed_stmt_post_cond (fn_return f) R)%I.
   Global Arguments typed_stmt _ _ _%_I.
 
-  Lemma typed_stmt_mono s f R1 R2 : (∀ v t, R1 v t ⊢ R2 v t) →
-    typed_stmt s f R1 ⊢ typed_stmt s f R2.
+  Lemma typed_stmt_mono s f R1 R2 :
+    (T_normal R1 ⊢ T_normal R2) ->
+    (T_break R1 ⊢ T_break R2) ->
+    (T_continue R1 ⊢ T_continue R2) ->
+    (forall v t, T_return R1 v t ⊢ T_return R2 v t) ->
+    (typed_stmt s f R1 ⊢ typed_stmt s f R2).
   Proof.
-    intros. rewrite /typed_stmt. apply wp_conseq; intros; simpl; rewrite ?H; auto.
-    iIntros "(% & ? & ?)"; rewrite H; eauto with iFrame.
+    intros. rewrite /typed_stmt. apply wp_conseq; intros; simpl; rewrite -?fupd_intro //.
+    iIntros "(% & ? & ?)"; rewrite H2; eauto with iFrame.
   Qed.
 
-(*  Definition typed_block (P : iProp Σ) (b : label) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
-    (wps_block P b Q (typed_stmt_post_cond fn ls R)).
+  Definition switch_type_assert (R: type_ret_assert) : type_ret_assert :=
+    {| T_normal := False;
+       T_break := T_normal R;
+       T_continue := T_continue R;
+       T_return := T_return R |}.
 
-  Definition typed_switch (v : val) (ty : type) (it : int_type) (m : gmap Z nat) (ss : list stmt) (def : stmt) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
-    (v ◁ᵥ ty -∗ ∃ z, ⌜val_to_Z v it = Some z⌝ ∗
-      match m !! z with
-      | Some i => ∃ s, ⌜ss !! i = Some s⌝ ∗ typed_stmt s fn ls R Q
-      | None   => typed_stmt def fn ls R Q
-      end).
-  Class TypedSwitch (v : val) (ty : type) (it : int_type) : Type :=
-    typed_switch_proof m ss def fn ls R Q : iProp_to_Prop (typed_switch v ty it m ss def fn ls R Q).*)
+  Definition typed_switch (v : val) (ty : type) (it : Ctypes.type) (ls : labeled_statements) (fn : function) R : assert :=
+    (⎡v ◁ᵥₐₗ|it| ty⎤ -∗ ∃ z, <affine> ⌜sem_switch_arg v it = Some z⌝ ∗
+     ▷ typed_stmt (seq_of_labeled_statement (select_switch z ls)) fn (switch_type_assert R))%I.
+  Class TypedSwitch (v : val) (ty : type) (it : Ctypes.type) : Type :=
+    typed_switch_proof ls fn R : iProp_to_Prop (typed_switch v ty it ls fn R).
 
 (*  Definition typed_assert (ot : Ctypes.type) (v : val) (P : iProp Σ) (s : stmt) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
     (P -∗
@@ -286,10 +302,10 @@ Section judgements.
     (∀ Φ, (∀ vl (tys : list type), ([∗ list] v;'(cty,ty)∈vl;zip tl tys, ⎡v ◁ᵥₐₗ|cty| ty⎤) -∗ T vl tys -∗ Φ vl) -∗ wp_exprs ge ⊤ f el tl Φ).
   Global Arguments typed_exprs _ _ _ _%_I.
 
-  Definition typed_call i v (P : assert) (vl : list val) ctys retty cc (tys : list type) (T : option val → type → assert) : assert :=
+  Definition typed_call i v (P : assert) (vl : list val) ctys retty cc (tys : list type) T : assert :=
     (P -∗ ∃ f, <affine> ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some f /\
        type_of_fundef f = Tfunction ctys retty cc /\ fundef_wf ge f vl⌝ ∗
-    (⎡[∗ list] v;'(cty,ty)∈vl;zip ctys tys, v ◁ᵥₐₗ|cty| ty⎤ -∗ ▷ call_assert OK_spec ge ⊤ f vl i (T None tytrue)))%I.
+    (⎡[∗ list] v;'(cty,ty)∈vl;zip ctys tys, v ◁ᵥₐₗ|cty| ty⎤ -∗ ▷ call_assert OK_spec ge ⊤ f vl i (T_normal T)))%I.
   Class TypedCall i (v : val) (P : assert) (vl : list val) ctys retty cc (tys : list type) : Type :=
     typed_call_proof T : iProp_to_Prop (typed_call i v P vl ctys retty cc tys T).
 
@@ -896,8 +912,8 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
   | typed_value ?cty ?x => constr:(TypedValue cty x)
   | typed_bin_op ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8 ?x9 => constr:(TypedBinOp x1 x2 x3 x4 x5 x6 x7 x8 x9)
   | typed_un_op ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedUnOp x1 x2 x3 x4 x5)
-(*  | typed_call ?x1 ?x2 ?x3 ?x4 => constr:(TypedCall x1 x2 x3 x4)
-  | typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedCopyAllocId x1 x2 x3 x4 x5) *)
+  | typed_call ?x1 ?x2 ?x3 ?x4 => constr:(TypedCall x1 x2 x3 x4)
+(*  | typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedCopyAllocId x1 x2 x3 x4 x5) *)
   | typed_place ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedPlace x1 x2 x3 x4 x5) 
   | typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 => constr:(TypedReadEnd x1 x2 x3 x4 x5 x6)
   | typed_write_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8 => constr:(TypedWriteEnd x1 x2 x3 x4 x5 x6 x7 x8) 
@@ -907,7 +923,7 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
 (*   | typed_macro_expr ?x1 ?x2 => constr:(TypedMacroExpr x1 x2) *)
   | typed_if ?x1 ?x2 ?x3 ?x4 => constr:(TypedIf x1 x2 x3 x4)
 (*   | typed_assert ?x1 ?x2 ?x3 => constr:(TypedAssert x1 x2 x3) *)
-(*   | typed_switch ?x1 ?x2 ?x3 => constr:(TypedSwitch x1 x2 x3) *)
+   | typed_switch ?x1 ?x2 ?x3 => constr:(TypedSwitch x1 x2 x3)
   | typed_annot_stmt ?x1 ?x2 ?x3 => constr:(TypedAnnotStmt x1 x2 x3)
   | copy_as ?x1 ?x2 ?x3 ?x4 => constr:(CopyAs x1 x2 x3 x4)
   | _ => fail "unknown judgement" c
@@ -1374,12 +1390,12 @@ Section typing.
      type_Ecast, and only cover cases where it doesn't need memory.
      similar to lithium.theories.typing.int, have one rule for each 
      concrete (t1, t2) in (Ecast t1 t2) *)
-  Lemma type_assign Espec ge f e1 e2 (T: option val -> type -> assert):
+  Lemma type_assign Espec ge f e1 e2 T:
     type_is_by_value (typeof e1) = true ->
     type_is_volatile (typeof e1) = false ->
     typed_val_expr ge f (Ecast e2 (typeof e1)) (λ v ty,
       <affine> ⌜tc_val' (typeof e1) v⌝ ∗
-       typed_write ge f false e1 (typeof e1) v ty (T None tytrue))
+       typed_write ge f false e1 (typeof e1) v ty (T_normal T))
     ⊢ typed_stmt Espec ge (Sassign e1 e2) f T.
   Proof.
     intros.
@@ -1397,8 +1413,7 @@ Section typing.
     iSplit; [auto|].
     iDestruct "Hl" as (v_rep) "(%Hv & %Hl & ↦)".
     iSplitR "upd".
-    - rewrite /mapsto 
-      -mapsto_mapsto_ /adr2val /=.
+    - rewrite /mapsto -mapsto_mapsto_ /adr2val /=.
       rewrite by_value_data_at_rec_nonvolatile //.
     - iIntros "!> l↦".
       iMod ("upd" with "[l↦]"); try done.
@@ -1408,9 +1423,9 @@ Section typing.
   Qed.
 
   (* sets any v' to v *)
-  Lemma type_set Espec ge f (id:ident) e v' (T: option val -> type -> assert):
+  Lemma type_set Espec ge f (id:ident) e v' T:
     typed_val_expr ge f e (λ v ty, env.temp id v' ∗
-                            (⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ env.temp id v -∗ T None tytrue))%I
+                            (⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ env.temp id v -∗ T_normal T))%I
       ⊢ typed_stmt Espec ge (Sset id e) f T.
   Proof.
     iIntros "He".
@@ -1423,8 +1438,8 @@ Section typing.
     by iApply ("H" with "[$]").
   Qed.
 
-  Lemma type_return_some Espec ge f e (T : option val → type -> assert):
-    typed_val_expr ge f (Ecast e (fn_return f)) (λ v ty, T (Some v) ty)
+  Lemma type_return_some Espec ge f e T:
+    typed_val_expr ge f (Ecast e (fn_return f)) (λ v ty, T_return T (Some v) ty)
     ⊢ typed_stmt Espec ge (Sreturn $ Some e) f T.
   Proof.
     intros.
@@ -1436,14 +1451,14 @@ Section typing.
     by iIntros (??) "? $".
   Qed.
 
-  Lemma type_return_none Espec ge f (T : option val → type -> assert) ty:
-    ⎡Vundef ◁ᵥₐₗ|fn_return f| ty⎤ ∗ T (Some Vundef) ty
+  Lemma type_return_none Espec ge f T ty:
+    T_return T None ty
     ⊢ typed_stmt Espec ge (Sreturn $ None) f T.
   Proof.
     unfold typed_stmt.
     iIntros "H".
     iApply wp_return.
-    simpl. iFrame.
+    simpl. by iFrame.
   Qed.
 
   Lemma type_if Espec ge f e s1 s2 R:
@@ -1485,28 +1500,49 @@ Section typing.
           rewrite Int64.eq_true // in Heq.
 Qed.
 
-(*  Lemma type_switch Q it e m ss def fn ls R:
-    typed_val_expr e (λ v ty, typed_switch v ty it m ss def fn ls R Q)
-    ⊢ typed_stmt (Switch it e m ss def) fn ls R Q.
+  Lemma type_break Espec ge f R:
+    T_break R ⊢ typed_stmt Espec ge Sbreak f R.
   Proof.
-    iIntros "He" (Hls).
-    have -> : (Switch it e m ss def) = (W.to_stmt (W.Switch it (W.Expr e) m (W.Stmt <$> ss) (W.Stmt def)))
-      by rewrite /W.to_stmt/= -!list_fmap_compose list_fmap_id.
-    iApply tac_wps_bind; first done.
-    rewrite /W.to_expr /W.to_stmt /= -list_fmap_compose list_fmap_id.
-
-    iApply "He". iIntros (v ty) "Hv Hs".
-    iDestruct ("Hs" with "Hv") as (z Hn) "Hs".
-    iAssert (⌜∀ i : nat, m !! z = Some i → is_Some (ss !! i)⌝%I) as %?. {
-      iIntros (i ->). iDestruct "Hs" as (s ->) "_"; by eauto.
-    }
-    iApply wps_switch; [done|done|..].
-    destruct (m !! z) => /=.
-    - iDestruct "Hs" as (s ->) "Hs". by iApply "Hs".
-    - by iApply "Hs".
+    rewrite /typed_stmt -wp_break //.
   Qed.
 
-  Lemma type_assert Q ot e s fn ls R:
+  Lemma type_continue Espec ge f R:
+    T_continue R ⊢ typed_stmt Espec ge Scontinue f R.
+  Proof.
+    rewrite /typed_stmt -wp_continue //.
+  Qed.
+
+  Definition loop1_type_assert (Inv: assert) (R: type_ret_assert) : type_ret_assert :=
+    {| T_normal := Inv;
+       T_break := T_normal R;
+       T_continue := Inv;
+       T_return := T_return R |}.
+
+  Definition loop2_type_assert (Inv: assert) (R: type_ret_assert) : type_ret_assert :=
+    {| T_normal := Inv;
+       T_break := T_normal R;
+       T_continue := False;
+       T_return := T_return R |}.
+
+  (* convert to use invariant? *)
+  Lemma type_loop Espec ge f s1 s2 R:
+    ▷ typed_stmt Espec ge s1 f (loop1_type_assert
+      (typed_stmt Espec ge s2 f (loop2_type_assert (typed_stmt Espec ge (Sloop s1 s2) f R) R)) R)
+    ⊢ typed_stmt Espec ge (Sloop s1 s2) f R.
+  Proof.
+    rewrite /typed_stmt -{2}wp_loop //.
+  Qed.
+
+  Lemma type_switch Espec ge f e ls R:
+    typed_val_expr ge f e (λ v ty, typed_switch Espec ge v ty (typeof e) ls f R)
+    ⊢ typed_stmt Espec ge (Sswitch e ls) f R.
+  Proof.
+    rewrite /typed_stmt /typed_switch -wp_switch.
+    iIntros "H"; iApply "H".
+    iIntros (??) "Hv H"; iDestruct ("H" with "Hv") as (?) "($ & $)".
+  Qed.
+
+(*  Lemma type_assert Q ot e s fn ls R:
     typed_val_expr e (λ v ty, typed_assert ot v (v ◁ᵥ ty) s fn ls R Q)
     ⊢ typed_stmt (assert{ot}: e; s) fn ls R Q.
   Proof.
@@ -1834,9 +1870,6 @@ Qed.
     ⊢ typed_val_expr (MacroE m es) T.
   Proof. done. Qed.
 *)
-
-  Lemma derives_refl {BI : bi} (P : BI) : P ⊢ P.
-  Proof. done. Qed.
 
   (* l↦v, [[e]]=l, v:cty *)
   Lemma type_deref ge f cty e T:
@@ -2173,19 +2206,15 @@ Qed.
   Global Existing Instance annot_learn_aligment_inst.*)
 *)
 
-
-(*Global Typeclasses Opaque typed_block.
-*)
-
+  Definition type_overridePost  (Q: assert)  (R: type_ret_assert) :=
+    {| T_normal := Q; T_break := T_break R; T_continue := T_continue R; T_return := T_return R |}.
 
   Lemma type_seq Espec ge f s1 s2 T:
-    typed_stmt Espec ge s1 f (λ v ty, match v with None => typed_stmt Espec ge s2 f T
-                                       | _ => T v ty end)
+    typed_stmt Espec ge s1 f (type_overridePost (typed_stmt Espec ge s2 f T) T)
     ⊢ typed_stmt Espec ge (Ssequence s1 s2) f T.
   Proof.
     iIntros "H". unfold typed_stmt.
-    rewrite -wp_seq /=.
-    iApply (wp_conseq with "H"); auto.
+    rewrite -wp_seq //.
   Qed.
 
 End typing.
