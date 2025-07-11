@@ -391,7 +391,12 @@ Section automation_tests.
     iIntros.
     repeat liRStep.
     liShow; try done.
-  Admitted.
+    (* FIXME add these Integer facts to Lithium automation *)
+    rewrite -Int.add_signed add_repr /= Int.signed_repr; last rep_lia.
+    repeat liRStep.
+    rewrite Int.signed_repr; last rep_lia.
+    done.
+  Qed.
 
   Goal forall Espec ge f (_x:ident) b (l:address) ty,
   TCDone (ty_has_op_type ty tint MCNone) ->
@@ -400,48 +405,20 @@ Section automation_tests.
     typed_stmt Espec ge (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) f
                (normal_type_assert (⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True)).
   Proof.
-  iIntros.
-
- liEnsureInvariant;
- try liRIntroduceLetInGoal.
-  liRStep.
-  liRStep.
-  liRStep.
-  (* usually Info level 0 is able to see the tactic applied *)
-  Info 0 liRStep. (* type_assign *)
-
-  Info 0 liRStep. (* type_Ecast_same_val *)
-  Info 0 liRStep. (* type_const_int *)
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-Qed.
+    iIntros.
+    repeat liRStep.
+  Qed.
 
 End automation_tests.
 
   Open Scope printing_sugar.
   Arguments find_in_context: simpl never.
   Arguments subsume: simpl never.
-  Arguments FindVal : simpl never.
+  Arguments FindVal: simpl never.
   (* for triggering related_to_val_rep_v *)
   Arguments repinject: simpl never.
+  Arguments sep_list: simpl never.
+  Transparent Archi.ptr64.
 
 (* TODO move these to programs.v *)
 Section additional_instances.
@@ -530,28 +507,38 @@ Local Open Scope clight_scope.
             (tptr tint)) tint) (Etempvar _k tint))))
   |}.
 
-  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs} `{BiPositive mpred}.
+ 
+  Lemma subsume_array A cty_arr tys1 tys2 l β T:
+    (∀ id,
+       subsume (sep_list id type [] tys1 (λ i ty, ⎡(l arr_ofs{cty_arr}ₗ i) ◁ₗ{β} ty⎤:assert))
+         (λ x, sep_list id type [] (tys2 x) (λ i ty, ⎡(l arr_ofs{cty_arr}ₗ i) ◁ₗ{β} ty⎤)) T)
+    ⊢ subsume (⎡l ◁ₗ{β} array cty_arr tys1⎤) (λ x : A, ⎡l ◁ₗ{β} array cty_arr (tys2 x)⎤) T.
+  Admitted.
+    Definition subsume_array_inst := [instance subsume_array].
+  Global Existing Instance subsume_array_inst.
 
   Goal forall Espec genv_t (v_k t'1: val) (v_ar v_i v_j:address) (i j: nat)  (elts:list Z) v1 v2 f,
-    ⊢ temp _ar v_ar -∗
-      temp _i v_i -∗
-      ⎡ v_i ◁ᵥ| tint | i @ int tint ⎤ -∗
-      temp _j v_j -∗
+    ⊢ ⎡ v_i ◁ᵥ| tint | i @ int tint ⎤ -∗
       ⎡ v_j ◁ᵥ| tint | j @ int tint⎤ -∗
-      temp _k v_k -∗
-      temp _t'1 t'1 -∗
-      ⎡v_ar ◁ₗ  (array tint (elts `at_type` int tint))⎤ -∗
       <affine> ⌜elts !! i = Some v1⌝ -∗
       <affine> ⌜elts !! j = Some v2⌝ -∗
       <affine> ⌜i ≠ j⌝ -∗
-    typed_stmt Espec genv_t (fn_body f_permute) f (normal_type_assert (⎡(v_ar ◁ₗ (array tint (<[j:=v1]>(<[i:=v2]>elts) `at_type` int tint)))⎤)).
+      temp _j v_j -∗
+      temp _ar v_ar -∗
+      temp _i v_i -∗
+      temp _k v_k -∗
+      temp _t'1 t'1 -∗
+      ⎡v_ar ◁ₗ  (array tint (elts `at_type` int tint))⎤ -∗
+    typed_stmt Espec genv_t (fn_body f_permute) f (normal_type_assert (⎡(v_ar ◁ₗ (array tint (<[j:=v1]>(<[i:=v2]>elts) `at_type` int tint)))⎤ ∗ True)).
   Proof.
-    iIntros.
-    simpl.
+    intros.
+    iStartProof.
+    iIntros "#? #?".
     repeat liRStep.
-    liShow; try done.
     Unshelve. all: unshelve_sidecond; sidecond_hook; prepare_sideconditions; normalize_and_simpl_goal; try solve_goal; unsolved_sidecond_hook.
     Unshelve. all: try done; try apply: inhabitant; print_remaining_shelved_goal "permute".
+    (* We admit Some pure sideconditions *)
   Admitted.
 
 End automation_tests.
