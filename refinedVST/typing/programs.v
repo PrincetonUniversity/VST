@@ -1421,27 +1421,32 @@ Section typing.
      similar to lithium.theories.typing.int, have one rule for each 
      concrete (t1, t2) in (Ecast t1 t2) *)
   Lemma type_assign Espec ge f e1 e2 T:
-    type_is_by_value (typeof e1) = true ->
-    type_is_volatile (typeof e1) = false ->
+    <affine> ⌜type_is_by_value (typeof e1) = true⌝ ∗
     typed_val_expr ge f (Ecast e2 (typeof e1)) (λ v ty,
-      <affine> ⌜tc_val' (typeof e1) v⌝ ∗
-       typed_write ge f false e1 (typeof e1) v ty (T_normal T))
+      ∃ m, <affine> ⌜ty_has_op_type ty (typeof e1) m⌝ ∗
+      typed_write ge f false e1 (typeof e1) v ty (T_normal T))
     ⊢ typed_stmt Espec ge (Sassign e1 e2) f T.
   Proof.
     intros.
     unfold typed_stmt.
     rewrite -wp_store.
-    iIntros "H". iApply "H".
-    iIntros (v ty) "H (% & ty_write)".
+    iIntros "[% H]". iApply "H".
+    iIntros (v ty) "H (% & % & ty_write)".
+    simpl.
+    iDestruct (ty_size_eq _ with "H") as "%"; first done.
+    destruct H1. 
+    rewrite field_at.value_fits_by_value // repinject_valinject // in H1.
     iSplit; [done|].
     iApply wp_lvalue_mono.
     { intros; iIntros "A"; iApply "A". }
     iApply "ty_write".
     iIntros ((b, o)) "upd".
     iMod ("upd" with "H") as "(%Hot & Hl & upd)"; iModIntro.
+    destruct Hot.
     iExists Tsh.
     iSplit; [auto|].
     iDestruct "Hl" as (v_rep) "(%Hv & %Hl & ↦)".
+    destruct Hv.
     iSplitR "upd".
     - rewrite /mapsto -mapsto_mapsto_ /adr2val /=.
       rewrite by_value_data_at_rec_nonvolatile //.
@@ -2047,9 +2052,6 @@ Qed.
   Definition type_read_copy_inst := [instance type_read_copy].
   Global Existing Instance type_read_copy_inst | 10.
 
-  (* FIXME typed_write only needs `wp_lvalue e_l` but IntoPlaceCtx gives `wp_expr l` for typed_read.
-    probably needs separate rules for Ederef, Efield and Evar;
-    Maybe type_write_deref for Ederef, type_write_simple for Evar (or fall back?) *)
   Lemma type_write_deref ge f ty T T' e v e_ty cty:
     IntoPlaceCtx ge f e T' →
     T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty_l1),
