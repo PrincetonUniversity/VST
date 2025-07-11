@@ -334,11 +334,16 @@ Tactic Notation "type_function" constr(fnname) "(" simple_intropattern(x) ")" :=
   let lsa := fresh "lsa" in let lsb := fresh "lsb" in
   let stk := fresh "stk" in
   iIntros "!#" (stk lsa); inv_vec lsa;
+  rewrite /typed_stackframe;
   iIntros "(? & ? & ?)";
   cbn;
   iStopProof;
   apply to_bi_emp_valid;
-  rewrite  -(monPred_at_emp stk) -!monPred_at_sep;
+  try rewrite -(monPred_at_emp stk);
+  (* rewrite -?(monPred_at_pure stk) diverges *)
+  try rewrite -(monPred_at_pure stk);
+  try rewrite -(monPred_at_affinely stk);
+  rewrite -?monPred_at_sep;
   apply mpred_to_assert;
   iIntros "(? & (stk1 & stk2) & ?)";
   repeat iDestruct "stk1" as "[? stk1]";
