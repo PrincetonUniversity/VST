@@ -170,7 +170,7 @@ Ltac liRStmt :=
     | _ =>
       let s' := s in
       lazymatch s' with
-      | Sassign _ _ => notypeclasses refine (tac_fast_apply (type_assign _ _ _ _ _ _ _ _ ) _); [done..|]
+      | Sassign _ _ => notypeclasses refine (tac_fast_apply (type_assign _ _ _ _ _ _ ) _); [done..|]
       | Sset _ _ => notypeclasses refine (tac_fast_apply (type_set _ _ _ _ _ _ _) _)
       | Ssequence _ _ => notypeclasses refine (tac_fast_apply (type_seq _ _ _ _ _ _) _)
       | Sreturn $ Some _ => notypeclasses refine (tac_fast_apply (type_return_some _ _ _ _ _) _)
@@ -311,19 +311,59 @@ in the number of blocks! *)
 (* TODO: don't use i... tactics here *)
 (* FIXME for now the intropattern is just x for the entire array of arguments. *)
 (* was start_function in refinedc; name conflict with the floyd tactic *)
+  
+Lemma mpred_to_assert {I:biIndex} {prop:bi} (P Q:monPred I prop ) : (⊢ P -∗ Q) -> (forall m, ⊢ monPred_at P m -∗ monPred_at Q m).
+  intros. destruct H as [H]. specialize (H m). rewrite monPred_at_wand in H.
+    rewrite /bi_emp_valid -(monPred_at_emp m) // H.
+  iIntros "H ?". iApply "H"; done.
+Qed. 
+Lemma to_bi_emp_valid {prop:bi} (P Q:prop) :  (⊢ (P -∗ Q)) -> (P ⊢  Q).
+  rewrite /bi_emp_valid => x.
+  rewrite -(bi.wand_elim_r P Q). rewrite -x. iIntros. iFrame; done. Qed.
+
+
 Tactic Notation "type_function" constr(fnname) "(" simple_intropattern(x) ")" :=
   intros;
   repeat iIntros "#?";
   rewrite /typed_function;
-  iIntros ( x );
+  let y := fresh in
+  iIntros  "!>" ( y );
   (* computes the ofe_car in introduced arguments *)
   match goal with | H: ofe_car _ |- _ => hnf in H; destruct H end;
   iSplit; [iPureIntro; simpl; by [repeat constructor] || fail "in" fnname "argument types don't match layout of arguments" |];
   let lsa := fresh "lsa" in let lsb := fresh "lsb" in
-  iIntros "!#" (lsa lsb); inv_vec lsb; inv_vec lsa;
-  iPureIntro;
-  iIntros "(?&?&?&?)";
+  let stk := fresh "stk" in
+  iIntros "!#" (stk lsa); inv_vec lsa;
+  rewrite /typed_stackframe;
+  iIntros "(? & ? & ?)";
+  cbn;
+  iStopProof;
+  apply to_bi_emp_valid;
+  try rewrite -(monPred_at_emp stk);
+  (* rewrite -?(monPred_at_pure stk) diverges *)
+  try rewrite -(monPred_at_pure stk);
+  try rewrite -(monPred_at_affinely stk);
+  rewrite -?monPred_at_sep;
+  apply mpred_to_assert;
+  iIntros "(? & (stk1 & stk2) & ?)";
+  repeat iDestruct "stk1" as "[? stk1]";
+  repeat iDestruct "stk2" as "[? stk2]";
   cbn.
+
+
+Ltac type_function_end :=
+  let l := fresh in
+  evar (l: list val);
+  iExists (li_pair l tt) => /=; liShow;
+  rewrite /stackframe_of'; cbn;
+  repeat match goal with
+  | |- context [ [∗ list] _;_ ∈ (cons _ _); _ , _ ] =>
+    instantiate (l:= cons _ _);
+    rewrite big_sepL2_cons; iFrame
+  | |- context [ [∗ list] _;_ ∈ []; ?l , _] =>
+    assert (l=nil) as -> by (subst; reflexivity)
+   end;
+  rewrite big_sepL2_nil //.
 
 Tactic Notation "prepare_parameters" "(" ident_list(i) ")" :=
   revert i; repeat liForall.
@@ -391,7 +431,12 @@ Section automation_tests.
     iIntros.
     repeat liRStep.
     liShow; try done.
-  Admitted.
+    (* FIXME add these Integer facts to Lithium automation *)
+    rewrite -Int.add_signed add_repr /= Int.signed_repr; last rep_lia.
+    repeat liRStep.
+    rewrite Int.signed_repr; last rep_lia.
+    done.
+  Qed.
 
   Goal forall Espec ge f (_x:ident) b (l:address) ty,
   TCDone (ty_has_op_type ty tint MCNone) ->
@@ -400,48 +445,21 @@ Section automation_tests.
     typed_stmt Espec ge (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) f
                (normal_type_assert (⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True)).
   Proof.
-  iIntros.
-
- liEnsureInvariant;
- try liRIntroduceLetInGoal.
-  liRStep.
-  liRStep.
-  liRStep.
-  (* usually Info level 0 is able to see the tactic applied *)
-  Info 0 liRStep. (* type_assign *)
-
-  Info 0 liRStep. (* type_Ecast_same_val *)
-  Info 0 liRStep. (* type_const_int *)
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-Qed.
+    iIntros.
+    repeat liRStep.
+    Unshelve. constructor.
+  Qed.
 
 End automation_tests.
 
   Open Scope printing_sugar.
   Arguments find_in_context: simpl never.
   Arguments subsume: simpl never.
-  Arguments FindVal : simpl never.
+  Arguments FindVal: simpl never.
   (* for triggering related_to_val_rep_v *)
   Arguments repinject: simpl never.
+  Arguments sep_list: simpl never.
+  Transparent Archi.ptr64.
 
 (* TODO move these to programs.v *)
 Section additional_instances.
@@ -530,34 +548,34 @@ Local Open Scope clight_scope.
             (tptr tint)) tint) (Etempvar _k tint))))
   |}.
 
-  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs} `{BiPositive mpred}.
 
   Goal forall Espec genv_t (v_k t'1: val) (v_ar v_i v_j:address) (i j: nat)  (elts:list Z) v1 v2 f,
-    ⊢ temp _ar v_ar -∗
-      temp _i v_i -∗
-      ⎡ v_i ◁ᵥ| tint | i @ int tint ⎤ -∗
-      temp _j v_j -∗
+    ⊢ ⎡ v_i ◁ᵥ| tint | i @ int tint ⎤ -∗
       ⎡ v_j ◁ᵥ| tint | j @ int tint⎤ -∗
-      temp _k v_k -∗
-      temp _t'1 t'1 -∗
-      ⎡v_ar ◁ₗ  (array tint (elts `at_type` int tint))⎤ -∗
       <affine> ⌜elts !! i = Some v1⌝ -∗
       <affine> ⌜elts !! j = Some v2⌝ -∗
       <affine> ⌜i ≠ j⌝ -∗
-    typed_stmt Espec genv_t (fn_body f_permute) f (normal_type_assert (⎡(v_ar ◁ₗ (array tint (<[j:=v1]>(<[i:=v2]>elts) `at_type` int tint)))⎤)).
+      temp _j v_j -∗
+      temp _ar v_ar -∗
+      temp _i v_i -∗
+      temp _k v_k -∗
+      temp _t'1 t'1 -∗
+      ⎡v_ar ◁ₗ (array tint (elts `at_type` int tint))⎤ -∗
+    typed_stmt Espec genv_t (fn_body f_permute) f (normal_type_assert (⎡(v_ar ◁ₗ (array tint (<[j:=v1]>(<[i:=v2]>elts) `at_type` int tint)))⎤ ∗ True)).
   Proof.
-    iIntros.
-    simpl.
+    intros.
+    iStartProof.
+    iIntros "#? #?".
     repeat liRStep.
-    liShow; try done.
     Unshelve. all: unshelve_sidecond; sidecond_hook; prepare_sideconditions; normalize_and_simpl_goal; try solve_goal; unsolved_sidecond_hook.
-    Unshelve. all: try done; try apply: inhabitant; print_remaining_shelved_goal "permute".
+    Unshelve. all: try done; try constructor; try apply: inhabitant;  print_remaining_shelved_goal "permute".
+    (* We admit Some pure side conditions; need to fix in automation. *)
   Admitted.
 
 End automation_tests.
 
 From VST.typing Require Import automation_test.
-
 
 Require Import VST.veric.make_compspecs.
 
@@ -570,8 +588,9 @@ Require Import VST.veric.make_compspecs.
 
     Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_ret_expr spec_f_ret_expr.
     Proof.
-      type_function "f_ret_expr" ( x ).
+      type_function "f" ( x ).
       repeat liRStep.
+      type_function_end.
     Qed.
   End f_test1.
 
@@ -581,12 +600,11 @@ Require Import VST.veric.make_compspecs.
     Definition spec_f_temps :=
       fn(∀ () : (); emp) → ∃ z : Z, (z @ (int tint)) ; ⌜z=42⌝.
 
-    Local Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-
     Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_temps spec_f_temps.
     Proof.
-      type_function "f_ret_expr" ( x ).
+      type_function "f" ( x ).
       repeat liRStep.
+      type_function_end.
   Qed.
 
 End f_test2.

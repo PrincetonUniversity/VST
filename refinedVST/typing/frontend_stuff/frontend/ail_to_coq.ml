@@ -54,13 +54,13 @@ let loc_of_id : Symbol.identifier -> loc =
 
 (* Register a location. *)
 let register_loc : Location.Pool.t -> loc -> Location.t = fun p loc ->
-  match Cerb_location.(get_filename loc, to_cartesian loc) with
+  match Cerb_location.(get_filename loc, to_cartesian_raw loc) with
   | (Some(f), Some((l1,c1),(0 ,0 ))) -> Location.make f l1 c1 l1 c1 p
   | (Some(f), Some((l1,c1),(l2,c2))) -> Location.make f l1 c1 l2 c2 p
   | (_      , _                    ) -> Location.none coq_locs
 
 let register_str_loc : Location.Pool.t -> loc -> Location.t = fun p loc ->
-  match Cerb_location.(get_filename loc, to_cartesian loc) with
+  match Cerb_location.(get_filename loc, to_cartesian_raw loc) with
   | (Some(f), Some((l1,c1),(l2,c2))) -> Location.make f l1 (c1+1) l2 (c2-1) p
   | (_      , _                    ) -> Location.none coq_locs
 
@@ -262,8 +262,8 @@ let global_tag_defs = ref []
 let rec tag_def_data : loc -> string -> (string * op_type) list = fun loc id ->
   let fs =
     match List.find (fun (s,_) -> sym_to_str s = id) !global_tag_defs with
-    | (_, (_, Ctype.StructDef(fs,_)))
-    | (_, (_, Ctype.UnionDef(fs)   )) -> fs
+    | (_, (_, _, Ctype.StructDef(fs,_)))
+    | (_, (_, _, Ctype.UnionDef(fs)   )) -> fs
   in
   let fn (s, (_, _, _, c_ty)) = (id_to_str s, op_type_of loc c_ty) in
   List.map fn fs
@@ -353,8 +353,8 @@ and align_of_struct : bool -> Symbol.sym -> int = fun is_union id ->
   let id = sym_to_str id in
   let fs =
     match List.find (fun (s,_) -> sym_to_str s = id) !global_tag_defs with
-    | (_, (_, Ctype.StructDef(fs,_)))
-    | (_, (_, Ctype.UnionDef(fs)   )) -> fs
+    | (_, (_, _, Ctype.StructDef(fs,_)))
+    | (_, (_, _, Ctype.UnionDef(fs)   )) -> fs
   in
   let fn acc (_, (_, _, _, c_ty)) = max acc (align_of c_ty) in
   List.fold_left fn 1 fs
@@ -384,8 +384,8 @@ and size_of_struct : bool -> Symbol.sym -> int = fun is_union s ->
   let id = sym_to_str s in
   let fs =
     match List.find (fun (s,_) -> sym_to_str s = id) !global_tag_defs with
-    | (_, (_, Ctype.StructDef(fs,_)))
-    | (_, (_, Ctype.UnionDef(fs)   )) -> fs
+    | (_, (_, _, Ctype.StructDef(fs,_)))
+    | (_, (_, _, Ctype.UnionDef(fs)   )) -> fs
   in
   let fn (_,(_,_,_,c_ty)) = (align_of c_ty, size_of c_ty) in
   let data = List.map fn fs in
@@ -461,7 +461,7 @@ let rec translate_expr : bool -> op_type option -> ail_expr -> expr =
   fun lval goal_ty e ->
   let open AilSyntax in
   let res_ty = ref(op_type_tc_opt (loc_of e) (tc_of e)) in
-  let AnnotatedExpression(_, _, loc, e) = e in
+  let AnnotatedExpression(bty, annots, loc, e) = e in
   let coq_loc = register_loc coq_locs loc in
   let locate e = mkloc e coq_loc in
   let translate = translate_expr lval None in
@@ -662,6 +662,7 @@ let rec translate_expr : bool -> op_type option -> ail_expr -> expr =
           | ConstantArray(_,_)          -> not_impl loc "constant array"
           | ConstantStruct(_,_)         -> not_impl loc "constant struct"
           | ConstantUnion(_,_,_)        -> not_impl loc "constant union"
+          | ConstantPredefined(_)       -> not_impl loc "constant predefined"
         in
         locate (Val(c))
     | AilEident(sym)               ->
@@ -1041,7 +1042,7 @@ let translate_block stmts blocks ret_ty is_main =
         if debug then Printf.eprintf "End of [trans] with empty list\n%!";
         let ks = k_pop_cases ks in
         (k_final ks, blocks)
-    | (AnnotatedStatement(loc, attrs, s)) :: stmts ->
+    | ({ loc; attrs; node= s; _ }) :: stmts ->
     let coq_loc = register_loc coq_locs loc in
     let locate e = mkloc e coq_loc in
     let attrs = List.rev (collect_rc_attrs attrs) in
@@ -1129,7 +1130,50 @@ let translate_block stmts blocks ret_ty is_main =
                 in
                 let e2 = translate_expr false goal_ty e2 in
                 locate (Assign(atomic, ot, e1, e2, stmt))
+            | AilEcompoundAssign (e1,op,e2)              ->
+                (* FIXME: this transformation is unsound when e1 has
+                   side-effects because the evaluation is duplicated. We need a
+                   dedicated construct in Coq_ast.smt to properly deal with
+                   compound assignments. *)
+                let gty1, gty2 = match e1, e2 with
+                | AnnotatedExpression (GenLValueType (_, ty1, _), _, _, _),
+                  AnnotatedExpression (GenRValueType gty2, _, _, _) ->
+                    GenTypes.inject_type ty1, gty2
+                | _ -> assert false
+                in
+                let bty =
+                  let open GenTypesAux in
+                  GenTypes.GenRValueType (match op with
+                  | Mul | Div | Mod | Band | Bxor | Bor ->
+                      usual_arithmetic gty1 gty2
+                  | Shl | Shr -> integer_promote gty1
+                  | Add ->
+                      if is_pointer0 gty1 then gty1
+                      else if is_pointer0 gty2 then gty2
+                      else usual_arithmetic gty1 gty2
+                  | Sub ->
+                      if is_pointer0 gty2 then
+                        if is_pointer0 gty1 then
+                          GenTypes.(GenBasic (GenInteger PtrdiffT))
+                        else gty1
+                      else usual_arithmetic gty1 gty2) in
+                let e_op = AnnotatedExpression (bty, [], loc,
+                  AilEbinary (AnnotatedExpression (GenTypes.GenRValueType gty1,
+                    [], loc, AilErvalue e1), Arithmetic op, e2)) in
+                let atomic = is_atomic_tc (tc_of e1) in
+                let e1 = translate_expr true None e1 in
+                let ot = op_type_of_tc (loc_of e) (tc_of e) in
+                let goal_ty =
+                  let ty_opt = op_type_tc_opt (loc_of e) (tc_of e) in
+                  match ty_opt with
+                  | Some(OpInt(_)) -> ty_opt
+                  | Some(OpBool)   -> ty_opt
+                  | _              -> None
+                in
+                let e2 = translate_expr false goal_ty e_op in
+                locate (Assign(atomic, ot, e1, e2, stmt))
             | AilEunary(op,e) when incr_or_decr op ->
+               (* FIXME: This might be unsound since it evaluates e twice *)
                 let atomic = is_atomic_tc (tc_of e) in
                 let op_type = op_type_of_tc (loc_of e) (tc_of e) in
                 let (res_ty, int_ty) =
@@ -1427,7 +1471,7 @@ let translate : string -> typed_ail -> Coq_ast.t = fun source_file ail ->
 
   (* Get the definition of structs/unions. *)
   let structs =
-    let build (id, (attrs, def)) =
+    let build (id, (loc, attrs, def)) =
       let (fields, struct_is_union) =
         match def with
         | Ctype.StructDef(fields,_) -> (fields, false)
@@ -1498,7 +1542,7 @@ let translate : string -> typed_ail -> Coq_ast.t = fun source_file ail ->
       | exception Not_found                                       ->
           (* Function is only declared. *)
           (func_name, FDec(func_annot))
-      | (_, (_, _, _, args, AnnotatedStatement(loc, s_attrs, stmt))) ->
+      | (_, (_, _, _, args, { loc; attrs= s_attrs; node= stmt; _ })) ->
       (* Attributes on the function body are ignored. *)
       warn_ignored_attrs None (List.rev (collect_rc_attrs s_attrs));
       (* Function is defined. *)

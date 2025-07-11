@@ -66,6 +66,8 @@ let to_cerb_loc : t -> Cerb_location.t = fun (key, pool) ->
   | Some(d) ->
   let pos_fname = d.loc_file in
   let {loc_line1=l1; loc_col1=c1; loc_line2=l2; loc_col2=c2; _} = d in
-  let p1 = Lexing.{pos_fname; pos_lnum=l1; pos_bol=0; pos_cnum=c1} in
-  let p2 = Lexing.{pos_fname; pos_lnum=l2; pos_bol=0; pos_cnum=c2} in
+  let p1 = Cerb_position.from_lexing
+    Lexing.{pos_fname; pos_lnum=l1; pos_bol=0; pos_cnum=c1} in
+  let p2 = Cerb_position.from_lexing
+    Lexing.{pos_fname; pos_lnum=l2; pos_bol=0; pos_cnum=c2} in
   Cerb_location.region (p1, p2) NoCursor

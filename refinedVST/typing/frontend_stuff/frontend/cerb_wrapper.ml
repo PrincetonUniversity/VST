@@ -29,13 +29,16 @@ let impl_name =
 
 let set_cerb_conf () =
   let open Cerb_global in
-  set_cerb_conf "RefinedC" false Random false Basic false false false false false
+  set_cerb_conf ~backend_name:"RefinedC" ~exec:false Random ~concurrency:false
+    Basic ~defacto:false ~permissive:false ~agnostic:false
+    ~ignore_bitfields:false
 
 let frontend cpp_cmd filename =
   let conf =
     { debug_level = 0 ; pprints = [] ; astprints = [] ; ppflags = []
-    ; typecheck_core = false ; rewrite_core = false
-    ; sequentialise_core = false ; cpp_cmd ; cpp_stderr = true }
+    ; ppouts = [] ; typecheck_core = false ; rewrite_core = false
+    ; sequentialise_core = false ; cpp_cmd ; cpp_stderr = true
+    ; cpp_save = None }
   in
   set_cerb_conf ();
   Ocaml_implementation.(set (HafniumImpl.impl));
@@ -46,8 +49,9 @@ let frontend cpp_cmd filename =
 let run_cpp cpp_cmd filename =
   let conf =
     { debug_level = 0 ; pprints = [] ; astprints = [] ; ppflags = []
-    ; typecheck_core = false ; rewrite_core = false
-    ; sequentialise_core = false ; cpp_cmd ; cpp_stderr = true }
+    ; ppouts = [] ; typecheck_core = false ; rewrite_core = false
+    ; sequentialise_core = false ; cpp_cmd ; cpp_stderr = true
+    ; cpp_save = None }
   in
   set_cerb_conf ();
   cpp (conf, io) ~filename
@@ -55,7 +59,7 @@ let run_cpp cpp_cmd filename =
 let cpp_cmd config =
   let stdinc =
     if config.cpp_nostdinc then []
-    else [Filename.concat (Cerb_runtime.runtime ()) "libc/include"]
+    else [Cerb_runtime.in_runtime "libc/include"]
   in
   let cpp_I = List.map (fun dir -> "-I" ^ dir) (stdinc @ config.cpp_I) in
   let cpp_include =

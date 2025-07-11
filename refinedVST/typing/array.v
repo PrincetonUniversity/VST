@@ -586,26 +586,23 @@ Section array.
   Global Existing Instance subsume_array_uninit_inst. *)
   
   
-  (* Lemma subsume_array A cty_arr tys1 tys2 l β T:
+  Lemma subsume_array A cty_arr tys1 tys2 l β T:
     (∀ id,
-       subsume (sep_list id type [] tys1 (λ i ty, (l arr_ofs{cty_arr, (length tys1)}ₗ i) ◁ₗ{β} ty))
-         (λ x, sep_list id type [] (tys2 x) (λ i ty, (l arr_ofs{cty_arr, (length tys1)}ₗ i) ◁ₗ{β} ty)) T)
-    ⊢ subsume (<affine> l ◁ₗ{β} array cty_arr tys1) (λ x : A, <affine> l ◁ₗ{β} array cty_arr (tys2 x)) T.
+       subsume (sep_list id type [] tys1 (λ i ty, ⎡(l arr_ofs{cty_arr}ₗ i) ◁ₗ{β} ty⎤:assert))
+         (λ x, sep_list id type [] (tys2 x) (λ i ty, ⎡(l arr_ofs{cty_arr}ₗ i) ◁ₗ{β} ty⎤)) T)
+    ⊢ subsume (⎡l ◁ₗ{β} array cty_arr tys1⎤) (λ x : A, ⎡l ◁ₗ{β} array cty_arr (tys2 x)⎤) T.
   Proof.
     unfold sep_list. iIntros "H H1".
     iDestruct ("H" $! {|sep_list_len := length tys1|} with "[H1]") as (?) "[[%Heq ?] ?]".
     { rewrite {1}/ty_own /=. iDestruct "H1" as "[% H1]".
       iSplit; [done|].
-      admit. (* probably BiPositive implies pushing affine in to Hl *)
+      admit.
     }
-    simpl in *. rewrite -Heq. iExists _. iFrame.
-    rewrite /ty_own /=.
-    rewrite -bi_positive.
-  Admitted. *)
+    simpl. iFrame.
+  Admitted.
 
-  (* TODO uncomment this when programs.v is done *)
-  (* Definition subsume_array_inst := [instance subsume_array].
-  Global Existing Instance subsume_array_inst. *)
+  Definition subsume_array_inst := [instance subsume_array].
+  Global Existing Instance subsume_array_inst.
 
   Lemma type_place_array ge l β v tyv tys cty1 cty2 ofs_cty K T:
     <affine> ⌜cty1 = tint⌝ ∗

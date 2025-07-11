@@ -40,9 +40,10 @@ make refinedVST/typing/typing.vo -j <jobs>
 
 ## Running the frontend
 
-The entry point for the frontend is in [./refinedVST/typing/frontend_stuff/Makefile](./refinedVST/typing/frontend_stuff/Makefile), adapted from the RefinedC frontend.
+The files for the frontend is in [./refinedVST/typing/frontend_stuff](./refinedVST/typing/frontend_stuff), adapted from the RefinedC frontend.
 
-However the best way to use the frontend is to use the script [RefinedVST.sh](RefinedVST.sh):
+The best way to use the frontend is to use the script [RefinedVST.sh](RefinedVST.sh)
+(requires refinedVST/typing/typing.v compiled):
 
 ```[bash]
 ./RefinedVST.sh

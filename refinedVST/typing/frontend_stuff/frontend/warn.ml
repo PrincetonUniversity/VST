@@ -438,9 +438,9 @@ let taints_of_functions sigm =
                   List.fold_left (fun acc sym ->
                     Scopes.register sym acc
                 ) (Scopes.(create_scope (Cabs_to_ail_effect.Scope_block 0) empty)) params in
-                let rec fold_stmt env (AnnotatedStatement (_, _, stmt_)) =
+                let rec fold_stmt env stmt =
                   let taint_expr e = taint_expr (points_to (classify sigm env)) e in
-                  match stmt_ with
+                  match stmt.node with
                     | AilSskip
                     | AilSbreak
                     | AilScontinue
@@ -734,10 +734,10 @@ let warn_file (_, sigm) =
       | AilEgcc_statement _ ->
           Panic.panic loc "Not implemented GCC statement expr." (* TODO *)
   in
-  let rec aux env (AnnotatedStatement (loc, _, stmt_)) =
+  let rec aux env stmt =
     let self = aux env in
     let warn_unseq e = warn_unseq taints_map e in
-    match stmt_ with
+    match stmt.node with
       | AilSskip ->
           ()
       | AilSexpr e
