@@ -592,14 +592,15 @@ Section array.
          (λ x, sep_list id type [] (tys2 x) (λ i ty, ⎡(l arr_ofs{cty_arr}ₗ i) ◁ₗ{β} ty⎤)) T)
     ⊢ subsume (⎡l ◁ₗ{β} array cty_arr tys1⎤) (λ x : A, ⎡l ◁ₗ{β} array cty_arr (tys2 x)⎤) T.
   Proof.
-    unfold sep_list. iIntros "H H1".
+    unfold sep_list. iIntros "H (% & H1)".
     iDestruct ("H" $! {|sep_list_len := length tys1|} with "[H1]") as (?) "[[%Heq ?] ?]".
-    { rewrite {1}/ty_own /=. iDestruct "H1" as "[% H1]".
+    { rewrite {1}/ty_own /=.
       iSplit; [done|].
-      admit.
+      rewrite embed_big_sepL //.
     }
-    simpl. iFrame.
-  Admitted.
+    rewrite /= -embed_big_sepL. iFrame.
+    rewrite Heq //.
+  Qed.
 
   Definition subsume_array_inst := [instance subsume_array].
   Global Existing Instance subsume_array_inst.
