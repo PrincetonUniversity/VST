@@ -311,19 +311,54 @@ in the number of blocks! *)
 (* TODO: don't use i... tactics here *)
 (* FIXME for now the intropattern is just x for the entire array of arguments. *)
 (* was start_function in refinedc; name conflict with the floyd tactic *)
+  
+Lemma mpred_to_assert {I:biIndex} {prop:bi} (P Q:monPred I prop ) : (⊢ P -∗ Q) -> (forall m, ⊢ monPred_at P m -∗ monPred_at Q m).
+  intros. destruct H as [H]. specialize (H m). rewrite monPred_at_wand in H.
+    rewrite /bi_emp_valid -(monPred_at_emp m) // H.
+  iIntros "H ?". iApply "H"; done.
+Qed. 
+Lemma to_bi_emp_valid {prop:bi} (P Q:prop) :  (⊢ (P -∗ Q)) -> (P ⊢  Q).
+  rewrite /bi_emp_valid => x.
+  rewrite -(bi.wand_elim_r P Q). rewrite -x. iIntros. iFrame; done. Qed.
+
+
 Tactic Notation "type_function" constr(fnname) "(" simple_intropattern(x) ")" :=
   intros;
   repeat iIntros "#?";
   rewrite /typed_function;
-  iIntros ( x );
+  let y := fresh in
+  iIntros  "!>" ( y );
   (* computes the ofe_car in introduced arguments *)
   match goal with | H: ofe_car _ |- _ => hnf in H; destruct H end;
   iSplit; [iPureIntro; simpl; by [repeat constructor] || fail "in" fnname "argument types don't match layout of arguments" |];
   let lsa := fresh "lsa" in let lsb := fresh "lsb" in
-  iIntros "!#" (lsa lsb); inv_vec lsb; inv_vec lsa;
-  iPureIntro;
-  iIntros "(?&?&?&?)";
+  let stk := fresh "stk" in
+  iIntros "!#" (stk lsa); inv_vec lsa;
+  iIntros "(? & ? & ?)";
+  cbn;
+  iStopProof;
+  apply to_bi_emp_valid;
+  rewrite  -(monPred_at_emp stk) -!monPred_at_sep;
+  apply mpred_to_assert;
+  iIntros "(? & (stk1 & stk2) & ?)";
+  repeat iDestruct "stk1" as "[? stk1]";
+  repeat iDestruct "stk2" as "[? stk2]";
   cbn.
+
+
+Ltac type_function_end :=
+  let l := fresh in
+  evar (l: list val);
+  iExists (li_pair l tt) => /=; liShow;
+  rewrite /stackframe_of'; cbn;
+  repeat match goal with
+  | |- context [ [∗ list] _;_ ∈ (cons _ _); _ , _ ] =>
+    instantiate (l:= cons _ _);
+    rewrite big_sepL2_cons; iFrame
+  | |- context [ [∗ list] _;_ ∈ []; ?l , _] =>
+    assert (l=nil) as -> by (subst; reflexivity)
+   end;
+  rewrite big_sepL2_nil //.
 
 Tactic Notation "prepare_parameters" "(" ident_list(i) ")" :=
   revert i; repeat liForall.
@@ -548,8 +583,9 @@ Require Import VST.veric.make_compspecs.
 
     Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_ret_expr spec_f_ret_expr.
     Proof.
-      type_function "f_ret_expr" ( x ).
+      type_function "f" ( x ).
       repeat liRStep.
+      type_function_end.
     Qed.
   End f_test1.
 
@@ -559,12 +595,11 @@ Require Import VST.veric.make_compspecs.
     Definition spec_f_temps :=
       fn(∀ () : (); emp) → ∃ z : Z, (z @ (int tint)) ; ⌜z=42⌝.
 
-    Local Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-
     Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_temps spec_f_temps.
     Proof.
-      type_function "f_ret_expr" ( x ).
+      type_function "f" ( x ).
       repeat liRStep.
+      type_function_end.
   Qed.
 
 End f_test2.
