@@ -1352,7 +1352,7 @@ let pp_spec_vst : Coq_path.t -> import list -> inlined_code ->
 
   (* Opening the section. *)
   pp "@;@[<v 2>Section spec.@;";
-  pp "Context `{!typeG Σ} {cs : compspecs} `{!externalGS OK_ty Σ}.";
+  pp "Context `{!typeG OK_ty Σ} {cs : compspecs} `{!externalGS OK_ty Σ}.";
   List.iter (pp "@;%s.") ctxt;
 
   (* Printing inlined code (from comments). *)
@@ -1611,7 +1611,7 @@ let pp_spec_vst : Coq_path.t -> import list -> inlined_code ->
     in
     pp "@;Definition type_of_%s :=@;  @[<hov 2>" id;
     let pp_prod = pp_as_prod (pp_simple_coq_expr true) in
-    pp "fn(∀ %a : %a%a; %a)@;→ ∃ %a : %a, %a; %a.@]"
+    pp "fn(∀ %a : %a%a; <affine> %a)@;→ ∃ %a : %a, %a; %a.@]"
       (pp_as_tuple pp_str) param_names pp_prod param_types
       pp_args annot.fa_args pp_constrs annot.fa_requires (pp_as_tuple pp_str)
       exist_names pp_prod exist_types pp_type_expr
@@ -1675,7 +1675,7 @@ let pp_proof : Coq_path.t -> func_def -> import list -> string list
 
   (* Opening the section. *)
   pp "@[<v 2>Section proof_%s.@;" def.func_name;
-  pp " Context `{!typeG Σ} {cs : compspecs} `{!externalGS OK_ty Σ}.";
+  pp " Context `{!typeG OK_ty Σ} {cs : compspecs}.";
   List.iter (pp "@;%s.") ctxt;
 
   (* Statement of the typing proof. *)
@@ -1707,7 +1707,7 @@ let pp_proof : Coq_path.t -> func_def -> import list -> string list
     | [] -> ()
     | _  -> fprintf ff " (%a : loc)" (pp_sep " " pp_str) xs
   in
-  pp "@[<v 2>Lemma type_%s%a Espec Delta :@;" def.func_name pp_args deps;
+  pp "@[<v 2>Lemma type_%s%a Espec ge :@;" def.func_name pp_args deps;
   begin
     let prefix = if used_functions = [] then "⊢ " else "" in
     let pp_impl ff def =
@@ -1751,7 +1751,7 @@ let pp_proof : Coq_path.t -> func_def -> import list -> string list
       pp " -∗@;"
     in
     List.iter pp_dep used_functions;
-    pp "%styped_function(A := ConstType _) Espec Delta %a type_of_%s.@]@;" prefix pp_impl def def.func_name
+    pp "%styped_function(A := ConstType _) Espec ge %a type_of_%s.@]@;" prefix pp_impl def def.func_name
   end;
 
   (* We have a manual proof. *)
@@ -1910,7 +1910,7 @@ let pp_proof : Coq_path.t -> func_def -> import list -> string list
   List.iter pp_hint def.func_hints;
   pp "@;  @nil Prop@;)."; *)
   let pp_do_step id =
-    pp "@;- repeat liRStep; liShow.";
+    pp "@;- repeat liRStep; liShow. type_function_end.";
     pp "@;  all: print_typesystem_goal \"%s\" \"%s\"." def.func_name id
   in
   List.iter pp_do_step (List.cons "#0" (List.map fst invs));
