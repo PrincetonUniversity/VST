@@ -926,10 +926,16 @@ end.
 Ltac cancel_for_forward_call := cancel_for_evar_frame.
 Ltac default_cancel_for_forward_call := cancel_for_evar_frame.
 
+(* Work-around to obtain the evar that was created by the `evar` tactic.
+   See PR #834. *)
+Ltac evar_value x := (eval unfold x in x).
+
 Ltac unfold_post := match goal with |- ?Post = _ => let A := fresh "A" in let B := fresh "B" in first
-  [evar (A : Type); evar (B : A -> environ -> mpred); unify Post (@exp _ _ ?A ?B);
+  [evar (A : Type); evar (B : A -> environ -> mpred); let A_evar := (evar_value A) in let B_evar := (evar_value B) in
+     unify Post (@exp _ _ A_evar B_evar);
      change Post with (@exp _ _ A B); subst A B |
-   evar (A : list Prop); evar (B : environ -> mpred); unify Post (PROPx ?A ?B);
+   evar (A : list Prop); evar (B : environ -> mpred); let A_evar := (evar_value A) in let B_evar := (evar_value B) in
+     unify Post (PROPx A_evar B_evar);
      change Post with (PROPx A B); subst A B | idtac] end.
 
 
