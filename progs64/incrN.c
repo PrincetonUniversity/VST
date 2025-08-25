@@ -3,7 +3,7 @@
 
 #define N 5
 
-typedef struct counter { unsigned ctr; lock_t *lock; } counter;
+typedef struct counter { unsigned ctr; lock_t lock; } counter;
 counter c;
 
 void init_ctr(){
@@ -24,7 +24,7 @@ void incr() {
 }
 
 int thread_func(void *args) {
-  lock_t *l = (lock_t*)args;
+  lock_t l = (lock_t)args;
   //Increment the counter
   incr();
   //Yield: 'ready to join'.
@@ -36,7 +36,7 @@ int main(void)
 {
   init_ctr();
 
-  lock_t *thread_lock[N];
+  lock_t thread_lock[N];
   for(int i = 0; i < N; i++){
     thread_lock[i] = makelock();
     spawn((void*)&thread_func, (void*)thread_lock[i]);

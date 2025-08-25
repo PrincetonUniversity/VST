@@ -75,87 +75,27 @@ Definition ___compcert_va_composite : ident := $"__compcert_va_composite".
 Definition ___compcert_va_float64 : ident := $"__compcert_va_float64".
 Definition ___compcert_va_int32 : ident := $"__compcert_va_int32".
 Definition ___compcert_va_int64 : ident := $"__compcert_va_int64".
-Definition ___stringlit_1 : ident := $"__stringlit_1".
-Definition ___stringlit_2 : ident := $"__stringlit_2".
-Definition ___stringlit_3 : ident := $"__stringlit_3".
-Definition ___stringlit_4 : ident := $"__stringlit_4".
-Definition __l : ident := $"_l".
-Definition _a : ident := $"a".
 Definition _acquire : ident := $"acquire".
-Definition _append : ident := $"append".
 Definition _args : ident := $"args".
 Definition _atom_int : ident := $"atom_int".
-Definition _b : ident := $"b".
 Definition _c : ident := $"c".
-Definition _compute2 : ident := $"compute2".
 Definition _counter : ident := $"counter".
 Definition _ctr : ident := $"ctr".
-Definition _d : ident := $"d".
-Definition _delete : ident := $"delete".
 Definition _dest_ctr : ident := $"dest_ctr".
-Definition _e : ident := $"e".
-Definition _f : ident := $"f".
-Definition _foo : ident := $"foo".
-Definition _four : ident := $"four".
-Definition _freeN : ident := $"freeN".
 Definition _freelock : ident := $"freelock".
-Definition _g : ident := $"g".
-Definition _h : ident := $"h".
-Definition _head : ident := $"head".
-Definition _hi : ident := $"hi".
 Definition _i : ident := $"i".
 Definition _i__1 : ident := $"i__1".
 Definition _incr : ident := $"incr".
 Definition _init_ctr : ident := $"init_ctr".
-Definition _insert : ident := $"insert".
-Definition _j : ident := $"j".
-Definition _key : ident := $"key".
 Definition _l : ident := $"l".
-Definition _left : ident := $"left".
-Definition _list : ident := $"list".
-Definition _lo : ident := $"lo".
 Definition _lock : ident := $"lock".
-Definition _lookup : ident := $"lookup".
 Definition _main : ident := $"main".
 Definition _makelock : ident := $"makelock".
-Definition _mallocN : ident := $"mallocN".
-Definition _mid : ident := $"mid".
-Definition _p : ident := $"p".
-Definition _pa : ident := $"pa".
-Definition _pb : ident := $"pb".
-Definition _pushdown_left : ident := $"pushdown_left".
-Definition _q : ident := $"q".
-Definition _r : ident := $"r".
-Definition _read : ident := $"read".
 Definition _release : ident := $"release".
-Definition _right : ident := $"right".
-Definition _s : ident := $"s".
-Definition _search : ident := $"search".
 Definition _spawn : ident := $"spawn".
-Definition _sub1 : ident := $"sub1".
-Definition _sub2 : ident := $"sub2".
-Definition _sub3 : ident := $"sub3".
 Definition _t : ident := $"t".
-Definition _tail : ident := $"tail".
-Definition _tgt : ident := $"tgt".
 Definition _thread_func : ident := $"thread_func".
 Definition _thread_lock : ident := $"thread_lock".
-Definition _tree : ident := $"tree".
-Definition _tree_free : ident := $"tree_free".
-Definition _treebox_free : ident := $"treebox_free".
-Definition _treebox_new : ident := $"treebox_new".
-Definition _turn_left : ident := $"turn_left".
-Definition _u : ident := $"u".
-Definition _v : ident := $"v".
-Definition _val : ident := $"val".
-Definition _value : ident := $"value".
-Definition _x : ident := $"x".
-Definition _x1 : ident := $"x1".
-Definition _x2 : ident := $"x2".
-Definition _y : ident := $"y".
-Definition _y1 : ident := $"y1".
-Definition _y2 : ident := $"y2".
-Definition _z : ident := $"z".
 Definition _t'1 : ident := 128%positive.
 Definition _t'2 : ident := 129%positive.
 Definition _t'3 : ident := 130%positive.
@@ -174,7 +114,7 @@ Definition f_init_ctr := {|
   fn_params := nil;
   fn_vars := nil;
   fn_temps := ((_t'1, (tptr (Tstruct _atom_int noattr))) ::
-               (_t'2, (tptr (tptr (Tstruct _atom_int noattr)))) :: nil);
+               (_t'2, (tptr (Tstruct _atom_int noattr))) :: nil);
   fn_body :=
 (Ssequence
   (Sassign (Efield (Evar _c (Tstruct _counter noattr)) _ctr tuint)
@@ -186,16 +126,16 @@ Definition f_init_ctr := {|
                           cc_default)) nil)
       (Sassign
         (Efield (Evar _c (Tstruct _counter noattr)) _lock
-          (tptr (tptr (Tstruct _atom_int noattr))))
+          (tptr (Tstruct _atom_int noattr)))
         (Etempvar _t'1 (tptr (Tstruct _atom_int noattr)))))
     (Ssequence
       (Sset _t'2
         (Efield (Evar _c (Tstruct _counter noattr)) _lock
-          (tptr (tptr (Tstruct _atom_int noattr)))))
+          (tptr (Tstruct _atom_int noattr))))
       (Scall None
         (Evar _release (Tfunction ((tptr (Tstruct _atom_int noattr)) :: nil)
                          tvoid cc_default))
-        ((Etempvar _t'2 (tptr (tptr (Tstruct _atom_int noattr)))) :: nil)))))
+        ((Etempvar _t'2 (tptr (Tstruct _atom_int noattr))) :: nil)))))
 |}.
 
 Definition f_dest_ctr := {|
@@ -203,26 +143,26 @@ Definition f_dest_ctr := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_t'2, (tptr (tptr (Tstruct _atom_int noattr)))) ::
-               (_t'1, (tptr (tptr (Tstruct _atom_int noattr)))) :: nil);
+  fn_temps := ((_t'2, (tptr (Tstruct _atom_int noattr))) ::
+               (_t'1, (tptr (Tstruct _atom_int noattr))) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Sset _t'2
       (Efield (Evar _c (Tstruct _counter noattr)) _lock
-        (tptr (tptr (Tstruct _atom_int noattr)))))
+        (tptr (Tstruct _atom_int noattr))))
     (Scall None
       (Evar _acquire (Tfunction ((tptr (Tstruct _atom_int noattr)) :: nil)
                        tvoid cc_default))
-      ((Etempvar _t'2 (tptr (tptr (Tstruct _atom_int noattr)))) :: nil)))
+      ((Etempvar _t'2 (tptr (Tstruct _atom_int noattr))) :: nil)))
   (Ssequence
     (Sset _t'1
       (Efield (Evar _c (Tstruct _counter noattr)) _lock
-        (tptr (tptr (Tstruct _atom_int noattr)))))
+        (tptr (Tstruct _atom_int noattr))))
     (Scall None
       (Evar _freelock (Tfunction ((tptr (Tstruct _atom_int noattr)) :: nil)
                         tvoid cc_default))
-      ((Etempvar _t'1 (tptr (tptr (Tstruct _atom_int noattr)))) :: nil))))
+      ((Etempvar _t'1 (tptr (Tstruct _atom_int noattr))) :: nil))))
 |}.
 
 Definition f_incr := {|
@@ -230,19 +170,18 @@ Definition f_incr := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_t'3, (tptr (tptr (Tstruct _atom_int noattr)))) ::
-               (_t'2, tuint) ::
-               (_t'1, (tptr (tptr (Tstruct _atom_int noattr)))) :: nil);
+  fn_temps := ((_t'3, (tptr (Tstruct _atom_int noattr))) :: (_t'2, tuint) ::
+               (_t'1, (tptr (Tstruct _atom_int noattr))) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Sset _t'3
       (Efield (Evar _c (Tstruct _counter noattr)) _lock
-        (tptr (tptr (Tstruct _atom_int noattr)))))
+        (tptr (Tstruct _atom_int noattr))))
     (Scall None
       (Evar _acquire (Tfunction ((tptr (Tstruct _atom_int noattr)) :: nil)
                        tvoid cc_default))
-      ((Etempvar _t'3 (tptr (tptr (Tstruct _atom_int noattr)))) :: nil)))
+      ((Etempvar _t'3 (tptr (Tstruct _atom_int noattr))) :: nil)))
   (Ssequence
     (Ssequence
       (Sset _t'2 (Efield (Evar _c (Tstruct _counter noattr)) _ctr tuint))
@@ -252,11 +191,11 @@ Definition f_incr := {|
     (Ssequence
       (Sset _t'1
         (Efield (Evar _c (Tstruct _counter noattr)) _lock
-          (tptr (tptr (Tstruct _atom_int noattr)))))
+          (tptr (Tstruct _atom_int noattr))))
       (Scall None
         (Evar _release (Tfunction ((tptr (Tstruct _atom_int noattr)) :: nil)
                          tvoid cc_default))
-        ((Etempvar _t'1 (tptr (tptr (Tstruct _atom_int noattr)))) :: nil)))))
+        ((Etempvar _t'1 (tptr (Tstruct _atom_int noattr))) :: nil)))))
 |}.
 
 Definition f_thread_func := {|
@@ -264,19 +203,18 @@ Definition f_thread_func := {|
   fn_callconv := cc_default;
   fn_params := ((_args, (tptr tvoid)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_l, (tptr (tptr (Tstruct _atom_int noattr)))) :: nil);
+  fn_temps := ((_l, (tptr (Tstruct _atom_int noattr))) :: nil);
   fn_body :=
 (Ssequence
   (Sset _l
-    (Ecast (Etempvar _args (tptr tvoid))
-      (tptr (tptr (Tstruct _atom_int noattr)))))
+    (Ecast (Etempvar _args (tptr tvoid)) (tptr (Tstruct _atom_int noattr))))
   (Ssequence
     (Scall None (Evar _incr (Tfunction nil tvoid cc_default)) nil)
     (Ssequence
       (Scall None
         (Evar _release (Tfunction ((tptr (Tstruct _atom_int noattr)) :: nil)
                          tvoid cc_default))
-        ((Etempvar _l (tptr (tptr (Tstruct _atom_int noattr)))) :: nil))
+        ((Etempvar _l (tptr (Tstruct _atom_int noattr))) :: nil))
       (Sreturn (Some (Econst_int (Int.repr 0) tint))))))
 |}.
 
@@ -284,13 +222,13 @@ Definition f_main := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := nil;
-  fn_vars := ((_thread_lock,
-               (tarray (tptr (tptr (Tstruct _atom_int noattr))) 5)) :: nil);
+  fn_vars := ((_thread_lock, (tarray (tptr (Tstruct _atom_int noattr)) 5)) ::
+              nil);
   fn_temps := ((_i, tint) :: (_i__1, tint) :: (_t, tuint) ::
                (_t'1, (tptr (Tstruct _atom_int noattr))) ::
-               (_t'4, (tptr (tptr (Tstruct _atom_int noattr)))) ::
-               (_t'3, (tptr (tptr (Tstruct _atom_int noattr)))) ::
-               (_t'2, (tptr (tptr (Tstruct _atom_int noattr)))) :: nil);
+               (_t'4, (tptr (Tstruct _atom_int noattr))) ::
+               (_t'3, (tptr (Tstruct _atom_int noattr))) ::
+               (_t'2, (tptr (Tstruct _atom_int noattr))) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -313,19 +251,19 @@ Definition f_main := {|
                 (Sassign
                   (Ederef
                     (Ebinop Oadd
-                      (Evar _thread_lock (tarray (tptr (tptr (Tstruct _atom_int noattr))) 5))
+                      (Evar _thread_lock (tarray (tptr (Tstruct _atom_int noattr)) 5))
                       (Etempvar _i tint)
-                      (tptr (tptr (tptr (Tstruct _atom_int noattr)))))
-                    (tptr (tptr (Tstruct _atom_int noattr))))
+                      (tptr (tptr (Tstruct _atom_int noattr))))
+                    (tptr (Tstruct _atom_int noattr)))
                   (Etempvar _t'1 (tptr (Tstruct _atom_int noattr)))))
               (Ssequence
                 (Sset _t'4
                   (Ederef
                     (Ebinop Oadd
-                      (Evar _thread_lock (tarray (tptr (tptr (Tstruct _atom_int noattr))) 5))
+                      (Evar _thread_lock (tarray (tptr (Tstruct _atom_int noattr)) 5))
                       (Etempvar _i tint)
-                      (tptr (tptr (tptr (Tstruct _atom_int noattr)))))
-                    (tptr (tptr (Tstruct _atom_int noattr)))))
+                      (tptr (tptr (Tstruct _atom_int noattr))))
+                    (tptr (Tstruct _atom_int noattr))))
                 (Scall None
                   (Evar _spawn (Tfunction
                                  ((tptr (Tfunction ((tptr tvoid) :: nil) tint
@@ -337,8 +275,7 @@ Definition f_main := {|
                                             tint cc_default))
                        (tptr (Tfunction ((tptr tvoid) :: nil) tint
                                cc_default))) (tptr tvoid)) ::
-                   (Ecast
-                     (Etempvar _t'4 (tptr (tptr (Tstruct _atom_int noattr))))
+                   (Ecast (Etempvar _t'4 (tptr (Tstruct _atom_int noattr)))
                      (tptr tvoid)) :: nil)))))
           (Sset _i
             (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
@@ -357,29 +294,29 @@ Definition f_main := {|
                   (Sset _t'3
                     (Ederef
                       (Ebinop Oadd
-                        (Evar _thread_lock (tarray (tptr (tptr (Tstruct _atom_int noattr))) 5))
+                        (Evar _thread_lock (tarray (tptr (Tstruct _atom_int noattr)) 5))
                         (Etempvar _i__1 tint)
-                        (tptr (tptr (tptr (Tstruct _atom_int noattr)))))
-                      (tptr (tptr (Tstruct _atom_int noattr)))))
+                        (tptr (tptr (Tstruct _atom_int noattr))))
+                      (tptr (Tstruct _atom_int noattr))))
                   (Scall None
                     (Evar _acquire (Tfunction
                                      ((tptr (Tstruct _atom_int noattr)) ::
                                       nil) tvoid cc_default))
-                    ((Etempvar _t'3 (tptr (tptr (Tstruct _atom_int noattr)))) ::
+                    ((Etempvar _t'3 (tptr (Tstruct _atom_int noattr))) ::
                      nil)))
                 (Ssequence
                   (Sset _t'2
                     (Ederef
                       (Ebinop Oadd
-                        (Evar _thread_lock (tarray (tptr (tptr (Tstruct _atom_int noattr))) 5))
+                        (Evar _thread_lock (tarray (tptr (Tstruct _atom_int noattr)) 5))
                         (Etempvar _i__1 tint)
-                        (tptr (tptr (tptr (Tstruct _atom_int noattr)))))
-                      (tptr (tptr (Tstruct _atom_int noattr)))))
+                        (tptr (tptr (Tstruct _atom_int noattr))))
+                      (tptr (Tstruct _atom_int noattr))))
                   (Scall None
                     (Evar _freelock (Tfunction
                                       ((tptr (Tstruct _atom_int noattr)) ::
                                        nil) tvoid cc_default))
-                    ((Etempvar _t'2 (tptr (tptr (Tstruct _atom_int noattr)))) ::
+                    ((Etempvar _t'2 (tptr (Tstruct _atom_int noattr))) ::
                      nil)))))
             (Sset _i__1
               (Ebinop Oadd (Etempvar _i__1 tint)
@@ -395,7 +332,7 @@ Definition f_main := {|
 Definition composites : list composite_definition :=
 (Composite _counter Struct
    (Member_plain _ctr tuint ::
-    Member_plain _lock (tptr (tptr (Tstruct _atom_int noattr))) :: nil)
+    Member_plain _lock (tptr (Tstruct _atom_int noattr)) :: nil)
    noattr :: nil).
 
 Definition global_definitions : list (ident * globdef fundef type) :=
