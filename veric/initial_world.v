@@ -16,7 +16,7 @@ Require Import VST.veric.env.
 Require Import VST.veric.lifting_expr.
 Require Import VST.veric.mapsto_memory_block.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-Import Values.
+Import Values Address.
 
 Open Scope maps.
 

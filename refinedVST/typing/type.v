@@ -120,31 +120,62 @@ Instance data_at_rec_timeless {Σ : gFunctors} {heapGS0 : heapGS Σ} {cs : comps
 Proof.
 Admitted.
 
-Definition adr2val (l : address) := Vptr l.1 (Ptrofs.repr l.2).
+Definition adr2val (l : address) := Vptr l.1 l.2.
 Coercion adr2val : address >-> val.
 
 (* overwrites res_predicates.val2address; unsigned seems to make more sense *)
 Definition val2adr (v: val) : option address := 
-  match v with Vptr b ofs => Some (b, Ptrofs.unsigned ofs) | _ => None end.
-
-(* Ptrofs.intval Ptrofs.repr *)
-Definition norm_adr (l:address) : address := (l.1, (Ptrofs.unsigned $ Ptrofs.repr l.2)).
-
-Lemma val2adr2val_id l : val2adr $ adr2val (norm_adr l) = Some $ norm_adr l.
-Proof.
-  destruct l; try done.
-  rewrite  /norm_adr /= Ptrofs.unsigned_repr //.
-  apply Ptrofs.unsigned_range_2.
-Qed.
+  match v with Vptr b ofs => Some (b, ofs) | _ => None end.
 
 Local Open Scope Z.
 Section CompatRefinedC.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
+(* like value_fits but rules out Vundef *)
+Definition value_def: forall t, reptype t -> Prop :=
+  type_induction.type_func (fun t => reptype t -> Prop)
+    (fun t v =>
+       if type_is_volatile t then True%type else tc_val t (repinject t v))
+    (fun t n a P v => Zlength (unfold_reptype v) =  Z.max 0 n /\ Forall P (unfold_reptype v))
+    (fun id a P v => aggregate_pred.struct_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v))
+    (fun id a P v => aggregate_pred.union_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v)).
+
+Lemma value_def_eq:
+  forall t v,
+  value_def t v =
+  match t as t0 return (reptype t0 -> Prop)  with
+  | Tarray t' n a => fun v0 : reptype (Tarray t' n a) =>
+    (fun v1 : list (reptype t') =>
+     Zlength v1 = Z.max 0 n /\ Forall (value_def t') v1)
+      (unfold_reptype v0)
+| Tstruct i a =>
+    fun v0 : reptype (Tstruct i a) =>
+     aggregate_pred.struct_Prop (co_members (get_co i))
+       (fun it : member =>
+        value_def (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
+| Tunion i a =>
+    fun v0 : reptype (Tunion i a) =>
+     aggregate_pred.union_Prop (co_members (get_co i))
+       (fun it : member =>
+        value_def (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
+  | t0 => fun v0: reptype t0 =>
+             (if type_is_volatile t0
+              then True%type
+              else tc_val t0 (repinject t0 v0))
+  end v.
+Proof.
+intros.
+unfold value_def.
+rewrite type_induction.type_func_eq.
+destruct t; auto.
+- apply aggregate_pred.struct_value_fits_aux_spec.
+- apply aggregate_pred.union_value_fits_aux_spec.
+Qed.
+
   (* refinedC only checks if `v` fits in the size of cty *)
   (* this is implied by the current mapsto (i.e. data_at_rec_value_fits) *)
   Definition has_layout_val (cty:Ctypes.type) (v:reptype cty) : Prop :=
-    value_fits cty v ∧ type_is_volatile cty = false.
+    value_def cty v ∧ type_is_volatile cty = false.
 
   Arguments has_layout_val : simpl never.
 
@@ -154,26 +185,45 @@ Section CompatRefinedC.
     has_layout_val cty v → type_is_volatile cty = false.
   Proof. move => [? ?] //. Qed.
 
-  Lemma has_layout_val_value_fits cty v :
-    has_layout_val cty v → value_fits cty v.
+  Lemma has_layout_val_value_def cty v :
+    has_layout_val cty v → value_def cty v.
   Proof. move => [? ?] //. Qed.
 
   Lemma has_layout_val_tc_val' cty v_rep :
     type_is_by_value cty = true →
-    has_layout_val cty v_rep → 
-    tc_val' cty (repinject cty v_rep).
+    has_layout_val cty v_rep →
+    tc_val cty (repinject cty v_rep).
   Proof.
-    move => ? [? ?].
-    rewrite -field_at.value_fits_by_value //.
+    move => ? [Hv Hvol].
+    rewrite value_def_eq in Hv.
+    destruct cty; try done; simpl in *; rewrite Hvol // in Hv.
   Qed.
 
   Lemma has_layout_val_tc_val'2 cty v :
     type_is_by_value cty = true →
     has_layout_val cty (valinject cty v) → 
-    tc_val' cty v.
+    tc_val cty v.
   Proof.
-    move => ? [H ?].
-    rewrite field_at.value_fits_by_value // repinject_valinject // in H.
+    intros; rewrite -(repinject_valinject cty v) //.
+    by apply has_layout_val_tc_val'.
+  Qed.
+
+  Lemma tc_val_has_layout_val cty v :
+    type_is_by_value cty = true →
+    type_is_volatile cty = false →
+    tc_val cty (repinject cty v) → has_layout_val cty v.
+  Proof.
+    intros ? Hvol ?; split; last done.
+    rewrite value_def_eq; destruct cty; try done; rewrite /= Hvol //.
+  Qed.
+
+  Lemma tc_val_has_layout_val2 cty v :
+    type_is_by_value cty = true →
+    type_is_volatile cty = false →
+    tc_val cty v → has_layout_val cty (valinject cty v).
+  Proof.
+    intros; apply tc_val_has_layout_val; auto.
+    by rewrite repinject_valinject.
   Qed.
 
   Definition has_layout_loc (l:address) (cty:Ctypes.type) : Prop :=
@@ -184,6 +234,9 @@ Section CompatRefinedC.
 
   (* mapsto field_at seems mostly equivalent? *)
 
+  (* Note: data_at_rec is built with mapsto_memory_block.mapsto, which interprets Vundef
+     as "any value" rather than undefined. Possibly we should write this out of the
+     core logic. *)
   Definition mapsto (l : address) (q : Share.t) (cty : Ctypes.type) v : mpred :=
     data_at_rec q cty v l.
 
@@ -244,11 +297,13 @@ Section own_state.
   Lemma data_at_rec_loc_in_bounds : forall q cty v (l : address),
     q ≠ Share.bot →
     composite_compute.complete_legal_cosu_type cty = true →
-    0 ≤ l.2 ∧ l.2 + expr.sizeof cty < Ptrofs.modulus →
-    align_mem.align_compatible_rec cenv_cs cty l.2 →
+    0 ≤ Ptrofs.unsigned l.2 ∧ Ptrofs.unsigned l.2 + expr.sizeof cty < Ptrofs.modulus →
+    align_mem.align_compatible_rec cenv_cs cty (Ptrofs.unsigned l.2) →
     data_at_rec q cty v l ⊢ loc_in_bounds l (Z.to_nat (expr.sizeof cty)).
   Proof.
-    intros; rewrite data_at_rec_data_at_rec_ // memory_block_data_at_rec_default_val //.
+    intros.
+    destruct l as (b, o); simpl.
+    rewrite -{1}(Ptrofs.repr_unsigned o) data_at_rec_data_at_rec_ // memory_block_data_at_rec_default_val // Ptrofs.repr_unsigned.
     iIntros "Hl" (??); iApply (valid_pointer.memory_block_valid_pointer with "Hl"); auto.
     rep_lia.
   Qed.
@@ -256,8 +311,8 @@ Section own_state.
   Lemma heap_mapsto_own_state_loc_in_bounds E (l : address) β cty v : mtE ⊆ E →
     (* should we include all these conditions in mapsto? *)
     composite_compute.complete_legal_cosu_type cty = true →
-    0 ≤ l.2 ∧ l.2 + expr.sizeof cty < Ptrofs.modulus →
-    align_mem.align_compatible_rec cenv_cs cty l.2 →
+    0 ≤ Ptrofs.unsigned l.2 ∧ Ptrofs.unsigned l.2 + expr.sizeof cty < Ptrofs.modulus →
+    align_mem.align_compatible_rec cenv_cs cty (Ptrofs.unsigned l.2) →
     l ↦[β]|cty| v ={E}=∗ loc_in_bounds l (Z.to_nat (expr.sizeof cty)).
     (* Unfortunately we need the view shift here -- we can't put valid_pointer outside the
        inv in the Shr case without losing persistence -- but that makes this almost
@@ -392,7 +447,7 @@ Record type `{!typeG OK_ty Σ} {cs : compspecs}  := {
   ty_size_eq cty mt v_rep : ty_has_op_type cty mt → ty_own_val cty v_rep -∗ <absorb> ⌜v_rep `has_layout_val` cty ⌝;
   (** [ty_deref] states that [l ◁ₗ ty] can be turned into [v ◁ᵥ ty] and a points-to
   according to [ty_has_op_type]. *)
-  ty_deref cty mt l : ty_has_op_type cty mt → ty_own Own l -∗ ∃ v_rep:(reptype_lemmas.reptype cty), mapsto l Tsh cty v_rep ∗ ty_own_val cty v_rep;
+  ty_deref cty mt l : ty_has_op_type cty mt → ty_own Own l -∗ ∃ v_rep: reptype cty, mapsto l Tsh cty v_rep ∗ ty_own_val cty v_rep;
   (** [ty_ref] states that [v ◁ₗ ty] and a points-to for a suitable location [l ◁ₗ ty]
   according to [ty_has_op_type]. *)
   ty_ref cty mt (l : address) v_rep : ty_has_op_type cty mt → <affine> ⌜l `has_layout_loc` cty⌝ -∗ mapsto l Tsh cty v_rep -∗ ty_own_val cty v_rep -∗ ty_own Own l;
@@ -520,8 +575,8 @@ Section loc_in_bounds.
 
   Lemma movable_loc_in_bounds ty (l : address) ot mt:
     composite_compute.complete_legal_cosu_type ot = true →
-    0 ≤ l.2 ∧ l.2 + expr.sizeof ot < Ptrofs.modulus →
-    align_mem.align_compatible_rec cenv_cs ot l.2 →
+    0 ≤ Ptrofs.unsigned l.2 ∧ Ptrofs.unsigned l.2 + expr.sizeof ot < Ptrofs.modulus →
+    align_mem.align_compatible_rec cenv_cs ot (Ptrofs.unsigned l.2) →
     ty.(ty_has_op_type) ot mt →
     ty.(ty_own) Own l -∗ loc_in_bounds l (Z.to_nat (expr.sizeof ot)).
   Proof.

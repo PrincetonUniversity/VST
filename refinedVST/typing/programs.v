@@ -362,7 +362,7 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
        (∀ (l:address), 
           (|={⊤, E}=>
             (∃ v q (ty : type), <affine> ⌜l `has_layout_loc` ot⌝ ∗ <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
-            <affine> ⌜readable_share q⌝ ∗ <affine> ⌜v ≠ Vundef⌝ ∗
+            <affine> ⌜readable_share q⌝ ∗
             ⎡ l ↦{q}|ot| (valinject ot v) ⎤ ∗ ⎡v ◁ᵥₐₗ|ot| ty⎤ ∗ 
             (⎡ l ↦{q}|ot| (valinject ot v) ⎤ -∗ ⎡v ◁ᵥₐₗ|ot| ty⎤ ={E, ⊤}=∗
               ∃ ty', ⎡v ◁ᵥₐₗ|ot| ty'⎤ ∗ T v ty')))
@@ -385,7 +385,7 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
     (⎡l◁ₗ{β}ty⎤ ={E, E'}=∗
       ∃ q v (ty2 : type),
       <affine> ⌜l `has_layout_loc` ot⌝ ∗ <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
-      <affine> ⌜readable_share q⌝ ∗ <affine> ⌜v ≠ Vundef⌝ ∗
+      <affine> ⌜readable_share q⌝ ∗
       ⎡l↦{q}|ot| valinject ot v⎤ ∗  ⎡v ◁ᵥₐₗ|ot| ty2⎤ ∗
       (⎡l↦{q}|ot| valinject ot v⎤ -∗  ⎡v ◁ᵥₐₗ|ot| ty2⎤ ={E', E}=∗
        ∃ ty' ty2',  ⎡l◁ₗ{β} ty'⎤ ∗ ⎡v ◁ᵥₐₗ|ot| ty2'⎤ ∗ T v ty' ty2'))%I.
@@ -574,7 +574,6 @@ Qed.
       iApply (place_to_wp_mono with "HΦ"); iIntros (l') "(%sh & %v & % & ↦ & %l'' & -> & HWP)" => /=.
       iExists _, _. iSplit => //.
       iExists _, _. iSplit => //.
-      rewrite Ptrofs.repr_unsigned.
       iSplit; first iFrame.
       iApply ("HWP" with "[$]").
     - rewrite -wp_binop_rule'.
@@ -1434,9 +1433,8 @@ Section typing.
     iIntros (v ty) "H (% & % & ty_write)".
     simpl.
     iDestruct (ty_size_eq _ with "H") as "%"; first done.
-    destruct H1. 
-    rewrite field_at.value_fits_by_value // repinject_valinject // in H1.
-    iSplit; [done|].
+    apply has_layout_val_tc_val'2 in H1; last done.
+    iSplit; [iPureIntro; intros ?; done|].
     iApply wp_lvalue_mono.
     { intros; iIntros "A"; iApply "A". }
     iApply "ty_write".
@@ -1533,7 +1531,7 @@ Section typing.
           rewrite Int64.eq_true // in Heq.
         * apply (unsigned_inj_64 _ Int64.zero) in H0 as ->.
           rewrite Int64.eq_true // in Heq.
-Qed.
+  Qed.
 
   Lemma type_break Espec ge f R:
     T_break R ⊢ typed_stmt Espec ge Sbreak f R.
@@ -1737,8 +1735,8 @@ Qed.
   Lemma type_var_local ge f _x b β ty c_ty (T: address -> own_state -> type -> assert) :
     env.lvar _x c_ty b ∗
     (env.lvar _x c_ty b -∗
-      ⎡ (b, 0) ◁ₗ{β} ty ⎤ ∗
-      T (b, 0) β ty)
+      ⎡ (b, Ptrofs.zero) ◁ₗ{β} ty ⎤ ∗
+      T (b, Ptrofs.zero) β ty)
     ⊢ typed_lvalue ge f β (Evar _x c_ty) T.
   Proof.
     iIntros "(Hlvar & HT)" (Φ) "HΦ".
@@ -1919,19 +1917,22 @@ Qed.
     iApply wp_expr_mono; first by intros; apply derives_refl.
     iApply "typed_read".
     iIntros (l) "typed_read".
-    iMod "typed_read" as "(%v & %q & %ty & %Hl & %Hv & %Hq & %v_not_undef & own_l & own_v & typed_read)".
+    iMod "typed_read" as "(%v & %q & %ty & %Hl & %Hv & %Hq & own_l & own_v & typed_read)".
     iExists _, _.
     rewrite -fupd_frame_l.
     iSplit => //.
     destruct l.
     iExists _ ,_.
     rewrite -fupd_frame_l.
+    assert (v ≠ Vundef).
+    { apply has_layout_val_tc_val'2 in Hv; last done.
+      intros ->; by apply tc_val_Vundef in Hv. }
     iSplit => //.
     iModIntro.
     iSplit.
     {
       destruct Hv as [? ?].
-      rewrite /mapsto by_value_data_at_rec_nonvolatile // repinject_valinject // Ptrofs.repr_unsigned /=.
+      rewrite /mapsto by_value_data_at_rec_nonvolatile // repinject_valinject //=.
       iFrame.
     }
     iMod ("typed_read" with "[$] [$]") as (ty') "[? ?]".
@@ -1955,7 +1956,7 @@ Qed.
     iIntros (v_l ty_l) "Hl (%l & -> & own_l & typed_read_end)".
     iApply ("HΦ" $! l).
     rewrite /typed_read_end.
-    iMod ("typed_read_end" with "own_l") as "(%q & %v & %ty_v & %Hl & %Hv & %Hq & %v_not_undef & own_l & own_v & HT)".
+    iMod ("typed_read_end" with "own_l") as "(%q & %v & %ty_v & %Hl & %Hv & %Hq & own_l & own_v & HT)".
     iModIntro.
     iExists _, _, _.
     repeat iSplit => //.
@@ -1980,8 +1981,8 @@ Qed.
     iIntros (K l). iDestruct 1 as ([β ty]) "[Hl HP]".
     iApply ("HP" with "Hl").
     iIntros (l' β2 ty2 typ R) "Hl' Hc HT" => /=. iApply "HΦ".
-    rewrite /typed_read_end. iMod ("HT" with "Hl'") as (q v ty3 Hly Hv) "(%&%&Hl&Hv&HT)".
-    iModIntro. iExists _,_,_. iFrame "Hl Hv". do 4 iSplitR => //.
+    rewrite /typed_read_end. iMod ("HT" with "Hl'") as (q v ty3 Hly Hv) "(%&Hl&Hv&HT)".
+    iModIntro. iExists _,_,_. iFrame "Hl Hv". do 3 iSplitR => //.
     iIntros "Hl Hv".
     iMod ("HT" with "Hl Hv") as (ty' ty4) "(Hv&Hl&HT)".
     iMod ("Hc" with "[$]") as "[? ?]". iExists _. iFrame. by iApply ("HT" with "[$]").
@@ -2005,7 +2006,7 @@ Qed.
     rewrite -H.
     iApply ("HΦ").
     rewrite /typed_read_end.
-    iMod ("typed_read_end" with "own_l") as "(%q & %v & %ty_v & %Hl & %Hv & %Hq & %v_not_undef & own_l & own_v & HT)".
+    iMod ("typed_read_end" with "own_l") as "(%q & %v & %ty_v & %Hl & %Hv & %Hq & own_l & own_v & HT)".
     iModIntro.
     iExists _, _, _.
     repeat iSplit => //.
@@ -2018,7 +2019,7 @@ Qed.
 
   Lemma type_read_copy a β l ty cty E {HC: CopyAs l β cty ty} (T:val → type → type → assert):
     <affine> ⌜type_is_by_value cty = true⌝ ∗
-    ((HC (λ ty', <affine> ⌜ty'.(ty_has_op_type) cty MCCopy⌝ ∗ <affine> ⌜mtE ⊆ E⌝ ∗ ∀ v, <affine>⌜v ≠ Vundef⌝ ∗ T v (ty' : type) ty')).(i2p_P))
+    ((HC (λ ty', <affine> ⌜ty'.(ty_has_op_type) cty MCCopy⌝ ∗ <affine> ⌜mtE ⊆ E⌝ ∗ ∀ v, T v (ty' : type) ty')).(i2p_P))
     ⊢ typed_read_end a E l β ty cty T.
   Proof.
     iIntros "[% Hs] Hl". iDestruct (i2p_proof with "Hs Hl") as (ty') "(Hl&%&%&%&HT)".
@@ -2027,13 +2028,12 @@ Qed.
       iDestruct (ty_aligned with "Hl") as %?; [done|].
       iDestruct (ty_deref with "Hl") as (v) "[Hl #Hv]"; [done|].
       iDestruct (ty_size_eq with "Hv") as %?; [done|].
-      iExists _, (repinject cty v), _. 
+      iExists _, (repinject cty v), _.
       rewrite !valinject_repinject /ty_own_val_at //.
       iFrame "∗Hv". do 2 iSplitR => //=.
       iSplit; first by (rewrite /Tsh; iPureIntro; apply readable_share_top).
-      iDestruct ("HT" $! (repinject cty v)) as "(% & T)".
-      iSplitR => //.
-      iIntros "Hl #own_v". iFrame. 
+      iDestruct ("HT" $! (repinject cty v)) as "T".
+      iIntros "Hl #own_v". iFrame.
       iDestruct (ty_ref with "[//] Hl own_v") as "$"; [done|].
       iMod "Hclose". done.
     - iRevert "Hl". iIntros "#Hl".
@@ -2043,8 +2043,8 @@ Qed.
       iExists _, (repinject cty v), _.
       rewrite !valinject_repinject /ty_own_val_at //.
       iFrame.
-      iDestruct ("HT" $! (repinject cty v)) as "(% & HT)".
-      do 4 iSplitR => //.
+      iDestruct ("HT" $! (repinject cty v)) as "HT".
+      do 3 iSplitR => //.
       iIntros "Hmt Hv". iMod "Hclose".
       iMod ("Hc" with "Hmt") as "?".
       iExists _, _. iFrame "Hl". iFrame. iModIntro. done.
@@ -2063,14 +2063,14 @@ Qed.
     rewrite -wp_deref.
     iApply (HT' with "HT'"). iIntros (K l). iDestruct 1 as ([β1 ty1]) "[Hl HK]".
     iApply ("HK" with "Hl"). iIntros (l2 β2 ty2 typ R) "Hl' Hc He".
-    simpl. iExists _, _. iSplit => //. rewrite Ptrofs.unsigned_repr. 2: admit.
+    simpl. iExists _, _. iSplit => //.
     replace ((l2.1, l2.2)) with l2 by by destruct l2.
     iApply "HΦ". iIntros "Hv".
     rewrite /typed_write_end. iMod ("He" with "Hl' Hv") as "[$ [$ Hc2]]".
     iIntros "!# !# Hl".
     iMod ("Hc2" with "Hl") as (ty3) "[Hl HT]".
     iMod ("Hc" with "Hl") as "[? ?]". by iApply ("HT" with "[$]").
-  Admitted.
+  Qed.
 
   (* for expr `e:=v` => eval_expr e = l ∧ typed l v  *)
   (* typed_lvalue e (typed_write_end ...)   *)

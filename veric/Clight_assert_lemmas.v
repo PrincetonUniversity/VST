@@ -14,6 +14,14 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
+(* If we used this definition of func_ptr, we could get rid of func_at and funassert. *)
+(*Definition func_ptr_si Delta (ge : genv) (f: funspec) (v: val): mpred :=
+  ∃ b, ⌜v = Vptr b Ptrofs.zero⌝ ∧ (∃ gs: funspec, funspec_sub_si gs f ∧
+    ⌜∃ id, Genv.find_symbol ge id = Some b ∧ Maps.PTree.get id (glob_specs Delta) = Some gs⌝).*)
+(* But VeriC predicates don't have access to the function definitions in ge, so this
+   would be tricky to state. We could cut that out if Delta mapped blocks/addresses to specs,
+   instead of function names. *)
+
 Definition funassert Delta (ge : genv) :=
   (□ (∀ id: ident, ∀ fs:funspec,  ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
             ∃ b, ⌜Genv.find_symbol ge id = Some b⌝ ∧ func_at fs (b, 0%Z)) ∗

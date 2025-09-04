@@ -615,7 +615,7 @@ Lemma wp_store': forall E f e1 e2 t2 ch1 ch2 R
   (Hch2 : access_mode t2 = By_value ch2),
   decode_encode_val_ok ch1 ch2 →
   wp_expr ge E f (Ecast e2 (typeof e1)) (λ v2,
-      ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b (Ptrofs.repr o) in
+      ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b o in
     ∃ sh, ⌜writable0_share sh⌝ ∧ ▷ (⎡mapsto_ sh (typeof e1) v1 ∧ mapsto_ sh t2 v1⎤ ∗
     ((∃ v', ⌜decode_encode_val v2 ch1 ch2 v'⌝ ∧ ⎡mapsto sh t2 v1 v'⎤) ={E}=∗ RA_normal R))))
   ⊢ wp E f (Sassign e1 e2) R.
@@ -629,7 +629,6 @@ Proof.
   iMod ("H" with "Hm [$]") as ">(%v2 & He2 & Hm & ? & % & H)".
   iMod ("H" with "Hm [$]") as ">(%b & %o & He1 & Hm & ? & H)".
   iDestruct "H" as (sh ?) "(Hp & H)".
-  rewrite Ptrofs.repr_unsigned.
   iDestruct (add_and _ (▷ ⌜type_is_volatile t2 = false ∧ (align_chunk ch2 | Ptrofs.unsigned o)%Z⌝) with "Hp") as "(Hp & >(% & %))".
   { iIntros "(_ & H) !>".
     rewrite /mapsto_ /mapsto Hch2.
@@ -674,7 +673,7 @@ Qed.
 
 Lemma wp_store: forall E f e1 e2 R,
   wp_expr ge E f (Ecast e2 (typeof e1)) (λ v2,
-      ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b (Ptrofs.repr o) in
+      ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b o in
     ∃ sh, ⌜writable0_share sh⌝ ∧ ▷ (⎡mapsto_ sh (typeof e1) v1⎤ ∗
     (⎡mapsto sh (typeof e1) v1 v2⎤ ={E}=∗ RA_normal R))))
   ⊢ wp E f (Sassign e1 e2) R.
@@ -688,7 +687,6 @@ Proof.
   iMod ("H" with "Hm [$]") as ">(%v2 & He2 & Hm & ? & % & H)".
   iMod ("H" with "Hm [$]") as ">(%b & %o & He1 & Hm & ? & H)".
   iDestruct "H" as (sh ?) "(Hp & H)".
-  rewrite Ptrofs.repr_unsigned.
   iDestruct (add_and _ (▷ ⌜∃ ch : memory_chunk, access_mode (typeof e1) = By_value ch⌝) with "Hp") as "(Hp & >(% & %))".
   { apply bi.later_mono; rewrite /mapsto_ mapsto_pure_facts embed_pure; apply bi.pure_mono; tauto. }
   iCombine "Hm Hp" as "Hp"; iDestruct (add_and _ (▷ ⌜∃ m' : Memory.mem, store ch m b (Ptrofs.unsigned o) v2 = Some m'⌝) with "Hp") as "((Hm & Hp) & >(% & %Hstore))".
@@ -2138,6 +2136,7 @@ Qed.
 Require Import VST.veric.external_state.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.semantics.
+Import Address.
 
 Class VSTGpreS (Z : Type) Σ := {
   VSTGpreS_inv :: invGpreS Σ;

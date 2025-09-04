@@ -513,7 +513,7 @@ Lemma wp_tc_lvalue : forall {CS : compspecs} E f Delta e P (ge : genv) rho,
   typecheck_environ Delta rho ->
   ⊢ curr_env ge f rho -∗
     ▷ ⎡tc_lvalue Delta e rho⎤ ∧
-    (curr_env ge f rho -∗ ∀ b o, ⌜eval_lvalue e rho = Vptr b (Ptrofs.repr o)⌝ → P (b, o)) -∗
+    (curr_env ge f rho -∗ ∀ b o, ⌜eval_lvalue e rho = Vptr b o⌝ → P (b, o)) -∗
   wp_lvalue ge E f e P.
 Proof.
   intros; rewrite /wp_lvalue.
@@ -537,8 +537,7 @@ Proof.
     iDestruct ("Hsub" with "Hmatch") as %(? & Hmatch).
     iPureIntro; simpl.
     edestruct He as (? & ? & ? & [=]); by subst.
-  - iApply ("H" with "Hrho").
-    by rewrite Ptrofs.repr_unsigned.
+  - by iApply ("H" with "Hrho").
 Qed.
 
 Lemma typecheck_exprlist_sound : forall {CS : compspecs} Delta tys es rho,
