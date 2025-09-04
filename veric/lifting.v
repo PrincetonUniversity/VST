@@ -37,6 +37,7 @@ Context `{!VSTGS OK_ty Σ} (OK_spec : ext_spec OK_ty) (ge : genv).
 Definition jsafeN :=
   jsafe(genv_symb := genv_symb_injective) (cl_core_sem ge) OK_spec ge.
 
+(* Could this just be (State f Sskip ctl ve te)? *)
 Definition cont_to_state f ve te ctl :=
   match ctl with
   | Kseq s ctl' => Some (State f s ctl' ve te)
@@ -77,14 +78,19 @@ Definition stack_matches' (ρ: env_state) ve te (ctl: option cont) : Prop :=
               stack_matches ρ (cont_to_stack k) (stack_depth k) ∧
               ∀ n, (stack_depth k < n)%nat → lookup n ρ.2 = None end.
 
-Definition assert_safe (E: coPset) (f: function) (ctl: option cont) : mpred :=
+(* cont_safe *)
+Definition assert_safe (E: coPset) (f: function) (ctl: option cont) : assert :=
   ∀ ora ρ ve te,
-       env_auth ρ -∗
+       ⎡env_auth ρ⎤ -∗
        ⌜stack_matches' ρ ve te ctl⌝ →
        (* this is the only tycontext piece we actually need *)
        ⌜typecheck_var_environ (make_env ve) (make_tycontext_v f.(fn_vars))⌝ →
-       match option_bind _ _ (cont_to_state f ve te) ctl with
-       | Some c => jsafeN E ora c
+       match ctl with
+       | Some k => stack_level (stack_depth k) -∗
+           match cont_to_state f ve te k with
+           | Some c => ⎡jsafeN E ora c⎤
+           | None => |={E}=> False
+           end
        | None => |={E}=> False
        end.
 
@@ -92,10 +98,12 @@ Lemma assert_safe_mono E1 E2 f ctl: E1 ⊆ E2 ->
   assert_safe E1 f ctl ⊢ assert_safe E2 f ctl.
 Proof.
   rewrite /assert_safe; intros.
-  iIntros "H" (????) "?%%"; iSpecialize ("H" with "[$] [//] [//]").
-  destruct option_bind.
-  - by iApply jsafe_mask_mono.
-  - iMod (fupd_mask_subseteq E1); first done; iMod "H" as "[]".
+  do 11 f_equiv.
+  destruct ctl; last by iIntros "H"; iMod (fupd_mask_subseteq E1); first done; iMod "H" as "[]".
+  f_equiv.
+  destruct (cont_to_state _ _ _ _); last by iIntros "H"; iMod (fupd_mask_subseteq E1); first done; iMod "H" as "[]".
+  f_equiv.
+  by iApply jsafe_mask_mono.
 Qed.
 
 Lemma fupd_assert_safe : forall E f k,
@@ -103,7 +111,10 @@ Lemma fupd_assert_safe : forall E f k,
 Proof.
   intros; iIntros "H" (????) "?%%".
   iSpecialize ("H" with "[$] [//] [//]").
-  destruct option_bind; by iMod "H".
+  destruct k; last by iMod "H".
+  iIntros "?"; iSpecialize ("H" with "[$]").
+  destruct (cont_to_state _ _ _ _); last by iMod "H".
+  rewrite -embed_fupd; iModIntro; by iMod "H".
 Qed.
 
 Global Instance elim_modal_fupd_assert_safe p P E f c :
@@ -140,10 +151,10 @@ match k with
 end.
 
 Definition guarded E f k Q :=
-  (RA_normal Q (stack_depth k) -∗ assert_safe E f (Some k)) ∧
-  (RA_break Q (stack_depth k) -∗ assert_safe E f (break_cont k)) ∧
-  (RA_continue Q (stack_depth k) -∗ assert_safe E f (continue_cont k)) ∧
-  (∀ ret, wp_expr_opt E f (option_map (λ e, Ecast e f.(fn_return)) ret) (λ vl, RA_return Q vl) (stack_depth k) -∗
+  (RA_normal Q -∗ assert_safe E f (Some k)) ∧
+  (RA_break Q -∗ assert_safe E f (break_cont k)) ∧
+  (RA_continue Q -∗ assert_safe E f (continue_cont k)) ∧
+  (∀ ret, wp_expr_opt E f (option_map (λ e, Ecast e f.(fn_return)) ret) (λ vl, RA_return Q vl) -∗
           assert_safe E f (Some (Kseq (Sreturn ret) (call_cont k)))).
 
 Lemma fupd_guarded : forall E f k Q, (|={E}=> guarded E f k Q) ⊢ guarded E f k Q.
@@ -164,28 +175,28 @@ Proof.
 Qed.
 
 Lemma guarded_strong_mono : forall E f k Q Q',
-   ((RA_normal Q (stack_depth k) ={E}=∗ RA_normal Q' (stack_depth k)) ∧
-    (RA_break Q (stack_depth k) ={E}=∗ RA_break Q' (stack_depth k)) ∧
-    (RA_continue Q (stack_depth k) ={E}=∗ RA_continue Q' (stack_depth k)) ∧
-    (∀ v, RA_return Q v (stack_depth k) ={E}=∗ RA_return Q' v (stack_depth k))) ∗
+   ((RA_normal Q ={E}=∗ RA_normal Q') ∧
+    (RA_break Q ={E}=∗ RA_break Q') ∧
+    (RA_continue Q ={E}=∗ RA_continue Q') ∧
+    (∀ v, RA_return Q v ={E}=∗ RA_return Q' v)) ∗
   guarded E f k Q' ⊢ guarded E f k Q.
 Proof.
   intros.
   iIntros "(Hconseq & H)".
   repeat iSplit; [by iIntros "Q"; iMod ("Hconseq" with "Q") as "Q"; iApply ("H" with "Q")..|].
   iIntros ([|]) "Q"; simpl.
-  - iPoseProof (monPred_in_entails with "[Hconseq Q]") as "He"; first apply (wp_expr_strong_mono ge).
-    { monPred.unseal; iFrame.
-      iIntros (? n [=]); subst; iDestruct "Hconseq" as "(_ & _ & _ & H)"; iApply "H". }
+  - iPoseProof (wp_expr_strong_mono with "[Hconseq Q]") as "?".
+    { iSplitR "Q"; last done.
+      iIntros (?); iDestruct "Hconseq" as "(_ & _ & _ & H)"; iApply "H". }
     by iApply "H".
   - iDestruct "Hconseq" as "(_ & _ & _ & Hconseq)"; iMod ("Hconseq" with "Q") as "Q"; by iApply "H".
 Qed.
 
 Lemma guarded_conseq_frame : forall E f k P Q Q'
-  (Hnormal : P ∗ RA_normal Q (stack_depth k) ⊢ |={E}=> RA_normal Q' (stack_depth k))
-  (Hbreak : P ∗ RA_break Q (stack_depth k) ⊢ |={E}=> RA_break Q' (stack_depth k))
-  (Hcontinue : P ∗ RA_continue Q (stack_depth k) ⊢ |={E}=> RA_continue Q' (stack_depth k))
-  (Hreturn : ∀ v, P ∗ RA_return Q v (stack_depth k) ⊢ |={E}=> RA_return Q' v (stack_depth k)),
+  (Hnormal : P ∗ RA_normal Q ⊢ |={E}=> RA_normal Q')
+  (Hbreak : P ∗ RA_break Q ⊢ |={E}=> RA_break Q')
+  (Hcontinue : P ∗ RA_continue Q ⊢ |={E}=> RA_continue Q')
+  (Hreturn : ∀ v, P ∗ RA_return Q v ⊢ |={E}=> RA_return Q' v),
   P ∗ guarded E f k Q' ⊢ guarded E f k Q.
 Proof.
   intros.
@@ -198,10 +209,10 @@ Proof.
 Qed.
 
 Lemma guarded_conseq : forall E f k Q Q'
-  (Hnormal : RA_normal Q (stack_depth k) ⊢ |={E}=> RA_normal Q' (stack_depth k))
-  (Hbreak : RA_break Q (stack_depth k) ⊢ |={E}=> RA_break Q' (stack_depth k))
-  (Hcontinue : RA_continue Q (stack_depth k) ⊢ |={E}=> RA_continue Q' (stack_depth k))
-  (Hreturn : ∀ v, RA_return Q v (stack_depth k) ⊢ |={E}=> RA_return Q' v (stack_depth k)),
+  (Hnormal : RA_normal Q ⊢ |={E}=> RA_normal Q')
+  (Hbreak : RA_break Q ⊢ |={E}=> RA_break Q')
+  (Hcontinue : RA_continue Q ⊢ |={E}=> RA_continue Q')
+  (Hreturn : ∀ v, RA_return Q v ⊢ |={E}=> RA_return Q' v),
   guarded E f k Q' ⊢ guarded E f k Q.
 Proof.
   intros; etrans; last apply (guarded_conseq_frame _ _ _ emp); intros; rewrite ?embed_emp bi.emp_sep //.
@@ -216,21 +227,20 @@ Proof.
 Qed.
 
 Lemma guarded_normal : forall E f k P,
-  guarded E f k (normal_ret_assert P) ⊣⊢ (P (stack_depth k) -∗ assert_safe E f (Some k)).
+  guarded E f k (normal_ret_assert P) ⊣⊢ (P -∗ assert_safe E f (Some k)).
 Proof.
   intros.
   iSplit.
   { iIntros "H"; by iDestruct "H" as "[? _]". }
   iIntros "H"; iSplit; first by iApply "H".
-  repeat (iSplit; first by simpl; monPred.unseal; iIntros "[]").
+  repeat (iSplit; first by iIntros "[]").
   iIntros (?) "Hret"; simpl.
-  destruct ret; simpl; last by monPred.unseal; iDestruct "Hret" as "[]".
+  destruct ret; simpl; last by iDestruct "Hret" as "[]".
   rewrite /wp_expr.
-  iIntros (????) "?%%".
+  iIntros (????) "?%%?".
   iApply jsafe_step; rewrite /jstep_ex.
   iIntros (?) "(Hm & Ho)".
-  repeat monPred.unseal.
-  iMod ("Hret" with "[%] Hm [%] [$]") as ">(% & ? & ? & ? & [])"; done.
+  iMod ("Hret" with "Hm [$]") as ">(% & ? & ? & ? & [])"; done.
 Qed.
 
 (*Lemma guarded_frame : forall E f k P (Q : assert),
@@ -261,16 +271,16 @@ This doesn't quite work because there isn't a fupd in jsafe after the quantifier
 
 (* f is used for only one purpose: for the return type for return statements. *)
 Definition wp E f s (Q : ret_assert) : assert :=
-    ∀ E' k, ⌜E ⊆ E'⌝ → stack_level (stack_depth k) -∗ (* ▷ *) ⎡guarded E' f k Q⎤ -∗ ⎡assert_safe E' f (Some (Kseq s k))⎤.
+    ∀ E' k, ⌜E ⊆ E'⌝ → (* ▷ *) guarded E' f k Q -∗ assert_safe E' f (Some (Kseq s k)).
 (* ▷ would make sense here, but removing Kseq isn't always a step: for instance, Sskip Kstop is a synonym
    for (Sreturn None) Kstop rather than stepping to it. *)
 
 Lemma fupd_wp E f s Q : (|={E}=> wp E f s Q) ⊢ wp E f s Q.
 Proof.
   rewrite /wp.
-  iIntros "H" (???) "??".
+  iIntros "H" (???) "?".
   iApply fupd_assert_safe. iMod (fupd_mask_subseteq E) as "Hclose"; first done.
-  by rewrite embed_fupd; iMod "H"; iMod "Hclose"; iApply ("H" with "[%] [$]").
+  by iMod "H"; iMod "Hclose"; iApply ("H" with "[%] [$]").
 Qed.
 
 Global Instance elim_modal_fupd_wp p P E f k Q :
@@ -298,34 +308,24 @@ Lemma wp_strong_mono : forall E f s Q Q',
    (∀ v, RA_return Q v ={E}=∗ RA_return Q' v)) ∗
   wp E f s Q ⊢ wp E f s Q'.
 Proof.
-  split => n; rewrite /wp /stack_level; monPred.unseal.
-  iIntros "(Hconseq & H)" (??? <- ?? [=]) "Hn % <- HG"; subst j.
-  rewrite monPred_at_affinely; iDestruct "Hn" as %<-.
-  iApply "H"; [rewrite ?monPred_at_affinely; done..|].
+  rewrite /wp; intros.
+  iIntros "(Hconseq & H)" (???) "HG".
+  iApply "H"; first done.
   iApply guarded_strong_mono; iFrame.
-  repeat iSplit.
-  - iIntros "?"; iMod (fupd_mask_subseteq E) as "Hclose"; first done.
-    iDestruct "Hconseq" as "(H & _)"; iMod ("H" with "[//] [$]").
-    by iMod "Hclose".
-  - iIntros "?"; iMod (fupd_mask_subseteq E) as "Hclose"; first done.
-    iDestruct "Hconseq" as "(_ & H & _)"; iMod ("H" with "[//] [$]").
-    by iMod "Hclose".
-  - iIntros "?"; iMod (fupd_mask_subseteq E) as "Hclose"; first done.
-    iDestruct "Hconseq" as "(_ & _ & H & _)"; iMod ("H" with "[//] [$]").
-    by iMod "Hclose".
-  - iIntros (?) "?"; iMod (fupd_mask_subseteq E) as "Hclose"; first done.
-    iDestruct "Hconseq" as "(_ & _ & _ & H)"; iMod ("H" with "[//] [$]").
-    by iMod "Hclose".
+  repeat iSplit; iIntros; (iApply fupd_mask_mono; first done).
+  - iDestruct "Hconseq" as "(H & _)"; by iApply "H".
+  - iDestruct "Hconseq" as "(_ & H & _)"; by iApply "H".
+  - iDestruct "Hconseq" as "(_ & _ & H & _)"; by iApply "H".
+  - iDestruct "Hconseq" as "(_ & _ & _ & H)"; by iApply "H".
 Qed.
 
 Lemma wp_frame : forall E f s Q R, R ∗ wp E f s Q ⊢ wp E f s (frame_ret_assert Q R).
 Proof.
-  split => n; rewrite /wp /stack_level; monPred.unseal.
-  iIntros "(R & H)" (??? <- ?? [=]) "Hn % <- G"; subst.
-  rewrite monPred_at_affinely; iDestruct "Hn" as %<-.
-  iApply "H"; [rewrite ?monPred_at_affinely //..|].
-  iApply (guarded_conseq_frame _ _ _ (R _)); last (by iFrame);
-    destruct Q; simpl; intros; monPred.unseal; iIntros "($ & $)"; done.
+  rewrite /wp; intros.
+  iIntros "(R & H)" (???) "G".
+  iApply "H"; first done.
+  iApply (guarded_conseq_frame _ _ _ R); last (by iFrame); last iIntros (?);
+    destruct Q; simpl; iIntros "($ & $)"; done.
 Qed.
 
 Lemma wp_conseq : forall E f s Q Q'
@@ -336,12 +336,12 @@ Lemma wp_conseq : forall E f s Q Q'
   wp E f s Q ⊢ wp E f s Q'.
 Proof.
   intros; rewrite /wp.
-  iIntros "H" (???) "? HG".
+  iIntros "H" (???) "HG".
   rewrite guarded_conseq; first by iApply ("H" with "[%] [$]").
-  - rewrite Hnormal; monPred.unseal; by apply fupd_mask_mono.
-  - rewrite Hbreak; monPred.unseal; by apply fupd_mask_mono.
-  - rewrite Hcontinue; monPred.unseal; by apply fupd_mask_mono.
-  - intros; rewrite Hreturn; monPred.unseal; by apply fupd_mask_mono.
+  - rewrite Hnormal; by apply fupd_mask_mono.
+  - rewrite Hbreak; by apply fupd_mask_mono.
+  - rewrite Hcontinue; by apply fupd_mask_mono.
+  - intros; rewrite Hreturn; by apply fupd_mask_mono.
 Qed.
 
 Global Instance wp_proper E f s : Proper (equiv ==> equiv) (wp E f s).
@@ -352,24 +352,23 @@ Qed.
 Lemma wp_label : forall E f l s Q, wp E f s Q ⊢ wp E f (Slabel l s) Q.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% #Hn Hk" (????) "?%%".
+  iIntros "H %%% Hk" (????) "?%%?".
   iApply jsafe_local_step.
   { intros; constructor. }
   iNext.
-  iApply ("H" with "[//] [] [Hk] [$] [%] [%]"); done.
+  iApply ("H" with "[//] [Hk] [$] [%] [%]"); done.
 Qed.
 
 Lemma wp_seq : forall E f s1 s2 Q, wp E f s1 (overridePost (wp E f s2 Q) Q) ⊢ wp E f (Ssequence s1 s2) Q.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% #Hn Hk" (????) "?%%".
+  iIntros "H %%% Hk" (????) "?%%?".
   iApply jsafe_local_step.
   { intros; constructor. }
   iNext.
-  iApply ("H" with "[//] [] [Hk] [$] [%] [%]"); [done | | done..].
+  iApply ("H" with "[//] [Hk] [$] [%] [%]"); [|done..].
   iSplit; last by iDestruct ("Hk") as "[_ $]".
-  iIntros "H"; simpl.
-  iApply (stack_level_elim with "Hn H"); auto.
+  by iIntros "H"; iApply "H".
 Qed.
 
 Definition valid_val v :=
@@ -412,7 +411,7 @@ Lemma wp_if: forall E f e s1 s2 R,
   ⊢ wp E f (Sifthenelse e s1 s2) R.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% #Hd Hk" (????) "? (% & %) %Hty".
+  iIntros "H %%% Hk" (????) "? (% & %) %Hty #Hd".
   iApply jsafe_step.
   rewrite /jstep_ex /wp_expr.
   iIntros (?) "(Hm & Ho)".
@@ -433,18 +432,21 @@ Proof.
     econstructor; eauto.
     apply bool_val_valid; eauto. }
   iFrame.
-  destruct b; simpl; iNext; iApply ("H" with "[//] Hd [-Hr] Hr"); done.
+  iNext.
+  rewrite embed_fupd; iModIntro.
+  destruct b; simpl; by iApply ("H" with "[//] Hk Hr").
 Qed.
 
 Lemma safe_skip : forall E ora f k ρ ve te
   (Hty : typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f)))
   (Henv : stack_matches' ρ ve te (Some k)),
-  env_auth ρ ∗ assert_safe E f (Some k) ⊢
+  env_auth ρ ∗ assert_safe E f (Some k) (stack_depth k) ⊢
   jsafeN E ora (State f Sskip k ve te).
 Proof.
   intros; iIntros "(Hr & H)".
-  rewrite /assert_safe.
-  iSpecialize ("H" with "Hr [%] [%]"); [done..|].
+  rewrite /assert_safe /stack_level; monPred.unseal.
+  iSpecialize ("H" with "[%] Hr [%] [%] [%] [%] [%]"); [done..|].
+  rewrite monPred_at_affinely; iSpecialize ("H" with "[//]").
   destruct k as [ | s ctl' | | | |]; try done; try solve [iApply (jsafe_local_step with "H"); constructor].
   - iApply (convergent_controls_jsafe with "H"); simpl; try congruence.
     by inversion 1; constructor.
@@ -456,11 +458,11 @@ Qed.
 Lemma wp_skip: forall E f R, RA_normal R ⊢ wp E f Sskip R.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% ? Hk" (????) "?%%".
+  iIntros "H %%% Hk" (????) "?%%?".
   iDestruct "Hk" as "[Hk _]".
   iApply safe_skip; [done..|].
-  iFrame; iApply "Hk".
-  by iApply (stack_level_embed with "[$]").
+  iSpecialize ("Hk" with "H").
+  by iPoseProof (stack_level_embed with "[$] Hk") as "$".
 Qed.
 
 Lemma env_to_environ_set : forall ρ n i v, let rho := env_to_environ ρ n in
@@ -517,31 +519,35 @@ Lemma wp_set: forall E f i e R,
   wp_expr ge E f e (λ v, ▷ ((∃ v0, temp i v0) ∗ (temp i v ={E}=∗ RA_normal R))) ⊢ wp E f (Sset i e) R.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% ? Hk" (????) "Hr (%Henv & %Hstack) %Hty".
+  iIntros "H %%% Hk" (????) "Hr (%Henv & %Hstack) %Hty #Hd".
   iApply jsafe_step.
   rewrite /jstep_ex /wp_expr.
   iIntros (?) "(Hm & Ho)".
   iMod (fupd_mask_subseteq E) as "Hclose"; first done.
-  iMod ("H" with "Hm Hr") as ">(% & ? & Hm & Hr & H)".
+  iMod ("H" with "Hm Hr") as ">(% & He & Hm & Hr & H)".
   rewrite embed_fupd; iMod "Hclose" as "_"; iIntros "!>".
-  iStopProof; split => ?; rewrite /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
-  iIntros "(%Hi & Hk & Ho & % & Hm & Hr & H)"; inv Hi.
+  iPoseProof (env_match_intro with "Hd") as "#?"; first done.
+  iDestruct ("He" with "[$]") as %He.
   pose proof (typecheck_var_match_venv _ _ Hty).
   iExists _, _; iSplit.
-  { pose proof (@cenv_sub_refl ge).
-    iPureIntro; constructor; eauto. }
+  { iPureIntro; constructor; eauto. }
   iFrame "Hm Ho"; iNext.
   iDestruct "H" as "((% & Ht) & H)".
+  iPoseProof (stack_level_embed with "Hd Ht") as "Ht".
   iDestruct (temp_e with "[$Hr $Ht]") as %Hi.
-  iMod (temp_update with "[$Hr $Ht]") as "(? & ?)".
-  iSpecialize ("H" with "[//] [$]").
+  iMod (temp_update with "[$Hr $Ht]") as "(? & Ht)".
+  iPoseProof (stack_level_elim with "Hd Ht") as "?".
+  iSpecialize ("H" with "[$]").
+  rewrite embed_fupd.
   iMod (fupd_mask_subseteq E) as "Hclose"; first done.
   iMod "H"; iMod "Hclose" as "_"; iIntros "!>".
   iDestruct "Hk" as "[Hk _]".
-  iApply safe_skip; last by iFrame; iApply "Hk".
+  iApply safe_skip.
   - done.
-  - apply (stack_matches'_set _ _ _ (Some k)); first by split.
+  - eapply (stack_matches'_set _ _ _ (Some k)); first by split.
     intros X; rewrite /env_to_environ X lookup_empty in Hi; done.
+  - iSpecialize ("Hk" with "H").
+    by iPoseProof (stack_level_embed with "Hd Hk") as "$".
 Qed.
 
 Lemma mapsto_can_store : forall sh t ch b o v v' m (Hwrite : writable0_share sh) (Hch : access_mode t = By_value ch),
@@ -615,7 +621,7 @@ Lemma wp_store': forall E f e1 e2 t2 ch1 ch2 R
   ⊢ wp E f (Sassign e1 e2) R.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% #Hd Hk" (????) "? (%Henv & %) %Hty".
+  iIntros "H %%% Hk" (????) "? (%Henv & %) %Hty #Hd".
   iApply jsafe_step.
   rewrite /jstep_ex /wp_lvalue /wp_expr.
   iIntros (?) "(Hm & Ho)".
@@ -639,8 +645,7 @@ Proof.
   specialize (He2 Hmatch); inv He2.
   2: { inv H6. }
   iExists _, _; iSplit.
-  { pose proof (@cenv_sub_refl ge).
-    iPureIntro; econstructor; eauto.
+  { iPureIntro; econstructor; eauto.
     econstructor; eauto. }
   iNext; rewrite bi.and_elim_l; iMod (mapsto_store' _ t2 with "[$]") as "(? & Hp)"; [try done..|].
   { eapply decode_encode_tc; eauto. }
@@ -649,8 +654,8 @@ Proof.
   { iDestruct "Hp" as (?) "(% & $)"; auto. }
   iMod "Hclose" as "_"; iFrame.
   iApply safe_skip; [done..|].
-  iFrame; iDestruct "Hk" as "[Hk _]"; iApply "Hk".
-  rewrite embed_fupd; iModIntro; by iApply (stack_level_embed with "Hd").
+  iFrame; iDestruct "Hk" as "[Hk _]".
+  rewrite embed_fupd; iModIntro; iApply (stack_level_embed with "Hd"); by iApply "Hk".
 Qed.
 
 (* This is the more common case. *)
@@ -675,7 +680,7 @@ Lemma wp_store: forall E f e1 e2 R,
   ⊢ wp E f (Sassign e1 e2) R.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% #Hd Hk" (????) "? (%Henv & %) %Hty".
+  iIntros "H %%% Hk" (????) "? (%Henv & %) %Hty #Hd".
   iApply jsafe_step.
   rewrite /jstep_ex /wp_lvalue /wp_expr.
   iIntros (?) "(Hm & Ho)".
@@ -695,44 +700,41 @@ Proof.
   specialize (He2 Hmatch); inv He2.
   2: { inv H4. }
   iExists _, _; iSplit.
-  { pose proof (@cenv_sub_refl ge).
-    iPureIntro; econstructor; eauto.
+  { iPureIntro; econstructor; eauto.
     econstructor; eauto. }
   iNext; iMod (mapsto_store with "[$]") as "(? & Hp)"; [done..|].
   iMod (fupd_mask_subseteq E) as "Hclose"; first done.
   iMod ("H" with "Hp").
   iMod "Hclose" as "_"; iFrame.
   iApply safe_skip; [done..|].
-  iFrame; iDestruct "Hk" as "[Hk _]"; iApply "Hk".
-  rewrite embed_fupd; iModIntro; by iApply (stack_level_embed with "Hd").
+  iFrame; iDestruct "Hk" as "[Hk _]".
+  rewrite embed_fupd; iModIntro; iApply (stack_level_embed with "Hd"); by iApply "Hk".
 Qed.
 
 Lemma wp_loop: forall E f s1 s2 R,
   ▷ wp E f s1 (loop1_ret_assert (wp E f s2 (loop2_ret_assert (wp E f (Sloop s1 s2) R) R)) R) ⊢ wp E f (Sloop s1 s2) R.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% #Hd Hk" (????) "?%%".
+  iIntros "H %%% Hk" (????) "?%% #?".
   iApply jsafe_local_step.
   { intros; constructor. }
   iNext.
-  iApply ("H" with "[//] [] [Hk] [$] [%] [%]"); [done | | done..].
-  iAssert (⎡guarded E' f k R⎤ -∗
-    ⎡guarded E' f (Kloop2 s1 s2 k) (loop2_ret_assert (wp E f (Sloop s1 s2) R) R)⎤)%I as "H2".
+  iApply ("H" with "[//] [Hk] [$] [%] [%]"); [|done..].
+  iAssert (guarded E' f k R -∗
+    guarded E' f (Kloop2 s1 s2 k) (loop2_ret_assert (wp E f (Sloop s1 s2) R) R))%I as "H2".
   { iIntros "Hk"; iSplit; [|iSplit; [|iSplit]].
-    + simpl; iIntros "H". iPoseProof (stack_level_elim with "Hd H") as "H".
+    + simpl; iIntros "H".
       by iApply ("H" with "[//] [$]").
-    + iDestruct ("Hk") as "[$ _]".
-    + simpl; iStopProof; split => rho; monPred.unseal; iIntros "? []".
-    + iDestruct ("Hk") as "(_ & _ & _ & $)". }
+    + iDestruct "Hk" as "[$ _]".
+    + simpl; iIntros "[]".
+    + iDestruct "Hk" as "(_ & _ & _ & $)". }
   iSplit; [|iSplit; [|iSplit]].
-  - simpl; iIntros "H" (????) "?%%"; iApply jsafe_local_step.
+  - simpl; iIntros "H" (????) "?%%?"; iApply jsafe_local_step.
     { constructor; auto. }
-    iPoseProof (stack_level_elim with "Hd H") as "H".
-    iApply ("H" with "[//] [] [Hk] [$]"); try done.
+    iNext; iApply ("H" $! _ (Kloop2 s1 s2 k) with "[//] [Hk] [$] [//] [//] [$]").
     by iApply "H2".
   - iDestruct ("Hk") as "[$ _]".
-  - simpl; iIntros "H". iPoseProof (stack_level_elim with "Hd H") as "H".
-    iApply ("H" with "[//]"); first done.
+  - simpl; iIntros "H"; iApply "H"; first done.
     by iApply "H2".
   - iDestruct "Hk" as "(_ & _ & _ & $)".
 Qed.
@@ -743,7 +745,7 @@ Lemma wp_switch: forall E f e ls R,
   wp E f (Sswitch e ls) R.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% #Hd Hk" (????) "? (%Henv & %) %Hty".
+  iIntros "H %%% Hk" (????) "? (%Henv & %) %Hty #Hd".
   iApply jsafe_step.
   rewrite /jstep_ex /wp_expr.
   iIntros (?) "(Hm & Ho)".
@@ -754,13 +756,12 @@ Proof.
   iDestruct ("He" with "[$]") as %?.
   pose proof (typecheck_var_match_venv _ _ Hty).
   iExists _, _; iSplit.
-  { pose proof (@cenv_sub_refl ge).
-    iPureIntro; econstructor; eauto. }
+  { iPureIntro; econstructor; eauto. }
   iFrame; iNext.
   rewrite embed_fupd; iModIntro.
-  iApply ("H" with "[//] [Hd] [Hk] [$]"); try done.
+  iApply ("H" with "[//] [Hk] [$]"); try done.
   iSplit; [|iSplit; [|iSplit]].
-  - iStopProof; split => ?; simpl; monPred.unseal; iIntros "? []".
+  - iIntros "[]".
   - iDestruct ("Hk") as "($ & _)".
   - iDestruct ("Hk") as "(_ & _ & $ & _)".
   - iDestruct ("Hk") as "(_ & _ & _ & $)".
@@ -776,13 +777,12 @@ Lemma wp_continue: forall E f R,
   RA_continue R ⊢ wp E f Scontinue R.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% #Hd Hk" (????) "?%%".
+  iIntros "H %%% Hk" (????) "?%% #?".
   iDestruct "Hk" as "(_ & _ & Hk & _)".
-  iPoseProof (stack_level_embed with "Hd H") as "H".
   iSpecialize ("Hk" with "H").
   iSpecialize ("Hk" $! ora with "[$] [%] [//]").
   { by apply stack_matches_continue. }
-  destruct (continue_cont k) eqn:Hcont; simpl; last by iStopProof; split => ?; monPred.unseal; iIntros "(? & >[])".
+  destruct (continue_cont k) eqn:Hcont; simpl; last by iApply fupd_jsafe; iMod "Hk" as "[]".
   rename c into k'.
   assert (exists s c, k' = Kseq s c) as (? & ? & Hcase).
   { induction k; inv Hcont; eauto. }
@@ -794,7 +794,7 @@ Proof.
   - inv Hcont.
     iApply jsafe_local_step.
     { intros; apply step_skip_or_continue_loop1; auto. }
-    iNext; iApply "Hk".
+    iNext; by iApply "Hk".
   - iApply jsafe_local_step.
     { apply step_continue_switch. }
     iNext; by iApply "IHk".
@@ -806,17 +806,23 @@ Proof.
   induction k; simpl; auto.
 Qed.
 
+Lemma break_cont_depth : forall k k', break_cont k = Some k' →
+  stack_depth k' = stack_depth k.
+Proof.
+  induction k; simpl; auto; congruence.
+Qed.
+
 Lemma wp_break: forall E f R,
   RA_break R ⊢ wp E f Sbreak R.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% #Hd Hk" (????) "?%%".
+  iIntros "H %%% Hk" (????) "?%% #?".
   iDestruct "Hk" as "(_ & Hk & _)".
-  iPoseProof (stack_level_embed with "Hd H") as "H".
   iSpecialize ("Hk" with "H").
   iSpecialize ("Hk" $! ora with "[$] [%] [//]").
   { by apply stack_matches_break. }
-  destruct (break_cont k) eqn: Hcont; simpl; last by iStopProof; split => ?; monPred.unseal; iIntros "(? & >[])".
+  destruct (break_cont k) eqn: Hcont; simpl; last by iApply fupd_jsafe; iMod "Hk" as "[]".
+  rewrite (break_cont_depth _ _ Hcont); iSpecialize ("Hk" with "[//]").
   destruct c; simpl.
   - iInduction k as [| | | | |] "IHk"; try discriminate.
     + iApply jsafe_local_step; last by iNext; iApply ("IHk" with "[%] [%] [$] Hk"). constructor.
@@ -1558,23 +1564,23 @@ Qed.
 Lemma guarded_frame_ret0 : forall E f k ty (Q : option val → assert) R
   (Hret : ∀ ve te, cont_to_state f ve te k = Some (State f (Sreturn None) k ve te))
   (Hk : call_cont k = k),
-  (∀ ret, wp_expr_opt E f (option_map (λ e, Ecast e f.(fn_return)) ret) (λ vl, (⌜match vl with Some v => tc_val ty v | None => ty = Tvoid end⌝ ∧ Q vl) ∗ R) (stack_depth k) -∗
-        assert_safe E f (Some (Kseq (Sreturn ret) k))) -∗
+  (∀ ret, wp_expr_opt E f (option_map (λ e, Ecast e f.(fn_return)) ret) (λ vl, (⌜match vl with Some v => tc_val ty v | None => ty = Tvoid end⌝ ∧ Q vl) ∗ R) -∗
+        assert_safe E f (Some (Kseq (Sreturn ret) k))) ⊢
   guarded E f k (frame_ret_assert (function_body_ret_assert ty Q) R).
 Proof.
   intros.
-  iIntros "H"; rewrite /guarded /= /bind_ret; monPred.unseal.
+  iIntros "H"; rewrite /guarded /= /bind_ret.
   iSplit.
   - iSpecialize ("H" $! None); iStopProof; f_equiv.
-    rewrite /assert_safe; do 10 f_equiv.
-    rewrite /option_bind Hret //.
+    rewrite /assert_safe; do 12 f_equiv.
+    rewrite Hret //.
   - repeat (iSplit; first by iIntros "([] & ?)").
     rewrite Hk //.
 Qed.
 
 Lemma guarded_frame_ret : forall E f i f0 ve te k ty (Q : option val → assert) R,
-  (∀ ret, wp_expr_opt E f (option_map (λ e, Ecast e f.(fn_return)) ret) (λ vl, (⌜match vl with Some v => tc_val ty v | None => ty = Tvoid end⌝ ∧ Q vl) ∗ R) (S (stack_depth k)) -∗
-        assert_safe E f (Some (Kseq (Sreturn ret) (Kcall i f0 ve te k)))) -∗
+  (∀ ret, wp_expr_opt E f (option_map (λ e, Ecast e f.(fn_return)) ret) (λ vl, (⌜match vl with Some v => tc_val ty v | None => ty = Tvoid end⌝ ∧ Q vl) ∗ R) -∗
+        assert_safe E f (Some (Kseq (Sreturn ret) (Kcall i f0 ve te k)))) ⊢
   guarded E f (Kcall i f0 ve te k) (frame_ret_assert (function_body_ret_assert ty Q) R).
 Proof.
   intros; by apply (guarded_frame_ret0 _ _ (Kcall _ _ _ _ _)).
@@ -1650,7 +1656,7 @@ Lemma call_safe : forall E f0 k ve te ρ ora f vs i R
   (Hstack : stack_matches' ρ ve te (Some k))
   (Htc : typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f0)))
   (Hf : fundef_wf f vs),
-⊢ stack_level (stack_depth k) -∗ ⎡ guarded E f0 k R ⎤ -∗ ⎡ env_auth ρ ⎤ -∗
+⊢ stack_level (stack_depth k) -∗ guarded E f0 k R -∗ ⎡ env_auth ρ ⎤ -∗
   call_assert E f vs i (RA_normal R) -∗
   ⎡ |={E}=> jsafeN E ora (Callstate f vs (Kcall i f0 ve te k)) ⎤.
 Proof.
@@ -1673,17 +1679,18 @@ Proof.
       * apply list_norepet_append_inv; auto. }
     iFrame.
     iDestruct "Hd" as "-#?"; iClear "#".
-    iStopProof; split => ?; rewrite /internal_call_assert /wp /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
+    iStopProof; split => ?; rewrite /internal_call_assert /wp /assert_safe /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
     iIntros "(Hk & H & Hr & Hstack & %Hn)"; inv Hn.
     iPoseProof (monPred_in_entails with "Hstack") as "Hstack"; first by apply stackframe_of_eq1'.
     rewrite monPred_at_sep; iDestruct "Hstack" as "(? & ?)".
-    iApply ("H" with "[//] [$] [//] [$] [//] [//] [//] [] [//] [Hk] [$Hr //] [%]").
-    { rewrite monPred_at_affinely; done. }
-    2: { by apply stack_matches'_alloc. }
-    2: { done. }
-    iApply guarded_frame_ret; simpl.
-    iIntros "!>" (?) "Hret".
-    iIntros (????) "Hr (%Henv' & %Hstack') %Hty'".
+    iApply ("H" with "[//] [$] [//] [$] [//] [//] [//] [Hk] [//] [$Hr //] [//] [%] [//] [//] [//]").
+    2: { by apply (stack_matches'_alloc _ _ _ _ _ _ (fn_body f) i f). }
+    2: { by rewrite monPred_at_affinely. }
+    rewrite -guarded_frame_ret /=.
+    rewrite /guarded {5}/assert_safe /stack_level; monPred.unseal.
+    iIntros "!>" (ret ? [=]) "Hret".
+    iIntros (??????) "Hr %% (%Henv' & %Hstack') %% %Hty' %% _".
+    unfold sqsubseteq in *; subst.
     iApply jsafe_step; rewrite /jstep_ex.
     iIntros (?) "(Hm & Ho)".
     unfold set_temp_opt; destruct ret; simpl.
@@ -1771,14 +1778,15 @@ Proof.
     iPoseProof (stack_level_elim with "Hd [$]") as "Hi".
     iSpecialize ("H" with "Hi").
     iPoseProof (stack_level_embed with "Hd H") as "H".
+    iPoseProof (stack_level_embed with "Hd Hk") as "Hk".
     iModIntro.
+    rewrite /guarded; monPred.unseal.
     iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
     * done.
     * apply (stack_matches'_set _ _ _ (Some k)); first done.
       rewrite /env_to_environ in Hi; simpl in *.
       destruct (ρ.2 !! _)%stdpp; done.
-  + iPoseProof (stack_level_embed with "Hd H") as "H".
-    by iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
+  + by iApply safe_skip; last by (iFrame; iApply (stack_level_embed with "Hd"); iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
 Qed.
 
 Lemma wp_call: forall E f0 i e es tys retty cc R,
@@ -1791,7 +1799,7 @@ Lemma wp_call: forall E f0 i e es tys retty cc R,
   wp E f0 (Scall i e es) R.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% #Hd Hk" (????) "Hr (%Hmatch & %Hstack & %Htop) %Hty".
+  iIntros "H %%% Hk" (????) "Hr (%Hmatch & %Hstack & %Htop) %Hty #Hd".
   iApply jsafe_step.
   rewrite /jstep_ex /wp_expr /wp_exprs /=.
   iIntros (?) "(Hm & Ho)".
@@ -1824,7 +1832,7 @@ Lemma wp_extcall_inline: forall E f0 i e es tys retty cc R,
   wp E f0 (Scall i e es) R.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% #Hd Hk" (????) "Hr (%Hmatch & %Hstack & %Htop) %Hty".
+  iIntros "H %%% Hk" (????) "Hr (%Hmatch & %Hstack & %Htop) %Hty #Hd".
   iApply jsafe_step.
   rewrite /jstep_ex /wp_expr /wp_exprs /=.
   iIntros (?) "(Hm & Ho)".
@@ -1864,14 +1872,15 @@ Proof.
     iPoseProof (stack_level_elim with "Hd [$]") as "Hi".
     iSpecialize ("H" with "Hi").
     iPoseProof (stack_level_embed with "Hd H") as "H".
+    iPoseProof (stack_level_embed with "Hd Hk") as "Hk".
     iModIntro.
+    rewrite /guarded; monPred.unseal.
     iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
-      * done.
-      * apply (stack_matches'_set _ _ _ (Some k)); first by split.
-        rewrite /env_to_environ in Hi; simpl in *.
-        destruct (ρ.2 !! _)%stdpp; done.
-    + iPoseProof (stack_level_embed with "Hd H") as "H".
-      by iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
+    * done.
+    * apply (stack_matches'_set _ _ _ (Some k)); first by split.
+      rewrite /env_to_environ in Hi; simpl in *.
+      destruct (ρ.2 !! _)%stdpp; done.
+  + by iApply safe_skip; last by (iFrame; iApply (stack_level_embed with "Hd"); iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
 Qed.
 
 (* should be unifiable with the regular call, but the handling of the initial
@@ -1913,20 +1922,21 @@ Proof.
       * apply list_norepet_append_inv; auto. }
     iFrame.
     iDestruct "Hd" as "-#?"; iClear "#".
-    iStopProof; split => ?; rewrite /initial_internal_call_assert /wp /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
+    iStopProof; split => ?; rewrite /initial_internal_call_assert /wp /assert_safe /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
     iIntros "(H & Hr & Hstack & %Hi)"; inv Hi.
     iPoseProof (monPred_in_entails with "Hstack") as "Hstack"; first by apply stackframe_of_eq1'.
     rewrite monPred_at_sep; iDestruct "Hstack" as "(? & ?)".
-    iApply ("H" with "[//] [$] [//] [$] [//] [//] [//] [] [//] [] [$Hr //] [%]").
-    { rewrite monPred_at_affinely; done. }
+    iApply ("H" with "[//] [$] [//] [$] [//] [//] [//] [] [//] [$Hr //] [//] [%] [//] [//] [//]").
     2: { simpl; split3; auto.
          * rewrite env_to_environ_alloc; split; auto.
            split; intros; rewrite make_env_spec //.
          * intros; rewrite lookup_insert_ne; last lia; done. }
-    2: { done. }
-    iApply guarded_frame_ret0; [done..|]; simpl.
-    iIntros "!>" (?) "Hret".
-    iIntros (????) "Hr (%Henv' & %Hstack') %Hty'".
+    2: { rewrite monPred_at_affinely; done. }
+    rewrite -guarded_frame_ret0 //=.
+    rewrite /assert_safe; monPred.unseal.
+    iIntros "!>" (ret ??) "Hret".
+    iIntros (??????) "Hr %% (%Henv' & %Hstack') %% %Hty' %% _".
+    unfold sqsubseteq in *; subst.
     iApply jsafe_step; rewrite /jstep_ex.
     iIntros (?) "(Hm & Ho)".
     destruct ret; simpl.
@@ -1949,8 +1959,7 @@ Proof.
       iIntros "!> !>" (?) "?"; iLeft.
       iDestruct (Hexit with "[$] [$]") as %(? & ?).
       by iExists _.
-    + monPred.unseal.
-      iDestruct "Hret" as "((%Hvoid & H) & (Hstack & %vs' & Hstack'))".
+    + iDestruct "Hret" as "((%Hvoid & H) & (Hstack & %vs' & Hstack'))".
       iPoseProof (monPred_in_entails with "[Hstack Hstack']") as "Hstack"; first by apply (stackframe_of_eq' f vs').
       { rewrite monPred_at_sep; iFrame. }
       rewrite monPred_at_exist; iDestruct "Hstack" as (?) "Hstack".
@@ -2003,19 +2012,25 @@ Proof.
   by apply wp_expr_mask_mono.
 Qed.
 
+Lemma call_cont_depth : forall k,
+  stack_depth (call_cont k) = stack_depth k.
+Proof.
+  induction k; auto.
+Qed.
+
 Lemma wp_return: forall E f ret R,
   wp_expr_opt E f (option_map (λ e, Ecast e (fn_return f)) ret) (RA_return R) ⊢ wp E f (Sreturn ret) R.
 Proof.
   intros; rewrite /wp.
-  iIntros "H %%% ? Hk" (????) "?%%".
+  iIntros "H %%% Hk" (????) "?%%?".
   iApply (convergent_controls_jsafe _ _ _ (State f (Sreturn ret) (call_cont k) ve te)); try done.
   { inversion 1; subst; try match goal with H : _ \/ _ |- _ => destruct H; done end;
       rewrite call_cont_idem; econstructor; eauto. }
   iDestruct "Hk" as "(_ & _ & _ & Hk)".
-  iPoseProof (stack_level_embed with "[$] H") as "H".
   rewrite wp_expr_opt_mask_mono //.
   iApply ("Hk" with "H [$]"); try done.
-  iPureIntro; by apply stack_matches_call.
+  - iPureIntro; by apply stack_matches_call.
+  - rewrite /= call_cont_depth //.
 Qed.
 
 Lemma safe_return : forall E f rho ora ve te (Hmatch : match_venv (make_env ve) f.(fn_vars)),
@@ -2040,8 +2055,8 @@ Proof.
   iExists _; simpl; eauto.
 Qed.
 
-Definition exit_ret_assert R : mpred := ((RA_break R O -∗ False) ∧ (RA_continue R O -∗ False) ∧
-  (∀ v, (RA_normal R ∨ RA_return R v) O -∗ ∀ m z, state_interp m z -∗ ⌜∃ i, ext_spec_exit OK_spec (Some (Vint i)) z m⌝)).
+Definition exit_ret_assert R : assert := ((RA_break R -∗ False) ∧ (RA_continue R -∗ False) ∧
+  (∀ v, (RA_normal R ∨ RA_return R v) -∗ ∀ m z, ⎡state_interp m z⎤ -∗ ⌜∃ i, ext_spec_exit OK_spec (Some (Vint i)) z m⌝)).
 
 Lemma guarded_stop : forall E f R,
   f.(fn_vars) = [] →
@@ -2050,12 +2065,12 @@ Proof.
   intros; iIntros "H".
   iSplit.
   - rewrite /assert_safe /=; iIntros "R".
-    iIntros (????) "? (% & _) %".
+    iIntros (????) "? (% & _) %?".
     iApply safe_return; try done.
     { by apply typecheck_var_match_venv. }
-    iFrame; iIntros; iDestruct "H" as "(_ & _ & H)".
-    iApply ("H" $! None with "[R] [$]").
-    monPred.unseal; auto.
+    iFrame; iIntros (?) "?"; iDestruct "H" as "(_ & _ & H)".
+    rewrite embed_pure.
+    iApply ("H" $! None with "[R] [$]"); auto.
   - simpl; iSplit.
     { iDestruct "H" as "(H & _)".
       iIntros "?"; iDestruct ("H" with "[$]") as "[]". }
@@ -2063,17 +2078,19 @@ Proof.
     { iDestruct "H" as "(_ & H & _)".
       iIntros "?"; iDestruct ("H" with "[$]") as "[]". }
     iIntros ([|]); simpl.
-    + iIntros "He" (????) "Hr (% & %) %Hmatch".
+    + iIntros "He" (????) "Hr (% & %) %Hmatch #Hd".
       iApply jsafe_step.
       rewrite /wp_expr /jstep_ex.
       iIntros (?) "(Hm & ?)".
-      rewrite /bind_ret; monPred.unseal.
-      iMod ("He" with "[%] Hm [%] Hr") as ">(% & Heval & ? & ? & ?)"; [done..|].
-      rewrite monPred_at_affinely; iDestruct "Heval" as %Heval.
+      rewrite /bind_ret /=.
+      iPoseProof (env_match_intro with "Hd") as "#?"; first done.
+      iMod ("He" with "Hm Hr") as ">(% & He & ? & ? & ?)"; [done..|].
+      iDestruct ("He" with "[$]") as %He.
       apply typecheck_var_match_venv in Hmatch.
-      exploit Heval; eauto; intros Hcast.
+      exploit He; eauto; intros Hcast.
       rewrite H in Hmatch.
       inv Hcast.
+      rewrite embed_fupd.
       iIntros "!>"; iExists _, _; iSplit.
       { iPureIntro; econstructor; eauto.
         rewrite /blocks_of_env.
@@ -2082,18 +2099,19 @@ Proof.
         erewrite PTree.elements_complete in Hmatch; last by rewrite Hel; simpl; auto.
         done. }
       iFrame.
-      rewrite jsafe_unfold /jsafe_pre.
-      iIntros "!> !> !>" (?) "S"; iLeft.
-      iDestruct ("H" with "[-S] S") as %(? & ?).
-      { monPred.unseal; auto. }
+      iNext.
+      rewrite embed_fupd; iModIntro.
+      rewrite jsafe_unfold /jsafe_pre embed_fupd.
+      iIntros "!>" (?) "S"; iLeft.
+      iDestruct ("H" with "[-S] S") as %(? & ?); auto.
       iExists _; simpl; eauto.
       { inv H2. }
     + rewrite /assert_safe /=; iIntros "?".
-      iIntros (????) "?%%".
+      iIntros (????) "?%%?".
       iApply safe_return; try done.
       { by apply typecheck_var_match_venv. }
-      iFrame; iIntros (?) "S"; iApply ("H" with "[-S] S").
-      monPred.unseal; auto.
+      iFrame; iIntros (?) "S".
+      rewrite embed_pure; iApply ("H" with "[-S] S"); auto.
 Qed.
 
 (* {{P}} f {{Q}} *)
@@ -2314,8 +2332,8 @@ Proof.
   simpl; intros. apply (embed_emp_valid_inj(PROP2 := monPred stack_index _)). iIntros "_".
   iMod (H Hinv) as (????) "?".
   iStopProof.
-  rewrite /wp; split => l; monPred.unseal.
-  iIntros "(L & S & % & E & H)".
+  rewrite /wp /assert_safe; split => l; monPred.unseal.
+  iIntros "(#L & S & % & E & H)".
   iApply step_fupd_intro; first done.
   iNext.
   set (HH := Build_VSTGS _ _ _ _ _).
@@ -2323,10 +2341,8 @@ Proof.
   { apply bi.pure_mono, (ext_spec_entails_safe _ (Espec HH)); auto. }
   iApply (adequacy(VSTGS0 := HH)(OK_spec := Espec HH)).
   iFrame.
-  iApply ("H" with "[//] [//] [//] [L] [//] [] E").
-  { done. }
-  iApply guarded_stop; auto.
-  iApply EXIT.
-  { iPureIntro; apply init_stack_matches. }
+  iApply ("H" with "[//] [//] [//] [] [//] E [//] [%] [//] [//] [//]").
+  rewrite -guarded_stop // -EXIT monPred_at_emp //.
+  { apply init_stack_matches. }
   { done. }
 Qed.

@@ -274,7 +274,7 @@ rewrite H in Hge; setoid_rewrite Maps.PTree.gempty in Hge; discriminate.
 Qed.
 
 Definition all_assertions_computable  :=
-  forall psi E f (Q: mpred),
+  forall psi E f (Q: mpred.assert),
      exists k,  assert_safe OK_spec psi E f k = Q.
 (* This is not generally true, but could be made true by adding an "assert" operator
   to the programming language
@@ -913,20 +913,22 @@ Qed.
 
 Lemma assert_safe_jsafe: forall ge E f ve te c k ora ρ, typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f)) ->
    stack_matches' ge ρ ve te (Some (Kseq c k)) ->
-  env_auth ρ ∗ assert_safe OK_spec ge E f (Some (Kseq c k)) ⊢
+  env_auth ρ ∗ assert_safe OK_spec ge E f (Some (Kseq c k)) (stack_depth k) ⊢
   jsafeN OK_spec ge E ora (State f c k ve te).
 Proof.
-  intros; rewrite /assert_safe.
-  iIntros "(? & H)"; iApply ("H" with "[$]"); auto.
+  intros; rewrite /assert_safe /stack_level; monPred.unseal.
+  iIntros "(? & H)"; iApply ("H" with "[//] [$]"); auto.
+  { by rewrite monPred_at_affinely. }
 Qed.
 
 Lemma assert_safe_jsafe': forall ge E f ve te k ora ρ, typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f)) ->
     stack_matches' ge ρ ve te (Some k) ->
-  env_auth ρ ∗ assert_safe OK_spec ge E f (Some k) ⊢
+  env_auth ρ ∗ assert_safe OK_spec ge E f (Some k) (stack_depth k) ⊢
   jsafeN OK_spec ge E ora (State f Sskip k ve te).
 Proof.
-  intros; rewrite /assert_safe.
-  iIntros "(? & H)"; iSpecialize ("H" with "[$] [//] [//]").
+  intros; rewrite /assert_safe /stack_level; monPred.unseal.
+  iIntros "(? & H)"; iSpecialize ("H" with "[//] [$] [//] [//] [//] [//] [//] []").
+  { by rewrite monPred_at_affinely. }
   destruct k; try iMod "H" as "[]"; try done.
   - iApply (convergent_controls_jsafe with "H"); simpl; try congruence.
     by inversion 1; constructor.
