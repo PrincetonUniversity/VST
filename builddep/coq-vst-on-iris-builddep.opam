@@ -30,4 +30,5 @@ depends: [
   "coq-vst-zlist" {>= "2.11"}
   "coq-flocq" {>= "4.1.0"}
   "coq-iris" {="4.3.0"}
+  "coq-vst-ora" {="1.0"}
 ]
