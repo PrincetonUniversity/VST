@@ -82,7 +82,7 @@ Proof.
   rewrite bi.and_elim_r bi.and_elim_r embed_later embed_and bi.later_and /= embed_pure.
   iDestruct "Pre" as "(>% & Pre)".
   rewrite !monPred_at_absorbingly /=.
-  iApply (wp_pointer_cmp _ _ _ _ _ _ _ sh1 sh2); [done..|].
+  iApply (wp_pointer_cmp0 _ _ _ _ _ _ _ sh1 sh2); [done..|].
   iSplit.
   { rewrite bi.and_assoc bi.and_elim_l //. }
   iIntros (v (Hcase & Hv)).
@@ -257,14 +257,14 @@ Proof.
   iApply wp_expr_mapsto; iApply (wp_tc_lvalue(CS := CS) with "E"); [done..|].
   iSplit; first by rewrite bi.and_elim_r; auto.
   iIntros "E" (b o Hbo).
-  iExists sh, v2; iSplit.
-  { iPureIntro; split; first done. intros ->; eapply tc_val_Vundef; eauto. }
+  iExists sh, v2; iSplit; first done.
   iSplit.
   { eapply monPred_in_entails in H99.
     iNext; iPoseProof (H99 with "[Pre]") as "H".
     { rewrite bi.and_elim_l monPred_at_and; iFrame; auto. }
     rewrite monPred_at_absorbingly /=; unfold_lift.
-    by rewrite Hbo. }
+    rewrite Hbo simple_mapsto.mapsto_eq //.
+    intros ->; apply tc_val_Vundef in Htc2; done. }
   iIntros "!> !>".
   rewrite /typeof_temp in Hid0; destruct (temp_types Delta !! id) as [t'|] eqn: Ht; inversion Hid0; subst t'; clear Hid0.
   iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
@@ -341,7 +341,8 @@ Proof.
   iSplit.
   { iNext; iPoseProof (H99 with "[Pre]") as "H".
     { rewrite !bi.and_elim_r monPred_at_and; iFrame; auto. }
-    rewrite monPred_at_absorbingly /=; unfold_lift; by rewrite Hbo. }
+    rewrite monPred_at_absorbingly /=; unfold_lift.
+    rewrite Hbo simple_mapsto.mapsto_eq //. }
   rewrite bi.and_comm -assoc bi.later_and; iDestruct "Pre" as "(>%Htc & Pre)".
   iIntros "!>"; iSplit; first done.
   unfold eval_cast, force_val1 in Htc.
@@ -412,7 +413,7 @@ Proof.
   intros.
   rewrite semax_unfold; intros; iIntros "? #?" (?? (TC' & ?)) "E Pre"; destruct HGG.
   rewrite monPred_at_later !monPred_at_and.
-  iApply wp_store.
+  iApply wp_store0.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
   pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
   iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
@@ -429,7 +430,7 @@ Proof.
   iNext; iIntros "He1 !>"; simpl; iFrame.
   iSplit; last done.
   rewrite monPred_at_sep /=; iFrame; unfold_lift.
-  rewrite Hbo; done.
+  rewrite Hbo simple_mapsto.mapsto_weaken; done.
 Qed.
 
 Lemma semax_store_union_hack:
@@ -456,7 +457,7 @@ Proof.
   assert (SZ := decode_encode_val_size _ _ OK).
   rewrite semax_unfold; intros; iIntros "? #?" (?? (TC' & ?)) "E Pre"; destruct HGG.
   rewrite monPred_at_later !monPred_at_and.
-  iApply wp_store'; [done..|].
+  iApply wp_store0'; [done..|].
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
   pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
   iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
@@ -473,7 +474,7 @@ Proof.
   iNext; iIntros "(% & % & He1) !>"; simpl; iFrame.
   iSplit; last done.
   rewrite monPred_at_exist; iExists v'.
-  rewrite -Hbo monPred_at_and monPred_at_sep; iFrame; auto.
+  rewrite -Hbo simple_mapsto.mapsto_weaken monPred_at_and monPred_at_sep; iFrame; auto.
 Qed.
 
 End extensions.

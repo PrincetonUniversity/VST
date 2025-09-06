@@ -552,13 +552,13 @@ Proof.
 Qed.
 
 Lemma mapsto_can_store : forall sh t ch b o v v' m (Hwrite : writable0_share sh) (Hch : access_mode t = By_value ch),
-  mem_auth m ∗ mapsto sh t (Vptr b o) v ⊢ ⌜∃ m', Mem.store ch m b (Ptrofs.unsigned o) v' = Some m'⌝.
+  mem_auth m ∗ mapsto_memory_block.mapsto sh t (Vptr b o) v ⊢ ⌜∃ m', Mem.store ch m b (Ptrofs.unsigned o) v' = Some m'⌝.
 Proof.
-  intros; rewrite /mapsto Hch.
+  intros; rewrite /mapsto_memory_block.mapsto Hch.
   iIntros "[Hm H]".
   destruct (type_is_volatile t); try done.
   rewrite -> if_true by auto.
-  iDestruct "H" as "(% & ?)"; by iApply (mapsto_can_store with "[$]").
+  iDestruct "H" as "[(% & ?) | (% & % & ?)]"; by iApply (mapsto_can_store with "[$]").
 Qed.
 
 (* Usually we store at the same type consistently, but this describes the more
@@ -568,17 +568,17 @@ Lemma mapsto_store': forall t t' m ch ch' v v' sh b o m' (Hsh : writable0_share 
   (Hdec : decode_encode_val_ok ch ch') (Ht' : type_is_volatile t' = false)
   (Halign : (align_chunk ch' | Ptrofs.unsigned o)%Z) (Htc : tc_val' t' (decode_val ch' (encode_val ch v'))),
   Mem.store ch m b (Ptrofs.unsigned o) v' = Some m' ->
-  mem_auth m ∗ mapsto sh t (Vptr b o) v ⊢ |==> mem_auth m' ∗ ∃ v'', ⌜decode_encode_val v' ch ch' v''⌝ ∧ mapsto sh t' (Vptr b o) v''.
+  mem_auth m ∗ mapsto_memory_block.mapsto sh t (Vptr b o) v ⊢ |==> mem_auth m' ∗ ∃ v'', ⌜decode_encode_val v' ch ch' v''⌝ ∧ mapsto sh t' (Vptr b o) v''.
 Proof.
-  intros; rewrite /mapsto Hch Hch' Ht'.
+  intros; rewrite /mapsto_memory_block.mapsto /mapsto Hch Hch' Ht'.
   iIntros "[Hm H]".
   destruct (type_is_volatile t); try done.
   rewrite -> !if_true by auto.
   setoid_rewrite if_true; last auto.
   assert (forall v'', decode_encode_val v' ch ch' v'' -> tc_val' t' v'') as Htc'.
   { intros ? Hv''; eapply decode_encode_val_fun in Hv''; last apply decode_encode_val_general; subst; auto. }
-  iDestruct "H" as "(% & ?)"; iMod (mapsto_store' _ _ _ _ v' with "[$]") as "[$ (% & %Hv'' & H)]"; [done..|]; iIntros "!>".
-  iExists _; iSplit; first done; eauto.
+  iDestruct "H" as "[(% & ?) | (% & % & ?)]"; (iMod (mapsto_store' _ _ _ _ v' with "[$]") as "[$ (% & %Hv'' & H)]"; [done..|]; iIntros "!>";
+    iExists _; iSplit; first done; eauto).
 Qed.
 
 Definition numeric_type (t: type) : bool :=
@@ -610,14 +610,14 @@ Proof.
 Qed.
 
 (* This is only really useful for unions. *)
-Lemma wp_store': forall E f e1 e2 t2 ch1 ch2 R
+Lemma wp_store0': forall E f e1 e2 t2 ch1 ch2 R
   (Hnumeric : numeric_type (typeof e1) && numeric_type t2 = true)
   (Hch1 : access_mode (typeof e1) = By_value ch1)
   (Hch2 : access_mode t2 = By_value ch2),
   decode_encode_val_ok ch1 ch2 →
   wp_expr ge E f (Ecast e2 (typeof e1)) (λ v2,
       ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b o in
-    ∃ sh, ⌜writable0_share sh⌝ ∧ ▷ (⎡mapsto_ sh (typeof e1) v1 ∧ mapsto_ sh t2 v1⎤ ∗
+    ∃ sh, ⌜writable0_share sh⌝ ∧ ▷ (⎡mapsto_memory_block.mapsto_ sh (typeof e1) v1 ∧ mapsto_memory_block.mapsto_ sh t2 v1⎤ ∗
     ((∃ v', ⌜decode_encode_val v2 ch1 ch2 v'⌝ ∧ ⎡mapsto sh t2 v1 v'⎤) ={E}=∗ RA_normal R))))
   ⊢ wp E f (Sassign e1 e2) R.
 Proof.
@@ -632,13 +632,12 @@ Proof.
   iDestruct "H" as (sh ?) "(Hp & H)".
   iDestruct (add_and _ (▷ ⌜type_is_volatile t2 = false ∧ (align_chunk ch2 | Ptrofs.unsigned o)%Z⌝) with "Hp") as "(Hp & >(% & %))".
   { iIntros "(_ & H) !>".
-    rewrite /mapsto_ /mapsto Hch2.
-    iDestruct "H" as (?) "H".
+    rewrite /mapsto_memory_block.mapsto_ /mapsto_memory_block.mapsto Hch2.
     destruct (type_is_volatile t2); first by rewrite embed_pure.
     rewrite -> if_true by auto.
-    iDestruct "H" as "(% & H)"; rewrite address_mapsto_align; iDestruct "H" as "[_ %]"; done. }
+    iDestruct "H" as "[(% & H) | (_ & % & H)]"; rewrite address_mapsto_align; iDestruct "H" as "[_ %]"; done. }
   iCombine "Hm Hp" as "Hp"; iDestruct (add_and _ (▷ ⌜∃ m' : Memory.mem, store ch1 m b (Ptrofs.unsigned o) v2 = Some m'⌝) with "Hp") as "((Hm & Hp) & >(% & %Hstore))".
-  { iIntros "(? & H & _) !>". iDestruct "H" as (?) "?". rewrite -embed_pure; iApply mapsto_can_store; eauto; iFrame. }
+  { iIntros "(? & H & _) !>". rewrite -embed_pure; iApply mapsto_can_store; eauto; iFrame. }
   iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
   iPoseProof (env_match_intro with "Hd") as "#?"; first done.
   iDestruct ("He1" with "[$]") as %He1; iDestruct ("He2" with "[$]") as %He2.
@@ -649,7 +648,6 @@ Proof.
   { iPureIntro; econstructor; eauto.
     econstructor; eauto. }
   iNext; rewrite bi.and_elim_l.
-  iDestruct "Hp" as (?) "Hp".
   iMod (mapsto_store' _ t2 with "[$]") as "(? & Hp)"; [try done..|].
   { eapply decode_encode_tc; eauto. }
   iMod (fupd_mask_subseteq E) as "Hclose"; first done.
@@ -661,24 +659,42 @@ Proof.
   rewrite embed_fupd; iModIntro; iApply (stack_level_embed with "Hd"); by iApply "Hk".
 Qed.
 
+Lemma wp_store': forall E f e1 e2 t2 ch1 ch2 R
+  (Hnumeric : numeric_type (typeof e1) && numeric_type t2 = true)
+  (Hch1 : access_mode (typeof e1) = By_value ch1)
+  (Hch2 : access_mode t2 = By_value ch2),
+  decode_encode_val_ok ch1 ch2 →
+  wp_expr ge E f (Ecast e2 (typeof e1)) (λ v2,
+      ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b o in
+    ∃ sh, ⌜writable0_share sh⌝ ∧ ▷ (⎡mapsto_ sh (typeof e1) v1 ∧ mapsto_ sh t2 v1⎤ ∗
+    ((∃ v', ⌜decode_encode_val v2 ch1 ch2 v'⌝ ∧ ⎡mapsto sh t2 v1 v'⎤) ={E}=∗ RA_normal R))))
+  ⊢ wp E f (Sassign e1 e2) R.
+Proof.
+  intros.
+  rewrite -wp_store0'; [|done..].
+  apply wp_expr_mono; intros.
+  rewrite -fupd_intro; f_equiv; apply wp_lvalue_mono; intros.
+  rewrite -fupd_intro; simpl; do 8 f_equiv; iIntros "(% & ?)"; rewrite mapsto_weaken mapsto_memory_block.mapsto_mapsto_ //.
+Qed.
+
 (* This is the more common case. *)
 Lemma mapsto_store: forall t m ch v v' sh b o m' (Hsh : writable0_share sh)
   (Htc : tc_val' t v') (Hch : access_mode t = By_value ch),
   Mem.store ch m b (Ptrofs.unsigned o) v' = Some m' ->
-  mem_auth m ∗ mapsto sh t (Vptr b o) v ⊢ |==> mem_auth m' ∗ mapsto sh t (Vptr b o) v'.
+  mem_auth m ∗ mapsto_memory_block.mapsto sh t (Vptr b o) v ⊢ |==> mem_auth m' ∗ mapsto sh t (Vptr b o) v'.
 Proof.
-  intros; rewrite /mapsto Hch.
+  intros; rewrite /mapsto_memory_block.mapsto /mapsto Hch.
   iIntros "[Hm H]".
   destruct (type_is_volatile t); try done.
   rewrite -> !if_true by auto.
-  iDestruct "H" as "(% & ?)"; (iMod (mapsto_store _ _ _ v' with "[$]") as "[$ H]"; [done..|];
+  iDestruct "H" as "[(% & ?) | (% & % & ?)]"; (iMod (mapsto_store _ _ _ v' with "[$]") as "[$ H]"; [done..|];
     eauto).
 Qed.
 
-Lemma wp_store: forall E f e1 e2 R,
+Lemma wp_store0: forall E f e1 e2 R,
   wp_expr ge E f (Ecast e2 (typeof e1)) (λ v2,
       ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b o in
-    ∃ sh, ⌜writable0_share sh⌝ ∧ ▷ (⎡mapsto_ sh (typeof e1) v1⎤ ∗
+    ∃ sh, ⌜writable0_share sh⌝ ∧ ▷ (⎡mapsto_memory_block.mapsto_ sh (typeof e1) v1⎤ ∗
     (⎡mapsto sh (typeof e1) v1 v2⎤ ={E}=∗ RA_normal R))))
   ⊢ wp E f (Sassign e1 e2) R.
 Proof.
@@ -691,9 +707,8 @@ Proof.
   iMod ("H" with "Hm [$]") as ">(%v2 & He2 & Hm & ? & % & H)".
   iMod ("H" with "Hm [$]") as ">(%b & %o & He1 & Hm & ? & H)".
   iDestruct "H" as (sh ?) "(Hp & H)".
-  rewrite /mapsto_ embed_exist bi.later_exist_except_0; iMod "Hp" as (?) "Hp".
   iDestruct (add_and _ (▷ ⌜∃ ch : memory_chunk, access_mode (typeof e1) = By_value ch⌝) with "Hp") as "(Hp & >(% & %))".
-  { apply bi.later_mono; rewrite /mapsto_ mapsto_pure_facts embed_pure; apply bi.pure_mono; tauto. }
+  { apply bi.later_mono; rewrite /mapsto_memory_block.mapsto_ mapsto_memory_block.mapsto_pure_facts embed_pure; apply bi.pure_mono; tauto. }
   iCombine "Hm Hp" as "Hp"; iDestruct (add_and _ (▷ ⌜∃ m' : Memory.mem, store ch m b (Ptrofs.unsigned o) v2 = Some m'⌝) with "Hp") as "((Hm & Hp) & >(% & %Hstore))".
   { iIntros "(? & ?) !>"; rewrite -embed_pure; iApply mapsto_can_store; eauto; iFrame. }
   iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
@@ -712,6 +727,21 @@ Proof.
   iApply safe_skip; [done..|].
   iFrame; iDestruct "Hk" as "[Hk _]".
   rewrite embed_fupd; iModIntro; iApply (stack_level_embed with "Hd"); by iApply "Hk".
+Qed.
+
+Lemma wp_store: forall E f e1 e2 R,
+  wp_expr ge E f (Ecast e2 (typeof e1)) (λ v2,
+      ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b o in
+    ∃ sh, ⌜writable0_share sh⌝ ∧ ▷ (⎡mapsto_ sh (typeof e1) v1⎤ ∗
+    (⎡mapsto sh (typeof e1) v1 v2⎤ ={E}=∗ RA_normal R))))
+  ⊢ wp E f (Sassign e1 e2) R.
+Proof.
+  intros.
+  rewrite -wp_store0; [|done..].
+  apply wp_expr_mono; intros.
+  rewrite -fupd_intro; f_equiv; apply wp_lvalue_mono; intros.
+  rewrite -fupd_intro; simpl; do 7 f_equiv.
+  iIntros "(% & ?)"; rewrite mapsto_weaken mapsto_memory_block.mapsto_mapsto_ //.
 Qed.
 
 Lemma wp_loop: forall E f s1 s2 R,
