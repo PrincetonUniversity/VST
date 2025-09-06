@@ -4,11 +4,12 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.Clight_base.
 Require Import VST.veric.Cop2.
-Require Import VST.veric.mapsto_memory_block.
+Require Import VST.veric.simple_mapsto.
 Require Import VST.veric.seplog.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.valid_pointer.
 Require Import VST.veric.expr.
+Require Import VST.veric.simple_mapsto.
 Require Import VST.veric.env.
 
 Section mpred.
@@ -885,9 +886,11 @@ Proof.
 intros; iIntros "[Hm H]".
 iAssert ⌜exists ch, access_mode t = By_value ch⌝ with "[H]" as %(ch & Hch).
 { rewrite /mapsto_ /mapsto.
+  iDestruct "H" as (?) "H".
   destruct (access_mode t) eqn: ?; try done.
   destruct (type_is_volatile t) eqn: ?; try done.
   eauto. }
+iDestruct "H" as (?) "H".
 iMod (mapsto_valid_pointer1 with "H") as "H"; simpl; try done.
 { instantiate (1 := 0); pose proof (Ptrofs.unsigned_range o); lia. }
 { rewrite /sizeof (size_chunk_sizeof _ _ _ Hch).
@@ -938,6 +941,7 @@ Proof.
   iDestruct (add_and _ (▷ ⌜∃ ch b o, access_mode ty1 = By_value ch ∧ v1 = Vptr b o ∧ Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝)
     with "H") as "(H & >%Hv1)".
   { iIntros "(((>H & _) & _) & Hm) !>".
+    iDestruct "H" as (?) "H".
     iDestruct (mapsto_pure_facts with "H") as %((? & ?) & ?).
     destruct v1; try contradiction.
     iDestruct (mapsto_valid_pointer with "[$]") as %?; eauto 7. }
@@ -945,6 +949,7 @@ Proof.
   iDestruct (add_and _ (▷ ⌜∃ ch b o, access_mode ty2 = By_value ch ∧ v2 = Vptr b o ∧ Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝)
     with "H") as "((H & Hm) & >%Hv2)".
   { iIntros "(((_ & >H) & _) & Hm) !>".
+    iDestruct "H" as (?) "H".
     iDestruct (mapsto_pure_facts with "H") as %((? & ?) & ?).
     destruct v2; try contradiction.
     iDestruct (mapsto_valid_pointer with "[$]") as %?; eauto 7. }
@@ -1321,13 +1326,13 @@ Proof.
 Qed.
 
 Lemma wp_expr_mapsto : forall E f e P,
-  wp_lvalue E f e (λ '(b, o), ∃ sh v, <affine> ⌜readable_share sh ∧ v ≠ Vundef⌝ ∗
+  wp_lvalue E f e (λ '(b, o), ∃ sh v, <affine> ⌜readable_share sh⌝ ∗
     ⎡▷ <absorb> mapsto sh (typeof e) (Vptr b o) v⎤ ∧ |={E}=> P v) ⊢
   wp_expr E f e P.
 Proof.
   intros; rewrite /wp_lvalue /wp_expr.
   f_equiv. iIntros "H" (m ?) "Hm ?".
-  iDestruct ("H" with "Hm [$]") as ">(% & % & ? & Hm & ? & % & % & (% & %) & H)".
+  iDestruct ("H" with "Hm [$]") as ">(% & % & ? & Hm & ? & % & % & % & H)".
   rewrite bi.later_absorbingly embed_absorbingly.
   iCombine "H Hm" as "H".
   iDestruct (add_and _ (▷ ⌜∃ ch, access_mode (typeof e) = By_value ch⌝) with "H") as "(H & >(%ch & %Hch))".
@@ -1344,7 +1349,7 @@ Proof.
 Qed.
 
 Lemma wp_expr_mapsto' : forall E f e P,
-  wp_lvalue E f e (λ '(b, o), ∃ sh v, <affine> ⌜readable_share sh ∧ v ≠ Vundef⌝ ∗
+  wp_lvalue E f e (λ '(b, o), ∃ sh v, <affine> ⌜readable_share sh⌝ ∗
     ⎡▷ <absorb> mapsto sh (typeof e) (Vptr b o) v⎤ ∗
     (⎡▷ <absorb> mapsto sh (typeof e) (Vptr b o) v⎤ -∗ P v)) ⊢
   wp_expr E f e P.
@@ -1353,7 +1358,7 @@ Proof.
   apply wp_lvalue_mono.
   iIntros ((?, ?)) "H !>".
   iDestruct "H" as "(% & % & $ & ? & H)".
-  iSplit; first done.
+  iExists _; iSplit; first done.
   by iApply "H".
 Qed.
 

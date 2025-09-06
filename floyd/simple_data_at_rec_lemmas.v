@@ -12,37 +12,10 @@ Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.zlist.sublist.
 Require Export VST.floyd.fieldlist.
 Require Export VST.floyd.aggregate_type.
+Require Export VST.veric.simple_mapsto.
+Require Import VST.floyd.data_at_rec_lemmas.
 
 Local Unset SsrRewrite.
-
-Opaque alignof.
-
-Arguments align !n !amount / .
-Arguments Z.max !n !m / .
-
-Definition offset_in_range ofs p : Prop :=
-  match p with
-  | Vptr b iofs => 0 <= Ptrofs.unsigned iofs + ofs <= Ptrofs.modulus
-  | _ => True
-  end.
-
-Definition offset_strict_in_range ofs p : Prop :=
-  match p with
-  | Vptr b iofs => 0 <= Ptrofs.unsigned iofs + ofs < Ptrofs.modulus
-  | _ => True
-  end.
-
-Ltac unknown_big_endian_hack :=
-  (* This is necessary on machines where Archi.big_endian is a Parameter 
-    rather than a Definition.  When Archi.big_endian is a constant true or false,
-   then it's much easier. *)
- match goal with H1: (align_chunk _ | _) |- _ ⊢ res_predicates.address_mapsto ?ch ?v ?sh (?b, ?i) =>
-   replace v with (decode_val ch (repeat (Byte Byte.zero) (Z.to_nat (size_chunk ch))));
-   [ apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh ch b i H1) | ];
-    unfold decode_val, decode_int, rev_if_be;
-     destruct Archi.big_endian;
-     reflexivity
- end.
 
 (************************************************
 
@@ -123,24 +96,11 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma by_value_default_val: forall t:type,
-  type_is_by_value t = true -> JMeq (default_val t) Vundef.
-Proof.
-  intros.
-  destruct t; try inversion H; try tauto; apply JMeq_refl.
-Qed.
-
 (************************************************
 
 Transformation between data_at/data_at_ and mapsto.
 
 ************************************************)
-
-Lemma by_value_reptype: forall t, type_is_by_value t = true -> reptype t = val.
-Proof.
-  intros.
-  destruct t; simpl in H; try inversion H; tauto.
-Qed.
 
 Lemma by_value_data_at_rec_volatile: forall sh t v p,
   type_is_by_value t = true ->
@@ -170,57 +130,6 @@ Proof.
   end.
 Qed.
 
-Lemma by_value_data_at_rec_default_val: forall sh t p,
-  type_is_by_value t = true ->
-  size_compatible t p ->
-  align_compatible t p ->
-  data_at_rec sh t (default_val t) p ⊣⊢ memory_block sh (sizeof t) p.
-Proof.
-  intros.
-  destruct (type_is_volatile t) eqn:?H.
-  + rewrite by_value_data_at_rec_volatile; auto.
-  + rewrite data_at_rec_eq; destruct t; try solve [inversion H]; rewrite H2;
-    symmetry;
-    rewrite memory_block_mapsto_ by auto; unfold mapsto_;
-    try rewrite if_true by auto; auto.
-Qed.
-
-Lemma zero_val_Tint: forall i s a, zero_val (Tint i s a) = Vint Int.zero.
-Proof.
-intros.
- unfold zero_val, zero_val', reptype_gen0; simpl;
-    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
-Qed.
-   
-Lemma zero_val_Tlong: forall s a, zero_val (Tlong s a) = Vlong Int64.zero.
-Proof.
-intros.
- unfold zero_val, zero_val', reptype_gen0; simpl;
-    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
-Qed.
-   
-Lemma zero_val_Tpointer: forall t a, zero_val (Tpointer t a) = nullval. 
-Proof.
-intros.
- unfold zero_val, zero_val', reptype_gen0; simpl;
-    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
-Qed.
-
-Lemma zero_val_Tfloat32: forall a, zero_val (Tfloat F32 a) = Vsingle Float32.zero.
-Proof.
-intros.
- unfold zero_val, zero_val', reptype_gen0; simpl;
-    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
-Qed.
-
-
-Lemma zero_val_Tfloat64: forall a, zero_val (Tfloat F64 a) = Vfloat Float.zero.
-Proof.
-intros.
- unfold zero_val, zero_val', reptype_gen0; simpl;
-    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
-Qed.
-
 Lemma by_value_data_at_rec_zero_val: forall sh t p,
   type_is_by_value t = true ->
   size_compatible t p ->
@@ -241,8 +150,7 @@ Proof.
    change (unfold_reptype ?A) with A.
     destruct i,s; simpl;
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]);
-   (if_tac; [rewrite prop_true_andp by (clear; compute; repeat split; try congruence; auto);
-      rewrite <- bi.or_intro_l |
+   (if_tac; [rewrite prop_true_andp by (clear; compute; repeat split; try congruence; auto) |
    rewrite (prop_true_andp (_ /\ _))
     by (split; auto; intros _; compute; repeat split; try congruence; auto) ]).
    all: try (apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
@@ -251,8 +159,7 @@ Proof.
    change (unfold_reptype ?A) with A.
     destruct s; simpl;
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]);
-   (if_tac; [rewrite prop_true_andp by (clear; compute; repeat split; try congruence; auto);
-      rewrite <- bi.or_intro_l |
+   (if_tac; [rewrite prop_true_andp by (clear; compute; repeat split; try congruence; auto) |
    rewrite (prop_true_andp (_ /\ _))
     by (split; auto; intros _; compute; repeat split; try congruence; auto)]).
    all: try (apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes; computable).
@@ -260,7 +167,7 @@ Proof.
 - rewrite zero_val_Tfloat32;
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
-   simpl. if_tac; [rewrite prop_true_andp by auto; rewrite <- bi.or_intro_l |
+   simpl. if_tac; [rewrite prop_true_andp by done |
    rewrite (prop_true_andp (_ /\ _))
     by (split; auto; intros _; compute; repeat split; try congruence; auto)].
    all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
@@ -268,7 +175,7 @@ Proof.
 - rewrite zero_val_Tfloat64;
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
-   simpl. if_tac; [rewrite prop_true_andp by auto; rewrite <- bi.or_intro_l |
+   simpl. if_tac; [rewrite prop_true_andp by done |
    rewrite (prop_true_andp (_ /\ _))
     by (split; auto; intros _; compute; repeat split; try congruence; auto)].
    all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
@@ -277,14 +184,14 @@ Proof.
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
    simpl access_mode; cbv beta iota.
-  if_tac; [rewrite prop_true_andp by apply mapsto_memory_block.tc_val_pointer_nullval'; rewrite <- bi.or_intro_l |
+  if_tac; [rewrite prop_true_andp by (intros ?; apply mapsto_memory_block.tc_val_pointer_nullval') |
    rewrite (prop_true_andp (_ /\ _))
       by (split; auto; intro; apply mapsto_memory_block.tc_val_pointer_nullval')].
    all: try (apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
    all: try unknown_big_endian_hack.
 Qed.
 
-Lemma by_value_data_at_rec_nonreachable: forall sh t p v,
+(*Lemma by_value_data_at_rec_nonreachable: forall sh t p v,
   type_is_by_value t = true ->
   size_compatible t p ->
   align_compatible t p ->
@@ -298,27 +205,7 @@ Proof.
   + rewrite by_value_data_at_rec_nonvolatile by auto.
     symmetry;
     apply nonreadable_memory_block_mapsto; auto.
-Qed.
-
-Lemma by_value_data_at_rec_default_val2: forall sh t b ofs,
-  type_is_by_value t = true ->
-  0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
-  align_compatible_rec cenv_cs t ofs ->
-  data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)) ⊣⊢
-  memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)).
-Proof.
-  intros.
-  apply by_value_data_at_rec_default_val; auto.
-  + unfold size_compatible.
-    solve_mod_modulus.
-    pose_mod_le ofs.
-    lia.
-  + unfold align_compatible.
-    solve_mod_modulus.
-    pose proof sizeof_pos t.
-    rewrite Zmod_small by lia.
-    auto.
-Qed.
+Qed.*)
 
 Lemma by_value_data_at_rec_zero_val2: forall sh t b ofs,
   type_is_by_value t = true ->
@@ -341,7 +228,7 @@ Proof.
     auto.
 Qed.
 
-Lemma by_value_data_at_rec_nonreachable2: forall sh t b ofs v,
+(*Lemma by_value_data_at_rec_nonreachable2: forall sh t b ofs v,
   type_is_by_value t = true ->
   0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
@@ -360,19 +247,7 @@ Proof.
     pose proof sizeof_pos t.
     rewrite Zmod_small by lia.
     auto.
-Qed.
-
-(*
-Lemma by_value_data_at_: forall sh t p,
-  type_is_by_value t = true ->
-  data_at_ sh t p = !! field_compatible t nil p && mapsto_ sh t p.
-Proof.
-  intros.
-  unfold data_at_, mapsto_.
-  destruct t; simpl in H; try inversion H; try tauto; simpl default_val;
-  apply by_value_data_at; reflexivity.
-Qed.
-*)
+Qed.*)
 
 (************************************************
 
@@ -380,318 +255,6 @@ Transformation between data_at and data_at_rec. This is used in transformation
 between field_at and data_at.
 
 ************************************************)
-
-(*
-Lemma unsigned_add: forall i pos, 0 <= pos -> Int.unsigned (Int.add i (Int.repr pos)) = (Int.unsigned i + pos) mod Int.modulus.
-Proof.
-  intros.
-  unfold Int.add.
-  pose proof Int.modulus_pos.
-  pose proof Int.unsigned_range i.
-  pose proof Int.unsigned_range (Int.repr pos).
-  rewrite !Int.unsigned_repr_eq in *.
-  rewrite Z.add_mod by lia.
-  rewrite Z.mod_mod by lia.
-  rewrite <- Z.add_mod by lia.
-  reflexivity.
-Qed.
-
-Lemma memory_block_data_at__aux1: forall i pos t,
-  0 <= pos /\ pos + sizeof t <= Int.modulus - Int.unsigned i ->
-  Int.unsigned (Int.add i (Int.repr pos)) + sizeof t <= Int.modulus.
-Proof.
-  intros.
-  destruct H.
-  rewrite (unsigned_add i pos H).
-  cut ((Int.unsigned i + pos) mod Int.modulus <= Int.unsigned i + pos).
-    { intros. lia. }
-  pose proof Int.modulus_pos.
-  pose proof Int.unsigned_range i.
-  apply Z.mod_le; lia.
-Qed.
-
-Lemma memory_block_data_at__aux2: forall i pos t,
-  0 <= pos /\ pos + sizeof t <= Int.modulus - Int.unsigned i ->
-  (alignof t | Int.unsigned i) ->
-  (alignof t | pos) ->
-  (alignof t | Int.unsigned (Int.add i (Int.repr pos))).
-Proof.
-  intros.
-  destruct H.
-  rewrite (unsigned_add i pos H).
-  destruct (zlt (Int.unsigned i + pos) Int.modulus).
-  + pose proof Int.unsigned_range i.
-    rewrite Z.mod_small by lia.
-    apply Z.divide_add_r; assumption.
-  + pose proof sizeof_pos cenv_cs t.
-    assert (Int.unsigned i + pos = Int.modulus) by lia.
-    rewrite H4.
-    rewrite Z_mod_same_full.
-    apply Z.divide_0_r.
-Qed.
-*)
-Lemma Znth_nil: forall {A}{d: Inhabitant A} n, Znth n (@nil A) = default.
-Proof.
-  intros.
-  unfold Znth.
-  if_tac; auto.
-  simpl.
-  destruct (Z.to_nat n); auto.
-Qed.
-
-Lemma offset_val_zero_Vptr: forall b i, offset_val 0 (Vptr b i) = Vptr b i.
-Proof.
-  intros.
-  unfold offset_val, Ptrofs.add.
-  change (Ptrofs.unsigned (Ptrofs.repr 0)) with 0.
-  rewrite Z.add_0_r.
-  rewrite Ptrofs.repr_unsigned.
-  reflexivity.
-Qed.
-(*
-Ltac AUTO_IND :=
-  match goal with
-  | H: complete_legal_cosu_type (Tarray ?t ?n ?a) = true |- complete_legal_cosu_type ?t = true =>
-    simpl in H; auto
-  | H: (alignof (Tarray ?t ?z ?a) | ?ofs)
-    |- (alignof ?t | ?ofs + _) =>
-    apply Z.divide_add_r;
-    [ eapply Z.divide_trans; [eapply alignof_divide_alignof_Tarray |]; eauto
-    | apply Z.divide_mul_l; eapply legal_alignas_type_Tarray; eauto]
-  | H: legal_alignas_type (Tstruct ?id ?a) = true |-
-    legal_alignas_type (field_type ?i (co_members (get_co ?id))) = true =>
-    unfold legal_alignas_type in H;
-    apply nested_pred_Tstruct2 with (i0 := i) in H;
-    [exact H | auto]
-  | H: legal_cosu_type (Tstruct ?id ?a) = true |-
-    legal_cosu_type (field_type ?i (co_members (get_co ?id))) = true =>
-    unfold legal_cosu_type in H;
-    apply nested_pred_Tstruct2 with (i0 := i) in H;
-    [exact H | auto]
-  | |- complete_type ?env (field_type ?i (co_members (get_co ?id))) = true =>
-    apply complete_type_field_type; auto
-  | H: (alignof (Tstruct ?id ?a) | ?ofs)
-    |- (alignof (field_type ?i (co_members (get_co ?id))) | ?ofs + _) =>
-    apply Z.divide_add_r;
-    [ eapply Z.divide_trans; [apply alignof_field_type_divide_alignof; auto |];
-      eapply Z.divide_trans; [apply legal_alignas_type_Tstruct; eauto | auto]
-    | apply field_offset_aligned]
-  | H: legal_alignas_type (Tunion ?id ?a) = true |-
-    legal_alignas_type (field_type ?i (co_members (get_co ?id))) = true =>
-    unfold legal_alignas_type in H;
-    apply nested_pred_Tunion2 with (i0 := i) in H;
-    [exact H | auto]
-  | H: legal_cosu_type (Tunion ?id ?a) = true |-
-    legal_cosu_type (field_type ?i (co_members (get_co ?id))) = true =>
-    unfold legal_cosu_type in H;
-    apply nested_pred_Tunion2 with (i0 := i) in H;
-    [exact H | auto]
-  | H: (alignof (Tunion ?id ?a) | ?ofs)
-    |- (alignof (field_type ?i (co_members (get_co ?id))) | ?ofs) =>
-    eapply Z.divide_trans; [apply alignof_field_type_divide_alignof; auto |];
-    eapply Z.divide_trans; [apply legal_alignas_type_Tunion; eauto | auto]
-  end.
-*)
-
-Lemma nth_repeat: forall A i n (x :A),
-    nth i (repeat x n) x = x.
-Proof.
- induction i; destruct n; simpl; auto.
-Qed.
-
-Lemma nth_repeat': forall A i n (x y :A),
-    (i < n)%nat ->
-    nth i (repeat x n) y = x.
-Proof.
- induction i; destruct n; simpl; intros; auto.
- lia. lia.
- apply IHi; auto. lia.
-Qed.
-
- Lemma Z2Nat_max0: forall z, Z.to_nat (Z.max 0 z) = Z.to_nat z.
- Proof.
-  intros.
-  rewrite Z.max_comm, <- Z_to_nat_max, Nat2Z.id.
-  auto.
-Qed.
-
-Lemma range_max0: forall x z, 0 <= x < Z.max 0 z <-> 0 <= x < z.
-Proof.
-  intros.
-  destruct (zlt z 0).
-  + rewrite Z.max_l by lia.
-    lia.
-  + rewrite Z.max_r by lia.
-    lia.
-Qed.
-
-(* We use (Vptr b (Int.repr ofs)) instead of p because size_compatible is more  *)
-(* difficult to use than simple arithmetic in induction proof.                  *)
-Lemma memory_block_data_at_rec_default_val: forall sh t b ofs
-  (LEGAL_COSU: complete_legal_cosu_type t = true),
-  0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
-  align_compatible_rec cenv_cs t ofs ->
-  data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)) ⊣⊢
-    memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)).
-Proof.
-  intros sh t.
-  type_induction t; intros;
-  try solve [inversion COMPLETE];
-  try solve [apply by_value_data_at_rec_default_val2; auto];
-  rewrite data_at_rec_eq.
-  + rewrite (default_val_eq (Tarray t z a)).
-    rewrite unfold_fold_reptype.
-    rewrite array_pred_ext with
-     (P1 := fun i _ p => memory_block sh (sizeof t)
-                          (offset_val (sizeof t * i) p))
-     (v1 := Zrepeat (default_val t) (Z.max 0 z));
-     auto.
-    rewrite memory_block_array_pred; auto.
-    - apply Z.le_max_l.
-    - f_equal. unfold Zrepeat.
-      f_equal.  lia.
-    - intros.
-      rewrite at_offset_eq3.
-      unfold offset_val; solve_mod_modulus.
-      unfold Znth, Zrepeat. rewrite if_false by lia.
-      rewrite nth_repeat.
-      unfold expr.sizeof,  Ctypes.sizeof in H; fold @Ctypes.sizeof in H; fold (sizeof t) in H.
-      pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
-      assert (sizeof t = 0 -> sizeof t * i = 0)%Z by (intros HH; rewrite HH, Z.mul_0_l; auto).
-      apply IH; auto; try lia.
-      eapply align_compatible_rec_Tarray_inv; [eassumption |].
-      apply range_max0; auto.
-  + rewrite default_val_eq.
-    rewrite unfold_fold_reptype.
-    rewrite struct_pred_ext with
-     (P1 := fun it _ p =>
-              memory_block sh
-               (field_offset_next cenv_cs (name_member it) (co_members (get_co id)) (co_sizeof (get_co id)) -
-                  field_offset cenv_cs (name_member it) (co_members (get_co id)))
-               (offset_val (field_offset cenv_cs (name_member it) (co_members (get_co id))) p))
-     (v1 := (struct_default_val (co_members (get_co id))));
-    [| apply get_co_members_no_replicate |].
-    - change (sizeof ?A) with (expr.sizeof A) in *.
-       rewrite memory_block_struct_pred.
-      * rewrite sizeof_Tstruct; auto.
-      * apply get_co_members_nil_sizeof_0.
-      * eapply complete_Tstruct_plain; eauto.
-      * apply get_co_members_no_replicate.
-      * rewrite sizeof_Tstruct in H.
-        pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).
-        erewrite complete_legal_cosu_type_Tstruct in H1 by eauto.
-        pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).
-        unfold sizeof_composite in H1.
-        assert (PLAIN := complete_Tstruct_plain _ _ LEGAL_COSU).
-        rewrite <- plain_members_sizeof_struct in H1 by auto.
-        revert H1; pose_align_le. intros; lia.
-      * rewrite sizeof_Tstruct in H.
-        lia.
-    - intros.
-      pose proof get_co_members_no_replicate id as NO_REPLI.
-      rewrite withspacer_spacer.
-      simpl @fst.
-      rewrite spacer_memory_block by (simpl; auto).
-      rewrite at_offset_eq3.
-      unfold offset_val; solve_mod_modulus.
-      unfold struct_default_val.
-      unfold proj_struct.
-      rewrite compact_prod_proj_gen by (apply in_get_member; auto).
-      rewrite Forall_forall in IH.
-      specialize (IH (get_member i (co_members (get_co id)))).
-      rewrite name_member_get in *.
-      spec IH; [apply in_get_member; auto |].
-      rewrite IH; clear IH.
-      * rewrite Z.add_assoc.
-        etrans; first apply bi.sep_comm.
-         rewrite <- memory_block_split by (auto; pose_field; lia).
-        f_equiv; hnf; lia.
-      * apply complete_legal_cosu_type_field_type.
-         eapply complete_Tstruct_plain; eauto.
-        auto.
-      * simpl fst. pose_field; lia.
-      * simpl fst. eapply align_compatible_rec_Tstruct_inv'; eauto.
-  + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil)
-      by (destruct (co_members (get_co id)); [left | right]; congruence).
-    destruct H1.
-    - rewrite sizeof_Tunion.
-      rewrite (get_co_members_nil_sizeof_0 _ H1).
-      generalize (unfold_reptype (default_val (Tunion id a)));
-      rewrite H1 in *;
-      intros.
-      simpl.
-      rewrite memory_block_zero.
-      normalize.
-    - rewrite default_val_eq.
-      rewrite unfold_fold_reptype.
-      rewrite union_pred_ext with
-       (P1 := fun it _ => memory_block sh (co_sizeof (get_co id)))
-       (v1 := (union_default_val (co_members (get_co id))));
-      [| apply get_co_members_no_replicate | reflexivity |].
-      * rewrite memory_block_union_pred by (apply get_co_members_nil_sizeof_0).
-        rewrite sizeof_Tunion.
-        auto.
-      * intros.
-        pose proof get_co_members_no_replicate id as NO_REPLI.
-        pose proof @compact_sum_inj_in _ _ (co_members (get_co id)) (union_default_val (co_members (get_co id))) _ _ H3.
-        apply in_map with (f := name_member) in H4; unfold fst in H4.
-        rewrite withspacer_spacer.
-        simpl @fst.
-        rewrite spacer_memory_block by (simpl; auto).
-        unfold offset_val; solve_mod_modulus.
-        unfold union_default_val.
-        unfold proj_union.
-        unfold members_union_inj in *.
-        rewrite compact_sum_proj_gen; [| auto].
-        rewrite Forall_forall in IH.
-        specialize (IH (get_member i (co_members (get_co id)))).
-        rewrite name_member_get in *.
-        spec IH; [apply in_get_member; auto |].
-        rewrite IH.
-        {
-          etrans; first apply bi.sep_comm. rewrite <- memory_block_split by (pose_field; lia).
-          f_equiv; hnf; f_equal; lia.
-        } {
-          apply complete_legal_cosu_type_field_type.
-         eapply complete_Tunion_plain; eauto.
-          auto.
-        } {
-          pose_field; lia.
-        } {
-          simpl fst. eapply align_compatible_rec_Tunion_inv'; eauto.
-        }
-Qed.
-
-Fixpoint fully_nonvolatile {cs: compspecs} (rank: nat) (t: type) : bool :=
- match rank with
- | O => negb (type_is_volatile t) 
- | S r => negb (type_is_volatile t) &&
-               match t with
-               | Tarray t' _ _ => fully_nonvolatile r t'
-               | Tstruct id _ => match cenv_cs !! id with 
-                                          | Some co => forallb (fully_nonvolatile r) (map type_member (co_members co))
-                                          | None => false
-                                          end
-               | Tunion id _ => match cenv_cs !! id with 
-                                          | Some co => forallb (fully_nonvolatile r) (map type_member (co_members co))
-                                          | None => false
-                                          end
-               | _ => true
-               end
- end.
-
-Lemma fully_nonvolatile_stable:
-  forall {cs: compspecs} r r' t, (r >= r')%nat -> fully_nonvolatile r t = true -> fully_nonvolatile r' t = true.
-Proof.
-induction r; destruct r'; simpl; intros; auto.
-inv H.
-rewrite andb_true_iff in H0; destruct H0; auto.
-rewrite andb_true_iff in H0|-*; destruct H0; split; auto.
-destruct t; auto.
-apply IHr; auto; lia.
-all: destruct (cenv_cs !! i); auto;
-rewrite forallb_forall in H1|-*; intros; apply H1 in H2; apply IHr; auto; lia.
-Qed.
 
 (* We use (Vptr b (Int.repr ofs)) instead of p because size_compatible is more  *)
 (* difficult to use than simple arithmetic in induction proof.                  *)
@@ -861,22 +424,25 @@ Proof.
            rewrite forallb_forall in Hvol. specialize (Hvol  _ (in_map type_member _ _ H1)).
            pose proof (cenv_legal_su _ _ H). apply (complete_legal_cosu_member _ i t) in H2; auto.
            eapply fully_nonvolatile_stable; try eassumption.
-           rewrite (co_consistent_rank cenv_cs c (cenv_consistent _ _ H)).        
+           rewrite (co_consistent_rank cenv_cs c (cenv_consistent _ _ H)).
            apply (rank_type_members cenv_cs (Member_plain i t) (co_members c)); auto.
 Qed.
+
+Lemma mapsto_mapsto_': forall sh t v v', mapsto sh t v v' ⊢ mapsto_memory_block.mapsto_ sh t v.
+Proof. intros; rewrite mapsto_weaken; apply mapsto_memory_block.mapsto_mapsto_. Qed.
 
 Lemma data_at_rec_data_at_rec_ : forall sh t v b ofs
   (LEGAL_COSU: complete_legal_cosu_type t = true),
   0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
-  data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)) ⊢ data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)).
+  data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)) ⊢ data_at_rec_lemmas.data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros sh t.
   type_induction t; intros;
   try solve [inversion LEGAL_COSU];
-  try solve [rewrite !data_at_rec_eq; try (simple_if_tac; auto);
-  try solve [rewrite default_val_eq, unfold_fold_reptype; apply mapsto_mapsto_]].
-  + rewrite !data_at_rec_eq.
+  try solve [rewrite !data_at_rec_eq, !data_at_rec_lemmas.data_at_rec_eq; try (simple_if_tac; [apply memory_block_weaken|]);
+  try solve [rewrite default_val_eq, unfold_fold_reptype; apply mapsto_mapsto_']].
+  + rewrite !data_at_rec_eq, !data_at_rec_lemmas.data_at_rec_eq.
     apply array_pred_ext_derives.
     {
       intros; rewrite default_val_eq.
@@ -899,7 +465,7 @@ Proof.
        unfold sizeof in H; simpl in H; fold (sizeof t) in H; lia.
     - eapply align_compatible_rec_Tarray_inv; eauto.
       apply range_max0; auto.
-  + rewrite !data_at_rec_eq.
+  + rewrite !data_at_rec_eq, !data_at_rec_lemmas.data_at_rec_eq.
     rewrite default_val_eq, unfold_fold_reptype.
     assert (members_no_replicate (co_members (get_co id)) = true) as NO_REPLI
       by apply get_co_members_no_replicate.
@@ -923,7 +489,7 @@ Proof.
   + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil)
       by (destruct (co_members (get_co id)); [left | right]; congruence).
     destruct H1.
-    - rewrite !data_at_rec_eq.
+    - rewrite !data_at_rec_eq, !data_at_rec_lemmas.data_at_rec_eq.
       generalize (unfold_reptype v) (unfold_reptype (default_val (Tunion id a))); rewrite H1; intros.
       apply entails_refl.
     - rewrite data_at_rec_eq.
@@ -932,7 +498,7 @@ Proof.
       * assert (members_no_replicate (co_members (get_co id)) = true) as NO_REPLI
           by apply get_co_members_no_replicate.
         apply union_pred_ext_derives with
-          (P1 := fun _ _ => memory_block sh (sizeof (Tunion id a)));
+          (P1 := fun _ _ => mapsto_memory_block.memory_block sh (sizeof (Tunion id a)));
           [auto | reflexivity | ].
         intros.
         clear H3.
@@ -945,7 +511,7 @@ Proof.
         replace (co_sizeof (get_co id)) with (sizeof (field_type i' (co_members (get_co id))) +
           (co_sizeof (get_co id) - sizeof (field_type i' (co_members (get_co id))))) by lia.
         rewrite <- bi.sep_comm.
-        rewrite memory_block_split by (subst i'; rewrite name_member_get; pose_field; lia).
+        rewrite mapsto_memory_block.memory_block_split by (subst i'; rewrite name_member_get; pose_field; lia).
         apply bi.sep_mono; [| rewrite spacer_memory_block by (simpl; auto);
                                  unfold offset_val; solve_mod_modulus; auto ].
 
@@ -963,96 +529,17 @@ Proof.
         } {
           apply complete_legal_cosu_type_field_type; auto.
           eapply complete_Tunion_plain; eauto.
-          subst i'; rewrite name_member_get; auto.    
+          subst i'; rewrite name_member_get; auto.
         } {
           subst i'; rewrite name_member_get.
           pose_field; lia.
         } {
           eapply align_compatible_rec_Tunion_inv'; eauto.
-          subst i'; rewrite name_member_get; auto.    
+          subst i'; rewrite name_member_get; auto.
         }
       * rewrite sizeof_Tunion.
         rewrite memory_block_union_pred by (apply get_co_members_nil_sizeof_0).
         auto.
-Qed.
-
-Definition value_fits: forall t, reptype t -> Prop :=
-  type_func (fun t => reptype t -> Prop)
-    (fun t v =>
-       if type_is_volatile t then True%type else tc_val' t (repinject t v))
-    (fun t n a P v => Zlength (unfold_reptype v) =  Z.max 0 n /\ Forall P (unfold_reptype v))
-    (fun id a P v => struct_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v))
-    (fun id a P v => union_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v)).
-
-Lemma value_fits_eq:
-  forall t v,
-  value_fits t v =
-  match t as t0 return (reptype t0 -> Prop)  with
-  | Tarray t' n a => fun v0 : reptype (Tarray t' n a) =>
-    (fun v1 : list (reptype t') =>
-     Zlength v1 = Z.max 0 n /\ Forall (value_fits t') v1)
-      (unfold_reptype v0)
-| Tstruct i a =>
-    fun v0 : reptype (Tstruct i a) =>
-     struct_Prop (co_members (get_co i))
-       (fun it : member =>
-        value_fits (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
-| Tunion i a =>
-    fun v0 : reptype (Tunion i a) =>
-     union_Prop (co_members (get_co i))
-       (fun it : member =>
-        value_fits (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
-  | t0 => fun v0: reptype t0 =>
-             (if type_is_volatile t0
-              then True%type
-              else tc_val' t0 (repinject t0 v0))
-  end v.
-Proof.
-intros.
-unfold value_fits.
-rewrite type_func_eq.
-destruct t; auto.
-apply struct_value_fits_aux_spec.
-apply union_value_fits_aux_spec.
-Qed.
-
-Lemma value_fits_type_changable: forall (t1 t2: type) v1 v2,
-  t1 = t2 ->
-  JMeq v1 v2 ->
-  value_fits t1 v1 = value_fits t2 v2.
-Proof.
-  intros.
-  subst t2.
-  apply JMeq_eq in H0.
-  rewrite H0.
-  reflexivity.
-Qed.
-
-Lemma default_value_fits:
-  forall t, value_fits t (default_val t).
-Proof.
-  intros.
-  type_induction t; try destruct f; rewrite value_fits_eq;
-  try solve [simpl; try (simple_if_tac; auto); apply tc_val'_Vundef];
-  rewrite default_val_eq, unfold_fold_reptype.
-  + (* Tarray *)
-    split.
-    - unfold Zrepeat; rewrite Zlength_repeat', Z2Nat_id'; auto.
-    - apply Forall_repeat; auto.
-  + (* Tstruct *)
-    cbv zeta in IH.
-    apply struct_Prop_compact_prod_gen.
-    - apply get_co_members_no_replicate.
-    - rewrite Forall_forall in IH.
-      intros; apply IH.
-      apply in_get_member; auto.
-  + (* Tunion *)
-    cbv zeta in IH.
-    apply union_Prop_compact_sum_gen.
-    - apply get_co_members_no_replicate.
-    - rewrite Forall_forall in IH.
-      intros; apply IH.
-      apply in_get_member; auto.
 Qed.
 
 Lemma data_at_rec_value_fits: forall sh t v p,
@@ -1105,60 +592,8 @@ Proof.
   intros; unfold mapsto.
   apply access_mode_by_value in R as (? & ->).
   rewrite H, !if_true by trivial.
-  iIntros "([(_ & H1) | (-> & % & H1)] & [(_ & H2) | (-> & % & H2)])"; try solve [exfalso; pose proof (JMeq_refl Vundef); done];
+  iIntros "((_ & H1) & (_ & H2))"; try solve [exfalso; pose proof (JMeq_refl Vundef); done];
     iApply res_predicates.address_mapsto_value_cohere; iFrame.
-Qed.
-
-Definition value_defined_byvalue t v : Prop :=
-if type_is_volatile t then False%type else tc_val t (repinject t v).
-
-Definition value_defined : forall t, reptype t -> Prop :=
-  type_func (fun t => reptype t -> Prop)
-    value_defined_byvalue
-    (fun t n a P v => Zlength (unfold_reptype v) =  Z.max 0 n /\ Forall P (unfold_reptype v))
-    (fun id a P v => struct_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v))
-    (fun id a P v => False%type). (* don't permit unions, for now ; otherwise: 
-                 union_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v))
-*)
-
-Lemma value_defined_eq:
-  forall t v,
-  value_defined t v =
-  match t as t0 return (reptype t0 -> Prop)  with
-  | Tarray t' n a => fun v0 : reptype (Tarray t' n a) =>
-    (fun v1 : list (reptype t') =>
-     Zlength v1 = Z.max 0 n /\ Forall (value_defined t') v1)
-      (unfold_reptype v0)
-| Tstruct i a =>
-    fun v0 : reptype (Tstruct i a) =>
-     struct_Prop (co_members (get_co i))
-       (fun it : member =>
-        value_defined (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
-| Tunion i a =>
-    fun v0 : reptype (Tunion i a) =>
-     False%type (*
-     union_Prop (co_members (get_co i))
-       (fun it : member =>
-        value_defined (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
-      *)
-  | t0 => value_defined_byvalue t0
-  end v.
-Proof.
-intros.
-unfold value_defined.
-rewrite type_func_eq.
-destruct t; auto.
-apply struct_value_fits_aux_spec.
-(* apply union_value_fits_aux_spec. *)
-Qed.
-
-Lemma value_defined_not_volatile:
-  forall t v, value_defined t v -> type_is_volatile t = false.
-Proof.
-intros.
-destruct t; try reflexivity; 
-do 5 red in H;
-destruct (type_is_volatile _); auto; contradiction.
 Qed.
 
 Local Definition field_atx sh m (sz: Z) (it : member)
@@ -1336,8 +771,8 @@ red in H1.
 unfold field_atx.
 rewrite !withspacer_spacer.
 rewrite !spacer_memory_block by (simpl; auto).
-set (x1 := memory_block sh1 _ _).
-set (x2 := memory_block sh2 _ _).
+set (x1 := mapsto_memory_block.memory_block sh1 _ _).
+set (x2 := mapsto_memory_block.memory_block sh2 _ _).
 clearbody x1 x2.
 unfold at_offset, offset_val.
 set (ofs' := Ptrofs.add _ _). clearbody ofs'.
@@ -1366,8 +801,8 @@ apply bi.sep_mono; auto.
 unfold field_atx.
 rewrite !withspacer_spacer.
 rewrite !spacer_memory_block by (simpl; auto).
-set (x1 := memory_block sh1 _ _).
-set (x2 := memory_block sh2 _ _).
+set (x1 := mapsto_memory_block.memory_block sh1 _ _).
+set (x2 := mapsto_memory_block.memory_block sh2 _ _).
 clearbody x1 x2.
 unfold at_offset, offset_val.
 set (ofs' := Ptrofs.add _ _). clearbody ofs'.
@@ -1415,7 +850,7 @@ Transparent field_type field_offset.
     rewrite !spacer_memory_block by (simpl; auto).
     match goal with |- (?a∗?b)∗(?c∗?d) ⊣⊢ _ =>
       trans ((a∗c)∗(b∗d)); [ apply bi.equiv_entails_2; cancel | ] end.
-    erewrite memory_block_share_join by eassumption.
+    erewrite mapsto_memory_block.memory_block_share_join by eassumption.
     apply bi.sep_proper; first done.
     unfold at_offset.
     cbv zeta in IH.
@@ -1438,7 +873,7 @@ Transparent field_type field_offset.
     rewrite !spacer_memory_block by (simpl; auto).
     match goal with |- (?a∗?b)∗(?c∗?d) ⊣⊢ _ =>
       trans ((a∗c)∗(b∗d)); [ apply bi.equiv_entails_2; cancel | ] end.
-    erewrite memory_block_share_join by eassumption.
+    erewrite mapsto_memory_block.memory_block_share_join by eassumption.
     apply bi.sep_proper; first done.
     unfold at_offset.
     cbv zeta in IH.
@@ -1450,7 +885,7 @@ Transparent field_type field_offset.
     apply (@proj_compact_sum_JMeq _ _ _ (fun it => reptype (field_type (name_member it) (co_members (get_co id)))) (fun it => reptype (field_type (name_member it) (co_members (get_co id))))); auto.
 Qed.
 
-Lemma nonreadable_memory_block_data_at_rec:
+(*Lemma nonreadable_memory_block_data_at_rec:
   forall sh t v b ofs
   (LEGAL_COSU: complete_legal_cosu_type t = true),
   0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
@@ -1595,7 +1030,7 @@ Proof.
         } {
           eapply align_compatible_rec_Tunion_inv'; eauto.
         }
-Qed.
+Qed.*)
 
 End CENV.
 
@@ -1746,172 +1181,4 @@ Proof.
       rewrite reptype_change_composite; [reflexivity |].
       apply H0.
       apply in_get_member; auto.
-Qed.
-
-(**** tactics for value_fits  ****)
-
-Lemma value_fits_Tstruct:
-  forall {cs: compspecs} t (v: reptype t) i a m v2 r,
-  t = Tstruct i a ->
-  m = co_members (get_co i)  ->
-  JMeq (@unfold_reptype cs t v) v2 ->
-  r = struct_Prop m
-          (fun it => value_fits (field_type (name_member it) m))  v2 ->
-  value_fits t v = r.
-Proof.
-intros.
-subst.
-rewrite value_fits_eq; simpl.
-f_equal.
-apply JMeq_eq in H1. auto.
-Qed.
-
-Lemma value_fits_Tunion:
-  forall {cs: compspecs} t (v: reptype t) i a m v2 r,
-  t = Tunion i a ->
-  m = co_members (get_co i)  ->
-  JMeq (@unfold_reptype cs t v) v2 ->
-  r =union_Prop m
-          (fun it => value_fits (field_type (name_member it) m))  v2 ->
-  value_fits t v = r.
-Proof.
-intros.
-subst.
-rewrite value_fits_eq; simpl.
-f_equal.
-apply JMeq_eq in H1. auto.
-Qed.
-
-Lemma value_fits_by_value_defined:
-  forall {cs: compspecs} t t' v r,
-   type_is_by_value t = true ->
-   repinject t v <> Vundef  ->
-   t = t' ->
-   (r = if type_is_volatile t' then True%type
-       else tc_val t' (repinject t v)) ->
-   value_fits t v = r.
-Proof.
-intros. subst t' r.
-rewrite value_fits_eq.
-unfold tc_val'.
-destruct t; inv H;
- (simple_if_tac; auto; apply prop_ext; tauto).
-Qed.
-
-Lemma value_fits_by_value_Vundef:
-  forall {cs: compspecs} t v,
-   type_is_by_value t = true ->
-   repinject t v = Vundef  ->
-   value_fits t v = True%type.
-Proof.
-intros.
-rewrite value_fits_eq.
-unfold tc_val'.
-destruct t; inv H;
- (simple_if_tac; auto; auto; apply prop_ext; tauto).
-Qed.
-
-Lemma value_fits_by_value:
-  forall {cs: compspecs} t t' v r,
-   type_is_by_value t = true ->
-   t = t' ->
-   (r = if type_is_volatile t then True%type
-       else tc_val' t' (repinject t v)) ->
-   value_fits t v = r.
-Proof.
-intros. subst r t'.
-rewrite value_fits_eq.
-unfold tc_val'.
-destruct t; inv H;
- (simple_if_tac; auto; apply prop_ext; tauto).
-Qed.
-
-Lemma value_fits_Tarray:
-  forall {cs: compspecs} t (v: reptype t) t' n a
-    (v' : list (reptype t')) r,
-  t = (Tarray t' n a) ->
-  JMeq (unfold_reptype v) v' ->
-  n >= 0 ->
-  r = (Zlength v' = n /\ Forall (value_fits t') v') ->
-  value_fits t v = r.
-Proof.
-intros.
-subst. rewrite value_fits_eq.
-apply JMeq_eq in H0. rewrite H0.
-rewrite Z.max_r by lia. auto.
-Qed.
-
-Ltac cleanup_unfold_reptype :=
-    match goal with |- JMeq (unfold_reptype ?A) _ =>
-                 instantiate (1:=A); apply JMeq_refl
-    end.
-
-Ltac simplify_value_fits' :=
-first
- [erewrite value_fits_Tstruct;
-    [ | reflexivity
-    | reflexivity
-    | cleanup_unfold_reptype
-    | reflexivity];
-    simpl struct_Prop
- |erewrite value_fits_Tarray;
-    [ | reflexivity
-    | cleanup_unfold_reptype
-    | repeat subst_any; try computable; lia
-    | reflexivity
-    ]
- | erewrite value_fits_by_value_defined;
-   [ | reflexivity
-   | repeat subst_any; clear; simpl; intro; discriminate
-   | reflexivity
-   | reflexivity
-   ]
- | rewrite value_fits_by_value_Vundef;
-   [ | reflexivity | reflexivity
-   ]
- | erewrite value_fits_by_value;
-   [ | reflexivity
-   | reflexivity
-   | reflexivity
-   ]
- ];
- cbv beta;
- repeat match goal with |- context [@reptype ?cs ?t] =>
-   change (@reptype cs t) with val
- end.
-
-Tactic Notation "simplify_value_fits" :=
-  simplify_value_fits'.
-
-Tactic Notation "simplify_value_fits" "in" hyp(H) :=
-  match type of H with ?A =>
-  let a := fresh "a" in set (a:=A) in H;
-   let H1 := fresh in assert (H1: a = A) by (apply eq_refl);
-   clearbody a;
-   match goal with |- ?B =>
-    let BB := fresh "BB" in set (BB:=B);
-   revert H1; simplify_value_fits'; intro H1; subst a; subst BB
-  end
- end.
-
-Tactic Notation "simplify_value_fits" "in" "*" :=
-repeat match goal with
- | H: context [value_fits _ _ _] |- _ =>
-  simplify_value_fits in H
-end;
- repeat simplify_value_fits'.
-
-(*** end tactics for value_fits ***)
-
-Lemma value_defined_tarray {cs: compspecs}:
- forall t n vl,
-  Zlength vl = n -> 
-  Forall (value_defined t) vl ->
-  value_defined (tarray t n) vl.
-Proof.
-intros.
-red. rewrite type_induction.type_func_eq. unfold tarray.
-split; auto.
-subst.
-unfold unfold_reptype. simpl. rep_lia.
 Qed.

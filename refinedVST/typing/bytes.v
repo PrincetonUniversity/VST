@@ -281,11 +281,12 @@ Section void.
 
   Definition void : type := uninit Tvoid.
 
+  (* Do we ever need to check something as having type void?
   Lemma type_void T:
     T void ⊢ typed_value tvoid Vundef T.
-  Proof. iIntros "HT". iExists _. iFrame. iPureIntro; split3; auto. intros ?; done. Qed.
+  Proof. iIntros "HT". iExists _. iFrame. iPureIntro; split3; auto. rewrite value_def_eq /=. Qed.
   Definition type_void_inst := [instance type_void].
-  Global Existing Instance type_void_inst.
+  Global Existing Instance type_void_inst.*)
 End void.
 
 Notation zeroed := (bytewise (λ b, b = Byte Byte.zero)).

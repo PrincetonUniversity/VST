@@ -3,7 +3,7 @@ From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From compcert.common Require Import Values.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-From VST.veric Require Import mpred seplog juicy_base Clight_base Clight_core mapsto_memory_block env tycontext lifting_expr lifting.
+From VST.veric Require Import mpred seplog juicy_base Clight_base Clight_core simple_mapsto env tycontext lifting_expr lifting.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.floyd Require Import functional_base.
 
@@ -255,7 +255,7 @@ Ltac wp_finish :=
 
 Lemma tac_wp_load `{!VSTGS OK_ty Σ} Δ ge E f e q v (Q : val → assert) :
   envs_entails Δ (wp_lvalue ge E f e (λ '(bl, o),
-    ob_check (readable_share q /\ v ≠ Vundef) ⎡mapsto q (typeof e) (Vptr bl (Ptrofs.repr o)) v⎤ (Q v))) →
+    ob_check (readable_share q) ⎡mapsto q (typeof e) (Vptr bl o) v⎤ (Q v))) →
   envs_entails Δ (wp_expr ge E f e Q).
 Proof.
   rewrite envs_entails_unseal=> Hi.
@@ -268,7 +268,7 @@ Proof.
 Qed.
 
 Lemma tac_wp_deref `{!VSTGS OK_ty Σ} Δ ge E f e ty Q :
-  envs_entails Δ (wp_expr ge E f e (ob_cond (λ v l, match v with Vptr b o => l = (b, Ptrofs.unsigned o) | _ => False%type end) (λ _, Q))) →
+  envs_entails Δ (wp_expr ge E f e (ob_cond (λ v l, match v with Vptr b o => l = (b, o) | _ => False%type end) (λ _, Q))) →
   envs_entails Δ (wp_lvalue ge E f (Ederef e ty) Q).
 Proof.
   rewrite envs_entails_unseal=> Hi.
@@ -282,9 +282,9 @@ Lemma tac_wp_field `{!VSTGS OK_ty Σ} Δ ge E f e i ty Q :
   envs_entails Δ (wp_expr ge E f e (ob_cond (λ v l, match v with Vptr b o =>
     match typeof e with
     | Tstruct id _ => match (genv_cenv ge !! id)%maps with Some co => match field_offset ge i (co_members co) with Errors.OK (delta, Full) =>
-        l = (b, Ptrofs.unsigned (Ptrofs.add o (Ptrofs.repr delta))) | _ => False%type end | _ => False%type end
+        l = (b, (Ptrofs.add o (Ptrofs.repr delta))) | _ => False%type end | _ => False%type end
     | Tunion id _ => match (genv_cenv ge !! id)%maps with Some co => match union_field_offset ge i (co_members co) with Errors.OK (delta, Full) =>
-        l = (b, Ptrofs.unsigned (Ptrofs.add o (Ptrofs.repr delta))) | _ => False%type end | _ => False%type end
+        l = (b, (Ptrofs.add o (Ptrofs.repr delta))) | _ => False%type end | _ => False%type end
     | _ => False%type
     end | _ => False%type end) (λ _, Q))) →
   envs_entails Δ (wp_lvalue ge E f (Efield e i ty) Q).
@@ -449,7 +449,7 @@ Ltac wp_pures :=
 
 Lemma tac_wp_store `{!VSTGS OK_ty Σ} Δ OK_spec ge E f e1 e2 q v Q :
   envs_entails Δ (wp_expr ge E f (Ecast e2 (typeof e1)) (ob_cond1 (λ v2, Cop2.tc_val' (typeof e1) v2) (λ v2,
-    wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b (Ptrofs.repr o) in
+    wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b o in
     ob_replace (writable0_share q) ⎡mapsto q (typeof e1) v1 v⎤ ⎡mapsto q (typeof e1) v1 v2⎤ (RA_normal Q))))) →
   envs_entails Δ (wp OK_spec ge E f (Sassign e1 e2) Q).
 Proof.
@@ -512,7 +512,7 @@ Qed.
 
 Lemma tac_wp_lvar `{!VSTGS OK_ty Σ} Δ ge E f i x b t Q :
   envs_lookup i Δ = Some (false, lvar x t b) →
-  envs_entails Δ (Q (b, 0)) →
+  envs_entails Δ (Q (b, Ptrofs.zero)) →
   envs_entails Δ (wp_lvalue ge E f (Evar x t) Q).
 Proof.
   rewrite envs_entails_unseal=> ? Hi.
@@ -524,7 +524,7 @@ Qed.
 Lemma tac_wp_gvar `{!VSTGS OK_ty Σ} Δ ge E f i x b t Q :
   ¬ In x (map fst (fn_vars f)) →
   envs_lookup i Δ = Some (false, ⎡gvar x b⎤) →
-  envs_entails Δ (Q (b, 0)) →
+  envs_entails Δ (Q (b, Ptrofs.zero)) →
   envs_entails Δ (wp_lvalue ge E f (Evar x t) Q).
 Proof.
   rewrite envs_entails_unseal=> ?? Hi.
@@ -723,4 +723,3 @@ Tactic Notation "wp_return" :=
     fail 1 "wp_set: cannot find 'Sreturn' in" e
   | _ => fail "wp_return: not a 'wp'"
   end.
-  

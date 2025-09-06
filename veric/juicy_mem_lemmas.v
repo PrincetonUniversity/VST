@@ -339,18 +339,23 @@ Proof.
   intros; rewrite IHn //.
 Qed.
 
+Lemma address_mapsto_undef : forall l sh, l ↦{#sh} VAL Undef ⊢ address_mapsto Mint8unsigned Vundef sh l.
+Proof.
+  intros; rewrite /address_mapsto.
+  iIntros "H"; iExists [Undef]; iSplit; simpl.
+  - iPureIntro; split3; try done.
+    apply Z.divide_1_l.
+  - rewrite /adr_add Z.add_0_r; destruct l; iFrame.
+Qed.
+
 Lemma mapsto_alloc_bytes: forall m lo hi m' b,
   Mem.alloc m lo hi = (m', b) ->
   mem_auth m ⊢ |==> mem_auth m' ∗ [∗ list] i ∈ seq 0 (Z.to_nat (hi - lo)), address_mapsto Mint8unsigned Vundef Tsh (b, lo + Z.of_nat i).
 Proof.
   intros.
   iIntros "Hm"; iMod (mapsto_alloc with "Hm") as "[$ H]"; first done.
-  rewrite /address_mapsto.
   iApply (big_sepL_mono with "H"); intros ?? [-> ?]%lookup_seq.
-  iIntros "?"; iExists [Undef]; simpl.
-  rewrite /adr_add Z.add_0_r; iFrame.
-  iPureIntro; repeat split; auto.
-  apply Z.divide_1_l.
+  apply address_mapsto_undef.
 Qed.
 
 Lemma mapsto_alloc: forall m ch lo hi m' b

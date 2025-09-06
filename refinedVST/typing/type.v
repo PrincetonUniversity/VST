@@ -1,6 +1,7 @@
 From VST.lithium Require Import simpl_classes.
 From VST.typing Require Export base annotations.
-From VST.floyd Require Export reptype_lemmas field_at data_at_rec_lemmas.
+From VST.floyd Require Import data_at_rec_lemmas.
+From VST.floyd Require Export reptype_lemmas field_at simple_data_at_rec_lemmas.
 Set Default Proof Using "Type".
 
 Class typeG OK_ty Σ := TypeG {
@@ -131,51 +132,10 @@ Local Open Scope Z.
 Section CompatRefinedC.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-(* like value_fits but rules out Vundef *)
-Definition value_def: forall t, reptype t -> Prop :=
-  type_induction.type_func (fun t => reptype t -> Prop)
-    (fun t v =>
-       if type_is_volatile t then True%type else tc_val t (repinject t v))
-    (fun t n a P v => Zlength (unfold_reptype v) =  Z.max 0 n /\ Forall P (unfold_reptype v))
-    (fun id a P v => aggregate_pred.struct_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v))
-    (fun id a P v => aggregate_pred.union_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v)).
-
-Lemma value_def_eq:
-  forall t v,
-  value_def t v =
-  match t as t0 return (reptype t0 -> Prop)  with
-  | Tarray t' n a => fun v0 : reptype (Tarray t' n a) =>
-    (fun v1 : list (reptype t') =>
-     Zlength v1 = Z.max 0 n /\ Forall (value_def t') v1)
-      (unfold_reptype v0)
-| Tstruct i a =>
-    fun v0 : reptype (Tstruct i a) =>
-     aggregate_pred.struct_Prop (co_members (get_co i))
-       (fun it : member =>
-        value_def (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
-| Tunion i a =>
-    fun v0 : reptype (Tunion i a) =>
-     aggregate_pred.union_Prop (co_members (get_co i))
-       (fun it : member =>
-        value_def (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
-  | t0 => fun v0: reptype t0 =>
-             (if type_is_volatile t0
-              then True%type
-              else tc_val t0 (repinject t0 v0))
-  end v.
-Proof.
-intros.
-unfold value_def.
-rewrite type_induction.type_func_eq.
-destruct t; auto.
-- apply aggregate_pred.struct_value_fits_aux_spec.
-- apply aggregate_pred.union_value_fits_aux_spec.
-Qed.
-
   (* refinedC only checks if `v` fits in the size of cty *)
   (* this is implied by the current mapsto (i.e. data_at_rec_value_fits) *)
   Definition has_layout_val (cty:Ctypes.type) (v:reptype cty) : Prop :=
-    value_def cty v ∧ type_is_volatile cty = false.
+    value_fits cty v ∧ type_is_volatile cty = false.
 
   Arguments has_layout_val : simpl never.
 
@@ -186,23 +146,23 @@ Qed.
   Proof. move => [? ?] //. Qed.
 
   Lemma has_layout_val_value_def cty v :
-    has_layout_val cty v → value_def cty v.
+    has_layout_val cty v → value_fits cty v.
   Proof. move => [? ?] //. Qed.
 
   Lemma has_layout_val_tc_val' cty v_rep :
     type_is_by_value cty = true →
     has_layout_val cty v_rep →
-    tc_val cty (repinject cty v_rep).
+    tc_val' cty (repinject cty v_rep).
   Proof.
     move => ? [Hv Hvol].
-    rewrite value_def_eq in Hv.
+    rewrite value_fits_eq in Hv.
     destruct cty; try done; simpl in *; rewrite Hvol // in Hv.
   Qed.
 
   Lemma has_layout_val_tc_val'2 cty v :
     type_is_by_value cty = true →
     has_layout_val cty (valinject cty v) → 
-    tc_val cty v.
+    tc_val' cty v.
   Proof.
     intros; rewrite -(repinject_valinject cty v) //.
     by apply has_layout_val_tc_val'.
@@ -211,16 +171,16 @@ Qed.
   Lemma tc_val_has_layout_val cty v :
     type_is_by_value cty = true →
     type_is_volatile cty = false →
-    tc_val cty (repinject cty v) → has_layout_val cty v.
+    tc_val' cty (repinject cty v) → has_layout_val cty v.
   Proof.
     intros ? Hvol ?; split; last done.
-    rewrite value_def_eq; destruct cty; try done; rewrite /= Hvol //.
+    rewrite value_fits_eq; destruct cty; try done; rewrite /= Hvol //.
   Qed.
 
   Lemma tc_val_has_layout_val2 cty v :
     type_is_by_value cty = true →
     type_is_volatile cty = false →
-    tc_val cty v → has_layout_val cty (valinject cty v).
+    tc_val' cty v → has_layout_val cty (valinject cty v).
   Proof.
     intros; apply tc_val_has_layout_val; auto.
     by rewrite repinject_valinject.

@@ -26,7 +26,7 @@ Section own.
     rewrite /repinject /has_layout_val /= in H1; subst.
     iPureIntro.
     split; [|done].
-    rewrite /value_fits /tc_val' /= =>?.
+    rewrite /value_def /=.
     simple_if_tac; done.
   Qed.
   Next Obligation.
@@ -266,20 +266,19 @@ Section own.
 
   Lemma type_relop_ptr_ptr (l1 l2 : address) op b β1 β2 ty1 ty2 t1 t2
     (Hop : match op with
-           | Olt => Some (bool_decide (l1.2 < l2.2))
-           | Ogt => Some (bool_decide (l1.2 > l2.2))
-           | Ole => Some (bool_decide (l1.2 <= l2.2))
-           | Oge => Some (bool_decide (l1.2 >= l2.2))
+           | Olt => Some (bool_decide (Ptrofs.unsigned l1.2 < Ptrofs.unsigned l2.2))
+           | Ogt => Some (bool_decide (Ptrofs.unsigned l1.2 > Ptrofs.unsigned l2.2))
+           | Ole => Some (bool_decide (Ptrofs.unsigned l1.2 <= Ptrofs.unsigned l2.2))
+           | Oge => Some (bool_decide (Ptrofs.unsigned l1.2 >= Ptrofs.unsigned l2.2))
            | _ => None
            end = Some b) T:
     (⎡l1 ◁ₗ{β1} ty1⎤ -∗ ⎡l2 ◁ₗ{β2} ty2⎤ -∗ <affine> ⌜l1.1 = l2.1⌝ ∗ (
-      ⌜0 ≤ l1.2 ≤ Ptrofs.max_unsigned ∧ 0 ≤ l2.2 ≤ Ptrofs.max_unsigned⌝ ∧
       ⎡expr.weak_valid_pointer l1⎤ ∧ ⎡expr.weak_valid_pointer l2⎤ ∧
       T (i2v (bool_to_Z b) tint) (b @ boolean tint)))
       ⊢ typed_bin_op ge l1 ⎡l1 ◁ₗ{β1} ty1⎤ l2 ⎡l2 ◁ₗ{β2} ty2⎤ op (tptr t1) (tptr t2) (tint) T.
   Proof.
     iIntros "HT Hl1 Hl2". iIntros (Φ) "HΦ".
-    iDestruct ("HT" with "Hl1 Hl2") as (Heq (? & ?)) "HT".
+    iDestruct ("HT" with "Hl1 Hl2") as (Heq) "HT".
     iIntros "!>" (?) "Hm !>".
     iDestruct (valid_pointer.weak_valid_pointer_dry with "[$Hm HT]") as %H1.
     { iDestruct "HT" as "($ & _)". }
@@ -291,30 +290,30 @@ Section own.
       assert (classify_cmp (tptr t1) (tptr t2) = cmp_case_pp) as Hclass by done.
       rewrite -val_of_bool_eq.
       destruct op => //; simplify_eq; simpl; rewrite /Cop.sem_cmp Hclass /cmp_ptr /= if_true // H1 H2 /=.
-      + rewrite /Ptrofs.ltu !Ptrofs.unsigned_repr //.
-      + rewrite /Ptrofs.ltu !Ptrofs.unsigned_repr //.
+      + rewrite /Ptrofs.ltu //.
+      + rewrite /Ptrofs.ltu //.
         case_bool_decide; destruct (zlt _ _); (done || lia).
-      + rewrite /Ptrofs.ltu !Ptrofs.unsigned_repr //.
+      + rewrite /Ptrofs.ltu //.
         case_bool_decide; destruct (zlt _ _); (done || lia).
-      + rewrite /Ptrofs.ltu !Ptrofs.unsigned_repr //.
+      + rewrite /Ptrofs.ltu //.
         case_bool_decide; destruct (zlt _ _); (done || lia).
     - iDestruct "HT" as "(_ & _ & HT)".
       iApply ("HΦ" with "[] HT") => //.
-      rewrite / ty_own_val_at /ty_own_val /=.
+      rewrite /ty_own_val_at /ty_own_val /=.
       destruct b; iSplit; eauto; iExists _; try done.
   Qed.
 
   Definition type_lt_ptr_ptr_inst l1 l2 :=
-    [instance type_relop_ptr_ptr l1 l2 Olt (bool_decide (l1.2 < l2.2))].
+    [instance type_relop_ptr_ptr l1 l2 Olt (bool_decide (Ptrofs.unsigned l1.2 < Ptrofs.unsigned l2.2))].
   Global Existing Instance type_lt_ptr_ptr_inst.
   Definition type_gt_ptr_ptr_inst l1 l2 :=
-    [instance type_relop_ptr_ptr l1 l2 Ogt (bool_decide (l1.2 > l2.2))].
+    [instance type_relop_ptr_ptr l1 l2 Ogt (bool_decide (Ptrofs.unsigned l1.2 > Ptrofs.unsigned l2.2))].
   Global Existing Instance type_gt_ptr_ptr_inst.
   Definition type_le_ptr_ptr_inst l1 l2 :=
-    [instance type_relop_ptr_ptr l1 l2 Ole (bool_decide (l1.2 <= l2.2))].
+    [instance type_relop_ptr_ptr l1 l2 Ole (bool_decide (Ptrofs.unsigned l1.2 <= Ptrofs.unsigned l2.2))].
   Global Existing Instance type_le_ptr_ptr_inst.
   Definition type_ge_ptr_ptr_inst l1 l2 :=
-    [instance type_relop_ptr_ptr l1 l2 Oge (bool_decide (l1.2 >= l2.2))].
+    [instance type_relop_ptr_ptr l1 l2 Oge (bool_decide (Ptrofs.unsigned l1.2 >= Ptrofs.unsigned l2.2))].
   Global Existing Instance type_ge_ptr_ptr_inst.
 
   (* Lemma type_roundup_frac_ptr v2 β ty P2 T p: *)
@@ -551,7 +550,7 @@ Section null.
     iIntros (???(?&->)?).
     rewrite /repinject /= in H; subst.
     iPureIntro. hnf.
-    split; auto. rewrite /value_fits /= /tc_val' => ?.
+    split; auto.
     apply Clight_mapsto_memory_block.tc_val_pointer_nullval.
   Qed.
   Next Obligation.

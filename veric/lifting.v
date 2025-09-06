@@ -14,6 +14,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.valid_pointer.
 Require Import VST.veric.env.
 Require Import VST.veric.expr.
+Require Import VST.veric.simple_mapsto.
 Require Import VST.veric.lifting_expr.
 
 Open Scope maps.
@@ -557,7 +558,7 @@ Proof.
   iIntros "[Hm H]".
   destruct (type_is_volatile t); try done.
   rewrite -> if_true by auto.
-  iDestruct "H" as "[(% & ?) | (% & % & ?)]"; by iApply (mapsto_can_store with "[$]").
+  iDestruct "H" as "(% & ?)"; by iApply (mapsto_can_store with "[$]").
 Qed.
 
 (* Usually we store at the same type consistently, but this describes the more
@@ -576,8 +577,8 @@ Proof.
   setoid_rewrite if_true; last auto.
   assert (forall v'', decode_encode_val v' ch ch' v'' -> tc_val' t' v'') as Htc'.
   { intros ? Hv''; eapply decode_encode_val_fun in Hv''; last apply decode_encode_val_general; subst; auto. }
-  iDestruct "H" as "[(% & ?) | (% & % & ?)]"; (iMod (mapsto_store' _ _ _ _ v' with "[$]") as "[$ (% & %Hv'' & H)]"; [done..|]; iIntros "!>";
-    iExists _; iSplit; first done; destruct (eq_dec v'' Vundef); [iRight | specialize (Htc' _ Hv'' n); iLeft]; eauto).
+  iDestruct "H" as "(% & ?)"; iMod (mapsto_store' _ _ _ _ v' with "[$]") as "[$ (% & %Hv'' & H)]"; [done..|]; iIntros "!>".
+  iExists _; iSplit; first done; eauto.
 Qed.
 
 Definition numeric_type (t: type) : bool :=
@@ -632,11 +633,12 @@ Proof.
   iDestruct (add_and _ (▷ ⌜type_is_volatile t2 = false ∧ (align_chunk ch2 | Ptrofs.unsigned o)%Z⌝) with "Hp") as "(Hp & >(% & %))".
   { iIntros "(_ & H) !>".
     rewrite /mapsto_ /mapsto Hch2.
+    iDestruct "H" as (?) "H".
     destruct (type_is_volatile t2); first by rewrite embed_pure.
     rewrite -> if_true by auto.
-    iDestruct "H" as "[(% & H) | (% & % & H)]"; rewrite address_mapsto_align; iDestruct "H" as "[_ %]"; done. }
+    iDestruct "H" as "(% & H)"; rewrite address_mapsto_align; iDestruct "H" as "[_ %]"; done. }
   iCombine "Hm Hp" as "Hp"; iDestruct (add_and _ (▷ ⌜∃ m' : Memory.mem, store ch1 m b (Ptrofs.unsigned o) v2 = Some m'⌝) with "Hp") as "((Hm & Hp) & >(% & %Hstore))".
-  { iIntros "(? & ? & _) !>". rewrite -embed_pure; iApply mapsto_can_store; eauto; iFrame. }
+  { iIntros "(? & H & _) !>". iDestruct "H" as (?) "?". rewrite -embed_pure; iApply mapsto_can_store; eauto; iFrame. }
   iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
   iPoseProof (env_match_intro with "Hd") as "#?"; first done.
   iDestruct ("He1" with "[$]") as %He1; iDestruct ("He2" with "[$]") as %He2.
@@ -646,7 +648,9 @@ Proof.
   iExists _, _; iSplit.
   { iPureIntro; econstructor; eauto.
     econstructor; eauto. }
-  iNext; rewrite bi.and_elim_l; iMod (mapsto_store' _ t2 with "[$]") as "(? & Hp)"; [try done..|].
+  iNext; rewrite bi.and_elim_l.
+  iDestruct "Hp" as (?) "Hp".
+  iMod (mapsto_store' _ t2 with "[$]") as "(? & Hp)"; [try done..|].
   { eapply decode_encode_tc; eauto. }
   iMod (fupd_mask_subseteq E) as "Hclose"; first done.
   iMod ("H" with "[Hp]").
@@ -667,8 +671,8 @@ Proof.
   iIntros "[Hm H]".
   destruct (type_is_volatile t); try done.
   rewrite -> !if_true by auto.
-  iDestruct "H" as "[(% & ?) | (% & % & ?)]"; (iMod (mapsto_store _ _ _ v' with "[$]") as "[$ H]"; [done..|];
-    destruct (eq_dec v' Vundef); [iRight | specialize (Htc n); iLeft]; eauto).
+  iDestruct "H" as "(% & ?)"; (iMod (mapsto_store _ _ _ v' with "[$]") as "[$ H]"; [done..|];
+    eauto).
 Qed.
 
 Lemma wp_store: forall E f e1 e2 R,
@@ -687,6 +691,7 @@ Proof.
   iMod ("H" with "Hm [$]") as ">(%v2 & He2 & Hm & ? & % & H)".
   iMod ("H" with "Hm [$]") as ">(%b & %o & He1 & Hm & ? & H)".
   iDestruct "H" as (sh ?) "(Hp & H)".
+  rewrite /mapsto_ embed_exist bi.later_exist_except_0; iMod "Hp" as (?) "Hp".
   iDestruct (add_and _ (▷ ⌜∃ ch : memory_chunk, access_mode (typeof e1) = By_value ch⌝) with "Hp") as "(Hp & >(% & %))".
   { apply bi.later_mono; rewrite /mapsto_ mapsto_pure_facts embed_pure; apply bi.pure_mono; tauto. }
   iCombine "Hm Hp" as "Hp"; iDestruct (add_and _ (▷ ⌜∃ m' : Memory.mem, store ch m b (Ptrofs.unsigned o) v2 = Some m'⌝) with "Hp") as "((Hm & Hp) & >(% & %Hstore))".
@@ -1076,14 +1081,11 @@ Lemma alloc_block:
    mem_auth m ⊢ |==> mem_auth m' ∗ memory_block Share.top n (Vptr b Ptrofs.zero).
 Proof.
   intros.
-  iIntros "Hm"; iMod (mapsto_alloc_bytes with "Hm") as "($ & H)"; first done; iIntros "!>".
+  iIntros "Hm"; iMod (juicy_mem.mapsto_alloc with "Hm") as "($ & H)"; first done; iIntros "!>".
   rewrite /memory_block Ptrofs.unsigned_zero.
   iSplit; first by iPureIntro; lia.
   rewrite Z.sub_0_r memory_block'_eq; [| lia..].
-  rewrite /memory_block'_alt if_true; last auto.
-  rewrite /VALspec_range Nat2Z.id.
-  iApply (big_sepL_mono with "H"); intros.
-  rewrite address_mapsto_VALspec_range /= VALspec1 //.
+  rewrite /memory_block'_alt if_true; auto.
 Qed.
 
 Definition var_sizes_ok (cenv: composite_env) (vars: list (ident*type)) :=
@@ -1430,9 +1432,9 @@ Proof.
         pose proof (@Ctypes.sizeof_pos (genv_cenv ge) t); lia. }
     unfold memory_block'_alt.
     rewrite -> if_true by apply readable_share_top.
-    rewrite Z2Nat.id.
-    2: { pose proof (@Ctypes.sizeof_pos (genv_cenv ge) t); lia. }
-    rewrite /= Z.sub_0_r Ptrofs.unsigned_zero; iFrame "H".
+    rewrite /= Z.sub_0_r Ptrofs.unsigned_zero; iSplitL "H".
+    { iApply (big_sepL_mono with "H"); intros.
+      iIntros "$". }
     rewrite -Hrem; iApply IHlv; try done.
     apply map_eq; intros k; rewrite make_env_spec; destruct (eq_dec k i).
     + subst; rewrite PTree.grs.

@@ -442,10 +442,10 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
       ∃ _dummy,
       env.temp _dummy (adr2val l) ∗ *)
         ∃ (sh : share) (v : val),
-          <affine> ⌜readable_share sh ∧ v ≠ Vundef⌝ ∗
-           ⎡▷ mapsto_memory_block.mapsto sh cty (adr2val l) v⎤ ∗
+          <affine> ⌜readable_share sh⌝ ∗
+           ⎡▷ simple_mapsto.mapsto sh cty (adr2val l) v⎤ ∗
             ∃ l', <affine> ⌜v = adr2val l'⌝ ∗
-            (⎡▷ mapsto_memory_block.mapsto sh cty (adr2val l) v⎤ -∗ Φ l')
+            (⎡▷ simple_mapsto.mapsto sh cty (adr2val l) v⎤ -∗ Φ l')
             (* wp_expr ge E f (Ederef (Etempvar _dummy (tptr cty)) cty)
               (λ v, ∃ l' : address, <affine> ⌜v = adr2val l'⌝∗ Φ l')) *)
     (* | GetMemberPCtx sl m => WP l at{sl} m {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }}
@@ -1434,7 +1434,7 @@ Section typing.
     simpl.
     iDestruct (ty_size_eq _ with "H") as "%"; first done.
     apply has_layout_val_tc_val'2 in H1; last done.
-    iSplit; [iPureIntro; intros ?; done|].
+    iSplit; [iPureIntro; done|].
     iApply wp_lvalue_mono.
     { intros; iIntros "A"; iApply "A". }
     iApply "ty_write".
@@ -1924,9 +1924,6 @@ Section typing.
     destruct l.
     iExists _ ,_.
     rewrite -fupd_frame_l.
-    assert (v ≠ Vundef).
-    { apply has_layout_val_tc_val'2 in Hv; last done.
-      intros ->; by apply tc_val_Vundef in Hv. }
     iSplit => //.
     iModIntro.
     iSplit.
