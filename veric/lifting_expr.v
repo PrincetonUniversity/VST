@@ -878,12 +878,11 @@ match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
 | _ => True%type
 end.
 
-Lemma mapsto_valid_pointer : forall {CS : compspecs} b o sh t m,
+Lemma mapsto_valid_pointer1 : forall {CS : compspecs} b o sh t,
   sh <> Share.bot ->
-  mem_auth m ∗ mapsto_ sh t (Vptr b o) ⊢
-  ⌜Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝.
+  mapsto_ sh t (Vptr b o) ⊢ valid_pointer (Vptr b o).
 Proof.
-intros; iIntros "[Hm H]".
+intros; iIntros "H".
 iAssert ⌜exists ch, access_mode t = By_value ch⌝ with "[H]" as %(ch & Hch).
 { rewrite /mapsto_ /mapsto.
   iDestruct "H" as (?) "H".
@@ -891,12 +890,22 @@ iAssert ⌜exists ch, access_mode t = By_value ch⌝ with "[H]" as %(ch & Hch).
   destruct (type_is_volatile t) eqn: ?; try done.
   eauto. }
 iDestruct "H" as (?) "H".
-iMod (mapsto_valid_pointer1 with "H") as "H"; simpl; try done.
+iPoseProof (mapsto_valid_pointer1 with "H") as "H"; simpl; try done.
 { instantiate (1 := 0); pose proof (Ptrofs.unsigned_range o); lia. }
 { rewrite /sizeof (size_chunk_sizeof _ _ _ Hch).
   pose proof (size_chunk_pos ch); lia. }
+rewrite Ptrofs.add_zero //.
+Qed.
+
+Lemma mapsto_valid_pointer : forall {CS : compspecs} b o sh t m,
+  sh <> Share.bot ->
+  mem_auth m ∗ mapsto_ sh t (Vptr b o) ⊢
+  ⌜Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝.
+Proof.
+intros; iIntros "[Hm H]".
+rewrite mapsto_valid_pointer1 //.
 iDestruct (valid_pointer_dry with "[$Hm $H]") as %Hvalid.
-by rewrite Z.add_0_r Ptrofs.add_zero in Hvalid.
+by rewrite Z.add_0_r in Hvalid.
 Qed.
 
 Lemma cmplu_bool_true : forall f cmp v1 v2 v, Val.cmplu_bool f cmp v1 v2 = Some v ->
@@ -923,37 +932,34 @@ Proof.
   destruct a; inversion 1; eauto.
 Qed.
 
-Lemma wp_pointer_cmp: forall {CS: compspecs} E (cmp : Cop.binary_operation) ty1 ty2 v1 v2 sh1 sh2 P,
+Lemma wp_pointer_cmp0: forall {CS: compspecs} E (cmp : Cop.binary_operation) ty1 ty2 v1 v2 P,
   expr.is_comparison cmp = true ->
   tc_val ty1 v1 -> tc_val ty2 v2 ->
   eqb_type ty1 int_or_ptr_type = false ->
   eqb_type ty2 int_or_ptr_type = false ->
-  sh1 <> Share.bot -> sh2 <> Share.bot ->
   blocks_match cmp v1 v2 ->
-  ▷ ⎡<absorb> mapsto_ sh1 ty1 v1 ∧ <absorb> mapsto_ sh2 ty2 v2⎤ ∧
+  type_is_by_value ty1 -> type_is_by_value ty2 ->
+  isptr v1 -> isptr v2 ->
+  ▷ ⎡valid_pointer v1 ∧ valid_pointer v2⎤ ∧
   (∀ v, <affine> ⌜classify_cmp ty1 ty2 = cmp_case_pp ∧ sem_cmp_pp (op_to_cmp cmp) v1 v2 = Some v⌝ -∗ P v) ⊢
   wp_binop E cmp ty1 v1 ty2 v2 P.
 Proof.
   intros; rewrite /wp_binop.
   iIntros "H !>" (?) "Hm".
-  rewrite -embed_later bi.later_and !bi.later_absorbingly embed_and !embed_absorbingly.
+  rewrite -embed_later bi.later_and embed_and.
   iCombine "H Hm" as "H".
-  iDestruct (add_and _ (▷ ⌜∃ ch b o, access_mode ty1 = By_value ch ∧ v1 = Vptr b o ∧ Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝)
+  iDestruct (add_and _ (▷ ⌜∃ b o, v1 = Vptr b o ∧ Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝)
     with "H") as "(H & >%Hv1)".
-  { iIntros "(((>H & _) & _) & Hm) !>".
-    iDestruct "H" as (?) "H".
-    iDestruct (mapsto_pure_facts with "H") as %((? & ?) & ?).
-    destruct v1; try contradiction.
-    iDestruct (mapsto_valid_pointer with "[$]") as %?; eauto 7. }
-  destruct Hv1 as (ch1 & b1 & o1 & ? & Hv1 & MT_1).
-  iDestruct (add_and _ (▷ ⌜∃ ch b o, access_mode ty2 = By_value ch ∧ v2 = Vptr b o ∧ Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝)
+  { iIntros "(((H & _) & _) & Hm) !>".
+    destruct v1; try done.
+    iDestruct (valid_pointer_dry0 with "[$]") as %?; eauto. }
+  destruct Hv1 as (b1 & o1 & Hv1 & MT_1).
+  iDestruct (add_and _ (▷ ⌜∃ b o, v2 = Vptr b o ∧ Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝)
     with "H") as "((H & Hm) & >%Hv2)".
-  { iIntros "(((_ & >H) & _) & Hm) !>".
-    iDestruct "H" as (?) "H".
-    iDestruct (mapsto_pure_facts with "H") as %((? & ?) & ?).
-    destruct v2; try contradiction.
-    iDestruct (mapsto_valid_pointer with "[$]") as %?; eauto 7. }
-  destruct Hv2 as (ch2 & b2 & o2 & ? & Hv2 & MT_2).
+  { iIntros "(((_ & H) & _) & Hm) !>".
+    destruct v2; try done.
+    iDestruct (valid_pointer_dry0 with "[$]") as %?; eauto. }
+  destruct Hv2 as (b2 & o2 & Hv2 & MT_2).
   assert (classify_cmp ty1 ty2 = cmp_case_pp) as Hcase.
   { subst; destruct ty1; try solve [simpl in *; try destruct f; try tauto; congruence].
     destruct ty2; try solve [simpl in *; try destruct f; try tauto; congruence]. }
@@ -970,6 +976,38 @@ Proof.
   rewrite /sem_binary_operation /Cop.sem_cmp Hcase /cmp_ptr in Hv; rewrite /sem_cmp_pp -bool2val_eq.
   destruct cmp; try done; simple_if_tac; apply option_map_Some in Hv as (? & Hv & <-); simpl;
     first [by apply cmplu_bool_true in Hv as -> | by apply cmpu_bool_true in Hv as ->].
+Qed.
+
+Lemma wp_pointer_cmp: forall {CS: compspecs} E (cmp : Cop.binary_operation) ty1 ty2 v1 v2 sh1 sh2 P,
+  expr.is_comparison cmp = true ->
+  tc_val ty1 v1 -> tc_val ty2 v2 ->
+  eqb_type ty1 int_or_ptr_type = false ->
+  eqb_type ty2 int_or_ptr_type = false ->
+  sh1 <> Share.bot -> sh2 <> Share.bot ->
+  blocks_match cmp v1 v2 ->
+  ▷ ⎡<absorb> mapsto_ sh1 ty1 v1 ∧ <absorb> mapsto_ sh2 ty2 v2⎤ ∧
+  (∀ v, <affine> ⌜classify_cmp ty1 ty2 = cmp_case_pp ∧ sem_cmp_pp (op_to_cmp cmp) v1 v2 = Some v⌝ -∗ P v) ⊢
+  wp_binop E cmp ty1 v1 ty2 v2 P.
+Proof.
+  intros.
+  iIntros "H".
+  rewrite -embed_later bi.later_and !bi.later_absorbingly embed_and !embed_absorbingly.
+  iDestruct (add_and _ (▷ ⌜(∃ ch, access_mode ty1 = By_value ch) ∧ isptr v1⌝) with "H") as "(H & >%Hv1)".
+  { iIntros "((>H & _) & _) !>".
+    iDestruct "H" as (?) "H".
+    iDestruct (mapsto_pure_facts with "H") as %?; done. }
+  iDestruct (add_and _ (▷ ⌜(∃ ch, access_mode ty2 = By_value ch) ∧ isptr v2⌝) with "H") as "(H & >%Hv2)".
+  { iIntros "((_ & >H) & _) !>".
+    iDestruct "H" as (?) "H".
+    iDestruct (mapsto_pure_facts with "H") as %?; done. }
+  destruct Hv1 as ((? & ?) & ?), Hv2 as ((? & ?) & ?).
+  iApply wp_pointer_cmp0; [try done..|].
+  { by destruct ty1. }
+  { by destruct ty2. }
+  iStopProof; f_equiv.
+  destruct v1; try contradiction; destruct v2; try contradiction.
+  rewrite -!embed_absorbingly -embed_later bi.later_and embed_and; do 2 f_equiv;
+    iIntros ">H !>"; iApply (mapsto_valid_pointer1 with "H"); done.
 Qed.
 
 Definition wp_unop E op t1 v1 Φ : assert :=

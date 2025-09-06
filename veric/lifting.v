@@ -1091,20 +1091,36 @@ Qed.
 Definition var_sizes_ok (cenv: composite_env) (vars: list (ident*type)) :=
    Forall (fun var : ident * type => @Ctypes.sizeof cenv (snd var) <= Ptrofs.max_unsigned)%Z vars.
 
-Definition var_block' (sh: Share.t) (cenv: composite_env) (idt: ident * type): assert :=
+(* Variables are allocated at Undef, but may be freed with any data. *)
+Definition var_block0 (sh: Share.t) (cenv: composite_env) (idt: ident * type): assert :=
   ⌜(Ctypes.sizeof (snd idt) <= Ptrofs.max_unsigned)%Z⌝ ∧
   ∃ b, lvar (fst idt) (snd idt) b ∗ ⎡memory_block sh (Ctypes.sizeof (snd idt)) (Vptr b Ptrofs.zero)⎤.
 
-Definition stackframe_of' (cenv: composite_env) (f: Clight.function) (lv: list val) : assert :=
-  ([∗ list] idt ∈ fn_vars f, var_block' Share.top cenv idt) ∗
+Definition var_block1 (sh: Share.t) (cenv: composite_env) (idt: ident * type): assert :=
+  ⌜(Ctypes.sizeof (snd idt) <= Ptrofs.max_unsigned)%Z⌝ ∧
+  ∃ b, lvar (fst idt) (snd idt) b ∗ ⎡mapsto_memory_block.memory_block sh (Ctypes.sizeof (snd idt)) (Vptr b Ptrofs.zero)⎤.
+
+Definition stackframe_of0' (cenv: composite_env) (f: Clight.function) (lv: list val) : assert :=
+  ([∗ list] idt ∈ fn_vars f, var_block0 Share.top cenv idt) ∗
   ([∗ list] idt;v ∈ (fn_params f ++ fn_temps f);lv, temp (fst idt) v).
+
+Definition stackframe_of1' (cenv: composite_env) (f: Clight.function) (lv: list val) : assert :=
+  ([∗ list] idt ∈ fn_vars f, var_block1 Share.top cenv idt) ∗
+  ([∗ list] idt;v ∈ (fn_params f ++ fn_temps f);lv, temp (fst idt) v).
+
+Definition stackframe_of0 f lb lv : assert := assert_of (λ n,
+  <affine> ⌜length lv = (length (fn_params f) + length (fn_temps f))%nat⌝ ∗
+  let ve := list_to_map (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))) in
+  let te := list_to_map (zip (map fst (fn_params f) ++ map fst (fn_temps f)) lv) in
+  stack_frag n (/ pos_to_Qp (Pos.of_nat (1 + size ve + size te)))%Qp 1%Qp ve te) ∗
+  ([∗ list] idt;b ∈ fn_vars f;lb, ⎡memory_block Share.top (@Ctypes.sizeof (genv_cenv ge) (snd idt)) (Vptr b Ptrofs.zero)⎤).
 
 Definition stackframe_of1 f lb lv : assert := assert_of (λ n,
   <affine> ⌜length lv = (length (fn_params f) + length (fn_temps f))%nat⌝ ∗
   let ve := list_to_map (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))) in
   let te := list_to_map (zip (map fst (fn_params f) ++ map fst (fn_temps f)) lv) in
   stack_frag n (/ pos_to_Qp (Pos.of_nat (1 + size ve + size te)))%Qp 1%Qp ve te) ∗
-  ([∗ list] idt;b ∈ fn_vars f;lb, ⎡memory_block Share.top (@Ctypes.sizeof (genv_cenv ge) (snd idt)) (Vptr b Ptrofs.zero)⎤).
+  ([∗ list] idt;b ∈ fn_vars f;lb, ⎡mapsto_memory_block.memory_block Share.top (@Ctypes.sizeof (genv_cenv ge) (snd idt)) (Vptr b Ptrofs.zero)⎤).
 
 Definition stack_size f := (length (fn_vars f) + length (fn_params f) + length (fn_temps f))%nat.
 
@@ -1128,10 +1144,10 @@ Proof.
   - by rewrite -H1.
 Qed.
 
-Lemma stackframe_of_eq1 : forall f lb lv,
+Lemma stackframe_of_eq0 : forall f lb lv,
   list_norepet (map fst (fn_vars f)) →
   list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) →
-  stackframe_of1 f lb lv ⊢ stack_retainer f ∗
+  stackframe_of0 f lb lv ⊢ stack_retainer f ∗
   ([∗ list] '(i,t);b ∈ fn_vars f;lb, lvar i t b) ∗
   ([∗ list] idt;v ∈ (fn_params f ++ fn_temps f);lv, temp (fst idt) v) ∗
   ([∗ list] idt;b ∈ fn_vars f;lb, ⎡memory_block Share.top (@Ctypes.sizeof (genv_cenv ge) (snd idt)) (Vptr b Ptrofs.zero)⎤).
@@ -1197,8 +1213,77 @@ Proof.
   - rewrite fmap_app //.
 Qed.
 
-Lemma var_blocks_eq: forall lv,
-  ([∗ list] idt ∈ lv, var_block' Share.top ge idt) ⊣⊢
+Lemma stackframe_of_eq1 : forall f lb lv,
+  list_norepet (map fst (fn_vars f)) →
+  list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) →
+  stackframe_of1 f lb lv ⊢ stack_retainer f ∗
+  ([∗ list] '(i,t);b ∈ fn_vars f;lb, lvar i t b) ∗
+  ([∗ list] idt;v ∈ (fn_params f ++ fn_temps f);lv, temp (fst idt) v) ∗
+  ([∗ list] idt;b ∈ fn_vars f;lb, ⎡mapsto_memory_block.memory_block Share.top (@Ctypes.sizeof (genv_cenv ge) (snd idt)) (Vptr b Ptrofs.zero)⎤).
+Proof.
+  intros.
+  iIntros "(? & Hblocks)".
+  iDestruct (big_sepL2_length with "Hblocks") as %?; iFrame "Hblocks".
+  iStopProof; split => n; monPred.unseal; rewrite !monPred_at_big_sepL2 /=.
+  erewrite big_sepL2_proper'; [|try done..]. setoid_rewrite lvars_equiv; [|done..].
+  2: { by intros ? (?, ?) ?. }
+  iIntros "(%Hlv & H)".
+  erewrite big_sepL2_proper'; [|try done..]. setoid_rewrite <-(big_sepL2_fmap_l fst).
+  setoid_rewrite temps_equiv.
+  4: { intros ? (?, ?) ?; simpl; done. }
+  assert (length (map fst (fn_vars f)) = length (zip lb (map snd (fn_vars f)))) as Heq1.
+  { rewrite length_zip_with_l_eq map_length //. }
+  assert (length (map fst (fn_params f) ++ map fst (fn_temps f)) = length lv) as Heq2.
+  { rewrite !app_length !map_length Hlv //. }
+  assert (NoDup (zip (map fst (fn_params f) ++ map fst (fn_temps f)) lv).*1).
+  { rewrite -norepet_NoDup fst_zip //. by rewrite Heq2. }
+  assert (NoDup (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))).*1).
+  { rewrite -norepet_NoDup fst_zip //. by rewrite Heq1. }
+  rewrite !map_size_list_to_map //.
+  rewrite !length_zip_with_l_eq // map_length // app_length !map_length.
+  rewrite Nat.add_assoc; change (Qp.inv _) with (stack_frac f).
+  destruct (decide (stack_size f = 0%nat)).
+  - unfold stack_frac, stack_size in *.
+    if_tac; last by lia.
+    rewrite app_length; if_tac; last by lia.
+    destruct (fn_vars f); simpl in *; last done.
+    destruct (fn_params f); simpl in *; last done.
+    destruct (fn_temps f); simpl in *; last done.
+    rewrite Qp.inv_1 !bi.sep_emp; by iFrame.
+  - rewrite /stack_frac Nat2Pos.inj_succ // Pplus_one_succ_l -pos_to_Qp_add.
+    set (q := (1 + _)%Qp).
+    rewrite -(Qp.mul_inv_r q).
+    destruct (q - 1)%Qp eqn: Hq.
+    apply Qp.sub_Some in Hq; rewrite {2} Hq Qp.mul_add_distr_r -frac_op.
+    rewrite -{1}(map_empty_union (list_to_map _)) -{1}(map_empty_union (list_to_map (zip (_ ++ _) _))) stack_frag_split.
+    rewrite Qp.mul_1_l; iStopProof; f_equiv.
+    unfold q in Hq; apply Qp.add_inj_r in Hq; subst.
+    if_tac; if_tac.
+    + rewrite /stack_size in n0; rewrite -> app_length in *; lia.
+    + destruct (fn_vars f) eqn: Hvars; last done.
+      rewrite fmap_app bi.emp_sep -(bi.exist_intro _) /=; f_equiv; last done.
+      rewrite /stack_size Hvars app_length; done.
+    + rewrite -> app_length in *.
+      destruct (fn_params f) eqn: Hparams; last done.
+      destruct (fn_temps f) eqn: Htemps; last done.
+      rewrite bi.sep_emp -(bi.exist_intro _) /=; f_equiv.
+      rewrite /stack_size Hparams Htemps /= !Nat.add_0_r; done.
+    + rewrite -> app_length in *.
+      rewrite /stack_size -Nat.add_assoc Nat2Pos.inj_add // -pos_to_Qp_add Qp.mul_add_distr_r -frac_op.
+      iIntros "H"; rewrite bi.sep_exist_l; iExists _; rewrite bi.sep_exist_r; iExists _.
+      iApply stack_frag_split.
+      { apply map_disjoint_empty_r. }
+      { apply map_disjoint_empty_l. }
+      rewrite right_id left_id fmap_app //.
+    + apply map_disjoint_empty_l.
+    + apply map_disjoint_empty_l.
+    + apply Qp.sub_None, Qp.not_add_le_l in Hq; done.
+  - rewrite fmap_app !app_length !length_fmap Hlv //.
+  - rewrite fmap_app //.
+Qed.
+
+Lemma var_blocks0_eq: forall lv,
+  ([∗ list] idt ∈ lv, var_block0 Share.top ge idt) ⊣⊢
   ∃ lb, ([∗ list] '(i, t);b ∈ lv;lb, lvar i t b) ∗
         ([∗ list] idt;b ∈ lv;lb, ⎡ memory_block Share.top (@Ctypes.sizeof ge idt.2) (Vptr b Ptrofs.zero) ⎤).
 Proof.
@@ -1206,7 +1291,7 @@ Proof.
   - iSplit.
     + iIntros "_"; iExists []; simpl; auto.
     + iIntros "(% & ?)"; destruct lb; simpl; auto.
-  - rewrite IH /var_block'; iSplit.
+  - rewrite IH /var_block0; iSplit.
     + iIntros "((% & % & ? & ?) & % & ? & ?)"; iExists (b :: lb); simpl; iFrame.
     + iIntros "(% & H)"; destruct lb; simpl; first iDestruct "H" as "([] & ?)".
       iDestruct "H" as "(($ & $) & (% & $) & $)".
@@ -1214,22 +1299,49 @@ Proof.
       split3; auto; rewrite /Ptrofs.max_unsigned; lia.
 Qed.
 
+Lemma var_blocks1_eq: forall lv,
+  ([∗ list] idt ∈ lv, var_block1 Share.top ge idt) ⊣⊢
+  ∃ lb, ([∗ list] '(i, t);b ∈ lv;lb, lvar i t b) ∗
+        ([∗ list] idt;b ∈ lv;lb, ⎡ mapsto_memory_block.memory_block Share.top (@Ctypes.sizeof ge idt.2) (Vptr b Ptrofs.zero) ⎤).
+Proof.
+  induction lv as [|(i, t) lv IH]; simpl.
+  - iSplit.
+    + iIntros "_"; iExists []; simpl; auto.
+    + iIntros "(% & ?)"; destruct lb; simpl; auto.
+  - rewrite IH /var_block1; iSplit.
+    + iIntros "((% & % & ? & ?) & % & ? & ?)"; iExists (b :: lb); simpl; iFrame.
+    + iIntros "(% & H)"; destruct lb; simpl; first iDestruct "H" as "([] & ?)".
+      iDestruct "H" as "(($ & $) & (% & $) & $)".
+      iPureIntro; rewrite !Ptrofs.unsigned_zero !Z.add_0_l in H |- *.
+      split3; auto; rewrite /Ptrofs.max_unsigned; lia.
+Qed.
+
+Lemma stackframe_of_eq0' : forall f lb lv,
+  list_norepet (map fst (fn_vars f)) →
+  list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) →
+  stackframe_of0 f lb lv ⊢
+  stack_retainer f ∗ stackframe_of0' (genv_cenv ge) f lv.
+Proof.
+  intros; rewrite stackframe_of_eq0 //; iIntros "($ & Hvars & $ & Hblocks)".
+  rewrite var_blocks0_eq; iFrame.
+Qed.
+
 Lemma stackframe_of_eq1' : forall f lb lv,
   list_norepet (map fst (fn_vars f)) →
   list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) →
   stackframe_of1 f lb lv ⊢
-  stack_retainer f ∗ stackframe_of' (genv_cenv ge) f lv.
+  stack_retainer f ∗ stackframe_of1' (genv_cenv ge) f lv.
 Proof.
   intros; rewrite stackframe_of_eq1 //; iIntros "($ & Hvars & $ & Hblocks)".
-  rewrite var_blocks_eq; iFrame.
+  rewrite var_blocks1_eq; iFrame.
 Qed.
 
 Lemma stackframe_of_eq' : forall f lv, list_norepet (map fst (fn_vars f)) →
   list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) →
-  stack_retainer f ∗ stackframe_of' (genv_cenv ge) f lv ⊢
+  stack_retainer f ∗ stackframe_of1' (genv_cenv ge) f lv ⊢
   ∃ lb, stackframe_of1 f lb lv.
 Proof.
-  intros; rewrite /stackframe_of' /stackframe_of1 var_blocks_eq.
+  intros; rewrite /stackframe_of1' /stackframe_of1 var_blocks1_eq.
   iIntros "(Hret & (% & Hvars & Hblocks) & Htemps)"; iExists lb; iFrame "Hblocks".
   iDestruct (big_sepL2_length with "Hvars") as %Hlb.
   iDestruct (big_sepL2_length with "Htemps") as %Hparams.
@@ -1351,12 +1463,12 @@ Lemma alloc_stackframe:
       mem_auth m ∗ env_auth ρ ⊢ |==> ∃ m' ve lb, ⌜Clight.alloc_variables ge empty_env m (fn_vars f) ve m' ∧
         typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f))⌝ ∧
         mem_auth m' ∗ env_auth (alloc_vars (make_env ve) (make_env te) n ρ) ∗
-        stackframe_of1 f lb (args ++ repeat Vundef (length (fn_temps f))) n.
+        stackframe_of0 f lb (args ++ repeat Vundef (length (fn_temps f))) n.
 Proof.
   intros.
   cut (mem_auth m ∗ env_auth ρ ⊢ |==> ∃ (m' : Memory.mem) (ve : env) lb,
     ⌜(∀i, sub_option (empty_env !! i)%maps (ve !! i)%maps) ∧ alloc_variables ge empty_env m (fn_vars f) ve m'⌝
-    ∧ mem_auth m' ∗ env_auth (alloc_vars (make_env ve) (make_env te) n ρ) ∗ stackframe_of1 f lb (args ++ repeat Vundef (length (fn_temps f))) n).
+    ∧ mem_auth m' ∗ env_auth (alloc_vars (make_env ve) (make_env te) n ρ) ∗ stackframe_of0 f lb (args ++ repeat Vundef (length (fn_temps f))) n).
   { intros Hgen; rewrite Hgen; iIntros ">(% & % & % & (% & %) & ?) !>".
     iExists _, _; iFrame; iPureIntro; split3; split; eauto.
     eapply alloc_vars_typecheck_environ; eauto. }
@@ -1369,7 +1481,7 @@ Proof.
     pose proof (bind_parameter_temps_inv _ _ _ _ H1) as Hargs.
     rewrite Hve; iMod (env_alloc with "Hr") as "($ & Hvars)"; try done.
     iModIntro; iSplit; first done.
-    rewrite /stackframe_of1; monPred.unseal; rewrite !monPred_at_big_sepL2.
+    rewrite /stackframe_of0; monPred.unseal; rewrite !monPred_at_big_sepL2.
     erewrite bind_temps_map; try apply H1; try done.
     + iFrame. iPureIntro; rewrite app_length repeat_length Hargs //.
     + by eapply list_norepet_append_left. }
@@ -1408,7 +1520,7 @@ Lemma stackframe_blocks_freeable : forall lv lb ve,
   length lv = length lb -> list_norepet (map fst lv) ->
   list_to_map (zip (map fst lv) (zip lb (map snd lv))) = make_env ve ->
   ([∗ list] idt;b ∈ lv;lb, ⌜Ptrofs.unsigned Ptrofs.zero + @Ctypes.sizeof (genv_cenv ge) idt.2 < Ptrofs.modulus⌝
-     ∧ memory_block' Share.top (Z.to_nat (@Ctypes.sizeof (genv_cenv ge) idt.2)) b (Ptrofs.unsigned Ptrofs.zero)) ⊢
+     ∧ mapsto_memory_block.memory_block' Share.top (Z.to_nat (@Ctypes.sizeof (genv_cenv ge) idt.2)) b (Ptrofs.unsigned Ptrofs.zero)) ⊢
   freeable_blocks (blocks_of_env ge ve).
 Proof.
   induction lv as [|(i, t)]; destruct lb; inversion 1; clear H; simpl; intros Hno Heq; inv Hno.
@@ -1426,15 +1538,14 @@ Proof.
         destruct a as [id' [hi lo]]. simpl in *.
         iIntros "(? & $ & ?)"; rewrite -IHl1; iFrame. }
     iIntros "((% & H) & Hrest)".
-    rewrite memory_block'_eq.
+    lapply (Z2Nat.id (@Ctypes.sizeof (genv_cenv ge) t)); [intros Hsz | pose proof (@Ctypes.sizeof_pos (genv_cenv ge) t); lia].
+    rewrite mapsto_memory_block.memory_block'_eq.
     2: rewrite Ptrofs.unsigned_zero; lia.
-    2:{ rewrite Z2Nat.id; try lia.
-        pose proof (@Ctypes.sizeof_pos (genv_cenv ge) t); lia. }
-    unfold memory_block'_alt.
+    2: lia.
+    unfold mapsto_memory_block.memory_block'_alt.
     rewrite -> if_true by apply readable_share_top.
-    rewrite /= Z.sub_0_r Ptrofs.unsigned_zero; iSplitL "H".
-    { iApply (big_sepL_mono with "H"); intros.
-      iIntros "$". }
+
+    rewrite /= Z.sub_0_r Ptrofs.unsigned_zero Hsz; iFrame.
     rewrite -Hrem; iApply IHlv; try done.
     apply map_eq; intros k; rewrite make_env_spec; destruct (eq_dec k i).
     + subst; rewrite PTree.grs.
@@ -1601,10 +1712,10 @@ Definition set_temp_opt ret vl R :=
 
 (* Under most circumstances stack_retainer can be framed out, but we might need it
    to do whole-stackframe reasoning. *)
-Definition internal_call_assert E f args ret R := up1 (stack_retainer f -∗ stackframe_of' ge f (args  ++ repeat Vundef (length f.(fn_temps))) -∗
+Definition internal_call_assert E f args ret R := up1 (stack_retainer f -∗ stackframe_of0' ge f (args  ++ repeat Vundef (length f.(fn_temps))) -∗
   ▷ wp E f f.(fn_body) (frame_ret_assert (function_body_ret_assert f.(fn_return)
       (λ vl, down1 (set_temp_opt ret vl R)))
-      (stack_retainer f ∗ ∃ vs, stackframe_of' ge f vs)))%I.
+      (stack_retainer f ∗ ∃ vs, stackframe_of1' ge f vs)))%I.
 
 Lemma internal_call_assert_mask_mono : forall E1 E2 f args ret R, E1 ⊆ E2 →
   internal_call_assert E1 f args ret R ⊢ internal_call_assert E2 f args ret R.
@@ -1681,7 +1792,7 @@ Proof.
     iDestruct "Hd" as "-#?"; iClear "#".
     iStopProof; split => ?; rewrite /internal_call_assert /wp /assert_safe /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
     iIntros "(Hk & H & Hr & Hstack & %Hn)"; inv Hn.
-    iPoseProof (monPred_in_entails with "Hstack") as "Hstack"; first by apply stackframe_of_eq1'.
+    iPoseProof (monPred_in_entails with "Hstack") as "Hstack"; first by apply stackframe_of_eq0'.
     rewrite monPred_at_sep; iDestruct "Hstack" as "(? & ?)".
     iApply ("H" with "[//] [$] [//] [$] [//] [//] [//] [Hk] [//] [$Hr //] [//] [%] [//] [//] [//]").
     2: { by apply (stack_matches'_alloc _ _ _ _ _ _ (fn_body f) i f). }
@@ -1885,10 +1996,10 @@ Qed.
 
 (* should be unifiable with the regular call, but the handling of the initial
    stack is a bit different *)
-Definition initial_internal_call_assert E f args R : assert := (stack_retainer f -∗ stackframe_of' ge f (args  ++ repeat Vundef (length f.(fn_temps))) -∗
+Definition initial_internal_call_assert E f args R : assert := (stack_retainer f -∗ stackframe_of0' ge f (args  ++ repeat Vundef (length f.(fn_temps))) -∗
   ▷ wp E f f.(fn_body) (frame_ret_assert (function_body_ret_assert f.(fn_return)
       (λ vl, R))
-      (stack_retainer f ∗ ∃ vs, stackframe_of' ge f vs)))%I.
+      (stack_retainer f ∗ ∃ vs, stackframe_of1' ge f vs)))%I.
 
 Definition initial_call_assert E f args R :=
   match f with
@@ -1924,7 +2035,7 @@ Proof.
     iDestruct "Hd" as "-#?"; iClear "#".
     iStopProof; split => ?; rewrite /initial_internal_call_assert /wp /assert_safe /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
     iIntros "(H & Hr & Hstack & %Hi)"; inv Hi.
-    iPoseProof (monPred_in_entails with "Hstack") as "Hstack"; first by apply stackframe_of_eq1'.
+    iPoseProof (monPred_in_entails with "Hstack") as "Hstack"; first by apply stackframe_of_eq0'.
     rewrite monPred_at_sep; iDestruct "Hstack" as "(? & ?)".
     iApply ("H" with "[//] [$] [//] [$] [//] [//] [//] [] [//] [$Hr //] [//] [%] [//] [//] [//]").
     2: { simpl; split3; auto.
@@ -2116,8 +2227,8 @@ Qed.
 
 (* {{P}} f {{Q}} *)
 Definition fun_triple (P : list val → assert) f Q : assert :=
-  □ ∀ args, ⌜tc_vals (map snd (fn_params f)) args⌝ → P args -∗ stack_retainer f -∗ stackframe_of' ge f (args ++ repeat Vundef (length (fn_temps f))) -∗
-    wp ⊤ f (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) Q) (stack_retainer f ∗ ∃ lv, stackframe_of' ge f lv)).
+  □ ∀ args, ⌜tc_vals (map snd (fn_params f)) args⌝ → P args -∗ stack_retainer f -∗ stackframe_of0' ge f (args ++ repeat Vundef (length (fn_temps f))) -∗
+    wp ⊤ f (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) Q) (stack_retainer f ∗ ∃ lv, stackframe_of1' ge f lv)).
 
 End mpred.
 

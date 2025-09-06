@@ -3,7 +3,7 @@ Require Import VST.veric.mpred.
 Require Import VST.veric.env.
 Require Import VST.veric.lifting_expr.
 Require Import VST.veric.lifting.
-Require Import VST.veric.mapsto_memory_block.
+Require Import VST.veric.simple_mapsto.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.proofmode.
 Require Import VST.progs64.swap.
@@ -29,13 +29,13 @@ Qed.
 
 Theorem swap_fun Espec ge : ⊢ fun_triple Espec ge (λ args, <affine> ⌜exists ix iy, args = [Vint ix; Vint iy]⌝) f_swap (λ _, emp).
 Proof.
-  iIntros "!>" (??) "(% & % & ->) ? S"; rewrite /stackframe_of' /=.
+  iIntros "!>" (??) "(% & % & ->) ? S"; rewrite /stackframe_of0' /=.
   iDestruct "S" as "(_ & ? & ? & ? & _)".
   wp_set; wp_temp; simpl.
   wp_set; wp_temp; simpl.
   wp_set; wp_temp; simpl.
   iSplit; first done; iFrame.
-  iExists [_; _; _]; simpl; iFrame.
+  rewrite /stackframe_of1'; iExists [_; _; _]; simpl; iFrame.
 Qed.
 
 End swap.
@@ -44,6 +44,7 @@ Require Import VST.veric.make_compspecs. (* deduplicate *)
 Require Import VST.veric.expr.
 Require Import VST.veric.val_lemmas.
 Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.veric.simple_mapsto.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.progs64.append.
@@ -86,7 +87,9 @@ Definition list_body sh h y x :=
   mapsto sh tint x h ∗ spacer sh 4 8 x ∗
   mapsto sh (tptr t_struct_list) (offset_val 8 x) y.
 
-Lemma list_unfold : forall sh (h y x : val), data_at sh t_struct_list (h,y) x =
+(* We can either rebuild data_at with simple_mapsto, or restrict undef values. *)
+Lemma list_unfold : forall sh (h y x : val), h ≠ Vundef → y ≠ Vundef →
+  data_at sh t_struct_list (h,y) x =
   (⌜field_compatible t_struct_list [] x⌝ ∧ list_body sh h y x).
 Proof.
   intros.
@@ -96,13 +99,14 @@ Proof.
   rewrite data_at_rec_lemmas.data_at_rec_eq /=.
   rewrite /fieldlist.field_offset_next /= /withspacer /at_offset /=.
   rewrite functional_base.isptr_offset_val_zero; last by destruct Hcompat.
-  rewrite data_at_rec_lemmas.data_at_rec_eq /= -log_normalize.sep_assoc //.
+  rewrite !data_at_rec_lemmas.data_at_rec_eq /= -log_normalize.sep_assoc.
+  rewrite !mapsto_eq //.
 Qed.
 
-Theorem append_spec Espec ge lx ly : ⊢ fun_triple Espec (Build_genv ge cenv_cs) (λ args, ∃ x y, <affine> ⌜args = [x; y]⌝ ∗ listrep Ews lx x ∗ listrep Ews ly y)
+Theorem append_spec Espec ge lx ly (Hlx : Forall (λ x, x ≠ Vundef) lx) : ⊢ fun_triple Espec (Build_genv ge cenv_cs) (λ args, ∃ x y, <affine> ⌜args = [x; y]⌝ ∗ listrep Ews lx x ∗ listrep Ews ly y)
   f_append (λ r, ∃ z, <affine> ⌜r = Some z⌝ ∗ listrep Ews (lx ++ ly) z).
 Proof.
-  iIntros "!>" (??) "(% & % & -> & Hx & Hy) Hret S"; rewrite /stackframe_of' /=.
+  iIntros "!>" (??) "(% & % & -> & Hx & Hy) Hret S"; rewrite /stackframe_of0' /=.
   set (cenv := _ : composite_env).
   iDestruct "S" as "(_ & Htx & Hty & Ht & Hu & _)".
   wp_if.
@@ -116,7 +120,7 @@ Proof.
     iDestruct (listrep_isptr with "Hy") as %?.
     wp_temp.
     simpl.
-    iSplitL "Hy"; last by iFrame; iExists [_; _; _; _]; iFrame.
+    iSplitL "Hy"; last by rewrite /stackframe_of1' /=; iFrame; iExists [_; _; _; _]; iFrame.
     rewrite /= /bind_ret /=.
     by iFrame.
   - iDestruct "Hx" as "(%tl & Hx & Htl)".
@@ -128,18 +132,19 @@ Proof.
       iApply valid_pointer_weak; iApply (data_at_valid_ptr with "Hx"); auto; simpl; lia. }
     iNext; iSplit; first done; simpl.
     wp_set; wp_temp; simpl.
-    rewrite list_unfold; iDestruct "Hx" as "(% & Hhd1 & Hspace & Htl1)".
-    wp_set.
+    inv Hlx.
     iDestruct (listrep_isptr with "Htl") as %?.
+    assert (tl ≠ Vundef) by (by intros ->).
+    rewrite list_unfold //; iDestruct "Hx" as "(% & Hhd1 & Hspace & Htl1)".
+    wp_set.
     wp_field. wp_deref. wp_temp.
-    { split; last intros ->; auto. }
     reshape_seq.
-    iAssert (∃ t u a l', <affine> ⌜field_compatible t_struct_list [] t⌝ ∗ temp _t t ∗ temp _u u ∗
+    iAssert (∃ t u a l', <affine> ⌜a ≠ Vundef ∧ Forall (λ x : val, x ≠ Vundef) l' ∧ field_compatible t_struct_list [] t⌝ ∗ temp _t t ∗ temp _u u ∗
       ⎡list_body Ews a u t⎤ ∗ listrep Ews l' u ∗
       (listrep Ews (a :: l' ++ ly) t -∗ listrep Ews (v :: lx ++ ly) (Vptr b i))) with "[Ht Hu Hhd1 Hspace Htl1 Htl]"
-      as "(% & % & % & % & %Ht & Ht & Hu & Ht1 & Hl' & Hpre)".
+      as "(% & % & % & % & (%Ha & %Hl' & %Ht) & Ht & Hu & Ht1 & Hl' & Hpre)".
     { iFrame. simpl offset_val; iFrame; auto. }
-    iInduction l' as [|h' l'] "IH" forall (t u a Ht); simpl; wp_loop.
+    iInduction l' as [|h' l'] "IH" forall (t u a Ha Ht); simpl; wp_loop.
     + iDestruct "Hl'" as "(-> & _)".
       wp_if; wp_binop; wp_temp.
       wp_cast.
@@ -152,11 +157,12 @@ Proof.
       destruct t; try (destruct Ht; contradiction).
       wp_field. wp_deref. wp_temp.
       wp_return. wp_temp; simpl.
-      iSplitR "Hret Htx Hty Ht Hu"; last by iFrame; iExists [_; _; _; _]; iFrame.
+      iSplitR "Hret Htx Hty Ht Hu"; last by rewrite /stackframe_of1' /=; iFrame; iExists [_; _; _; _]; iFrame.
       rewrite /= /bind_ret /=.
       iSplit; first done; iExists _; iSplit; first done.
       iApply "Hpre"; iFrame.
-      rewrite list_unfold; by iFrame.
+      assert (y ≠ Vundef) by (by intros ->).
+      rewrite list_unfold //; by iFrame.
     + iDestruct "Hl'" as "(%tl' & Hh' & Hl')".
       rewrite data_at_isptr; iDestruct "Hh'" as "(% & Hh')".
       destruct u; try contradiction.
@@ -168,15 +174,16 @@ Proof.
       iNext; iSplit; first done; simpl.
       wp_skip; simpl.
       wp_set; wp_temp; simpl.
-      rewrite list_unfold; iDestruct "Hh'" as "(% & Hhd1 & Hspace & Htl1)".
-      wp_set.
+      inv Hl'.
       iDestruct (listrep_isptr with "Hl'") as %?.
+      assert (tl' ≠ Vundef) by (by intros ->).
+      rewrite list_unfold //; iDestruct "Hh'" as "(% & Hhd1 & Hspace & Htl1)".
+      wp_set.
       wp_field. wp_deref. wp_temp.
-      { split; last intros ->; auto. }
       wp_skip; simpl.
-      iApply ("IH" with "[//] Hy [$] [$] [$] [$] [$] [$] Hl'").
+      iApply ("IH" with "[//] [%] [//] Hy [$] [$] [$] [$] [$] [$] Hl'"); first done.
       iIntros "H"; iApply "Hpre"; iFrame.
-      rewrite list_unfold; by iFrame.
+      rewrite list_unfold //; by iFrame.
 Qed.
 
 End append.
@@ -195,22 +202,27 @@ Hypothesis malloc_spec : forall Espec ge E f x v t, ∀ Φ,
   (∀ p, temp x p -∗ ⎡mapsto_ Tsh t p⎤ -∗ tycontext.RA_normal Φ) -∗
   wp Espec ge E f (Scall (Some x) (Evar _malloc (Tfunction [tulong] (tptr tvoid) cc_default)) [Esizeof t tulong]) Φ.
 
+Opaque memory_block.
+
 Theorem test_spec Espec ge : ⊢ fun_triple Espec (Build_genv ge cenv_cs) (λ args, <affine> ⌜args = []⌝)
   f_main (λ r, ⌜r = Some (Vint (Int.repr 10))⌝).
 Proof.
-  iIntros "!>" (??) "-> Hret S"; rewrite /stackframe_of' /=.
+  iIntros "!>" (??) "-> Hret S"; rewrite /stackframe_of0' /=.
   set (cenv := _ : composite_env).
   iDestruct "S" as "((Hp & _) & Hx & Hq & Ht1 & _)".
   iDestruct "Hp" as "(% & % & Hp & Hdata)"; simpl.
   assert (align_compatible (tptr tint) (Vptr b Ptrofs.zero)) as Halign.
   { econstructor; eauto. apply Z.divide_0_r. }
   iAssert ⎡mapsto_ Tsh (tptr tint) (Vptr b Ptrofs.zero)⎤ with "[Hdata]" as "Hdata".
-  { rewrite -memory_block_mapsto_ //. }
+  { rewrite (mapsto__memory_block _ _ _ (tptr tint) Mptr) //.
+    iFrame.
+    { apply Z.divide_0_r. } }
   wp_set.
   wp_apply (malloc_spec with "Ht1").
-  iIntros (p1) "Ht1 Hp1"; simpl.
-  iDestruct (mapsto__local_facts with "Hp1") as %Hp1.
+  iIntros (p1) "Ht1 (% & Hp1)"; simpl.
+  iDestruct (mapsto_pure_facts with "Hp1") as %(_ & Hp1).
   destruct p1; try contradiction.
+  iDestruct "Hdata" as (?) "Hdata".
   wp_store; wp_temp.
   wp_field; wp_var.
   wp_store; wp_temp.
@@ -237,21 +249,21 @@ Proof.
   - wp_skip; simpl.
     wp_skip; simpl.
     replace (Z.of_nat n - 1) with (Z.of_nat (n - 1)) by lia.
-    iApply ("IH" with "[%] [$] [$]  [$] [$] [$] [$]"); first by lia.
+    iApply ("IH" with "[%] [$] [$] [$] [$] [$] [$]"); first by lia.
     rewrite coqlib3.add_repr.
     replace (10 - Z.of_nat n + 1) with (10 - Z.of_nat (n - 1)) by lia.
     done.
   - wp_break; simpl.
     wp_return; wp_deref.
     wp_field; wp_var.
-    iSplitR "Hret Hp Hdata Hx Hq Ht1"; last (iFrame; iExists [_; _; _]; simpl; iFrame).
+    iSplitR "Hret Hp Hdata Hx Hq Ht1"; last (rewrite /stackframe_of1' /=; iFrame; iExists [_; _; _]; simpl; iFrame).
     rewrite /= /bind_ret /=.
     iPureIntro.
     rewrite coqlib3.add_repr.
     assert (n = 1%nat) as -> by rep_lia; auto.
     { iSplit; first done.
       rewrite (memory_block_mapsto_ _ (tptr tint)) //.
-      by iApply mapsto_mapsto_. }
+      by iApply mapsto_memory_block.mapsto_mapsto_; iApply mapsto_weaken. }
 Qed.
 
 End test.
@@ -272,7 +284,7 @@ Proof.
 Qed.
 
 Lemma data_at_array_lookup : forall sh (elts : list val) p (i : nat) v
-  (Hi : elts !! i = Some v) (Hsigned : repable_signed i),
+  (Hi : elts !! i = Some v) (Hv : v ≠ Vundef) (Hsigned : repable_signed i),
   let pi := offset_val (Ptrofs.unsigned (Ptrofs.repr 4) * Ptrofs.unsigned (Ptrofs.of_ints (Int.repr i))) p in
   data_at sh (tarray tint (Zlength elts)) elts p ⊢ mapsto sh tint pi v ∗
     (∀ v', mapsto sh tint pi v' -∗ data_at sh (tarray tint (Zlength elts)) (<[i:=v']> elts) p).
@@ -292,7 +304,7 @@ Proof.
   { rewrite /field_address0 if_true /pi /nested_field_offset /=; f_equal.
     rewrite /Ptrofs.of_ints Int.signed_repr // !Ptrofs.unsigned_repr //; rep_lia.
     { rewrite field_compatible0_cons /=; split; auto; lia. } }
-  rewrite Hpi; iFrame "H".
+  rewrite Hpi mapsto_eq //; iFrame "H".
   iIntros (?) "H".
   pose proof (Zlength_insert i v' elts) as Hlen.
   unfold tarray; erewrite (split3_data_at_Tarray _ _ (Zlength elts) i (i + 1)); [|try done; try lia..]; last (symmetry; apply sublist_same; try done).
@@ -302,7 +314,7 @@ Proof.
   rewrite Hlen drop_insert_gt; last lia.
   iFrame "B".
   rewrite Hpi in H2 |- *.
-  erewrite mapsto_data_at'; [|try done..]; last apply jmeq_lemmas.JMeq_refl.
+  rewrite mapsto_weaken; erewrite mapsto_data_at'; [|try done..]; last apply jmeq_lemmas.JMeq_refl.
   rewrite Z.add_simpl_l sublist_len_1; last by rewrite Hlen; lia.
   iApply data_at_singleton_array; first done.
   rewrite -nth_Znth'; erewrite nth_lookup_Some; try done.
@@ -320,7 +332,7 @@ Theorem permute_spec Espec ge : forall ar (elts : list val) (i j : nat) vi vj
   f_permute (λ _, ⎡data_at Ews (tarray tint (Zlength elts)) (<[j:=Vint vi]>(<[i:=Vint vj]> elts)) ar⎤).
 Proof.
   intros.
-  iIntros "!>" (? _) "((-> & % & %) & Helts) Hret S"; rewrite /stackframe_of' /=.
+  iIntros "!>" (? _) "((-> & % & %) & Helts) Hret S"; rewrite /stackframe_of0' /=.
   set (cenv := _ : composite_env).
   iDestruct "S" as "(_ & Har & Hi & Hj & Hk & _)".
    iDestruct (data_at_local_facts with "Helts") as %(Har & _); destruct ar; try (destruct Har; contradiction).
@@ -337,11 +349,11 @@ Proof.
   wp_deref. wp_binop. wp_temp. wp_temp.
   iPoseProof ("Helts" with "Hvi") as "Helts".
   rewrite -{1}(Zlength_insert i (Vint vj)).
-  iDestruct (data_at_array_lookup _ _ _ j with "Helts") as "(Hvj & Helts)"; [try done..|].
+  iDestruct (data_at_array_lookup _ _ _ j (Vint vj) with "Helts") as "(Hvj & Helts)"; [try done..|].
   { rewrite list_lookup_insert_ne //. }
   wp_store. wp_temp. wp_deref. wp_binop. wp_temp. wp_temp.
   iPoseProof ("Helts" with "Hvj") as "Helts".
-  iSplitL "Helts"; last by iFrame; iExists [_; _; _; _]; simpl; iFrame.
+  iSplitL "Helts"; last by rewrite /stackframe_of1' /=; iFrame; iExists [_; _; _; _]; simpl; iFrame.
   rewrite /= /bind_ret /=.
   iSplit; first done.
   rewrite Zlength_insert //.
