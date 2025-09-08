@@ -287,9 +287,9 @@ Qed.
 
 Lemma var_block'_cenv_sub {CS CS'} (CSUB: cenv_sub CS CS') sh a
 (CT: complete_type CS (@snd ident type a) = true):
-var_block' sh CS a = var_block' sh CS' a.
+var_block1 sh CS a = var_block1 sh CS' a.
 Proof.
-unfold var_block'. rewrite (cenv_sub_sizeof CSUB); trivial.
+unfold var_block1. rewrite (cenv_sub_sizeof CSUB); trivial.
 Qed.
 
 Lemma var_block_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) sh a

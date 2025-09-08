@@ -1174,6 +1174,18 @@ Proof.
   - by rewrite -H1.
 Qed.
 
+Lemma var_block_weaken : forall sh cenv idt, var_block0 sh cenv idt ⊢ var_block1 sh cenv idt.
+Proof.
+  intros; rewrite /var_block0 /var_block1; do 5 f_equiv.
+  apply memory_block_weaken.
+Qed.
+
+Lemma stackframe_of'_weaken : forall cenv f lv, stackframe_of0' cenv f lv ⊢ stackframe_of1' cenv f lv.
+Proof.
+  intros; rewrite /stackframe_of0' /stackframe_of1'; do 4 f_equiv.
+  apply var_block_weaken.
+Qed.
+
 Lemma stackframe_of_eq0 : forall f lb lv,
   list_norepet (map fst (fn_vars f)) →
   list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) →

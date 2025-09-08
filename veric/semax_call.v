@@ -324,7 +324,7 @@ Lemma stackframe_of_eq : forall {CS : compspecs} (ge : genv) f0 f rho0 k lv n
   (Hsub : cenv_sub cenv_cs ge),
   list_norepet (map fst (fn_vars f)) ->
   list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) ->
-  curr_env ge f0 rho0 k ∗ stack_retainer f n ∗ stackframe_of' ge f lv n ⊢ curr_env ge f0 rho0 k ∗ 
+  curr_env ge f0 rho0 k ∗ stack_retainer f n ∗ stackframe_of0' ge f lv n ⊢ curr_env ge f0 rho0 k ∗ 
   ∃ rho, <affine> ⌜ge_of rho = ge_of rho0 /\ (exists lb, length lb = length (fn_vars f) /\ ve_of rho = (list_to_map (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))))) /\
     te_of rho = list_to_map (zip (map fst (fn_params f) ++ map fst (fn_temps f)) lv)⌝ ∗
   curr_env ge f rho n ∗ stackframe_of f rho.
@@ -333,7 +333,7 @@ Proof.
   iDestruct (monPred_in_entails with "Hcurr") as "Hcurr"; first by apply curr_env_ge.
   monPred.unseal; rewrite monPred_at_affinely; iDestruct "Hcurr" as "($ & %Hge & Hge)".
   iDestruct (monPred_in_entails with "[H]") as "H"; first by apply stackframe_of_eq'.
-  { rewrite monPred_at_sep //. }
+  { rewrite stackframe_of'_weaken monPred_at_sep //. }
   rewrite monPred_at_exist; iDestruct "H" as (lb) "H".
   rewrite /stackframe_of1; monPred.unseal.
   iDestruct "H" as "((%Hlv & stack) & blocks)".
@@ -409,7 +409,7 @@ Lemma stackframe_of_eq' : forall {CS : compspecs} (ge : genv) Delta f rho n
   list_norepet (map fst (fn_vars f)) ->
   list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) ->
   curr_env ge f rho n ∗ stackframe_of f rho ⊢
-  stack_retainer f n ∗ ∃ lv, stackframe_of' ge f lv n.
+  stack_retainer f n ∗ ∃ lv, stackframe_of1' ge f lv n.
 Proof.
   intros; trans (∃ lv lb, stackframe_of1 ge f lb lv n).
   - rewrite /curr_env /stackframe_of /stackframe_of1 -assert_of_eq /=; monPred.unseal.
@@ -489,14 +489,14 @@ Lemma stackframe_of'_curr_env : forall {CS : compspecs} (ge : genv) f lv n
   list_norepet (map fst (fn_vars f)) ->
   list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) ->
   globals_auth (make_env (Genv.genv_symb ge)) ∗
-  stack_retainer f n ∗ stackframe_of' ge f lv n ⊢ ∃ lb, <affine> ⌜length lb = length (fn_vars f)⌝ ∗
+  stack_retainer f n ∗ stackframe_of0' ge f lv n ⊢ ∃ lb, <affine> ⌜length lb = length (fn_vars f)⌝ ∗
   let rho := (Genv.find_symbol ge, list_to_map (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))),
     list_to_map (zip (map fst (fn_params f) ++ map fst (fn_temps f)) lv)) in curr_env ge f rho n ∗ stackframe_of f rho.
 Proof.
   intros; trans (globals_auth (make_env (Genv.genv_symb ge)) ∗ ∃ lb, stackframe_of1 ge f lb lv n).
   - iIntros "($ & H)".
     iDestruct (monPred_in_entails with "[H]") as "H"; first by apply lifting.stackframe_of_eq'.
-    { rewrite monPred_at_sep; iFrame. }
+    { rewrite stackframe_of'_weaken monPred_at_sep; iFrame. }
     by monPred.unseal.
   - iIntros "(Hge & % & H)"; iExists lb.
     rewrite /curr_env /stackframe_of /stackframe_of1 -assert_of_eq /=; monPred.unseal.
