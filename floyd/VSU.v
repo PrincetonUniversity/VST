@@ -1280,21 +1280,21 @@ Proof.
 intros.
 destruct v as [G c].
 exists G.
-apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
-+ intros.
-  rewrite Forall_forall in H0.
-  apply find_id_e in E0.
-  apply H0 in E0.
-  red in E0.
-  simpl in E0.
-  destruct (find_id i Exports) eqn:?H; try contradiction.
-  apply (Comp_G_Exports c) in H1.
-  destruct H1 as [phi' [? ?]].
-  
-  exists phi'.
-  split; auto.
-  eapply funspec_sub_trans; eauto.
-+ intros. apply (Comp_MkInitPred c); auto.
+(* after Rocq 9.2 the second apply is subsumed by the first, cf rocq-prover/rocq#21036 *)
+apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try first [apply c | apply (Comp_MkInitPred c)]; auto.
+intros.
+rewrite Forall_forall in H0.
+apply find_id_e in E0.
+apply H0 in E0.
+red in E0.
+simpl in E0.
+destruct (find_id i Exports) eqn:?H; try contradiction.
+apply (Comp_G_Exports c) in H1.
+destruct H1 as [phi' [? ?]].
+
+exists phi'.
+split; auto.
+eapply funspec_sub_trans; eauto.
 Qed.
 
 Ltac prove_restrictExports :=
@@ -1319,13 +1319,13 @@ Proof.
 intros.
 destruct v as [G c].
 exists G.
-apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
+(* after Rocq 9.2 the second apply is subsumed by the first, cf rocq-prover/rocq#21036 *)
+apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try first [apply c | apply (Comp_MkInitPred c)]; auto.
 + rewrite H. apply c.
 + intros. destruct (find_funspec_sub Exports' Exports H H0 _ _ E0) as [psi [Psi PSI]].
   apply (Comp_G_Exports c) in Psi.
   destruct Psi as [tau [Tau TAU]].
   exists tau; split; trivial. eapply funspec_sub_trans; eassumption.
-+ apply (Comp_MkInitPred c).
 Qed.
 
 Ltac prove_restrictExports2 :=
@@ -1481,7 +1481,8 @@ destruct v as [G c].
 assert (LNR1: list_norepet (map fst (QPvarspecs p) ++ map fst (G ++ Imports'))).
 { rewrite map_app, <- H, <- map_app. apply c. }
 exists G.
-apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
+(* after Rocq 9.2 the second apply is subsumed by the first, cf rocq-prover/rocq#21036 *)
+apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try first [apply c | apply (Comp_MkInitPred c)]; auto.
 + rewrite <- H. apply c.
 + intros.
   assert (LNR2: list_norepet (map fst (QPvarspecs p) ++ map fst (Imports' ++ G))).
@@ -1510,7 +1511,6 @@ apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
       rewrite Psi. eexists; split. reflexivity. apply (funspec_sub_sub_si _ _ PSI).
     * apply find_id_None_iff in Heqq. rewrite H in Heqq. apply find_id_None_iff in Heqq. rewrite Heqq, Heqw.
       eexists; split. reflexivity. apply funspec_sub_si_refl.
-+ apply (Comp_MkInitPred c).
 Qed.
 
 Lemma replace_spec_Forall2_funspec_sub2 p phi: forall (l : funspecs)
