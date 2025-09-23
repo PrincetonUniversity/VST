@@ -61,16 +61,16 @@ Import Address.
 Set Bullet Behavior "Strict Subproofs".
 
 Notation EXIT :=
-  (EF_external "EXIT" (mksignature (AST.Tint::nil) Tvoid)).
-Notation CREATE_SIG := (mksignature (AST.Tptr::AST.Tptr::nil) Tvoid cc_default).
+  (EF_external "EXIT" (mksignature (Xint::nil) Xvoid)).
+Notation CREATE_SIG := (mksignature (Xptr::Xptr::nil) Xvoid cc_default).
 Notation CREATE := (EF_external "spawn" CREATE_SIG).
 Notation MKLOCK :=
-  (EF_external "makelock" (mksignature (AST.Tptr::nil) Tvoid cc_default)).
+  (EF_external "makelock" (mksignature (Xptr::nil) Xvoid cc_default)).
 Notation FREE_LOCK :=
-  (EF_external "freelock" (mksignature (AST.Tptr::nil) Tvoid cc_default)).
-Notation LOCK_SIG := (mksignature (AST.Tptr::nil) Tvoid cc_default).
+  (EF_external "freelock" (mksignature (Xptr::nil) Xvoid cc_default)).
+Notation LOCK_SIG := (mksignature (Xptr::nil) Xvoid cc_default).
 Notation LOCK := (EF_external "acquire" LOCK_SIG).
-Notation UNLOCK_SIG := (mksignature (AST.Tptr::nil) Tvoid cc_default).
+Notation UNLOCK_SIG := (mksignature (Xptr::nil) Xvoid cc_default).
 Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
 
 Module Events.
