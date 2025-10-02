@@ -1,9 +1,11 @@
 From iris.algebra Require Import csum excl auth cmra_big_op gmap.
 (*From iris.base_logic.lib Require Import ghost_map.*)
 From VST.sepcomp Require Import step_lemmas.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.veric Require Import Clight_core env external_state juicy_extspec.
 From VST.typing Require Export type.
 From VST.typing Require Import programs function bytes globals int fixpoint.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Set Default Proof Using "Type".
 
 Definition main_type `{!typeG OK_ty Σ} {cs : compspecs} (P : iProp Σ) : unit → function.fn_params :=
@@ -29,7 +31,7 @@ Lemma refinedc_adequacy: forall `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK
   (Hdry : forall `{!VSTGS OK_ty Σ}, ext_spec_entails Espec dryspec) {CS: compspecs}
   (ge : Genv.t Clight.fundef Ctypes.type) m z s f (T : forall `{!typeG OK_ty Σ}, type_ret_assert) ve te (Hf : f.(fn_vars) = [])
   (EXIT: forall `{!VSTGS OK_ty Σ}, ⊢ exit_ret_assert Espec (typed_stmt_post_cond (fn_return f) T)),
-  (∀ `{HH : invGS_gen HasNoLc Σ}, ⊢ |={⊤}=> ∃ _ : gen_heapGS share address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : envGS Σ, ∃ _ : externalGS OK_ty Σ,
+  (∀ `{HH : invGS_gen HasNoLc Σ}, ⊢ |={⊤}=> ∃ _ : gen_heapGS share Address.address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : envGS Σ, ∃ _ : externalGS OK_ty Σ,
     let H : VSTGS OK_ty Σ := Build_VSTGS _ _ (HeapGS _ _ _ _) _ _ in
     stack_level 0 ∗ ⎡state_interp m z⎤ ∗ ⌜typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f))⌝ ∧ ⎡env_auth (init_stack (Build_genv ge cenv_cs) ve te)⎤ ∗
     typed_stmt Espec ge s f T) →

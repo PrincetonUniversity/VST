@@ -1,6 +1,8 @@
 From VST.lithium Require Import all.
-From lithium Require Import hooks. 
+From lithium Require Import hooks.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Import type globals.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 (* From VST.lithium.automation Require Import solvers. *)
 
 

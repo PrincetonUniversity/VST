@@ -2,9 +2,11 @@
 From iris.proofmode Require Import coq_tactics reduction.
 From lithium Require Import hooks normalize.
 From VST.lithium Require Export all.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
 From VST.typing.automation Require Export proof_state (* solvers simplification loc_eq. *).
 From VST.typing Require Import programs function singleton array (* struct *) bytes own int.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Set Default Proof Using "Type".
 Set Nested Proofs Allowed.
 (** * Defining extensions *)
@@ -355,7 +357,7 @@ Ltac type_function_end :=
   let l := fresh in
   evar (l: list val);
   iExists (li_pair l tt) => /=; liShow;
-  rewrite /stackframe_of'; cbn;
+  rewrite /stackframe_of0' /stackframe_of1'; cbn;
   repeat match goal with
   | |- context [ [∗ list] _;_ ∈ (cons _ _); _ , _ ] =>
     instantiate (l:= cons _ _);
@@ -441,9 +443,9 @@ Section automation_tests.
   Goal forall Espec ge f (_x:ident) b (l:address) ty,
   TCDone (ty_has_op_type ty tint MCNone) ->
   ⊢ lvar _x tint b -∗
-    ⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ int tint ⎤ -∗
+    ⎡ (b, Ptrofs.zero) ◁ₗ int tint ⎤ -∗
     typed_stmt Espec ge (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) f
-               (normal_type_assert (⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True)).
+               (normal_type_assert (⎡ (b, Ptrofs.zero) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True)).
   Proof.
     iIntros.
     repeat liRStep.

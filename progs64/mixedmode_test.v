@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Import programs own array function adequacy.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.proofauto.
 
 Section mixed.
@@ -49,12 +51,12 @@ Lemma convert_array : forall (n : nat) lv lv' b o,
   lv = map (λ i, Vint (Int.repr i)) lv' →
   n = length lv' →
   Forall repable_signed lv' →
-  data_at Tsh (tarray tint n) lv (Vptr b o) ⊣⊢ (b, Ptrofs.unsigned o) ◁ₗ array tint (lv' `at_type` int.int tint).
+  data_at Tsh (tarray tint n) lv (Vptr b o) ⊣⊢ (b, o) ◁ₗ array tint (lv' `at_type` int.int tint).
 Proof.
   intros ?????? Hlen Hrep.
   rewrite /data_at /field_at /at_offset data_at_rec_eq /=.
   rewrite /ty_own /= -bi.persistent_and_affinely_sep_l.
-  rewrite /has_layout_loc /adr2val /= Ptrofs.repr_unsigned length_fmap -Hlen.
+  rewrite /has_layout_loc /adr2val /= length_fmap -Hlen.
   destruct (field_compatible_dec (tarray tint (Z.of_nat n)) [] (Vptr b o));
     [rewrite !bi.pure_True // !bi.True_and | rewrite !bi.pure_False // !bi.False_and //].
   rewrite Z.max_r; last lia.
@@ -67,18 +69,18 @@ Proof.
   - destruct lv'; first done; simpl in *; inv Hlen; inv Hrep.
     f_equiv.
     + rewrite /at_offset /ty_own /= /heap_mapsto_own_state /type.mapsto /adr2val Znth_0_cons /=.
+      rewrite data_at_rec_eq /= mapsto_eq //.
       iSplit.
       * iIntros "$"; iPureIntro.
         split3; simpl; try done.
         { rewrite Int.signed_repr //. }
-        split; last done; rewrite /offset_def /has_layout_loc /adr2val /= Z.add_0_r Ptrofs.repr_unsigned.
+        split; last done; rewrite /offset_def /has_layout_loc /adr2val /= Z.add_0_r.
         pose proof f as Hcompat.
         apply (field_compatible_app_inv' [ArraySubsc 0]) in f; last done.
         rewrite app_nil_r in f.
         apply (field_compatible_app []) in f; simpl in f.
-        rewrite field_address_offset /= in f.
-        2: { rewrite field_compatible_cons /=; split; auto; lia. }
-        rewrite ptrofs_add_repr_0_r // in f.
+        rewrite field_address_offset // in f.
+        rewrite field_compatible_cons /=; split; auto; lia.
       * iIntros "(% & %Hv & %Heq & % & H)".
         destruct Hv as (Hv & _); rewrite value_fits_eq /= in Hv.
         destruct v; inv Heq.
@@ -98,22 +100,21 @@ Proof.
            split; [lia | done]. }
       f_equiv; last done.
       intros ??; rewrite /offset_def /=.
-      f_equiv; f_equal.
-      rewrite Ptrofs.add_unsigned !Ptrofs.unsigned_repr //; try lia.
-      destruct f as (_ & _ & f & _).
-      simpl in f. rep_lia.
+      f_equiv; f_equiv.
+      rewrite Ptrofs.add_assoc ptrofs_add_repr; do 2 f_equiv.
+      hnf; lia.
 Qed.
 
 Transparent Z.of_nat.
 
 (* to be imported from the example file *)
-Definition permute_type : @dtfr Σ (ConstType (address * list Z * nat * nat * Z * Z)) → function.fn_params := λ '(p, elts, x, y, v1, v2),
+Definition permute_type : @dtfr Σ (ConstType (lifting_expr.address * list Z * nat * nat * Z * Z)) → function.fn_params := λ '(p, elts, x, y, v1, v2),
   {| fp_atys := [p @ &own (array tint (elts `at_type` int.int tint));  x @ int.int tint; y @ int.int tint];
      fp_Pa := ⌜elts !! x = Some v1 /\ elts !! y = Some v2 /\ x ≠ y⌝%stdpp ∧ emp;
      fp_rtype := unit;
      fp_fr := λ _, {| fr_rty := tytrue; fr_R := p ◁ₗ (array tint ((<[y:=v1]>(<[x:=v2]> elts)) `at_type` int.int tint)) |} |}.
 
-Definition permute_spec := (_permute, funtype_to_funspec_void (address * list Z * nat * nat * Z * Z) f_permute
+Definition permute_spec := (_permute, funtype_to_funspec_void (lifting_expr.address * list Z * nat * nat * Z * Z) f_permute
   (λ '(p, elts, x, y, v1, v2), [adr2val p; Vint (Int.repr x); Vint (Int.repr y)]) permute_type).
 
 Definition reverse3_using_permute_spec := DECLARE _reverse3_using_permute
@@ -138,8 +139,7 @@ Proof.
   assert_PROP (isptr v_a) by entailer!.
   destruct v_a; try done.
   rewrite (convert_array 3 _ [1; 2; 3]) //; last by repeat constructor.
-  forward_call ((b, Ptrofs.unsigned i), [1; 2; 3], 0%nat, 2%nat, 1, 3).
-  { rewrite /adr2val Ptrofs.repr_unsigned; entailer!. }
+  forward_call ((b, i), [1; 2; 3], 0%nat, 2%nat, 1, 3).
   { simpl; entailer!.
     rewrite /ty_own_val_at /ty_own_val /=.
     rewrite /Frame; instantiate (1 := []); simpl; cancel.

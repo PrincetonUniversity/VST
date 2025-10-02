@@ -1,6 +1,8 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.veric Require Import env Clight_core Clight_seplog.
 From VST.typing Require Export type.
 From VST.typing Require Import programs singleton bytes.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
 
 Section function.
@@ -32,7 +34,7 @@ Section function.
   Definition fn_ret_prop {B} fn (fr : B → fn_ret) : option val → type → assert  :=
     (λ v ty, <affine> ⌜match v with Some v => tc_val (fn_return fn) v | None => fn_return fn = Tvoid end⌝ ∗
      (⎡opt_ty_own_val (fn_return fn) ty v⎤ -∗ ∃ x, ⎡opt_ty_own_val (fn_return fn) (fr x).(fr_rty) v⎤ ∗ ⎡(fr x).(fr_R)⎤ ∗
-      ∃ lv, stackframe_of' cenv_cs fn lv))%I.
+      ∃ lv, stackframe_of1' cenv_cs fn lv))%I.
 
   Definition fn_ret_assert {B} fn (fr : B → fn_ret) : type_ret_assert :=
    {| T_normal := fn_ret_prop fn fr None tytrue;
@@ -48,7 +50,7 @@ Section function.
   (* Do we need a ty_own_temp, ty_own_var, etc. as well? *)
   Definition typed_var_block (idt: ident * Ctypes.type): assert :=
   ⌜(Ctypes.sizeof (snd idt) <= Ptrofs.max_unsigned)%Z⌝ ∧
-  ∃ b, lvar (fst idt) (snd idt) b ∗ ⎡(b, 0) ◁ₗ uninit (snd idt)⎤.
+  ∃ b, lvar (fst idt) (snd idt) b ∗ ⎡(b, Ptrofs.zero) ◁ₗ uninit (snd idt)⎤.
 
   Definition typed_stackframe (f: Clight.function) (lv: list val) : assert :=
     ([∗ list] idt ∈ fn_vars f, typed_var_block idt) ∗
@@ -109,7 +111,7 @@ Section function.
       by f_equiv.
   Qed.
 
-  Definition fntbl_entry f fn := let '(b, o) := f in o = 0 /\ Genv.find_def ge b = Some (Gfun (Internal fn)) /\
+  Definition fntbl_entry f fn := let '(b, o) := f in o = Ptrofs.zero /\ Genv.find_def ge b = Some (Gfun (Internal fn)) /\
     (Forall (λ it : ident * Ctypes.type, complete_type cenv_cs it.2 = true) (fn_vars fn)
        ∧ list_norepet (map fst (Clight.fn_params fn) ++ map fst (fn_temps fn))
          ∧ list_norepet (map fst (fn_vars fn))
@@ -132,7 +134,7 @@ Section function.
   Next Obligation. iDestruct 1 as (fn) "[? [H [? ?]]]". iExists _. iFrame. by iApply (heap_mapsto_own_state_share with "H"). Qed.
   Next Obligation. iIntros (fp f ot mt l (? & ? & ->)). iDestruct 1 as (??) "(?&%&?)". eapply fntbl_entry_inj in H; eauto; subst; done. Qed.
   Next Obligation. iIntros (fp f ot mt v (? & ? & ->)). iDestruct 1 as (? (? & Hv)) "?". simpl in Hv; subst. iPureIntro; hnf; split; auto.
-    intros ?; done. Qed.
+    done. Qed.
   Next Obligation. iIntros (fp f ot mt v (fn & Htbl & ->)). iDestruct 1 as (??) "(?&%&?)". eapply fntbl_entry_inj in Htbl; eauto; subst. iFrame; eauto. Qed.
   Next Obligation. iIntros (fp f ot mt v ? (? & Htbl & ->) ?) "?". iDestruct 1 as (? (Heq & ?)) "?". simpl in *; subst.
     rewrite Heq in H; rewrite (mapsto_tptr _ _ _ (type_of_function fn)); by iFrame. Qed.
@@ -154,32 +156,37 @@ Section function.
     erewrite singleton.mapsto_tptr. iFrame. iModIntro. unfold has_layout_loc. rewrite singleton.field_compatible_tptr. do 2 iSplit => //. by iIntros "_".
   Qed. *)
 
+  Opaque memory_block.
+
   Lemma stackframe_of_typed : forall f lv
     (Hcomplete : Forall (λ it, composite_compute.complete_legal_cosu_type it.2 = true) (fn_vars f))
     (Halign : Forall (λ it, align_mem.LegalAlignasFacts.LegalAlignasDefs.is_aligned cenv_cs ha_env_cs la_env_cs it.2 0 = true) (fn_vars f))
     (Hvolatile : Forall (λ it, type_is_volatile it.2 = false) (fn_vars f)),
-    stackframe_of' cenv_cs f lv ⊢ typed_stackframe f lv.
+    stackframe_of0' cenv_cs f lv ⊢ typed_stackframe f lv.
   Proof.
-    intros; rewrite /stackframe_of' /typed_stackframe.
+    intros; rewrite /stackframe_of0' /typed_stackframe.
     iIntros "(H & $)".
     iApply (big_sepL_mono with "H"); intros ?? H%elem_of_list_lookup_2.
     rewrite !Forall_forall in Hcomplete Halign Hvolatile.
     specialize (Hcomplete _ H); specialize (Halign _ H); specialize (Hvolatile _ H).
-    rewrite /var_block' /typed_var_block /ty_own /= /heap_mapsto_own_state /mapsto.
+    rewrite /var_block0 /typed_var_block /ty_own /= /heap_mapsto_own_state /mapsto.
     iIntros "(% & % & $ & H)"; iSplit; first done.
-    iAssert ⌜(b, 0) `has_layout_loc` y.2⌝ as %?. {
+    iAssert ⌜(b, Ptrofs.zero) `has_layout_loc` y.2⌝ as %?. {
       iPureIntro.
       split3; simpl; auto.
       change expr.sizeof with Ctypes.sizeof.
       rewrite Z.add_0_l; split3; first rep_lia; last done.
       apply la_env_cs_sound; auto. }
-    change (Ctypes.sizeof y.2) with (expr.sizeof y.2).
-    rewrite memory_block_data_at_ // /data_at_ /field_at_ /field_at.
-    iDestruct "H" as "(_ & $)".
-    iPureIntro.
-    split; auto; rewrite /has_layout_val /=.
-    split; first apply default_value_fits; done.
+    rewrite memory_block_data_at_rec_default_val //.
+    * iFrame.
+      iPureIntro.
+      split; auto; rewrite /has_layout_val /=.
+      split; first apply default_value_fits; done.
+    * unfold Ptrofs.max_unsigned, sizeof in *; rep_lia.
+    * apply H1.
   Qed.
+
+  Transparent memory_block.
 
   Lemma type_call_fnptr l i v vl ctys retty cc tys fp T :
     length vl = length ctys →

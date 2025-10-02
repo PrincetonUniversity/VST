@@ -1217,7 +1217,6 @@ Proof.
   intros.
   unfold array_pred.
   rewrite -> prop_true_andp by auto; clear H1.
-  f_equal.
   remember (Z.to_nat (hi - lo)) as n eqn:HH.
   revert lo HH H H0 v; induction n; intros.
   + simpl.

@@ -264,7 +264,7 @@ Section own_state.
   Proof.
     intros.
     destruct l as (b, o); simpl.
-    rewrite -{1}(Ptrofs.repr_unsigned o) data_at_rec_data_at_rec_ // memory_block_data_at_rec_default_val // Ptrofs.repr_unsigned.
+    rewrite -{1}(Ptrofs.repr_unsigned o) data_at_rec_data_at_rec_ // data_at_rec_lemmas.memory_block_data_at_rec_default_val // Ptrofs.repr_unsigned.
     iIntros "Hl" (??); iApply (valid_pointer.memory_block_valid_pointer with "Hl"); auto.
     rep_lia.
   Qed.
