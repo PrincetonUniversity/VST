@@ -1,5 +1,7 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
 From VST.typing Require Import programs.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
 
 Section value.
@@ -149,10 +151,10 @@ Section at_value.
   Qed.
 
   Lemma mem_block_mapsto_tptr:
-    forall sh t1 t2, mapsto_memory_block.mapsto sh (tptr t1) = mapsto_memory_block.mapsto sh (tptr t2).
+    forall sh t1 t2, simple_mapsto.mapsto sh (tptr t1) = simple_mapsto.mapsto sh (tptr t2).
   Proof.
     intros.
-    unfold mapsto_memory_block.mapsto.
+    unfold simple_mapsto.mapsto.
     extensionality v1 v2.
     unfold tc_val', tc_val. simpl.
     rewrite !andb_false_r //.

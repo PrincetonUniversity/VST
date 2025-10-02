@@ -1,8 +1,10 @@
 From compcert.cfrontend Require Import Clight.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.veric Require Import lifting.
 From VST.lithium Require Export proof_state.
 From lithium Require Import hooks.
 From VST.typing Require Export type.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
 
 Open Scope Z.

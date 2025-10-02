@@ -1,14 +1,16 @@
 From iris.algebra Require Import list.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
 From VST.typing Require Import programs singleton (* bytes *) boolean int own.
 Import int.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
 From VST.floyd Require Import aggregate_pred.
 Import aggregate_pred.
 From VST.floyd Require Export field_at.
 
 
-Definition offset_def {cs:compspecs} (l:address) cty path := (l.1, l.2 + nested_field_offset cty path).  
+Definition offset_def {cs:compspecs} (l:address) cty path := (l.1, Ptrofs.add l.2 (Ptrofs.repr (nested_field_offset cty path))).
 Arguments nested_field_offset: simpl never.
 
 Notation "l 'offset{' cty '}ₗ' path" := 
@@ -25,7 +27,11 @@ Section array.
 
   Lemma offset_loc_offset_loc (l:address) cty (n1 n2 : Z):
     l arr_ofs{cty}ₗ n1 arr_ofs{cty}ₗ n2 = l arr_ofs{cty}ₗ (n1 + n2).
-  Proof. destruct l. rewrite /offset_def /nested_field_offset /=. f_equal. lia. Qed.
+  Proof.
+    destruct l. rewrite /offset_def /nested_field_offset /=. f_equal. rewrite Ptrofs.add_assoc; f_equal.
+    rewrite ptrofs_add_repr; f_equal.
+    lia.
+  Qed.
 
   Lemma array_pred_shift_addr: forall {A}{d: Inhabitant A} (lo hi lo' hi' mv : Z) (P: Z -> A -> val -> mpred) (v: list A) (p p':address) (cty:Ctypes.type),
     lo - lo' = mv ->
@@ -114,8 +120,10 @@ Section array.
     rewrite !mapsto_memory_block.at_offset_eq Hl.
     f_equal.
     - f_equal. lia.
-    - rewrite /offset_val /= !ptrofs_add_repr /nested_field_offset /=.
-      do 2 f_equal. lia.
+    - rewrite /offset_val /= -{2}(Ptrofs.repr_unsigned l.2) !ptrofs_add_repr /nested_field_offset /=.
+      f_equal. rewrite -Z.add_assoc. apply Ptrofs.eqm_samerepr, Ptrofs.eqm_add; first apply Ptrofs.eqm_refl.
+      eapply Ptrofs.eqm_trans; first by apply Ptrofs.eqm_add; [apply Ptrofs.eqm_sym, Ptrofs.eqm_unsigned_repr | apply Ptrofs.eqm_refl].
+      apply Ptrofs.eqm_refl2; lia.
   Qed.
 
   Lemma mapsto_layout_array_split l l_1 (s s1 s2:Z) cty :
@@ -177,9 +185,8 @@ Section array.
     split3; try done.
     - rewrite /= Z.max_r; [|lia].
       change Ctypes.sizeof with sizeof in *.
-      rewrite -ptrofs_add_repr.
-      destruct (Ptrofs.unsigned_add_either (Ptrofs.repr l.2) 
-                                            (Ptrofs.repr (sizeof cty * idx))) as [-> | ->].
+      rewrite -ptrofs_add_repr Ptrofs.add_zero_l.
+      destruct (Ptrofs.unsigned_add_either l.2 (Ptrofs.repr (sizeof cty * idx))) as [-> | ->].
       + rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty * idx))]Ptrofs.unsigned_repr; rep_lia.
       + rep_lia.
     - rewrite /align_compatible_dec.align_compatible /=.
@@ -189,13 +196,14 @@ Section array.
       rewrite Ptrofs.unsigned_add_carry.
       rewrite /Ptrofs.add_carry.
       change Ctypes.sizeof with sizeof in *.
+      rewrite Ptrofs.add_zero_l.
       if_tac.
       + rewrite Ptrofs.unsigned_zero /= Z.sub_0_r.
         rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty * idx))]Ptrofs.unsigned_repr; try rep_lia.
         constructor. intros. rewrite -Z.add_assoc -Z.mul_add_distr_l. apply H5. lia.
       + rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty * idx))]Ptrofs.unsigned_repr in H6; last rep_lia.
         rewrite Ptrofs.unsigned_zero Z.add_0_r in H6.
-        assert (Ptrofs.unsigned (Ptrofs.repr l.2) + sizeof cty * idx < Ptrofs.modulus) by rep_lia.
+        assert (Ptrofs.unsigned l.2 + sizeof cty * idx < Ptrofs.modulus) by rep_lia.
         contradiction.
   Qed.
 
@@ -226,8 +234,7 @@ Section array.
     change Ctypes.sizeof with sizeof in *.
     split3; try done.
     - rewrite /=.
-      assert (Ptrofs.unsigned (Ptrofs.repr l.2) + sizeof cty <=
-              Ptrofs.unsigned (Ptrofs.repr l.2) + sizeof cty * s); try rep_lia.
+      assert (Ptrofs.unsigned l.2 + sizeof cty <= Ptrofs.unsigned l.2 + sizeof cty * s); try rep_lia.
       apply Zplus_le_compat_l.
       destruct (decide (sizeof cty = 0)); try rep_lia.
       apply Z.le_mul_diag_r; lia.
@@ -299,7 +306,7 @@ Section array.
     pose l_1:address := (l arr_ofs{cty}ₗ1).
     rewrite Forall_cons in Hop_type. destruct Hop_type as [Hop_type_hd Hop_type_tl].
     iSpecialize ("IH" with "[]"); [done|].
-    iDestruct ("IH" $! (l_1 _) with "[] [tys_tl]") as "(%v_rep & ↦tl & % & % & % & tys_tl)"; iClear "IH".
+    iDestruct ("IH" $! (l_1 _) with "[] [tys_tl]") as "(%v_rep & ↦tl & % & % & %v_rep_layout & tys_tl)"; iClear "IH".
     {
       clear -l_has_layout_loc.
       
@@ -322,16 +329,16 @@ Section array.
     iAssert (l ↦|tarray cty (S (length tys))|([v_hd] ++ v_rep)) with "[↦hd ↦tl]" as "↦".
     {
       rewrite (array_split l (l_1 _) _ 1 (length tys) _ _ [v_hd] v_rep); try done; try rep_lia.
-      - iFrame.
-        rewrite singleton_array_eq.
-        iStopProof.
-        rewrite /mapsto /offset_def /nested_field_offset /=. f_equiv.
-        rewrite /adr2val /=.
-        f_equiv.
-        rewrite Z.mul_0_r Z.add_0_l Z.add_0_r //.
+      - by iFrame.
     }
-    iPoseProof (data_at_rec_value_fits with "↦") as "%v_fits".
-    rewrite /has_layout_val.
+    iAssert ⌜(v_hd :: v_rep) `has_layout_val` tarray cty (S (length tys))⌝ as %?.
+    { iDestruct (ty_size_eq with "Hty") as %(? & ?); first done.
+      iPureIntro.
+      destruct v_rep_layout as ((? & ?) & ?).
+      split; last done.
+      split.
+      { rewrite /unfold_reptype /=. list_solve. }
+      constructor; auto. }
     iFrame.
     iExists _. do 2 iSplit =>//. iFrame. rewrite H. done.
   Qed.
@@ -353,13 +360,14 @@ Section array.
     destruct v as [|v_hd v_tl]; [done|].
     destruct Hv as [Hv ?].
     rewrite value_fits_eq /= in Hv.
-    destruct Hv as [Hv ?].
+    destruct Hv as [Hv Hvs].
     rewrite /unfold_reptype /= Zlength_cons Zpos_P_of_succ_nat /Z.succ Z.add_cancel_r in Hv.
     rewrite (array_split l l_1 _ 1 (length tys) _ _ [v_hd] v_tl); try done; try rep_lia.
     iDestruct "↦" as "[↦hd ↦tl]".
     iDestruct "tys" as "[tys_hd tys_tl]".
-    iPoseProof (data_at_rec_value_fits with "↦tl") as "%v_tl_fits".
-    iDestruct ("IH" $! _ _ l_1 v_tl with "[//] [//] [//] ↦tl tys_tl") as "ty_own_tl"; iClear "IH".
+    inv Hvs.
+    iDestruct ("IH" $! _ _ l_1 v_tl with "[//] [%] [//] ↦tl tys_tl") as "ty_own_tl"; try iClear "IH".
+    { split; auto. rewrite value_fits_eq /=; split; auto. rewrite /unfold_reptype /=; lia. }
     Unshelve. 3: done.
     rewrite singleton_array_eq.
     apply has_layout_loc_array_hd in Hl; [|lia].
@@ -367,21 +375,21 @@ Section array.
     iSplitL "ty_own_hd".
     - iStopProof. f_equiv.
       rewrite /offset_def /nested_field_offset /nested_field_rec /=.
-      destruct l; simpl. f_equiv.
-      lia.
+      destruct l; simpl. f_equal.
+      rewrite Z.mul_0_r Ptrofs.add_zero //.
     - iApply (big_sepL_impl with "ty_own_tl").
       iIntros "!>" (i ty_i Hty_i) "?".
       rewrite offset_loc_offset_loc /=.
       iStopProof. repeat f_equiv. lia.
   Qed.
 
-  
+
   Lemma offset_sub_S : ∀ (l : address) cty (n : nat),
          l arr_ofs{cty}ₗ S n = l arr_ofs{cty}ₗ 1 arr_ofs{cty}ₗ n.
   Proof. intros.
     rewrite /offset_def /nested_field_offset /=.
     f_equal.
-    lia.
+    rewrite Ptrofs.add_assoc ptrofs_add_repr; do 2 f_equal; lia.
   Qed.
 
   Global Instance array_le : Proper ((=) ==> Forall2 (⊑) ==> (⊑)) array.
@@ -628,16 +636,16 @@ Section array.
     { destruct H1 as (H1 & Hvol).
       rewrite /= /lifting_expr.sem_add. destruct ofs_cty; try done; simpl in *; hnf in H1; rewrite Hvol in H1;
         destruct v; try destruct s; inv H2; specialize (H1 ltac:(discriminate)); simpl in H1.
-      - destruct i0; rewrite /= /adr2val /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //.
-      - destruct i0; rewrite /= /adr2val /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //= /nested_field_offset /= Z.add_0_l; inv Hrange.
+      - destruct i0; rewrite /= /adr2val /Ptrofs.of_ints ptrofs_mul_repr //.
+      - destruct i0; rewrite /= /adr2val /Ptrofs.of_ints ptrofs_mul_repr //= /nested_field_offset /= Z.add_0_l; inv Hrange.
         all: rewrite Int.signed_eq_unsigned //; try rep_lia.
         rewrite two_power_pos_equiv in H1; rep_lia.
-      - rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //= /nested_field_offset /= Z.add_0_l; inv Hrange.
+      - rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr //= /nested_field_offset /= Z.add_0_l; inv Hrange.
         rewrite Int64.unsigned_signed. rewrite /Int64.lt /=. if_tac; try done.
         (* rewrite -H7 in H5, H0. *)
         rewrite Int64.signed_zero in H3.
         rep_lia.
-      - rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //.
+      - rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr //.
     }
     iSplit => //.
     { rewrite /sc_binop /sc_add. destruct ofs_cty; try done. simpl. destruct i0; done. }
@@ -720,23 +728,21 @@ Section array.
     iIntros "( % & % & HT) (% & Hl) Hv" (Φ) "HΦ".
     iDestruct (ty_own_val_int_in_range with "Hv") as "%".
     unfold int; simpl_type.
-    iDestruct "Hv" as "(% & % & %)".
+    iDestruct "Hv" as "(_ & % & %)".
     iApply wp_binop_sc.
-    {
-      rewrite /=.
-      match goal with | |- ?x = _ =>
-      instantiate (1:=adr2val (l.1, l.2 + expr.sizeof elm_cty * i)) end.
+    { rewrite /=.
+      instantiate (1:=adr2val (l.1, Ptrofs.add l.2 (Ptrofs.repr (expr.sizeof elm_cty * i)))).
       rewrite /lifting_expr.sem_add; destruct ofs_cty; try done; simpl.
-      - destruct i0, v, s eqn:Hs; try done; rewrite /val_to_Z /= in H5; inv H5;
-        rewrite /= /adr2val /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //=.
+      - destruct i0, v, s eqn:Hs; try done; rewrite /val_to_Z /= in H4; inv H4;
+        rewrite /= /adr2val /Ptrofs.of_ints ptrofs_mul_repr //=.
         + repeat f_equal. apply Int.signed_eq_unsigned. inv H2. simpl in *. rep_lia.
         + repeat f_equal. apply Int.signed_eq_unsigned. inv H2. simpl in *. rep_lia.
         + repeat f_equal. apply Int.signed_eq_unsigned. inv H2. simpl in *. rep_lia.
-      - simpl. destruct v; try done. rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr //=.
-        destruct s; inv H5; try done.
-        repeat f_equal. rewrite Int64.unsigned_signed //. rewrite /Int64.lt /=. if_tac ; try rep_lia. inv H2.
-        simpl in *. rewrite -H7 in H5, H0.
-        rewrite Int64.signed_zero in H3.
+      - simpl. destruct v; try done. rewrite /= /adr2val /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr //=.
+        destruct s; inv H4; try done.
+        repeat f_equal. rewrite Int64.unsigned_signed //. rewrite /Int64.lt /=. if_tac; try rep_lia. inv H2.
+        simpl in *. rewrite -H6 in H5, H0.
+        rewrite Int64.signed_zero in H4.
         rep_lia.
     }
     iSplit => //.
@@ -778,7 +784,7 @@ Section array.
       destruct base; rewrite /adr2val /=.
       pose proof (sizeof_pos elm_cty) as Hcty_size_pos.
       f_equiv.
-      rewrite /nested_field_offset /= /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_add_repr. f_equal. rep_lia.
+      rewrite /nested_field_offset /= /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr Ptrofs.add_assoc ptrofs_add_repr. do 2 f_equal. rep_lia.
     }
     iApply ("HΦ" with "[] [HT]"); [|done].
     rewrite /ty_own_val_at /ty_own_val /=.
@@ -813,7 +819,7 @@ Section array.
       destruct base; rewrite /adr2val /=.
       pose proof (sizeof_pos elm_cty) as Hcty_size_pos.
       f_equiv.
-      rewrite /nested_field_offset /= /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr ptrofs_sub_repr. f_equal. rep_lia.
+      rewrite /nested_field_offset /= /expr.sizeof /Ptrofs.of_ints ptrofs_mul_repr (Ptrofs.add_commut i (Ptrofs.repr (0 + _ * idx))) Ptrofs.sub_add_l (Ptrofs.add_commut _ i) ptrofs_sub_repr. do 2 f_equal. rep_lia.
     }
     iApply ("HΦ" with "[] [HT]"); [|done].
     rewrite /ty_own_val_at /ty_own_val /=.

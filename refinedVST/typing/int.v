@@ -186,8 +186,7 @@ Section int.
     tc_val it v.
   Proof.
     intros.
-    eapply has_layout_val_tc_val' in H1; eauto.
-    rewrite /tc_val' repinject_valinject // in H1. by apply H1.
+    eapply has_layout_val_tc_val'2 in H1; eauto.
   Qed.
 
   Lemma ty_own_val_int_in_range v n it :
@@ -284,10 +283,8 @@ Section programs.
     iExists _. iFrame. iPureIntro.
     rewrite repinject_valinject //.
     split3; [done | | by apply i2v_to_Z].
-    rewrite /has_layout_val field_at.value_fits_by_value //.
-    rewrite repinject_valinject //.
-    split; try done.
-    intros ?. by apply in_range_i2v.
+    apply tc_val_has_layout_val2; auto.
+    intros ?; by apply in_range_i2v.
   Qed.
   Definition type_val_int_inst := [instance type_val_int].
   Global Existing Instance type_val_int_inst.
@@ -765,10 +762,8 @@ Section programs.
       iPureIntro.
       rewrite repinject_valinject //.
       split3; [done| | by apply i2v_to_Z].
-      rewrite /has_layout_val field_at.value_fits_by_value // repinject_valinject //.
-      split; [|done].
-      intros ?.
-      by apply in_range_i2v.
+      apply tc_val_has_layout_val2; auto.
+      intros ?; by apply in_range_i2v.
   Qed.
   Definition type_add_int_int_inst ge n1 n2 := [instance type_arithop_int_int ge n1 n2 (n1 + n2) Oadd].
   Global Existing Instance type_add_int_int_inst.
@@ -874,10 +869,8 @@ Section programs.
         * destruct s; simpl in *; rep_lia. }
       rewrite repinject_valinject //.
       split3; [done| | by apply i2v_to_Z].
-      rewrite /has_layout_val field_at.value_fits_by_value // repinject_valinject //.
-      split; [|done].
-      intros ?.
-      by apply in_range_i2v.
+      apply tc_val_has_layout_val2; auto.
+      intros ?; by apply in_range_i2v.
   Qed.
   Definition type_neg_int_inst := [instance type_neg_int].
   Global Existing Instance type_neg_int_inst.

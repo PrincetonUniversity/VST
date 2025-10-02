@@ -1,7 +1,8 @@
 From VST.lithium Require Import simpl_classes.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export base annotations.
-From VST.floyd Require Import data_at_rec_lemmas.
-From VST.floyd Require Export reptype_lemmas field_at simple_data_at_rec_lemmas.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
+From VST.floyd Require Export data_at_rec_lemmas reptype_lemmas field_at simple_data_at_rec_lemmas.
 Set Default Proof Using "Type".
 
 Class typeG OK_ty Σ := TypeG {

@@ -1,5 +1,7 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
 From VST.typing Require Import programs optional boolean int singleton.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
 
 Section own.
@@ -26,7 +28,7 @@ Section own.
     rewrite /repinject /has_layout_val /= in H1; subst.
     iPureIntro.
     split; [|done].
-    rewrite /value_def /=.
+    rewrite /value_fits => ? /=.
     simple_if_tac; done.
   Qed.
   Next Obligation.
@@ -551,7 +553,7 @@ Section null.
     rewrite /repinject /= in H; subst.
     iPureIntro. hnf.
     split; auto.
-    apply Clight_mapsto_memory_block.tc_val_pointer_nullval.
+    intros ?; apply Clight_mapsto_memory_block.tc_val_pointer_nullval.
   Qed.
   Next Obligation.
     iIntros (???(?&->)) "(% & Hl)".

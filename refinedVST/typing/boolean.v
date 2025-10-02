@@ -1,9 +1,11 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From iris_ora.algebra Require Import frac_auth ext_order excl.
 From VST.veric Require Import lifting.
 From compcert.cfrontend Require Import Clight.
 From VST.lithium Require Export proof_state.
 From lithium Require Import hooks definitions.
 From VST.typing Require Export type type_options programs.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
 (** A [Strict] boolean can only have value 0 (false) or 1 (true). A [Relaxed]
     boolean can have any value: 0 means false, anything else means true. *)

@@ -1,5 +1,7 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
 From VST.typing Require Import programs exist constrained.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
 
 Definition type_fixpoint_def `{!typeG OK_ty Σ} {cs : compspecs} {A} : ((A -> type) → (A -> type)) → (A → type) :=
