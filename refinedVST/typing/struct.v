@@ -642,7 +642,7 @@ Section struct.
     - iDestruct 1 as (v Hv Hl) "Hl". iSplit => //. iSplit.
       { iPureIntro. split. { admit. (* remove exists requirement? *) } rewrite length_fmap map_length //. }
       rewrite /heap_mapsto_own_state.
-      (* is this where we need the smaller invariants? *)
+      (* is this where we need the smaller invariants? or we could change ty_own to match on β and do one big invariant *)
       admit.
 (*      rewrite mapsto_struct.
       rewrite /has_layout_val in Hv.
