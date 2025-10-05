@@ -3,6 +3,7 @@ From VST.typing Require Export type.
 From VST.typing Require Import programs bytes (*padded*) struct int.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
+Require Import Coq.Program.Equality.
 
 Section union.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
@@ -10,13 +11,15 @@ Section union.
   (*** active_union *)
   Program Definition active_union (i : ident) (f : ident) (ty : type) : type := {|
     ty_own β l := ∃ m, <affine> ⌜∃ ul, (cenv_cs !! i)%maps = Some ul ∧ get_member f ul.(co_members) = m⌝ ∗
-      l ◁ₗ{β} ty ∗ heap_spacer β (sizeof (type_member m)) (co_sizeof (get_co i)) l;
+      <affine> ⌜l `has_layout_loc` Tunion i noattr⌝ ∗
+      heap_withspacer β (sizeof (field_type (name_member m) (get_co i).(co_members))) (co_sizeof (get_co i))
+        (λ p, match val2adr p with Some l => l ◁ₗ{β} ty | _ => False end) l;
     ty_has_op_type _ _ := False%type;
     ty_own_val _ _ := True;
   |}%I.
   Solve Obligations with try done.
   Next Obligation.
-    iIntros (ul f ty l E ?). iDestruct 1 as (ly ?) "Hp". iExists _. iSplitR => //.
+    iIntros (ul f ty l E ?). iDestruct 1 as (ly ?) "($ & Hp)". iExists _. iSplitR => //.
     iDestruct "Hp" as "(H & ?)"; iSplitL "H"; first by iApply ty_share.
     rewrite /heap_spacer /mapsto_memory_block.at_offset. if_tac; first done.
     iApply inv_alloc. iModIntro. iExists _. iFrame; auto.
@@ -78,13 +81,12 @@ Section union.
   Definition ti_member (ti : tunion_info A) (r : A) :=
     (option.default (Member_plain 1%positive Tvoid) ((get_co ti.(ti_union_layout)).(co_members) !! ti.(ti_tag) r)).
 
-(*  Lemma index_of_ti_member ti (x : A):
-    index_of_union (ti_member ti x).1 (ti_union_layout ti) = Some (ti.(ti_tag) x).
+  Lemma index_of_ti_member ti (x : A):
+    (get_co (ti_union_layout ti)).(co_members) !! (ti.(ti_tag) x) = Some (ti_member ti x).
   Proof.
     rewrite /ti_member.
-    destruct (ti_tags_valid ti x) as [[n ly] Heq]. rewrite Heq /=.
-    by apply: index_of_union_lookup.
-  Qed. *)
+    destruct (ti_tags_valid ti x) as [? Heq]. rewrite Heq //.
+  Qed.
 
   (*** tag *)
   Program Definition tunion_tag (ti : tunion_info A) (x : A) : type := {|
@@ -146,51 +148,166 @@ Section union.
   Definition type_binop_tunion_tag_int_le_inst ge := [instance type_binop_tunion_tag_int ge Cop.Ole].
   Global Existing Instance type_binop_tunion_tag_int_le_inst.
 
+  Lemma has_layout_union_noattr : forall i a l, l `has_layout_loc` (Tunion i a) ↔ l `has_layout_loc` (Tunion i noattr).
+  Proof.
+    intros; rewrite /has_layout_loc /field_compatible; do 3 f_equiv; last f_equiv; try done.
+    rewrite /align_compatible_dec.align_compatible /=.
+    split; inversion 1; try done; eapply align_compatible_rec_Tunion; done.
+  Qed.
+
+  Lemma mapsto_union : forall id a l v, l ↦|Tunion id a| v ⊣⊢ aggregate_pred.union_pred (co_members (get_co id))
+    (fun it v => mapsto_memory_block.withspacer Tsh (sizeof (field_type (name_member it) (co_members (get_co id))))
+                        (co_sizeof (get_co id))
+                        (data_at_rec Tsh (field_type (name_member it) (co_members (get_co id))) v))
+    (unfold_reptype v) l.
+  Proof.
+    intros; rewrite /mapsto data_at_rec_eq //.
+  Qed.
+
+  Opaque field_type.
+
+  (* up *)
+  Lemma union_Prop_cons2:
+    forall it it' m (A: member -> Type)
+     (P: forall it, A it -> Prop)
+     (v: compact_sum (map A (it::it'::m))),
+   aggregate_pred.aggregate_pred.union_Prop (it :: it' :: m) P v =
+     match v with inl v => P _ v | inr v => aggregate_pred.aggregate_pred.union_Prop (it'::m) P v end.
+  Proof.
+    intros.
+    destruct v; reflexivity.
+  Qed.
+
+  Lemma union_pred_irrel : forall m {A} (P : forall it, A it -> val -> mpred) v p p',
+    (forall it v, P it v p = P it v p') -> aggregate_pred.union_pred m P v p = aggregate_pred.union_pred m P v p'.
+  Proof.
+    induction m; intros; first done.
+    destruct m.
+    - simpl; auto.
+    - setoid_rewrite union_pred_cons2.
+      destruct v; auto.
+  Qed.
+
+  (* up? *)
+  Definition inject_field mems0 mems n m (Hindex : mems !! n = Some m)
+    (v : reptype (field_type (name_member m) mems0)) : compact_sum (map (λ it : member, reptype (field_type (name_member it) mems0)) mems).
+  Proof.
+    generalize dependent n; induction mems; intros.
+    { exact tt. }
+    destruct mems.
+    - destruct n; inv Hindex.
+      exact v.
+    - destruct n.
+      + inv Hindex; exact (inl v).
+      + exact (inr (IHmems _ Hindex)).
+  Defined.
+
+  Lemma inject_field_cons2 : forall mems0 m0 m1 mems n m (Hindex : (m0 :: m1 :: mems) !! S n = Some m)
+    (v : reptype (field_type (name_member m) mems0)), inject_field mems0 (m0 :: m1 :: mems) (S n) m Hindex v =
+    inr (inject_field mems0 (m1 :: mems) n m Hindex v).
+  Proof. reflexivity. Qed.
+
+  Lemma inject_field_union_pred : forall mems0 P mems n m (Hindex : mems !! n = Some m) v p,
+    aggregate_pred.union_pred mems P (inject_field mems0 mems n m Hindex v) p = P m v p.
+  Proof.
+    induction mems; first done; intros.
+    destruct mems.
+    - destruct n; dependent destruction Hindex; done.
+    - destruct n.
+      + dependent destruction Hindex; done.
+      + fold aggregate_pred.aggregate_pred.union_pred; rewrite inject_field_cons2 union_pred_cons2 //.
+  Qed.
+
+  Lemma inject_field_union_Prop : forall mems0 P mems n m (Hindex : mems !! n = Some m) v,
+    aggregate_pred.union_Prop mems P (inject_field mems0 mems n m Hindex v) = P m v.
+  Proof.
+    induction mems; first done; intros.
+    destruct mems.
+    - destruct n; dependent destruction Hindex; done.
+    - destruct n.
+      + dependent destruction Hindex; done.
+      + fold aggregate_pred.aggregate_pred.union_Prop; rewrite inject_field_cons2 union_Prop_cons2 //.
+  Qed.
+
+  Definition inject_ti_field ti x v := inject_field (get_co ti.(ti_union_layout)).(co_members)
+    _ _ _ (index_of_ti_member ti x) v.
+
+  Import EqNotations.
 
   (*** variant *)
   Program Definition variant (ti : tunion_info A) (x : A) (ty : type) : type := {|
-    ty_has_op_type ot mt := (∃ a, ot = Tunion ti.(ti_union_layout) a) /\ ty.(ty_has_op_type) (type_member (ti_member ti x)) MCNone;
-    ty_own β l := (l ◁ₗ{β} ty ∗ heap_spacer β (sizeof (type_member (ti_member ti x))) (sizeof (Tunion ti.(ti_union_layout) noattr)) l)%I;
-    ty_own_val cty v := (v ◁ᵥ|cty| (*(padded ty (ti_member ti x).2 (ul_layout ti.(ti_union_layout)))*) ty)%I;
-    (* Do we need the padding in ty_own_val? *)
+    ty_has_op_type ot mt := (∃ a, ot = Tunion ti.(ti_union_layout) a) /\ ty.(ty_has_op_type) (field_type (name_member (ti_member ti x)) (get_co ti.(ti_union_layout)).(co_members)) MCNone;
+    ty_own β l := (<affine> ⌜l `has_layout_loc` Tunion ti.(ti_union_layout) noattr⌝ ∗ heap_withspacer β (sizeof (field_type (name_member (ti_member ti x)) (get_co ti.(ti_union_layout)).(co_members))) (co_sizeof (get_co ti.(ti_union_layout)))
+      (λ p, match val2adr p with Some l => l ◁ₗ{β} ty | _ => False end) l)%I;
+    ty_own_val cty v := (∃ v', <affine> ⌜v `has_layout_val` cty ∧
+      ∃ a (Hcty : cty = Tunion ti.(ti_union_layout) a), unfold_reptype (rew Hcty in v) = inject_ti_field ti x v'⌝ ∗
+      v' ◁ᵥ|field_type (name_member (ti_member ti x)) (get_co ti.(ti_union_layout)).(co_members)| ty)%I;
   |}.
-  Next Obligation. iIntros (??????) "(H & ?)". iSplitL "H"; first by iApply ty_share.
+  Next Obligation. iIntros (??????) "($ & H & ?)". iSplitL "H"; first by iApply ty_share.
     rewrite /heap_spacer /mapsto_memory_block.at_offset. if_tac; first done.
     iApply inv_alloc. iModIntro. iExists _. iFrame; auto.
   Qed.
-  Next Obligation. iIntros (?????? ((? & ->) & ?)) "(Hv & _)". iDestruct (ty_aligned _ _ _ with "Hv") as %?; first done.
-    iPureIntro. simpl.
+  Next Obligation. iIntros (?????? ((? & ->) & ?)) "(% & Hv & _)".
+    rewrite has_layout_union_noattr //.
   Qed.
-  Next Obligation. iIntros (???????) "Hv". by iDestruct (ty_size_eq with "Hv") as %?. Qed.
-  Next Obligation. iIntros (???????) => /=. by apply: ty_deref. Qed.
-  Next Obligation. iIntros (?????????) "Hl Hv" => /=. by iApply (ty_ref with "[] Hl Hv"). Qed.
-  Next Obligation. iIntros (????????) "Hv". by iApply (ty_memcast_compat with "Hv"). Qed.
+  Next Obligation. iIntros (?????? ((? & ->) & ?)) "(% & ($ & %) & Hv)". Qed.
+  Next Obligation. iIntros (?????? ((? & ->) & ?)) => /=.
+    iIntros "(_ & Hl & Hspacer)".
+    iDestruct (ty_deref with "Hl") as (v) "(? & Hv)"; first done.
+    rewrite /has_layout_val /type_is_volatile. setoid_rewrite value_fits_eq; simpl.
+    setoid_rewrite mapsto_union.
+    iExists (fold_reptype(t := Tunion _ _) (inject_ti_field ti x v)).
+    iDestruct (ty_size_eq with "Hv") as %(? & _); first done.
+    rewrite unfold_fold_reptype inject_field_union_pred -heap_withspacer_eq; iFrame.
+    iPureIntro.
+    split; first by rewrite /aggregate_pred.aggregate_pred.union_Prop inject_field_union_Prop.
+    exists _, eq_refl; rewrite /= unfold_fold_reptype //.
+  Qed.
+  Next Obligation. iIntros (??????? ((? & ->) & ?) Hly) "Hl Hv" => /=.
+    rewrite mapsto_union.
+    iDestruct "Hv" as "(% & (% & % & % & %Hinj) & Hv)".
+    iSplit; first by erewrite <- has_layout_union_noattr.
+    dependent destruction Hcty; simpl in *.
+    rewrite Hinj inject_field_union_pred -heap_withspacer_eq.
+    iDestruct "Hl" as "(Hl & $)"; simpl.
+    destruct l; iApply (ty_ref with "[%] Hl Hv"); try done.
+    pose proof (index_of_ti_member ti x) as Hf.
+    apply elem_of_list_lookup_2, elem_of_list_In in Hf.
+    apply (in_map name_member) in Hf.
+    apply (field_compatible_app_inv' [UnionField (name_member (ti_member ti x))]), field_compatible_nested_field in Hly; last done.
+    rewrite app_nil_r /nested_field_type /nested_field_offset /= in Hly.
+    apply compute_in_members_true_iff in Hf; rewrite Hf Ptrofs.add_zero // in Hly.
+  Qed.
+  (* Next Obligation. iIntros (????????) "Hv". by iApply (ty_memcast_compat with "Hv"). Qed. *)
 
-  Lemma subsume_active_union_variant B ti ul x l β ty1 ty2 n T:
-    (l at_union{ul}ₗ n ◁ₗ{β} ty1 -∗
-      ∃ y, ⌜ti.(ti_union_layout) = ul⌝ ∗ ⌜(ti_member ti (x y)).1 = n⌝ ∗
-            (l at_union{ul}ₗ n ◁ₗ{β} ty2 y) ∗ T y)
-    ⊢ subsume (l ◁ₗ{β} active_union ul n ty1) (λ y : B, l ◁ₗ{β} variant ti (x y) (ty2 y)) T.
+  Definition GetMemberUnionLoc (l : address) (i : ident) (m : ident) : address := (l).
+  Notation "l 'at_union{' ul '}ₗ' m" := (GetMemberUnionLoc l ul m) (at level 10, format "l  'at_union{' ul '}ₗ'  m") : stdpp_scope.
+  Global Typeclasses Opaque GetMemberUnionLoc.
+  Arguments GetMemberUnionLoc : simpl never.
+
+  Lemma subsume_active_union_variant B ti i x l β ty1 ty2 n T:
+    (l at_union{i}ₗ n ◁ₗ{β} ty1 -∗
+      ∃ y, <affine> ⌜ti.(ti_union_layout) = i⌝ ∗ <affine> ⌜name_member (ti_member ti (x y)) = n⌝ ∗
+            (l at_union{i}ₗ n ◁ₗ{β} ty2 y) ∗ T y)
+    ⊢ subsume (l ◁ₗ{β} active_union i n ty1) (λ y : B, l ◁ₗ{β} variant ti (x y) (ty2 y)) T.
   Proof.
-    iIntros "HT". iDestruct 1 as (ly Hly) "Hu".
-    iDestruct (padded_focus with "Hu") as "[Hl Hpad]".
-    rewrite /GetMemberUnionLoc/=. iDestruct ("HT" with "[$]") as (? <- <-) "[??]".
-    iDestruct ("Hpad" with "[$]") as "?". iExists _. iFrame.
-    move: Hly => /layout_of_member_ti_member ->. done.
+    iIntros "HT". iDestruct 1 as (? (? & ? & <-) ?) "[Hl Hpad]".
+    rewrite /GetMemberUnionLoc/=. destruct l; iDestruct ("HT" with "[$]") as (? <- <-) "[??]".
+    rewrite name_member_get. iExists _. iFrame. done.
   Qed.
   Definition subsume_active_union_variant_inst := [instance subsume_active_union_variant].
   Global Existing Instance subsume_active_union_variant_inst.
 
   Lemma subsume_variant_variant B ti x1 x2 l β ty1 ty2 T:
-    (l at_union{ti.(ti_union_layout)}ₗ (ti_member ti x1).1 ◁ₗ{β} ty1 -∗
-      ∃ y, ⌜ti.(ti_tag) x1 = ti.(ti_tag) (x2 y)⌝ ∗
-      l at_union{ti.(ti_union_layout)}ₗ (ti_member ti x1).1 ◁ₗ{β} (ty2 y) ∗ T y)
+    (l at_union{ti.(ti_union_layout)}ₗ (name_member (ti_member ti x1)) ◁ₗ{β} ty1 -∗
+      ∃ y, <affine> ⌜ti.(ti_tag) x1 = ti.(ti_tag) (x2 y)⌝ ∗
+      l at_union{ti.(ti_union_layout)}ₗ (name_member (ti_member ti x1)) ◁ₗ{β} (ty2 y) ∗ T y)
     ⊢ subsume (l ◁ₗ{β} variant ti x1 ty1) (λ y : B, l ◁ₗ{β} variant ti (x2 y) (ty2 y)) T.
   Proof.
-    iIntros "HT". rewrite !/(ty_own (variant _ _ _))/=/ti_member.
-    iIntros "Hpad". iDestruct (padded_focus with "Hpad") as "[Hl Hpad]".
-    iDestruct ("HT" with "Hl") as (? Heq) "[??]". iExists _. iFrame.
-    rewrite Heq. by iApply "Hpad".
+    iIntros "HT". rewrite {3 4}/ty_own/GetMemberUnionLoc/=/ti_member.
+    iIntros "(% & Hl & Hpad)".
+    destruct l; iDestruct ("HT" with "Hl") as (? Heq) "[??]". iExists _. iFrame.
+    rewrite Heq. iFrame. done.
   Qed.
   Definition subsume_variant_variant_inst := [instance subsume_variant_variant].
   Global Existing Instance subsume_variant_variant_inst.
@@ -248,7 +365,7 @@ Section tunion.
   Next Obligation. iIntros (??????) "Hv". by iApply (ty_size_eq with "Hv"). Qed.
   Next Obligation. iIntros (??????) "Hl". by iApply (ty_deref with "Hl"). Qed.
   Next Obligation. iIntros (????????) "Hl Hv". by iApply (ty_ref with "[] Hl Hv"). Qed.
-  Next Obligation. move => ???????. by apply ty_memcast_compat. Qed.
+  (* Next Obligation. move => ???????. by apply ty_memcast_compat. Qed. *)
 
   Lemma simplify_hyp_tunion ti x l β T:
     (l ◁ₗ{β} struct ti.(ti_base_layout) [
