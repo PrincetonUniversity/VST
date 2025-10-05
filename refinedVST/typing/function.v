@@ -180,8 +180,9 @@ Section function.
     rewrite memory_block_data_at_rec_default_val //.
     * iFrame.
       iPureIntro.
-      split; auto; rewrite /has_layout_val /=.
-      split; first apply default_value_fits; done.
+      split3; auto; rewrite /has_layout_val /=.
+      { split; first apply default_value_fits; done. }
+      { eexists; split; first done; by rewrite Forall_forall. }
     * unfold Ptrofs.max_unsigned, sizeof in *; rep_lia.
     * apply H1.
   Qed.

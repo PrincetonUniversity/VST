@@ -9,35 +9,158 @@ and the [bytewise] abstraction could be encoded on top of it. *)
 
 Section bytewise.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
+
+  Opaque field_type.
+
+  (* Because ty_own_val is at the reptype level, for now this is defined only for bytewise representations
+     of reptypes, rather than arbitrary byte arrays that happen to have the right layout. *)
+
+  Definition struct_encode_aux (m m0: members) (sz: Z)
+       (P: hlist.hlist (type_induction.tmap (fun it => reptype (field_type (name_member it) m0) -> list memval) m))
+       (v: compact_prod (map (fun it => reptype (field_type (name_member it) m0)) m)) : list memval.
+  Proof.
+    destruct m as [| a0 m]; [exact [] |].
+    revert a0 v P; induction m as [| a0 m]; intros ? v P.
+    + simpl in v, P.
+      inversion P; subst.
+      exact (X v ++ Zrepeat Undef (field_offset_next cenv_cs (name_member a0) m0 sz - (field_offset cenv_cs (name_member a0) m0 + sizeof (field_type (name_member a0) m0)))).
+    + simpl in v, P.
+      inversion P; subst.
+      exact (X (fst v) ++ Zrepeat Undef (field_offset_next cenv_cs (name_member a1) m0 sz - (field_offset cenv_cs (name_member a1) m0 + sizeof (field_type (name_member a1) m0))) ++
+        IHm a0 (snd v) X0).
+  Defined.
+
+  Definition struct_encode (m: members) {A : member → Type} (P : ∀ it, A it → list memval) (v: compact_prod (map A m)) : list memval.
+  Proof.
+    destruct m as [| a m]; [exact [] | ].
+    revert a v; induction m as [| b m]; intros ? v.
+    + simpl in v.
+      exact (P _ v).
+    + simpl in v.
+      exact (P _ (fst v) ++ IHm _ (snd v)).
+  Defined.
+
+  Lemma struct_encode_aux_spec: forall m m0 sz v P,
+    struct_encode_aux m m0 sz
+      (type_induction.hmap (fun it => reptype (field_type (name_member it) m0) -> list memval) P m) v =
+    struct_encode m (fun it v => P it v ++
+      Zrepeat Undef (field_offset_next cenv_cs (name_member it) m0 sz - (field_offset cenv_cs (name_member it) m0 + sizeof (field_type (name_member it) m0)))) v.
+  Proof.
+    intros.
+    destruct m as [| a0 m]; [reflexivity |].
+    revert a0 v; induction m as [| a0 m]; intros.
+    + reflexivity.
+    + change (struct_encode_aux (a1 :: a0 :: m) m0 sz
+     (type_induction.hmap (fun it : member => reptype (field_type (name_member it) m0) -> list memval)
+        P (a1 :: a0 :: m)) v) with
+     (P a1 (fst v) ++ Zrepeat Undef (field_offset_next cenv_cs (name_member a1) m0 sz - (field_offset cenv_cs (name_member a1) m0 + sizeof (field_type (name_member a1) m0))) ++
+      struct_encode_aux (a0 :: m) m0 sz
+        (type_induction.hmap (fun it : member => reptype (field_type (name_member it) m0) -> list memval)
+        P (a0 :: m)) (snd v)).
+      rewrite IHm app_assoc //.
+  Qed.
+
+  Definition union_encode_aux (m m0: members) (sz: Z)
+      (P: hlist.hlist (type_induction.tmap (fun it => reptype (field_type (name_member it) m0) -> list memval) m))
+      (v: compact_sum (map (fun it => reptype (field_type (name_member it) m0)) m)) : list memval.
+  Proof.
+    destruct m as [| a0 m]; [exact [] |].
+    revert a0 v P; induction m as [| a0 m]; intros ? v P.
+    + simpl in v, P.
+      inversion P; subst.
+      exact (X v ++ Zrepeat Undef (sz - sizeof (field_type (name_member a0) m0))).
+    + simpl in v, P.
+      inversion P; subst.
+      destruct v as [v | v].
+      - exact (X v ++ Zrepeat Undef (sz - sizeof (field_type (name_member a1) m0))).
+      - exact (IHm a0 v X0).
+  Defined.
+
+  Definition union_encode (m: members) {A : member → Type} (P : ∀ it, A it → list memval) (v: compact_sum (map A m)) : list memval.
+  Proof.
+    destruct m as [| a m]; [exact [] | ].
+    revert a v; induction m as [| b m]; intros ? v.
+    + simpl in v.
+      exact (P _ v).
+    + simpl in v.
+      destruct v as [v | v].
+      - exact (P _ v).
+      - exact (IHm _ v).
+  Defined.
+
+  Lemma union_encode_aux_spec: forall m m0 sz v P,
+    union_encode_aux m m0 sz
+      (type_induction.hmap (fun it => reptype (field_type (name_member it) m0) -> list memval) P m) v =
+    union_encode m (fun it v => P it v ++
+      Zrepeat Undef (sz - sizeof (field_type (name_member it) m0))) v.
+  Proof.
+    intros.
+    destruct m as [| a0 m]; [reflexivity |].
+    revert a0 v; induction m as [| a0 m]; intros.
+    + reflexivity.
+    + destruct v as [v | v].
+      - reflexivity.
+      - match goal with
+        | _ => apply IHm
+        | _ => simpl; f_equal; apply IHm
+        end.
+  Qed.
+
+  Definition encode_reptype: forall t, reptype t -> list memval :=
+    type_induction.type_func (fun t => reptype t -> list memval)
+      (fun t v => match access_mode t with By_value ch => encode_val ch (repinject t v) | _ => Zrepeat Undef (sizeof t) end)
+      (fun t n a P v => foldr (λ v m, P v ++ m) [] (unfold_reptype v))
+      (fun id a P v => struct_encode_aux (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
+      (fun id a P v => union_encode_aux (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
+
+  Lemma encode_reptype_eq: forall t v,
+    encode_reptype t v =
+    match t return REPTYPE t -> list memval with
+    | Tvoid
+    | Tfunction _ _ _ => fun _ => [Undef]
+    | Tint _ _ _
+    | Tfloat _ _
+    | Tlong _ _
+    | Tpointer _ _ => fun v => match access_mode t with By_value ch => encode_val ch v | _ => Zrepeat Undef (sizeof t) end
+    | Tarray t0 n a => fun v => foldr (λ v m, encode_reptype t0 v ++ m) [] v
+    | Tstruct id a => struct_encode (co_members (get_co id)) (fun it v => encode_reptype (field_type (name_member it) (co_members (get_co id))) v ++
+        Zrepeat Undef (field_offset_next cenv_cs (name_member it) (co_members (get_co id)) (co_sizeof (get_co id)) -
+          (field_offset cenv_cs (name_member it) (co_members (get_co id)) + sizeof (field_type (name_member it) (co_members (get_co id))))))
+    | Tunion id a => union_encode (co_members (get_co id)) (fun it v => encode_reptype (field_type (name_member it) (co_members (get_co id))) v ++
+        Zrepeat Undef ((co_sizeof (get_co id)) - sizeof (field_type (name_member it) (co_members (get_co id)))))
+    end (unfold_reptype v).
+  Proof.
+    intros.
+    unfold encode_reptype at 1.
+    rewrite type_induction.type_func_eq.
+    destruct t; auto.
+    + rewrite <- struct_encode_aux_spec; reflexivity.
+    + rewrite <- union_encode_aux_spec; reflexivity.
+  Qed.
+
   Implicit Types P : memval → Prop.
 
-  (* Because ty_own_val is at the val level, for now this is defined only for bytewise representations
-     of vals, rather than arbitrary byte arrays that happen to have the right layout. *)
-
   Program Definition bytewise (P : memval → Prop) (cty : Ctypes.type) : type := {|
-    ty_has_op_type ot mt := (ot = cty ∧ type_is_by_value cty = true)%type;
-    (* Does bytewise make sense for non-by-value types? Structs do have
-       defined layouts in memory, but we don't have a function for interpreting memvals as structs.
-       We could consider lifting the definition of ↦[β] all the way to data_at? *)
+    ty_has_op_type ot mt := ot = cty;
     ty_own β l :=
-      ∃ (v:val), <affine> ⌜(valinject cty v) `has_layout_val` cty⌝ ∗
+      ∃ (v:reptype cty), <affine> ⌜v `has_layout_val` cty⌝ ∗
            <affine> ⌜l `has_layout_loc` cty⌝ ∗
-           <affine> ⌜∃ ch bl, access_mode cty = By_value ch ∧ encode_val ch v = bl ∧ Forall P bl⌝ ∗
-           l ↦[β]|cty| (valinject cty v);
+           <affine> ⌜∃ bl, encode_reptype cty v = bl ∧ Forall P bl⌝ ∗
+           l ↦[β]|cty| v;
     ty_own_val cty' v_rep := 
       <affine> ⌜cty' = cty⌝ ∗ 
       <affine> ⌜v_rep `has_layout_val` cty'⌝ ∗
-      <affine> ⌜∃ ch bl, access_mode cty = By_value ch ∧ encode_val ch (repinject cty' v_rep) = bl ∧ Forall P bl⌝;
+      <affine> ⌜∃ bl, encode_reptype cty' v_rep = bl ∧ Forall P bl⌝;
   |}%I.
   Next Obligation.
     iIntros (?????). iDestruct 1 as (?) "(?&?&?&Hl)".
     iMod (heap_mapsto_own_state_share with "Hl") as "Hl".
     eauto with iFrame.
   Qed.
-  Next Obligation. iIntros (?????[-> ?]). by iDestruct 1 as (???) "_". Qed.
-  Next Obligation. iIntros (?????[-> ?](?&?&?)). done. Qed.
-  Next Obligation. iIntros (?????[-> ?]). iDestruct 1 as (????) "?". iFrame. rewrite repinject_valinject //. Qed.
-  Next Obligation. iIntros (????? v [-> ?] ?) "? [% [% %]]". iExists (repinject cty v). rewrite valinject_repinject //. iFrame. eauto. Qed.
+  Next Obligation. iIntros (?????->). by iDestruct 1 as (???) "_". Qed.
+  Next Obligation. iIntros (?????->(?&?&?)). done. Qed.
+  Next Obligation. iIntros (?????->). iDestruct 1 as (????) "?". by iFrame. Qed.
+  Next Obligation. iIntros (????? v -> ?) "? [% [% %]]". eauto. Qed.
 (*   Next Obligation. iIntros (ly P v ot mt st ?). apply mem_cast_compat_Untyped. destruct ot; naive_solver. Qed. *)
 
   Lemma bytewise_weaken l β P1 P2 ly:
@@ -45,7 +168,7 @@ Section bytewise.
     l ◁ₗ{β} bytewise P1 ly -∗ l ◁ₗ{β} bytewise P2 ly.
   Proof.
     iIntros (?). iDestruct 1 as (??? HP) "H". iExists _; iFrame.
-    iPureIntro; split_and! => //. edestruct HP as (? & ? & ? & ? & ?%Forall_impl); eauto.
+    iPureIntro; split_and! => //. edestruct HP as (? & ? & ?%Forall_impl); eauto.
   Qed.
 
   (* To do this, ly should be something more flexible than a type, but I don't think VST has that.
@@ -185,10 +308,12 @@ Notation "bytewise< P , ly >" := (bytewise P ly)
 
 Global Typeclasses Opaque bytewise.
 
+Notation uninit := (bytewise (λ _, True%type)).
+
 Section uninit.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  (* RefinedC defines uninit in terms of bytewise, but that's an unnecessary complication when vals aren't
+(*  (* RefinedC defines uninit in terms of bytewise, but that's an unnecessary complication when vals aren't
      already at the memval level. *)
   Program Definition uninit cty : type := {|
     ty_has_op_type ot mt := ot = cty;
@@ -206,11 +331,18 @@ Section uninit.
   Next Obligation. iIntros (????->). by iDestruct 1 as (???) "_". Qed.
   Next Obligation. by iIntros (????-> [??]). Qed.
   Next Obligation. iIntros (????->). iDestruct 1 as (???) "?". by eauto. Qed.
-  Next Obligation. iIntros (???? v -> ?) "? [%%]". iExists v. by iFrame. Qed.
+  Next Obligation. iIntros (???? v -> ?) "? [%%]". iExists v. by iFrame. Qed. *)
 
   Lemma uninit_own_spec l ly:
     (l ◁ₗ uninit ly)%I ≡ (mapsto_layout l Tsh ly)%I.
-  Proof. done. Qed.
+  Proof.
+    rewrite /ty_own/=; iSplit.
+    - iDestruct 1 as (??? _) "Hl". iExists _; by iFrame.
+    - iDestruct 1 as (v ??) "Hl". iExists v; iFrame.
+      iPureIntro; split3; try done.
+      eexists; split; first done.
+      by rewrite Forall_forall.
+  Qed.
 
    (* This only works for [Own] since [ty] might have interior mutability. *)
   Lemma uninit_mono A l ty ly `{!TCDone (ty.(ty_has_op_type) ly MCNone)} T:
@@ -221,7 +353,7 @@ Section uninit.
     iDestruct (ty_aligned with "Hl") as %?; [done|].
     iDestruct (ty_deref with "Hl") as (v) "[Hl Hv]"; [done|].
     iDestruct (ty_size_eq with "Hv") as %?; [done|].
-    iDestruct ("HT" with "Hv") as (?) "?". iExists _. by iFrame.
+    iDestruct ("HT" with "Hv") as (?) "?". iExists _. rewrite uninit_own_spec. by iFrame.
   Qed.
   (* This rule is handled with a definition and an [Hint Extern] (not
   with an instance) since this rule should only apply ty is not uninit
@@ -285,7 +417,13 @@ Section void.
 
   Lemma type_void T:
     T void ⊢ typed_value tvoid Vundef T.
-  Proof. iIntros "HT". iExists _. iFrame. iPureIntro; split3; auto. by intros ?. Qed.
+  Proof. iIntros "HT". iExists _. iFrame. rewrite /=/ty_own_val_at/ty_own_val/=. iPureIntro; split3; auto.
+    - split; auto.
+      by intros ?.
+    - rewrite encode_reptype_eq /=.
+      eexists; split; try done.
+      repeat constructor.
+  Qed.
   Definition type_void_inst := [instance type_void].
   Global Existing Instance type_void_inst.
 End void.
@@ -296,12 +434,11 @@ Section zeroed.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
 (*  Lemma subsume_uninit_zeroed A p ly1 ly2 T:
-    ⌜ly_align ly1 = ly_align ly2⌝ ∗ ⌜ly_size ly2 = 0%nat⌝ ∗ (p ◁ₗ uninit ly1 -∗ ∃ x, T x)
+    <affine> ⌜alignof ly1 = alignof ly2⌝ ∗ <affine> ⌜sizeof ly2 = 0⌝ ∗ (p ◁ₗ uninit ly1 -∗ ∃ x, T x)
     ⊢ subsume (p ◁ₗ uninit ly1)%I (λ x : A, p ◁ₗ zeroed ly2)%I T.
   Proof.
     iDestruct 1 as (H1 H2) "HT". iIntros "Hp".
-    iDestruct (ty_aligned _ (UntypedOp _) MCNone with "Hp") as %Hal; [done|].
-    iDestruct (loc_in_bounds_in_bounds with "Hp") as "#Hlib".
+    iDestruct (ty_aligned _ _ MCNone with "Hp") as %Hal; [done|].
     iDestruct ("HT" with "Hp") as (?) "?". iExists _. iFrame.
     iExists []. rewrite Forall_nil /has_layout_loc -H1. repeat iSplit => //.
     rewrite /heap_mapsto_own_state heap_mapsto_eq /heap_mapsto_def /=.
