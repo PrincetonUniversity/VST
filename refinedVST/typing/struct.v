@@ -64,7 +64,7 @@ Section struct.
     induction m; intros.
     - simpl; by iIntros.
     - destruct m; first done.
-      setoid_rewrite struct_pred_cons2.
+      rewrite -/aggregate_pred.aggregate_pred.struct_pred struct_pred_cons2.
       setoid_rewrite IHm.
       apply fupd_sep.
   Qed.
@@ -75,7 +75,7 @@ Section struct.
     induction m; intros.
     - simpl. apply _.
     - destruct m; first apply _.
-      setoid_rewrite struct_pred_cons2.
+      rewrite -/aggregate_pred.aggregate_pred.struct_pred struct_pred_cons2.
       apply bi.sep_persistent; apply _.
   Qed.
 
@@ -135,7 +135,7 @@ Section struct.
     induction m; intros; first done.
     destruct m.
     - simpl; auto.
-    - setoid_rewrite struct_pred_cons2.
+    - rewrite -/aggregate_pred.aggregate_pred.struct_pred !struct_pred_cons2.
       f_equal; auto.
   Qed.
 
@@ -183,14 +183,14 @@ Section struct.
   Program Definition struct (i : ident) (tys : list type) : type := {|
     ty_has_op_type := is_struct_ot i tys;
     ty_own β l :=
-      <affine> ⌜l `has_layout_loc` (Tstruct i noattr)⌝ ∗ <affine> ⌜(cenv_cs !! i)%maps ≠ None ∧ length ((get_co i).(co_members)) = length tys⌝ ∗
+      <affine> ⌜l `has_layout_loc` (Tstruct i noattr)⌝ ∗ <affine> ⌜length ((get_co i).(co_members)) = length tys⌝ ∗
       aggregate_pred.struct_pred (get_co i).(co_members) (λ m ty,
         heap_withspacer β (field_offset cenv_cs (name_member m) (get_co i).(co_members) + sizeof (field_type (name_member m) (get_co i).(co_members)))
          (field_offset_next cenv_cs (name_member m) (get_co i).(co_members) (co_sizeof (get_co i)))
          (mapsto_memory_block.at_offset (λ p, match val2adr p with Some l => l ◁ₗ{β} ty | _ => False end)
             (field_offset cenv_cs (name_member m) (get_co i).(co_members)))) (make_ty_prod tys (get_co i).(co_members)) l;
     ty_own_val cty v :=
-      (∃ a (Hcty : cty = Tstruct i a), <affine> ⌜v `has_layout_val` cty⌝ ∗ <affine> ⌜(cenv_cs !! i)%maps ≠ None ∧ length ((get_co i).(co_members)) = length tys⌝ ∗
+      (∃ a (Hcty : cty = Tstruct i a), <affine> ⌜v `has_layout_val` cty⌝ ∗ <affine> ⌜length ((get_co i).(co_members)) = length tys⌝ ∗
        (*[∗ list] v';ty∈reshape (ly_size <$> sl.(sl_members).*2) v;tys, (v' ◁ᵥ ty))%I;*)
        aggregate_pred.struct_pred (get_co i).(co_members) (λ m v _,
          ∃ ty, <affine> ⌜∃ j, (get_co i).(co_members) !! j = Some m ∧ tys !! j = Some ty⌝ ∗ v ◁ᵥ|field_type (name_member m) (get_co i).(co_members)| ty)
@@ -212,7 +212,7 @@ Section struct.
   Next Obligation. iIntros (sl tys ot mt v (? & ->)%is_struct_ot_layout) "(% & % & % & _)". done. Qed.
   Next Obligation.
     move => i tys ot mt l /is_struct_ot_forall.
-    iIntros (((a & ->) & Hlys)) "Htys". iDestruct "Htys" as (_ (Hi & Hcount)) "Htys".
+    iIntros (((a & ->) & Hlys)) "Htys". iDestruct "Htys" as (_ Hcount) "Htys".
     destruct Hlys as (sl & Hi' & Hlys).
     assert (sl = get_co i) as ->.
     { rewrite /get_co Hi' //. }
@@ -259,12 +259,12 @@ Section struct.
       + iPureIntro.
         simpl; split3; auto.
         by exists O.
-    - setoid_rewrite struct_pred_cons2 at 1.
+    - rewrite -/aggregate_pred.aggregate_pred.struct_pred struct_pred_cons2.
       iDestruct "Htys" as "((Hty & Hspacer) & Htys)".
       iDestruct (ty_deref with "Hty") as (v) "(Hv & Hty)"; first done.
       iDestruct ("IH" with "[//] [//] [//] Htys") as "(%vs & Hvs & (%Hvs & _) & %Hlen & Htys)"; iClear "IH".
       iDestruct (ty_size_eq with "Hty") as %(? & _); first done.
-      iExists (v, vs); setoid_rewrite struct_pred_cons2.
+      iExists (v, vs); rewrite !struct_pred_cons2.
       rewrite -heap_withspacer_eq; iFrame.
       iSplit.
       { iPureIntro; rewrite struct_Prop_cons2 //. }
@@ -280,7 +280,7 @@ Section struct.
   Qed.
   Next Obligation.
     move => i tys ot mt l v /is_struct_ot_forall. iIntros (((? & ->) & Hlys) Hly) "Hl".
-    iDestruct 1 as (?? Hv (Hi & Hcount)) "Htys".
+    iDestruct 1 as (?? Hv Hcount) "Htys".
     dependent destruction Hcty; simpl.
     rewrite has_layout_struct_noattr in Hly.
     iSplit => //.
@@ -312,7 +312,6 @@ Section struct.
     constructor.
     - move => β l; rewrite/ty_own/=.
       f_equiv; iIntros "(%H & H)"; iSplit; first by rewrite -Hlen.
-      destruct H as (Hi & H).
       pose proof (get_co_members_no_replicate i).
       iApply (aggregate_pred.struct_pred_ext_derives with "H"); first done.
       intros ??? Hmem; rewrite /heap_withspacer /mapsto_memory_block.at_offset /=; f_equiv.
@@ -325,7 +324,6 @@ Section struct.
       by f_equiv.
     - move => cty v. rewrite/ty_own_val/=.
       do 5 f_equiv. iIntros "(%H & H)"; iSplit; first by rewrite -Hlen.
-      destruct H as (Hi & H).
       pose proof (get_co_members_no_replicate i).
       iApply (aggregate_pred.struct_pred_ext_derives with "H"); first done.
       intros ??? Hmem.
@@ -349,7 +347,7 @@ Section struct.
     l ◁ₗ{β} struct i tys -∗ ([∗ list] n;ty∈map name_member (get_co i).(co_members);tys, l at{i}ₗ n ◁ₗ{β} ty) ∗ (∀ tys',
            ([∗ list] n;ty∈map name_member (get_co i).(co_members);tys', l at{i}ₗ n ◁ₗ{β} ty) -∗ l ◁ₗ{β} struct i tys').
   Proof.
-    rewrite {1 4}/ty_own/=. iIntros "[$ Hs]". iDestruct "Hs" as ((Hi & Hcount)) "Hs".
+    rewrite {1 4}/ty_own/=. iIntros "[$ Hs]". iDestruct "Hs" as (Hcount) "Hs".
     rewrite /GetMemberLoc.
     pose proof (get_co_members_no_replicate i) as HND.
     set (mems := (get_co i).(co_members)) at 2 3 4 5 7 9 13 14 15 16; clearbody mems.
@@ -379,7 +377,7 @@ Section struct.
       iDestruct "H" as "($ & Hl1)".
       iDestruct ("Hs" with "Hl1") as "(%H' & H)".
       iSplit.
-      { iPureIntro; destruct H'; simpl in *; auto. }
+      { iPureIntro; simpl in *; auto. }
       rewrite make_ty_prod_cons2 //.
   Qed.
 
@@ -388,12 +386,12 @@ Section struct.
      (∃ vs, ([∗ list] x;ty∈vs;tys, let 'existT cty v := x in v ◁ᵥ|cty| ty) ∗ (∀ tys',
            ([∗ list] x;ty∈vs;tys', let 'existT cty v := x in v ◁ᵥ|cty| ty) -∗ v ◁ᵥ|cty| struct i tys')).
   Proof.
-    rewrite {1 4}/ty_own_val_at/ty_own_val/=. iIntros "(% & % & $ & (% & %Hlen) & Hs)".
+    rewrite {1 4}/ty_own_val_at/ty_own_val/=. iIntros "(% & % & $ & %Hlen & Hs)".
     subst; simpl.
     iAssert (∀ mems (Hmems : mems = co_members (get_co i)) (v' : compact_prod (map (λ it : member, reptype (field_type (name_member it) mems)) (co_members (get_co i)))),
       ⌜(rew [λ mems, compact_prod (map (λ it : member, reptype (field_type (name_member it) mems)) (co_members (get_co i)))] Hmems in v') = unfold_reptype v⌝ → ∃ x, ([∗ list] x0;ty ∈ x;tys, let 'existT cty v0 := x0 in v0 ◁ᵥ| cty | ty) ∗
       ∀ x0 : list type, ([∗ list] x1;ty ∈ x;x0, let 'existT cty v0 := x1 in v0 ◁ᵥ| cty | ty) -∗
-      <affine> ⌜(cenv_cs !! i)%maps ≠ None ∧ length (co_members (get_co i)) = length x0⌝ ∗
+      <affine> ⌜length (co_members (get_co i)) = length x0⌝ ∗
       aggregate_pred.struct_pred (co_members (get_co i))
         (λ (m : member) (v0 : reptype (field_type (name_member m) mems)) _,
            ∃ ty : type, <affine> ⌜∃ j : nat, co_members (get_co i) !! j = Some m ∧ x0 !! j = Some ty⌝ ∗
@@ -446,7 +444,7 @@ Section struct.
       iExists (existT (field_type (name_member m) mems) v'.1 :: vs); iFrame.
       destruct j.
       2: { destruct Hj as (Hj & _); inv Hj.
-           apply elem_of_list_lookup_2, elem_of_list_In in H2 as [-> | ?].
+           apply elem_of_list_lookup_2, elem_of_list_In in H1 as [-> | ?].
            * rewrite Pos.eqb_refl // in Hout.
            * destruct (id_in_list) eqn: Hid; first by rewrite orb_true_r in Hout.
              apply id_in_list_false in Hid; contradiction Hid.
@@ -458,7 +456,7 @@ Section struct.
       iDestruct (big_sepL2_length with "Htys") as %?.
       destruct tys' => //; simpl big_sepL2.
       iDestruct "Htys" as "($ & Htys)".
-      iDestruct ("Hs" with "Htys") as "((% & %) & Hs)".
+      iDestruct ("Hs" with "Htys") as "(% & Hs)".
       iSplit; first by iPureIntro; simpl in *; auto.
       iSplit; first by iPureIntro; exists O.
       iApply (aggregate_pred.struct_pred_ext_derives with "Hs"); first done.
@@ -633,17 +631,17 @@ Section struct.
   Proof. exact type_struct_init_syn. Qed. *)
 
 
-  Lemma uninit_struct_equiv l β i a :
+(*  Lemma uninit_struct_equiv l β i a :
     (l ◁ₗ{β} uninit (Tstruct i a)) ⊣⊢ (l ◁ₗ{β} struct i (uninit <$> (map type_member (get_co i).(co_members)))).
   Proof.
     rewrite /struct{1 2}/ty_own/=.
     setoid_rewrite has_layout_struct_noattr.
     iSplit.
-    - iDestruct 1 as (v Hv Hl) "Hl". iSplit => //. iSplit.
-      { iPureIntro. split. { admit. (* remove exists requirement? *) } rewrite length_fmap map_length //. }
-      rewrite /heap_mapsto_own_state.
-      (* is this where we need the smaller invariants? or we could change ty_own to match on β and do one big invariant *)
-      admit.
+    - iDestruct 1 as (v Hv Hl ?) "Hl". iSplit => //. iSplit.
+      { iPureIntro. rewrite length_fmap map_length //. }
+      destruct β; rewrite /heap_mapsto_own_state /=.
+      + rewrite mapsto_struct.
+      + Check inv_split.
 (*      rewrite mapsto_struct.
       rewrite /has_layout_val in Hv.
 Check value_fits_eq.
@@ -669,8 +667,7 @@ Check value_fits_eq.
       all: rewrite heap_mapsto_own_state_app length_app Hv1 Hv2.
       all: rewrite Forall_app !Forall_forall.
       all: by iFrame.*)
-    admit.
-  Admitted.
+  Qed.
 
   Lemma uninit_struct_simpl_hyp l β i a T:
     (l ◁ₗ{β} (struct i (uninit <$> map type_member (get_co i).(co_members))) -∗ T)
@@ -697,7 +694,7 @@ Check value_fits_eq.
     iExists x. by rewrite uninit_struct_equiv.
   Qed.
   Definition subsume_struct_uninit_inst := [instance subsume_struct_uninit].
-  Global Existing Instance subsume_struct_uninit_inst.
+  Global Existing Instance subsume_struct_uninit_inst. *)
 
 End struct.
 Global Typeclasses Opaque struct.

@@ -1,5 +1,7 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
 From VST.typing Require Import programs optional.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
 
 Definition ty_exists_rty_def `{!typeG Ok_ty Σ} {cs : compspecs} {A} (ty : A → type) (a : A) : type := ty a.
