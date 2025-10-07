@@ -503,7 +503,6 @@ Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} (cty:Ctypes.type) (ty : type)
   copy_shr_acc E l :
     mtE ⊆ E →
     ty.(ty_own) Shr l ={E}=∗ <affine> ⌜l `has_layout_loc` cty⌝ ∗
-       (* TODO: the closing conjuct does not make much sense with True *)
        ∃ q' vl, <affine> ⌜readable_share q'⌝ ∗ l ↦{q'}|cty| vl ∗ ty.(ty_own_val) cty vl ∗ (l ↦{q'}|cty| vl ={E}=∗ ty.(ty_own) Shr l)
 }.
 Global Existing Instance copy_own_val_persistent.

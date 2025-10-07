@@ -235,16 +235,14 @@ Section judgements.
   Class TypedSwitch (v : val) (ty : type) (it : Ctypes.type) : Type :=
     typed_switch_proof ls fn R : iProp_to_Prop (typed_switch v ty it ls fn R).
 
-(*  Definition typed_assert (ot : Ctypes.type) (v : val) (P : iProp Σ) (s : stmt) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
+  Definition typed_assert (ot : Ctypes.type) (v : val) (P : assert) (s : statement) (fn : function) (R : type_ret_assert) : assert :=
     (P -∗
        match ot with
-       | BoolOp   => ∃ b, ⌜val_to_bool v = Some b⌝ ∗ ⌜b = true⌝ ∗ typed_stmt s fn ls R Q
-       | IntOp it => ∃ z, ⌜val_to_Z v it = Some z⌝ ∗ ⌜z ≠ 0⌝ ∗ typed_stmt s fn ls R Q
-       | PtrOp    => ∃ l, ⌜val_to_loc v = Some l⌝ ∗ ⌜l ≠ NULL_loc⌝ ∗ wp_if_precond l ∗ typed_stmt s fn ls R Q
-       | _        => False
+       | Tint _ _ _ | Tlong _ _ => ∃ z, <affine> ⌜val_to_Z v ot = Some z⌝ ∗ <affine> ⌜z ≠ 0⌝ ∗ typed_stmt s fn R
+       | _ => <affine> ⌜bool_val ot v = Some true⌝ ∗ typed_stmt s fn R
        end)%I.
-  Class TypedAssert (ot : op_type) (v : val) (P : iProp Σ) : Type :=
-    typed_assert_proof s fn ls R Q : iProp_to_Prop (typed_assert ot v P s fn ls R Q).*)
+  Class TypedAssert (ot : Ctypes.type) (v : val) (P : assert) : Type :=
+    typed_assert_proof s fn R : iProp_to_Prop (typed_assert ot v P s fn R).
 
   (*** expressions *)
 
@@ -299,7 +297,6 @@ Section judgements.
   Class TypedUnOp (v : val) (P : assert) (o : Cop.unary_operation) (t cty : Ctypes.type) : Type :=
     typed_un_op_proof T : iProp_to_Prop (typed_un_op v P o t cty T).
 
-  (* FIXME this probably does not work; maybe providing a list of cty?  *)
   Definition typed_exprs f (el : list expr) (tl : list Ctypes.type) (T : list val → list type → assert) : assert :=
     (∀ Φ, (∀ vl (tys : list type), ([∗ list] v;'(cty,ty)∈vl;zip tl tys, ⎡v ◁ᵥₐₗ|cty| ty⎤) -∗ T vl tys -∗ Φ vl) -∗ wp_exprs ge ⊤ f el tl Φ).
   Global Arguments typed_exprs _ _ _ _%_I.
@@ -347,7 +344,6 @@ Section judgements.
         (∀ (l:address), (⎡v ◁ᵥₐₗ|ot| ty⎤ ={⊤, E}=∗
                 <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
                  ⎡ l ↦_|ot| ⎤ ∗
-                (* Ke : maybe we need later afterall because write is only done a write statement after? *)
                 ▷(⎡ l ↦|ot| (valinject ot v) ⎤ ={E, ⊤}=∗ T))
               -∗ Φ l) -∗
        wp_lvalue ge ⊤ f e Φ)%I.
@@ -416,14 +412,12 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
     typed_addr_of_end_proof T : iProp_to_Prop (typed_addr_of_end l β ty T).
 
   (*** typed places *)
-  (* This defines what place expressions can contain. We cannot reuse
-  W.ectx_item because of BinOpPCtx since there the root of the place
-  expression is not in evaluation position. *)
+  (* This defines what place expressions can contain. *)
   (* TODO: Should we track location information here? *)
  Inductive place_ectx_item :=
   | DerefPCtx (cty : Ctypes.type) (* for Ederef *)
-  (* | GetMemberPCtx (s : struct_layout) (m : var_name) *)
-  (* | GetMemberUnionPCtx (ul : union_layout) (m : var_name) *)
+  | GetMemberPCtx (i : ident) (m : ident)
+  | GetMemberUnionPCtx (i : ident) (m : ident)
   (* | AnnotExprPCtx (n : nat) {A} (x : A) *)
     (* for pointer offset, first operand is pointer: `Ebinop (tptr _) _ (tptr _))`  *)
   | BinOpPCtx1 (op : Cop.binary_operation) (cty_l cty_v cty : Ctypes.type) (v : val) (ty : type)
@@ -433,26 +427,35 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
   (* | UnOpPCtx (op : Cop.unary_operation) *)
   .
 
+  (* The relationship between find_place_ctx in CompCert and Caesium is confusing.
+     In Caesium, deref is an expression that loads a value from memory.
+     In CompCert, it essentially just casts an expression to an lvalue. So for instance,
+     a[1] := 5 will appear in Caesium as Assign (a + 1) 5 where a + 1 computes the pointer,
+     but in CompCert as Assign (Ederef (a + 1)) 5 (i.e., *(a + 1) = 5).
+     Actual loads in CompCert occur when an lvalue (var, deref, field) appears in an
+     "expression position", e.g., on the RHS of an Assign or Set, and with no particular
+     syntax other than the fact that an lvalue is in an expression position. *)
+  Definition is_lvalue e := match e with Evar _ _ | Ederef _ _ | Efield _ _ _ => true | _ => false end.
+
+  Definition wp_lvexpr f e Φ := if is_lvalue e then wp_lvalue ge ⊤ f e Φ else wp_expr ge ⊤ f e (λ v, ∃ l' : address, <affine> ⌜v = adr2val l'⌝ ∗ Φ l').
+
   (* Computes the WP one has to prove for the place ectx_item Ki
   applied to the location l. *)
   Definition place_item_to_wp (Ki : place_ectx_item) (Φ : address → assert) (l : address) : assert :=
     match Ki with
     | DerefPCtx cty =>
-       (* RefinedC can inject a value into an expression; compcert does not have this directly, instead we
-          simulate this by making up a temp var that holds this value `l` which is hopefully fresh *)
-      (* Φ l
-      ∃ _dummy,
-      env.temp _dummy (adr2val l) ∗ *)
         ∃ (sh : share) (v : val),
           <affine> ⌜readable_share sh⌝ ∗
            ⎡▷ simple_mapsto.mapsto sh cty (adr2val l) v⎤ ∗
             ∃ l', <affine> ⌜v = adr2val l'⌝ ∗
             (⎡▷ simple_mapsto.mapsto sh cty (adr2val l) v⎤ -∗ Φ l')
-            (* wp_expr ge E f (Ederef (Etempvar _dummy (tptr cty)) cty)
-              (λ v, ∃ l' : address, <affine> ⌜v = adr2val l'⌝∗ Φ l')) *)
-    (* | GetMemberPCtx sl m => WP l at{sl} m {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }}
-    | GetMemberUnionPCtx ul m => WP l at_union{ul} m {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }}
-    | AnnotExprPCtx n x => WP AnnotExpr n x l {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }} *)
+    | GetMemberPCtx sl m => (* unfold wp_lvalue_field *)
+        ∃ co delta, <affine> ⌜(cenv_cs !! sl)%maps = Some co ∧ Ctypes.field_offset cenv_cs m (co_members co) = Errors.OK (delta, Full)⌝ ∗
+          Φ (l.1, Ptrofs.add l.2 (Ptrofs.repr delta))
+    | GetMemberUnionPCtx ul m =>
+        ∃ co delta, <affine> ⌜(cenv_cs !! ul)%maps = Some co ∧ union_field_offset cenv_cs m (co_members co) = Errors.OK (delta, Full)⌝ ∗
+          Φ (l.1, Ptrofs.add l.2 (Ptrofs.repr delta))
+    (*| AnnotExprPCtx n x => WP AnnotExpr n x l {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }} *)
     (* we have proved typed_val_expr e1 before so we can use v ◁ᵥ ty here *)
     | BinOpPCtx1 op cty_l cty_v cty v ty => 
       ⎡v ◁ᵥₐₗ|cty_v| ty⎤ -∗
@@ -474,8 +477,10 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
   Proof.
     iIntros "HP HΦ".
     rewrite /place_item_to_wp.
-    move: K => [cty|op cty_l cty_v cty v ty|op cty_v cty_l cty v ty]//=.
+    move: K => [cty|i m|i m|op cty_l cty_v cty v ty|op cty_v cty_l cty v ty]//=.
     - iDestruct "HP" as "(% & % & $ & $ & % & $ & HP)"; iIntros; by iApply "HΦ"; iApply "HP".
+    - iDestruct "HP" as "(% & % & $ & HP)"; by iApply "HΦ".
+    - iDestruct "HP" as "(% & % & $ & HP)"; by iApply "HΦ".
     - iIntros; iApply wp_binop_strong_mono; iSplitL "HΦ"; last by iApply "HP".
       iIntros (?) "(% & $ & ?)"; by iApply "HΦ".
     - iIntros; iApply wp_binop_strong_mono; iSplitL "HΦ"; last by iApply "HP".
@@ -491,17 +496,21 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
     iIntros (l') "HP". by iApply ("IH" with "HP HΦ").
   Qed.
 
+  (* We should probably also allow at least Tarray. *)
   Definition is_tptr cty : bool := match cty with | Tpointer _ _ => true | _ => false end.
   #[global] Instance is_tptr_dec cty: Decision (is_tptr cty). Proof. apply _. Qed.
 
   Fixpoint find_place_ctx f (e : expr) : option ((list place_ectx_item → address → assert) → assert) :=
     match e with
     | Etempvar _id cty =>
-      Some (λ T, ∃ v, env.temp _id v ∗ (env.temp _id v -∗ ∃ l, <affine> ⌜v = adr2val l⌝ ∗ T [] l))
-    | Ederef e cty => T' ← find_place_ctx f e; Some (λ T, T' (λ K l, T (K ++ [DerefPCtx cty]) l))
-    (* | W.GetMember e sl m => T' ← find_place_ctx e; Some (λ T, T' (λ K l, T (K ++ [GetMemberPCtx sl m]) l))
-    | W.GetMemberUnion e ul m => T' ← find_place_ctx e; Some (λ T, T' (λ K l, T (K ++ [GetMemberUnionPCtx ul m]) l))
-    | W.AnnotExpr n x e => T' ← find_place_ctx e; Some (λ T, T' (λ K l, T (K ++ [AnnotExprPCtx n x]) l))
+        Some (λ T, ∃ v, env.temp _id v ∗ (env.temp _id v -∗ ∃ l, <affine> ⌜v = adr2val l⌝ ∗ T [] l))
+    | Evar _id cty => (* local or global *) Some (λ T, ∃ b, match In_dec ident_eq _id (map fst (fn_vars f)) with
+        | left _ => env.lvar _id cty b ∗ (env.lvar _id cty b -∗ T [] (b, Ptrofs.zero))
+        | right _ => ⎡gvar _id b⎤ ∗ (⎡gvar _id b⎤ -∗ T [] (b, Ptrofs.zero)) end)
+    | Ederef e cty => T' ← find_place_ctx f e; Some (λ T, T' (λ K l, T (if is_lvalue e then K ++ [DerefPCtx (typeof e)] else K) l))
+    | Efield e m cty => T' ← find_place_ctx f e; Some (λ T, T' (λ K l, match typeof e with
+        | Tstruct i _ => T (K ++ [GetMemberPCtx i m]) l | Tunion i _ => T (K ++ [GetMemberUnionPCtx i m]) l | _ => False end))
+    (*| W.AnnotExpr n x e => T' ← find_place_ctx e; Some (λ T, T' (λ K l, T (K ++ [AnnotExprPCtx n x]) l))
     | W.LocInfoE a e => find_place_ctx e *)
     (* Here we use the power of having a continuation available to add
     a typed_val_expr. It is important that this happens before we get
@@ -513,11 +522,11 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
       let cty1 := typeof e1 in
       let cty2 := typeof e2 in
       if is_tptr cty1 then
-        T' ← find_place_ctx f e1; Some (λ T, typed_val_expr f e2 (λ v ty, T' (λ K l, T (K ++ [BinOpPCtx1 op cty1 cty2 cty v ty]) l)))
+        T' ← find_place_ctx f e1; Some (λ T, typed_val_expr f e2 (λ v ty, T' (λ K l, T (K ++ (if is_lvalue e1 then [DerefPCtx (typeof e1)] else []) ++ [BinOpPCtx1 op cty1 cty2 cty v ty]) l)))
       else if is_tptr cty2 then
-        T' ← find_place_ctx f e2; Some (λ T, typed_val_expr f e1 (λ v ty, T' (λ K l, T (K ++ [BinOpPCtx2 op cty1 cty2 cty v ty]) l)))
+        T' ← find_place_ctx f e2; Some (λ T, typed_val_expr f e1 (λ v ty, T' (λ K l, T (K ++ (if is_lvalue e2 then [DerefPCtx (typeof e2)] else []) ++ [BinOpPCtx2 op cty1 cty2 cty v ty]) l)))
       else None
-      
+
     (* | W.UnOp op PtrOp e => T' ← find_place_ctx e; Some (λ T, T' (λ K l, T (K ++ [UnOpPCtx op]) l))
     (* TODO: Is the existential quantifier here a good idea or should this be a fullblown judgment? *)
     | W.UnOp op (IntOp it) e => Some (λ T, typed_val_expr (UnOp op (IntOp it) (W.to_expr e)) (λ v ty, v ◁ᵥ ty -∗ ∃ l, ⌜v = val_of_loc l⌝ ∗ T [] l)%I) *)
@@ -525,25 +534,14 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
     | _ => None
     end.
 
+  Lemma wp_lvalue_False_expr E f e Φ: wp_lvalue ge E f e (λ _, False) ⊢ wp_expr ge E f e Φ.
+  Proof.
+    rewrite /wp_lvalue /wp_expr; do 8 f_equiv.
+    iIntros "(% & % & ? & ? & ? & [])".
+  Qed.
+
   Class IntoPlaceCtx f (e : expr) (T : (list place_ectx_item → address → assert) → assert) :=
-    into_place_ctx Φ Φ': (⊢ T Φ' -∗ (∀ K l, Φ' K l -∗ place_to_wp K (Φ ∘ adr2val) l) -∗ wp_expr ge ⊤ f e Φ).
-
-Lemma wp_binop_strong_mono : forall E op t1 v1 t2 v2 P1 P2, 
-  (∀ v, P1 v ={E}=∗ P2 v) ∗ wp_binop ge E op t1 v1 t2 v2 P1 ⊢ wp_binop ge E op t1 v1 t2 v2 P2.
-Proof.
-  intros; rewrite /wp_binop.
-  iIntros "(HP & >H) !>" (?) "?".
-  iMod ("H" with "[$]") as (?) "(? & ? & H)".
-  iMod ("HP" with "H").
-  iIntros "!>"; iExists _; iFrame.
-Qed.
-
-Lemma wp_binop_mono : forall E op t1 v1 t2 v2 P1 P2, (∀ v, P1 v ⊢ |={E}=> P2 v) →
-  wp_binop ge E op t1 v1 t2 v2 P1 ⊢ wp_binop ge E op t1 v1 t2 v2 P2.
-Proof.
-  intros; iIntros; iApply wp_binop_strong_mono; iFrame.
-  by iIntros (?) "?"; iApply H.
-Qed.
+    into_place_ctx Φ Φ': (⊢ T Φ' -∗ (∀ K l, Φ' K l -∗ place_to_wp K Φ l) -∗ wp_lvexpr f e Φ).
 
   Section find_place_ctx_correct.
   Lemma find_place_ctx_correct f e T:
@@ -552,58 +550,118 @@ Qed.
   Proof.
     elim: e T => //=; intros.
     all: iIntros (Φ Φ') "HT HΦ'".
-    3: destruct (is_tptr (typeof e)); [| destruct (is_tptr (typeof e0)); try done].
+    4: destruct (is_tptr (typeof e)) eqn: Ht1; [| destruct (is_tptr (typeof e0)) eqn: Ht2; try done].
     all: try match goal with
     |  H : ?x ≫= _ = Some _ |- _ => destruct x as [?|] eqn:Hsome
     end; simplify_eq/=.
-    3: clear H0.
-    4: clear H.
+    4: clear H0.
+    5: clear H.
     all: try match goal with
     |  H : context [IntoPlaceCtx _ _] |- _ => rename H into IH
-    end.
+    end; rewrite /wp_lvexpr /=.
+    - if_tac.
+      + iDestruct "HT" as "(%b & ? & H)".
+        iApply wp_var_local; iFrame; iIntros "?".
+        iDestruct ("H" with "[$]") as "H".
+        iDestruct ("HΦ'" with "[$]") as "HΦ'" => //.
+      + iDestruct "HT" as "(%b & ? & H)".
+        iApply wp_var_global; first done; iFrame; iIntros "?".
+        iDestruct ("H" with "[$]") as "H".
+        iDestruct ("HΦ'" with "[$]") as "HΦ'" => //.
     - iDestruct "HT" as "(%v & temp_id & H)".
       iApply wp_tempvar_local.
       iFrame. iIntros "?".
       iDestruct ("H" with "[$]") as (l ->) "H".
       iDestruct ("HΦ'" with "[$]") as "HΦ'" => //.
-    - iDestruct (IH with "HT") as "HT" => //.
-      rewrite -[X in environments.envs_entails _ X]wp_expr_mapsto.
-      rewrite -wp_deref.
-      iApply "HT".
-      iIntros (K l) "Φ'".
-      iDestruct ("HΦ'" with "[$]") as "HΦ".
-      rewrite place_to_wp_app {2}/place_to_wp /foldr /place_item_to_wp.
-      iApply (place_to_wp_mono with "HΦ"); iIntros (l') "(%sh & %v & % & ↦ & %l'' & -> & HWP)" => /=.
-      iExists _, _. iSplit => //.
-      iExists _, _. iSplit => //.
-      iSplit; first iFrame.
-      iApply ("HWP" with "[$]").
+      destruct l; by iFrame.
+    - rewrite -wp_deref.
+      iDestruct (IH with "HT") as "HT" => //.
+      instantiate (1 := if is_lvalue e then _ else _).
+      rewrite /wp_lvexpr; destruct (is_lvalue e) eqn: Hlv.
+      + rewrite -[X in environments.envs_entails _ X]wp_expr_mapsto.
+        iApply "HT".
+        iIntros (K l) "Φ'".
+        iDestruct ("HΦ'" with "[$]") as "HΦ".
+        rewrite place_to_wp_app {2}/place_to_wp /foldr /place_item_to_wp.
+        iApply (place_to_wp_mono with "HΦ").
+        iIntros ((?, ?)) "(% & % & $ & ? & % & -> & HWP)".
+        iExists _; iSplit; first by iFrame.
+        iModIntro; iExists _, _; iSplit => //.
+        destruct l'; iApply ("HWP" with "[$]").
+      + iSpecialize ("HT" with "HΦ'").
+        iApply (wp_expr_mono with "HT").
+        iIntros (?) "(% & -> & ?)".
+        destruct l'; by iFrame.
     - rewrite -wp_binop_rule'.
       rewrite /typed_val_expr.
-      iApply ("HT" $! _ with "[-]").
+      iApply "HT".
       iIntros (v ty) "Hv HT".
       iDestruct (IH with "HT") as "HT" => //.
-      iApply "HT".
-      iIntros (K l) "Φ'".
-      iDestruct ("HΦ'" with "[$]") as "HΦ".
-      rewrite place_to_wp_app {2}/place_to_wp /foldr /place_item_to_wp.
-      iApply (place_to_wp_mono with "HΦ"); iIntros (l') "H" =>/=.
-      iSpecialize ("H" with "Hv").
-      iApply (wp_binop_mono with "[H]"); last done.
-      by iIntros (?) "(% & -> & ?)".
+      instantiate (1 := if is_lvalue e then _ else _).
+      rewrite /wp_lvexpr; destruct (is_lvalue e) eqn: Hlv.
+      + iSpecialize ("HT" with "[HΦ']").
+        { iIntros (K l) "Φ'".
+          iDestruct ("HΦ'" with "[$]") as "HΦ".
+          rewrite place_to_wp_app {2}/place_to_wp /= /place_item_to_wp //. }
+        rewrite -wp_expr_mapsto.
+        iApply wp_lvalue_strong_mono; iFrame.
+        iIntros ((?, ?)) "(% & % & $ & ? & % & -> & H) !>".
+        iExists _; iSplit; first by iFrame.
+        iApply ("H" with "[$] Hv").
+      + iSpecialize ("HT" with "[HΦ']").
+        { iIntros (K l) "Φ'".
+          iDestruct ("HΦ'" with "[$]") as "HΦ".
+          rewrite place_to_wp_app {2}/place_to_wp /= /place_item_to_wp //. }
+        iApply wp_expr_strong_mono; iFrame.
+        iIntros (?) "(% & -> & H) !>".
+        by iApply "H".
     - rewrite -wp_binop_rule.
       rewrite /typed_val_expr.
-      iApply ("HT" $! _ with "[-]").
+      iApply "HT".
       iIntros (v ty) "Hv HT".
       iDestruct (IH with "HT") as "HT" => //.
-      iApply "HT".
-      iIntros (K l) "Φ'".
-      iDestruct ("HΦ'" with "[$]") as "HΦ".
-      rewrite place_to_wp_app {2}/place_to_wp /foldr /place_item_to_wp.
-      iApply (place_to_wp_mono with "HΦ"); iIntros (l') "H" =>/=.
-      iSpecialize ("H" with "Hv").
-      iApply (wp_binop_mono with "[H]"); last done.
-      by iIntros (?) "(% & -> & ?)".
+      instantiate (1 := if is_lvalue e0 then _ else _).
+      rewrite /wp_lvexpr; destruct (is_lvalue e0) eqn: Hlv.
+      + iSpecialize ("HT" with "[HΦ']").
+        { iIntros (K l) "Φ'".
+          iDestruct ("HΦ'" with "[$]") as "HΦ".
+          rewrite place_to_wp_app {2}/place_to_wp /= /place_item_to_wp //. }
+        rewrite -wp_expr_mapsto.
+        iApply wp_lvalue_strong_mono; iFrame.
+        iIntros ((?, ?)) "(% & % & $ & ? & % & -> & H) !>".
+        iExists _; iSplit; first by iFrame.
+        iApply ("H" with "[$] Hv").
+      + iSpecialize ("HT" with "[HΦ']").
+        { iIntros (K l) "Φ'".
+          iDestruct ("HΦ'" with "[$]") as "HΦ".
+          rewrite place_to_wp_app {2}/place_to_wp /= /place_item_to_wp //. }
+        iApply wp_expr_strong_mono; iFrame.
+        iIntros (?) "(% & -> & H) !>".
+        by iApply "H".
+    - rewrite -wp_lvalue_field.
+      iDestruct (IH with "HT") as "HT" => //.
+      iSpecialize ("HT" with "[-]").
+      { iIntros (K l) "Φ'".
+        instantiate (1 := match typeof e with Tstruct _ _ => _ | Tunion _ _ => _ | _ => λ _, False end).
+        destruct (typeof e) eqn: Ht; try done.
+        + iDestruct ("HΦ'" with "[$]") as "HΦ".
+          rewrite place_to_wp_app {2}/place_to_wp /foldr /place_item_to_wp //.
+        + iDestruct ("HΦ'" with "[$]") as "HΦ".
+          rewrite place_to_wp_app {2}/place_to_wp /foldr /place_item_to_wp //. }
+      rewrite /wp_lvexpr; destruct (is_lvalue e) eqn: He.
+      + destruct (typeof e) eqn: Ht; try by iApply wp_lvalue_False_expr.
+        * rewrite -wp_expr_ptr; last by rewrite Ht.
+          iApply (wp_lvalue_mono with "HT").
+          iIntros ((?, ?)) "? !>".
+          iExists _, _; iSplit => //.
+        * rewrite -wp_expr_ptr; last by rewrite Ht.
+          iApply (wp_lvalue_mono with "HT").
+          iIntros ((?, ?)) "? !>".
+          iExists _, _; iSplit => //.
+      + iApply (wp_expr_mono with "HT").
+        iIntros (?) "(% & -> & H) !>".
+        iExists _, _; iSplit => //.
+        destruct (typeof e); done.
   Qed.
   End find_place_ctx_correct.
 
@@ -1967,22 +2025,23 @@ Section typing.
   Qed.
 
   Lemma type_read ge f T T' e cty:
-    IntoPlaceCtx ge f e T' →
+    IntoPlaceCtx ge f e T' → is_lvalue e = false →
     T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty_l1),
       typed_place ge K l β1 ty_l1 (λ l2 β2 ty_l2 typ R,
           typed_read_end false ⊤ l2 β2 ty_l2 cty (λ v ty_l3 ty_v,
             ⎡l ◁ₗ{β1} typ ty_l3⎤ -∗ R ty_l3 -∗ T v ty_v))))
     ⊢ typed_read ge f false e cty T.
   Proof.
-    iIntros (HT') "HT'". iIntros (Φ) "HΦ".
-    rewrite /IntoPlaceCtx in HT'.
-    iApply (HT' with "HT' ").
+    iIntros (HT' Hlv) "HT'". iIntros (Φ) "HΦ".
+    rewrite /IntoPlaceCtx /wp_lvexpr Hlv in HT'.
+    iApply wp_expr_strong_mono; iSplitR; last iApply (HT' with "HT' ").
+    { iIntros (?) "(% & -> & H)". iApply "H". }
     iIntros (K l). iDestruct 1 as ([β ty]) "[Hl HP]".
     iApply ("HP" with "Hl").
     iIntros (l' β2 ty2 typ R) "Hl' Hc HT" => /=. iApply "HΦ".
     rewrite /typed_read_end. iMod ("HT" with "Hl'") as (q v ty3 Hly Hv) "(%&Hl&Hv&HT)".
     iModIntro. iExists _,_,_. iFrame "Hl Hv". do 3 iSplitR => //.
-    iIntros "Hl Hv".
+    iIntros "!> Hl Hv".
     iMod ("HT" with "Hl Hv") as (ty' ty4) "(Hv&Hl&HT)".
     iMod ("Hc" with "[$]") as "[? ?]". iExists _. iFrame. by iApply ("HT" with "[$]").
   Qed.
@@ -2052,18 +2111,19 @@ Section typing.
   Global Existing Instance type_read_copy_inst | 10.
 
   Lemma type_write_deref ge f ty T T' e v e_ty cty:
-    IntoPlaceCtx ge f e T' →
+    IntoPlaceCtx ge f e T' → is_lvalue e = false →
     T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty_l1),
       typed_place ge K l β1 ty_l1 (λ l2 β2 ty_l2 typ R,
          typed_write_end false ⊤ cty v ty l2 β2 ty_l2 (λ ty_l3, ⎡l ◁ₗ{β1} typ ty_l3⎤ -∗ R ty_l3 -∗ T))))
     ⊢ typed_write ge f false (Ederef e e_ty) cty v ty T.
   Proof.
-    iIntros (HT') "HT'". iIntros (Φ) "HΦ".
+    iIntros (HT' Hlv) "HT'". iIntros (Φ) "HΦ".
     rewrite -wp_deref.
-    iApply (HT' with "HT'"). iIntros (K l). iDestruct 1 as ([β1 ty1]) "[Hl HK]".
+    rewrite /IntoPlaceCtx /wp_lvexpr Hlv in HT'.
+    iApply wp_expr_strong_mono; iSplitR; last iApply (HT' with "HT' ").
+    { iIntros (?) "(% & -> & H) !>". destruct l'; iExists _, _; iSplit => //. }
+    iIntros (K l). iDestruct 1 as ([β1 ty1]) "[Hl HK]".
     iApply ("HK" with "Hl"). iIntros (l2 β2 ty2 typ R) "Hl' Hc He".
-    simpl. iExists _, _. iSplit => //.
-    replace ((l2.1, l2.2)) with l2 by by destruct l2.
     iApply "HΦ". iIntros "Hv".
     rewrite /typed_write_end. iMod ("He" with "Hl' Hv") as "[$ [$ Hc2]]".
     iIntros "!# !# Hl".
