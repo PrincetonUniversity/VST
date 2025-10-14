@@ -180,6 +180,47 @@ Section struct.
       + destruct j; inv Hm; inv Htys; eauto.
   Qed.
 
+  Lemma upd_compact_prod_cons2 : forall {A} {F : A → Type} a x0 x1 l (v : compact_prod (map F (x0 :: x1 :: l))) d H,
+     upd_compact_prod (x0 :: x1 :: l) v a d H =
+     match H a x0 with
+     | left e => (rew e in d, v.2)
+     | right n => (v.1, upd_compact_prod (x1 :: l) v.2 a d H)
+     end.
+  Proof.
+    intros; rewrite {1}/upd_compact_prod /list_rect.
+    destruct (H a x0); subst; done.
+  Qed.
+
+  Lemma proj_struct_update : forall i m j tys ty
+    (Hnorep : members_no_replicate m = true)
+    (Hm : m !! j = Some (get_member i m)) (Htys : length tys = length m),
+    upd_struct i m (make_ty_prod tys m) ty = make_ty_prod (<[j:=ty]> tys) m.
+  Proof.
+    intros; rewrite /upd_struct.
+    forget (get_member i m) as a.
+    generalize dependent j; generalize dependent tys; induction m; first done; intros.
+    destruct tys; first done.
+    destruct m.
+    - simpl in *.
+      apply list_lookup_singleton_Some in Hm as (-> & ->).
+      destruct (member_dec a a); subst; try done.
+      destruct e; done.
+    - rewrite make_ty_prod_cons2 upd_compact_prod_cons2.
+      rewrite /members_no_replicate /= in Hnorep.
+      destruct (_ || _) eqn: Hout; first done.
+      destruct (member_dec a a0); subst.
+      + destruct j; inv Htys; inv Hm; simpl insert; first done.
+        destruct j; inv H1.
+        * rewrite Pos.eqb_refl // in Hout.
+        * destruct (id_in_list _ _) eqn: Hid.
+          { rewrite orb_true_r // in Hout. }
+          apply id_in_list_false in Hid; contradiction Hid.
+          rewrite in_map_iff.
+          apply elem_of_list_lookup_2, elem_of_list_In in H2; eauto.
+      + destruct j; inv Hm; inv Htys; simpl insert.
+        rewrite make_ty_prod_cons2; f_equal; eauto.
+  Qed.
+
   Program Definition struct (i : ident) (tys : list type) : type := {|
     ty_has_op_type := is_struct_ot i tys;
     ty_own β l :=
@@ -558,28 +599,45 @@ Section struct.
   Definition struct_mono_val_inst := [instance struct_mono_val].
   Global Existing Instance struct_mono_val_inst.
 
-(*  Lemma type_place_struct K β1 tys i n l T :
-    (∃ j ty1, ⌜field_index_of (get_co i).(co_members) n = Some j⌝ ∗
-    ⌜tys !! j = Some ty1⌝ ∗
-    typed_place K (l at{i}ₗ n) β1 ty1 (λ l2 β ty2 typ, T l2 β ty2 (λ t, struct i (<[j := (typ t)]> tys))))
-    ⊢ typed_place (GetMemberPCtx i n :: K) l β1 (struct i tys) T.
+  (* We might need to implement field_index_of so that this computes. *)
+  Lemma type_place_struct ge K β1 tys i n l T :
+    (∃ j ty1, <affine> ⌜name_member <$> (get_co i).(co_members) !! j = Some n⌝ ∗
+    <affine> ⌜tys !! j = Some ty1⌝ ∗
+    typed_place ge K (l at{i}ₗ n) β1 ty1 (λ l2 β ty2 typ, T l2 β ty2 (λ t, struct i (<[j := (typ t)]> tys))))
+    ⊢ typed_place ge (GetMemberPCtx i n :: K) l β1 (struct i tys) T.
   Proof.
-    iDestruct 1 as (i ty1 Hi Hn) "HP".
-    move: (Hi) => /field_index_of_to_index_of[? Hi2].
-    iIntros (Φ) "[% [% [#Hb Hs]]] HΦ" => /=.
-    iApply wp_get_member; [by apply val_to_of_loc|by eauto|done|].
-    iIntros "!#". iExists _. iSplit => //.
-    iDestruct (big_sepL_insert_acc with "Hs") as "[Hl Hs]" => //=.
-    1: by eapply pad_struct_lookup_field.
-    rewrite /GetMemberLoc/offset_of Hi2/=.
-    iApply ("HP" with "Hl"). iIntros (l' ty2 β2 typ R) "Hl' Hc HT".
+    iDestruct 1 as (j ty1 Hj Hn) "HP".
+    (* move: (Hi) => /field_index_of_to_index_of[? Hi2]. *)
+    iIntros (Φ) "[% [% Hs]] HΦ" => /=.
+    rewrite /GetMemberLoc.
+    pose proof (get_co_members_no_replicate i) as Hnorep.
+        unfold get_co in *; destruct (cenv_cs !! i)%maps eqn: Hi; last done.
+    destruct (co_members _ !! j) eqn: Hm; inv Hj.
+    pose proof (proj1 (elem_of_list_In _ _) (elem_of_list_lookup_2 _ _ _ Hm)).
+    assert (in_members (name_member m) (co_members c)) as Hin.
+    { apply in_map_iff; eauto. }
+    iExists _, _; iSplit.
+    { iPureIntro; split; first done; apply plain_members_field_offset; auto.
+      destruct H as (_ & H & _).
+      apply nested_pred_lemmas.complete_Tstruct_plain in H.
+      rewrite /get_co Hi // in H. }
+    erewrite (aggregate_pred.struct_pred_ramif _ _ _ _ _ tytrue); [|done..].
+    iDestruct "Hs" as "((Hl & Hspace) & Hs)". 
+    iApply ("HP" with "[Hl]").
+    { rewrite /mapsto_memory_block.at_offset /= get_member_name //.
+      erewrite proj_struct_lookup; try done.
+      rewrite get_member_name //. }
+    iIntros (l' ty2 β2 typ R) "Hl' Hc HT".
     iApply ("HΦ" with "Hl' [-HT] HT").
     iIntros (ty') "Hty". iMod ("Hc" with "Hty") as "[Hty $]". iModIntro.
-    iDestruct ("Hs" with "Hty") as "Hs". iSplitR => //. iSplitR; first by rewrite length_insert.
-    iFrame "Hb". erewrite pad_struct_insert_field => //. have := field_index_of_leq _ _ _ Hi. lia.
+    iDestruct ("Hs" with "[Hty $Hspace]") as "Hs".
+    { rewrite /mapsto_memory_block.at_offset /= get_member_name //. }
+    iSplitR => //. rewrite /get_co Hi. iSplitR; first by rewrite length_insert.
+    erewrite proj_struct_update; try done.
+    rewrite get_member_name //.
   Qed.
   Definition type_place_struct_inst := [instance type_place_struct].
-  Global Existing Instance type_place_struct_inst | 10. *)
+  Global Existing Instance type_place_struct_inst | 10.
 
   (* Ail fills in the missing elements in fs, so we can assume that
   the lookup will always succeed. This is nice, because otherwise we
