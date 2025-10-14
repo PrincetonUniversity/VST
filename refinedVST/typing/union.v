@@ -5,12 +5,17 @@ Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key"
 From VST.typing Require Import type_options.
 Require Import Coq.Program.Equality.
 
+Definition GetMemberUnionLoc (l : address) (i : ident) (m : ident) : address := (l).
+Notation "l 'at_union{' ul '}ₗ' m" := (GetMemberUnionLoc l ul m) (at level 10, format "l  'at_union{' ul '}ₗ'  m") : stdpp_scope.
+Global Typeclasses Opaque GetMemberUnionLoc.
+Arguments GetMemberUnionLoc : simpl never.
+
 Section union.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   (*** active_union *)
   Program Definition active_union (i : ident) (f : ident) (ty : type) : type := {|
-    ty_own β l := ∃ m, <affine> ⌜∃ ul, (cenv_cs !! i)%maps = Some ul ∧ get_member f ul.(co_members) = m⌝ ∗
+    ty_own β l := ∃ m, <affine> ⌜∃ ul, (cenv_cs !! i)%maps = Some ul ∧ in_members f ul.(co_members) ∧ get_member f ul.(co_members) = m⌝ ∗
       <affine> ⌜l `has_layout_loc` Tunion i noattr⌝ ∗
       heap_withspacer β (sizeof (field_type (name_member m) (get_co i).(co_members))) (co_sizeof (get_co i))
         (λ p, match val2adr p with Some l => l ◁ₗ{β} ty | _ => False end) l;
@@ -25,39 +30,56 @@ Section union.
     iApply inv_alloc. iModIntro. iExists _. iFrame; auto.
   Qed.
 
-(*  Lemma type_place_uninit_union K β ul n l T:
-    (∃ ly, ⌜layout_of_union_member n ul = Some ly⌝ ∗
-    typed_place (GetMemberUnionPCtx ul n :: K) l β (active_union ul n (uninit ly)) T)
-    ⊢ typed_place (GetMemberUnionPCtx ul n :: K) l β (uninit ul) T.
+  Lemma has_layout_union_noattr : forall i a l, l `has_layout_loc` (Tunion i a) ↔ l `has_layout_loc` (Tunion i noattr).
+  Proof.
+    intros; rewrite /has_layout_loc /field_compatible; do 3 f_equiv; last f_equiv; try done.
+    rewrite /align_compatible_dec.align_compatible /=.
+    split; inversion 1; try done; eapply align_compatible_rec_Tunion; done.
+  Qed.
+
+(*  Lemma type_place_uninit_union ge K β ul a n l T:
+    (∃ ly, <affine> ⌜Ctypes.field_type n (co_members (get_co ul)) = Errors.OK ly⌝ ∗
+    typed_place ge (GetMemberUnionPCtx ul n :: K) l β (active_union ul n (uninit ly)) T)
+    ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l β (uninit (Tunion ul a)) T.
   Proof.
     iDestruct 1 as (ly Hly) "HP".
     iIntros (Φ) "Hs HΦ" => /=.
     iApply ("HP" with "[Hs] HΦ").
-    iExists _. iSplit => //.
-    iApply (apply_subsume_place_true with "Hs"). iApply subsume_uninit_padded.
+    iExists (get_member n (co_members (get_co ul))). iSplit => //.
+    { iPureIntro. unfold get_co in *; destruct (cenv_cs !! ul)%maps eqn: Hi; try done.
+      eauto. }
+    iSplit.
+    { rewrite /ty_own /=.
+      by iDestruct "Hs" as (???%has_layout_union_noattr) "Hs". }
+    (* Right now uninit for a union means that there is a valid value for *one* of its cases. *)
+    iApply subsume_uninit_withspacer.
     iExists tt. iSplit => //. iPureIntro.
     split; apply max_list_elem_of_le; apply elem_of_list_fmap_1; by apply: layout_of_union_member_in_ul.
   Qed.
   Definition type_place_uninit_union_inst := [instance type_place_uninit_union].
-  Global Existing Instance type_place_uninit_union_inst.
+  Global Existing Instance type_place_uninit_union_inst. *)
 
-  Lemma type_place_active_union K β ul n l ty T:
-    typed_place K (l at_union{ul}ₗ n) β ty (λ l2 β ty2 typ, T l2 β ty2 (λ t, active_union ul n (typ t)))
-    ⊢ typed_place (GetMemberUnionPCtx ul n :: K) l β (active_union ul n ty) T.
+  Lemma type_place_active_union ge K β ul n l ty T:
+    typed_place ge K (l at_union{ul}ₗ n) β ty (λ l2 β ty2 typ, T l2 β ty2 (λ t, active_union ul n (typ t)))
+    ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l β (active_union ul n ty) T.
   Proof.
     iIntros "HP" (Φ) "Hs HΦ" => /=.
-    iDestruct "Hs" as (ly ?) "Hpad".
-    rewrite /padded. iDestruct "Hpad" as (??) "[Hb [Hty Hpad]]".
-    iApply (wp_get_member_union with "[#//]"). 1: by apply val_to_of_loc.
-    iExists _. iSplit => //.
-    iApply ("HP" with "[Hty]"). 1: by rewrite /GetMemberUnionLoc.
+    iDestruct "Hs" as (? (i & Hi & Hn & <-) ?) "[Hty Hspace]".
+    iExists _, _. iSplit => //.
+    { iPureIntro; split; first done.
+      apply plain_members_union_field_offset; try done.
+      destruct H as (_ & H & _). apply nested_pred_lemmas.complete_Tunion_plain in H.
+      rewrite /get_co Hi // in H. }
+    rewrite Ptrofs.add_zero /GetMemberUnionLoc; destruct l.
+    iApply ("HP" with "Hty").
     iIntros (l2 β2 ty2 typ R) "Hl Hc HT".
     iApply ("HΦ" with "Hl [-HT] HT").
     iIntros (ty') "Hty". iMod ("Hc" with "Hty") as "[Hty $]". iModIntro.
-    iExists _. iSplitR => //. rewrite /padded/GetMemberUnionLoc. by iFrame.
+    iExists _. rewrite /get_co Hi. iSplitR; first by eauto.
+    by iFrame.
   Qed.
   Definition type_place_active_union_inst := [instance type_place_active_union].
-  Global Existing Instance type_place_active_union_inst. *)
+  Global Existing Instance type_place_active_union_inst.
 
 End union.
   (*** tagged union *)
@@ -147,13 +169,6 @@ Section union.
   Global Existing Instance type_binop_tunion_tag_int_ge_inst.
   Definition type_binop_tunion_tag_int_le_inst ge := [instance type_binop_tunion_tag_int ge Cop.Ole].
   Global Existing Instance type_binop_tunion_tag_int_le_inst.
-
-  Lemma has_layout_union_noattr : forall i a l, l `has_layout_loc` (Tunion i a) ↔ l `has_layout_loc` (Tunion i noattr).
-  Proof.
-    intros; rewrite /has_layout_loc /field_compatible; do 3 f_equiv; last f_equiv; try done.
-    rewrite /align_compatible_dec.align_compatible /=.
-    split; inversion 1; try done; eapply align_compatible_rec_Tunion; done.
-  Qed.
 
   Lemma mapsto_union : forall id a l v, l ↦|Tunion id a| v ⊣⊢ aggregate_pred.union_pred (co_members (get_co id))
     (fun it v => mapsto_memory_block.withspacer Tsh (sizeof (field_type (name_member it) (co_members (get_co id))))
@@ -280,18 +295,13 @@ Section union.
   Qed.
   (* Next Obligation. iIntros (????????) "Hv". by iApply (ty_memcast_compat with "Hv"). Qed. *)
 
-  Definition GetMemberUnionLoc (l : address) (i : ident) (m : ident) : address := (l).
-  Notation "l 'at_union{' ul '}ₗ' m" := (GetMemberUnionLoc l ul m) (at level 10, format "l  'at_union{' ul '}ₗ'  m") : stdpp_scope.
-  Global Typeclasses Opaque GetMemberUnionLoc.
-  Arguments GetMemberUnionLoc : simpl never.
-
   Lemma subsume_active_union_variant B ti i x l β ty1 ty2 n T:
     (l at_union{i}ₗ n ◁ₗ{β} ty1 -∗
       ∃ y, <affine> ⌜ti.(ti_union_layout) = i⌝ ∗ <affine> ⌜name_member (ti_member ti (x y)) = n⌝ ∗
             (l at_union{i}ₗ n ◁ₗ{β} ty2 y) ∗ T y)
     ⊢ subsume (l ◁ₗ{β} active_union i n ty1) (λ y : B, l ◁ₗ{β} variant ti (x y) (ty2 y)) T.
   Proof.
-    iIntros "HT". iDestruct 1 as (? (? & ? & <-) ?) "[Hl Hpad]".
+    iIntros "HT". iDestruct 1 as (? (? & ? & ? & <-) ?) "[Hl Hpad]".
     rewrite /GetMemberUnionLoc/=. destruct l; iDestruct ("HT" with "[$]") as (? <- <-) "[??]".
     rewrite name_member_get. iExists _. iFrame. done.
   Qed.
@@ -312,30 +322,42 @@ Section union.
   Definition subsume_variant_variant_inst := [instance subsume_variant_variant].
   Global Existing Instance subsume_variant_variant_inst.
 
-(*  Lemma type_place_variant K β ul n l ty ti x {Heq: TCEq (ti_member ti x).1 n} T :
-    ⌜ul = ti.(ti_union_layout)⌝ ∗
-     typed_place K (l at_union{ul}ₗ n) β ty (λ l2 β ty2 typ, T l2 β ty2 (λ t, variant ti x (typ t)))
-    ⊢ typed_place (GetMemberUnionPCtx ul n :: K) l β (variant ti x ty) T.
+  Lemma type_place_variant ge K β ul n l ty ti x {Heq: TCEq (name_member (ti_member ti x)) n} T :
+    <affine> ⌜ul = ti.(ti_union_layout)⌝ ∗
+     typed_place ge K (l at_union{ul}ₗ n) β ty (λ l2 β ty2 typ, T l2 β ty2 (λ t, variant ti x (typ t)))
+    ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l β (variant ti x ty) T.
   Proof.
     move: Heq => /TCEq_eq <-.
     iIntros "[-> HP]" (Φ) "Hs HΦ" => /=.
-    rewrite {2}/variant /padded/=. iDestruct "Hs" as (??) "[Hb [Hty Hpad]]".
-    iApply (wp_get_member_union with "[#//]"). 1: by apply val_to_of_loc.
-    iExists _. iSplit => //.
-    iApply ("HP" with "[Hty]"). 1: by rewrite /GetMemberUnionLoc.
+    rewrite {1}/ty_own /=. iDestruct "Hs" as (?) "[Hty Hpad]".
+    pose proof (index_of_ti_member ti x) as Hf.
+    unfold get_co in *; destruct (cenv_cs !! ti_union_layout ti)%maps eqn: Hi; last done.
+    apply elem_of_list_lookup_2, elem_of_list_In in Hf.
+    apply (in_map name_member) in Hf.
+    iExists _, _. iSplit => //.
+    { iPureIntro; split; first done.
+      apply plain_members_union_field_offset; try done.
+      destruct H as (_ & H & _). apply nested_pred_lemmas.complete_Tunion_plain in H.
+      rewrite /get_co Hi // in H. }
+    rewrite Ptrofs.add_zero /GetMemberUnionLoc; destruct l.
+    iApply ("HP" with "Hty").
     iIntros (l2 β2 ty2 typ R) "Hl Hc HT".
     iApply ("HΦ" with "Hl [-HT] HT").
     iIntros (ty') "Hty". iMod ("Hc" with "Hty") as "[Hty $]". iModIntro.
-    rewrite /variant/padded/GetMemberUnionLoc/=. iSplit => //. by iFrame.
+    iFrame.
+    rewrite /get_co Hi. iSplitR; eauto.
   Qed.
   Definition type_place_variant_inst := [instance type_place_variant].
   Global Existing Instance type_place_variant_inst | 20.
 
-  Lemma type_place_variant_neq K ul n l ty ti x T :
-    (⌜ul = ti.(ti_union_layout)⌝ ∗ ⌜ty.(ty_has_op_type) (UntypedOp (ti_member ti x).2) MCNone⌝ ∗ ∀ v, v ◁ᵥ ty -∗ typed_place (GetMemberUnionPCtx ul n :: K) l Own (uninit ul) T)
-    ⊢ typed_place (GetMemberUnionPCtx ul n :: K) l Own (variant ti x ty) T.
+  (* goes via uninit
+  Lemma type_place_variant_neq ge K ul a n l ty ti x T :
+    (<affine> ⌜ul = ti.(ti_union_layout)⌝ ∗ <affine> ⌜ty.(ty_has_op_type) (field_type (name_member (ti_member ti x)) (get_co ul).(co_members)) MCNone⌝ ∗ ∀ v, ⎡v ◁ᵥ|field_type (name_member (ti_member ti x)) (get_co ul).(co_members)|  ty⎤ -∗ typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (uninit (Tunion ul a)) T)
+    ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (variant ti x ty) T.
   Proof.
-    iIntros "[-> [% HP]]". iApply (typed_place_subsume _ _ _ (uninit (ti_union_layout ti))).
+    iIntros "[-> [% HP]]". 
+    
+    iApply (typed_place_subsume _ _ _ (uninit (ti_union_layout ti))).
     iApply subsume_padded_uninit. iSplit; [done|]. iIntros (v) "Hv $". iExists tt.
     by iApply "HP".
   Qed.
