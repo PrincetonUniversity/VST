@@ -236,11 +236,11 @@ Ltac liRJudgement :=
   lazymatch goal with
     | |- envs_entails _ (typed_write _ _ _ ?e _ _ _ _) =>
       lazymatch e with
-      | (Ederef _ _) => notypeclasses refine (tac_fast_apply (type_write_deref _ _ _ _ _ _ _ _ _ _) _); [ solve [refine _ ] |]
+      | (Ederef _ _) => notypeclasses refine (tac_fast_apply (type_write_deref _ _ _ _ _ _ _ _ _ _ _) _); [ solve [refine _ ] | reflexivity |]
       | _ => notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _ _ _) _)
       end
     | |- envs_entails _ (typed_read _ _ _ _ _ _) =>
-      notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _) _); [ solve [refine _ ] |]
+      notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _ _) _); [ solve [refine _ ] | reflexivity |]
     | |- envs_entails _ (typed_addr_of _ _ _ _) =>
       fail "liRJudgement: type_addr_of not implemented yet"
       (* notypeclasses refine (tac_fast_apply (type_addr_of_place _ _ _ _) _); [solve [refine _] |] *)
@@ -570,8 +570,12 @@ Local Open Scope clight_scope.
     iStartProof.
     iIntros "#? #?".
     repeat liRStep.
+    liShow.
+    (* something changed with the automation *)
     Unshelve. all: unshelve_sidecond; sidecond_hook; prepare_sideconditions; normalize_and_simpl_goal; try solve_goal; unsolved_sidecond_hook.
-    Unshelve. all: try done; try constructor; try apply: inhabitant;  print_remaining_shelved_goal "permute".
+    Unshelve. all: try done. apply inhabitant.
+    all: try done; try constructor; try apply: inhabitant;  print_remaining_shelved_goal "permute".
+    Unshelve. constructor. 
     (* We admit Some pure side conditions; need to fix in automation. *)
   Admitted.
 
