@@ -127,7 +127,7 @@ Lemma subsume_sep_list_insert_not_in_ig {prop:bi} A B id ig i x (l1 : list A) l2
       inhale f i x;
       y ← (sep_list id A (i :: ig) l1 f) :>> (λ x : B, sep_list id A (i :: ig) (l2 x) f);
       ∃ x2, exhale <affine> ⌜l2 y !! i = Some x2⌝;
-      exhale <affine> f i x2;
+      exhale f i x2;
       return T y.
 Proof.
   unfold CanSolve, sep_list. iIntros (?) "[% Hsub] [<- Hl]". rewrite big_sepL_insert // length_insert.

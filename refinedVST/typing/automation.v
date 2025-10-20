@@ -550,7 +550,7 @@ Local Open Scope clight_scope.
             (tptr tint)) tint) (Etempvar _k tint))))
   |}.
 
-  Context `{!typeG OK_ty Σ} {cs : compspecs} `{BiPositive mpred}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs} `{BiPositive mpred}. (*TODO: investigate this*)
 
   Goal forall Espec genv_t (v_k t'1: val) (v_ar v_i v_j:address) (i j: nat)  (elts:list Z) v1 v2 f,
     ⊢ ⎡ v_i ◁ᵥ| tint | i @ int tint ⎤ -∗
@@ -569,13 +569,17 @@ Local Open Scope clight_scope.
     intros.
     iStartProof.
     iIntros "#? #?".
-    repeat liRStep.
+    do 50 liRStep.
+    do 50 liRStep.
+    do 25 liRStep.
+    do 10 liRStep.
+    do 1 liRStep.
     liShow.
-    (* something changed with the automation *)
+    Check type_Ecast_same_val.
+    (* need to get from hyps that v0 is an int *)
+    repeat liRStep.
     Unshelve. all: unshelve_sidecond; sidecond_hook; prepare_sideconditions; normalize_and_simpl_goal; try solve_goal; unsolved_sidecond_hook.
-    Unshelve. all: try done. apply inhabitant.
-    all: try done; try constructor; try apply: inhabitant;  print_remaining_shelved_goal "permute".
-    Unshelve. constructor. 
+    Unshelve. all: try done; try constructor; try apply: inhabitant;  print_remaining_shelved_goal "permute".
     (* We admit Some pure side conditions; need to fix in automation. *)
   Admitted.
 
