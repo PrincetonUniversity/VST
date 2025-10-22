@@ -32,9 +32,9 @@ Section function.
   }.
 
   Definition fn_ret_prop {B} fn (fr : B → fn_ret) : option val → type → assert  :=
-    (λ v ty, <affine> ⌜match v with Some v => tc_val (fn_return fn) v | None => fn_return fn = Tvoid end⌝ ∗
-     (⎡opt_ty_own_val (fn_return fn) ty v⎤ -∗ ∃ x, ⎡opt_ty_own_val (fn_return fn) (fr x).(fr_rty) v⎤ ∗ ⎡(fr x).(fr_R)⎤ ∗
-      ∃ lv, stackframe_of1' cenv_cs fn lv))%I.
+    (λ v ty, ⎡opt_ty_own_val (fn_return fn) ty v⎤ -∗ (<affine> ⌜match v with Some v => tc_val (fn_return fn) v | None => fn_return fn = Tvoid end⌝ ∗
+       ∃ x, ⎡opt_ty_own_val (fn_return fn) (fr x).(fr_rty) v⎤ ∗ ⎡(fr x).(fr_R)⎤ ∗
+       ∃ lv, stackframe_of1' cenv_cs fn lv))%I.
 
   Definition fn_ret_assert {B} fn (fr : B → fn_ret) : type_ret_assert :=
    {| T_normal := fn_ret_prop fn fr None tytrue;
@@ -91,13 +91,15 @@ Section function.
     iIntros "!> %% (Ha & Hstack)". rewrite -HPa.
     have [|lsa' Hlsa]:= vec_cast _ lsa (length (fp_atys (fp1 x))). { by rewrite Hatys. }
     iApply monPred_in_entails; first iApply typed_stmt_mono; last iApply ("HT" $! _ lsa'); simpl; try done.
-    - iIntros "($ & HR) Hty".
-      iDestruct ("HR" with "Hty") as (y) "[?[??]]".
+    - iIntros "HR Hty".
+      iDestruct ("HR" with "Hty") as (? y) "[?[??]]".
       have [-> ->]:= Hret y.
+      iSplit => //.
       iExists (rew [λ x : Type, x] Heq in y). iFrame.
-    - iIntros (v ?) "($ & HR) Hty".
-      iDestruct ("HR" with "Hty") as (y) "[?[??]]".
+    - iIntros (v ?) "HR Hty".
+      iDestruct ("HR" with "Hty") as (? y) "[?[??]]".
       have [-> ->]:= Hret y.
+      iSplit => //.
       iExists (rew [λ x : Type, x] Heq in y). iFrame.
     - iFrame. rewrite Hlsa; iFrame.
       iClear "HT"; iStopProof.
@@ -222,9 +224,9 @@ Section function.
     rewrite monPred_at_sep; iFrame "Hfn"; monPred.unseal.
     iSplit.
     - rewrite /fn_ret_prop /set_temp_opt /Clight_seplog.bind_ret; iIntros (??) "H !>"; monPred.unseal.
-      rewrite monPred_at_affinely; iDestruct "H" as "(% & H)".
       unfold sqsubseteq in *; subst; iFrame.
-      iDestruct ("H" with "[//] [//]") as (?) "(_ & HR & $)".
+      setoid_rewrite monPred_at_affinely.
+      iDestruct ("H" with "[//] [//]") as (??) "(_ & HR & $)".
       iSplit; first done.
       iSpecialize ("Hpost" $! None with "[//] HR"); simpl.
       destruct i; simpl.
@@ -232,9 +234,9 @@ Section function.
       * by iApply "Hpost".
     - do 2 (iSplit; intros; first by monPred.unseal; iIntros (??) "[]").
       rewrite /fn_ret_prop /set_temp_opt /Clight_seplog.bind_ret; iIntros (ret ? ->) "H !>"; monPred.unseal.
-      setoid_rewrite monPred_at_affinely; iDestruct "H" as (?) "(? & %Htc & H)".
+      iDestruct "H" as (?) "(? & H)".
       unfold sqsubseteq in *; subst; iFrame.
-      iDestruct ("H" with "[//] [$]") as (?) "(Hretty & HR & $)".
+      setoid_rewrite monPred_at_affinely; iDestruct ("H" with "[//] [$]") as (??) "(Hretty & HR & $)".
       iSplit; first done.
       iSpecialize ("Hpost" $! ret with "[//] HR"); simpl.
       destruct i; simpl.

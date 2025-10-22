@@ -551,7 +551,7 @@ Local Open Scope clight_scope.
             (tptr tint)) tint) (Etempvar _k tint))))
   |}.
 
-  Context `{!typeG OK_ty Σ} {cs : compspecs} `{BiPositive mpred}. (*TODO: investigate this*)
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Goal forall Espec genv_t (v_k t'1: val) (v_ar v_i v_j:address) (i j: nat)  (elts:list Z) v1 v2 f,
     ⊢ ⎡ v_i ◁ᵥ| tint | i @ int tint ⎤ -∗
@@ -591,8 +591,11 @@ Require Import VST.veric.make_compspecs.
     Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_ret_expr spec_f_ret_expr.
     Proof.
       type_function "f" ( x ).
+      do 34 liRStep.
+      (* we should prove the is_int using the type of v here -- refactor? *)
       repeat liRStep.
       type_function_end.
+      Unshelve. 
     Qed.
   End f_test1.
 

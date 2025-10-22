@@ -96,12 +96,12 @@ Proof.
     rewrite vec_to_list_to_vec; iFrame. }
   rewrite /= /Clight_seplog.bind_ret; iSplit.
   - rewrite /fn_params_post /=.
-    iIntros "($ & H) !>"; iFrame.
-    iDestruct ("H" with "[//]") as "(% & $ & $ & $)".
+    iIntros "H !>"; iFrame.
+    iDestruct ("H" with "[//]") as "($ & % & $ & $ & $)".
   - do 2 (iSplit; first by iIntros "[]").
     rewrite /fn_params_post /=.
-    iIntros (?) "(% & Hret & %Htc & H)".
-    iDestruct ("H" with "Hret") as "(% & ? & ? & $)"; by iFrame.
+    iIntros (?) "(% & Hret & H)".
+    iDestruct ("H" with "Hret") as "($ & % & ? & ? & $)"; by iFrame.
 Qed.
 
 Lemma typed_fptr_triple : forall `{!VSTGS OK_ty Σ} {cs : compspecs} {A} Espec ge fp l cty,
