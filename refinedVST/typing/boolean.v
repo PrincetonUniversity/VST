@@ -56,15 +56,6 @@ End is_bool_ot.
 Section generic_boolean.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  Definition val_to_Z (v : val) (t : Ctypes.type) : option Z :=
-  match v, t with
-  | Vint i, Tint _ Signed _ => Some (Int.signed i)
-  | Vint i, Tint sz Unsigned _ => Some (Int.unsigned i)
-  | Vlong i, Tlong Signed _ => Some (Int64.signed i)
-  | Vlong i, Tlong Unsigned _ => Some (Int64.unsigned i)
-  | _, _ => None
-  end.
-
   Lemma val_to_Z_by_value (v : val) (t : Ctypes.type) z :
     val_to_Z v t = Some z -> type_is_by_value t = true.
   Proof.

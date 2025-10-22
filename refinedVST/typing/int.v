@@ -877,23 +877,69 @@ Section programs.
   Definition type_neg_int_inst := [instance type_neg_int].
   Global Existing Instance type_neg_int_inst.
 
-  (* up *)
-  Lemma wp_Ecast : forall ge E f e Φ ct, wp_expr ge E f e (λ v, ∃ v', ∀ m, <affine> ⌜Some v' = Cop.sem_cast v (typeof e) ct m⌝ ∗ Φ v')
-    ⊢ wp_expr ge E f (Ecast e ct) Φ.
+  Lemma val_to_Z_inv v t n: val_to_Z v t = Some n → v = i2v n t.
   Proof.
-  intros.
-  rewrite /wp_expr.
-  iIntros ">H !>" (??) "Hm He".
-  iMod ("H" with "Hm He") as "(%v & H1 & Hm & He & %v' & H)".
-  iDestruct ("H" $! m) as "[%Hcast HΦ]".
-  iExists _; iFrame; iModIntro.
-  iStopProof; do 6 f_equiv.
-  apply bi.pure_mono.
-  intros ??.
-  econstructor; auto.
-Qed.
+    destruct v => //; destruct t => //; destruct s => //=; inversion 1.
+    - by rewrite Int.repr_signed.
+    - by rewrite Int.repr_unsigned.
+    - by rewrite Int64.repr_signed.
+    - by rewrite Int64.repr_unsigned.
+  Qed.
 
-(* Ke: the equivalent to Caesium's CastOp is Clight's Ecast, so use typed_val_expr *)
+  Definition is_bool_type t := match t with Tint IBool _ _ => true | _ => false end.
+
+  Lemma cast_int_type it1 it2 v n: val_to_Z v it1 = Some n → n ∈ it2 → is_bool_type it2 = false → type_is_volatile it2 = false →
+    ⊢ ∃ v', <affine> ⌜sem_cast it1 it2 v = Some v'⌝ ∧ v' ◁ᵥₐₗ| it2 | n @ int it2.
+  Proof.
+    intros Hn Hin ?; iPureIntro.
+    exists (i2v n it2).
+    pose proof (i2v_to_Z _ _ Hin) as Hn2.
+    pose proof (val_to_Z_by_value _ _ _ Hn2).
+    split3; try done; last split.
+    - rewrite /sem_cast.
+      destruct (Cop.classify_cast it1 it2) eqn: Hclass;
+        try by destruct v, it2; try done; destruct it1; try destruct i0.
+      + rewrite /Cop.classify_cast in Hclass.
+        destruct v, it1; try done; destruct it2; try done; simpl in *.
+        * destruct i1; try done.
+        * if_tac in Hclass; done.
+        * destruct s; inv Hn; [rewrite Int64.repr_signed | rewrite Int64.repr_unsigned]; done.
+      + destruct v, it1; try done; destruct it2; try done; simpl in * |-.
+        2: { if_tac in Hclass; done. }
+        rewrite sem_cast_i2i_correct_range.
+        * simpl; destruct s; inv Hn; [rewrite Int.repr_signed | rewrite Int.repr_unsigned]; done.
+        * apply in_range_i2v in Hin.
+          rewrite /tc_val in Hin.
+          destruct i1; inv Hclass; destruct s; inv Hn; simpl i2v in Hin;
+            rewrite ?Int.repr_signed ?Int.repr_unsigned // in Hin.
+      + destruct v, it1; try done; destruct it2; try done; simpl in *.
+        * destruct i1; done.
+        * inv Hclass.
+          rewrite /cast_int_long.
+          destruct si1; inv Hn; done.
+        * if_tac in Hclass; done.
+      + destruct v, it1; try done; destruct it2; try done; simpl in *.
+        * destruct i1; done.
+        * if_tac in Hclass; inv Hclass.
+          apply in_range_i2v in Hin.
+          rewrite -(sem_cast_i2i_correct_range sz2 si2 (Vint (Int.repr n))) //=.
+          destruct s; inv Hn; try done.
+          rewrite Int64.unsigned_signed /Int64.lt; if_tac; last done.
+          do 3 f_equal; apply Int.eqm_samerepr.
+          rewrite /Int.eqm.
+          rewrite -{2}(Z.add_0_r (Int64.signed i)); apply Zbits.eqmod_add.
+          { apply Zbits.eqmod_refl. }
+          eapply Zbits.eqmod_trans; first apply Zbits.eqmod_mod; first done.
+          rewrite /Int64.modulus /Int.modulus !two_power_nat_equiv.
+          replace (2 ^ Int64.wordsize) with ((2 ^ Int.wordsize) * (2 ^ Int.wordsize)) by rep_lia.
+          rewrite Z_mod_mult; apply Zbits.eqmod_refl.
+    - rewrite /has_layout_val value_fits_by_value // repinject_valinject //.
+      split; last done; intros ?.
+      by apply in_range_i2v.
+    - rewrite repinject_valinject //.
+  Qed.
+
+(*  (* Ke: the equivalent to Caesium's CastOp is Clight's Ecast, so use typed_val_expr *)
   Lemma type_Ecast_same_val ge f e it2 T:
     typed_val_expr ge f e (λ v ty,
         <affine>⌜typeof e = it2⌝ ∗
@@ -909,9 +955,35 @@ Qed.
     iExists v. iIntros (m).
     iDestruct ("Hcast" $! m) as "(Hcast & T)". iFrame.
     iApply ("HΦ" with "[own_v]"); done.
+  Qed.*)
+
+  Lemma type_cast_int ge f e it2 T:
+    typed_val_expr ge f e (λ v ty, ⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ ∃ n, ⎡v ◁ᵥₐₗ|typeof e| n @ int (typeof e)⎤ ∗
+      (<affine> ⌜n ∈ typeof e⌝ -∗ <affine> ⌜n ∈ it2⌝ ∗ <affine> ⌜is_bool_type it2 = false ∧ type_is_volatile it2 = false⌝ ∗
+       ∀ v, T v (n @ int it2)))
+    ⊢ typed_val_expr ge f (Ecast e it2) T.
+  Proof.
+    iIntros "He %Φ HΦ".
+    iApply wp_cast_sc.
+    iApply "He".
+    iIntros (v ty) "own_v HT".
+    iDestruct ("HT" with "own_v") as "(% & (_ & %Htc & %Hn) & HT)".
+    pose proof (val_to_Z_by_value _ _ _ Hn).
+    rewrite repinject_valinject // in Hn.
+    destruct Htc as (Htc & ?).
+    rewrite value_fits_by_value // repinject_valinject // in Htc.
+    specialize (Htc (val_to_Z_not_Vundef _ _ _ Hn)).
+    pose proof (val_to_Z_in_range _ _ _ Hn Htc).
+    iDestruct ("HT" with "[//]") as "(%Hit2 & (% & %) & HT)".
+    iSplit.
+    { rewrite /sc_cast.
+      destruct (Cop.classify_cast (typeof e) it2); try done; destruct v; done. }
+    iDestruct cast_int_type as "(%v' & % & Hv')"; [done..|].
+    iExists v'; iSplit => //.
+    by iApply ("HΦ" with "Hv'").
   Qed.
 
-(*  Lemma type_cast_int n it1 it2 v T:
+  (*Lemma type_cast_int n it1 it2 v T:
     (⌜n ∈ it1⌝ -∗ ⌜n ∈ it2⌝ ∗ ∀ v, T v (n @ int it2))
     ⊢ typed_un_op v (v ◁ᵥ n @ int it1)%I (CastOp (IntOp it2)) (IntOp it1) T.
   Proof.
@@ -920,9 +992,9 @@ Qed.
     { iPureIntro. by apply: val_to_Z_in_range. }
     iApply wp_cast_int => //. iApply ("HΦ" with "[] HT") => //.
     iPureIntro. by apply: val_to_of_Z.
-  Qed.
-  Definition type_cast_int_inst := [instance type_cast_int].
-  Global Existing Instance type_cast_int_inst. *)
+  Qed.*)
+  (*Definition type_cast_int_inst := [instance type_cast_int].
+  Global Existing Instance type_cast_int_inst.*)
 
 (*  Lemma type_not_int n1 it v1 T:
     let n := if is_signed it then Z.lnot n1 else Z_lunot (int_size it) n1 in
