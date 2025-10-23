@@ -417,52 +417,6 @@ Ltac repeat' tac :=
   in aux 0%nat.
 
 Import env.
-Section automation_tests.
-  Context `{!typeG OK_ty Σ} {cs : compspecs}.
-
-  (* to programs.v *)
-  Definition normal_type_assert R := {| T_normal := R; T_break := False; T_continue := False; T_return := λ _ _, False |}.
-
-  Goal forall Espec ge f (_x:ident) (x:val),
-  temp _x x
-  ⊢ typed_stmt Espec ge (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint)
-                                              (Econst_int (Int.repr 1) tint) tint)) f
-                        (normal_type_assert (temp _x (Vint (Int.repr 42))
-                                ∗ ⎡ Vint (Int.repr 42) ◁ᵥₐₗ|tint| 42 @ int tint ⎤)).
-  Proof.
-    iIntros.
-    repeat liRStep.
-    liShow; try done.
-    (* FIXME add these Integer facts to Lithium automation *)
-    rewrite -Int.add_signed add_repr /= Int.signed_repr; last rep_lia.
-    repeat liRStep.
-    rewrite Int.signed_repr; last rep_lia.
-    done.
-  Qed.
-
-  Goal forall Espec ge f (_x:ident) b (l:address) ty,
-  TCDone (ty_has_op_type ty tint MCNone) ->
-  ⊢ lvar _x tint b -∗
-    ⎡ (b, Ptrofs.zero) ◁ₗ int tint ⎤ -∗
-    typed_stmt Espec ge (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) f
-               (normal_type_assert (⎡ (b, Ptrofs.zero) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True)).
-  Proof.
-    iIntros.
-    repeat liRStep.
-    admit. (* should be able to prove ty_own_val for int constants *)
-    (* Unshelve. constructor. *)
-  Admitted.
-
-End automation_tests.
-
-  Open Scope printing_sugar.
-  Arguments find_in_context: simpl never.
-  Arguments subsume: simpl never.
-  Arguments FindVal: simpl never.
-  (* for triggering related_to_val_rep_v *)
-  Arguments repinject: simpl never.
-  Arguments sep_list: simpl never.
-  Transparent Archi.ptr64.
 
 (* TODO move these to programs.v *)
 Section additional_instances.
@@ -508,6 +462,53 @@ Section additional_instances.
   Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
   
 End additional_instances.
+
+Open Scope printing_sugar.
+Arguments find_in_context: simpl never.
+Arguments subsume: simpl never.
+Arguments FindVal: simpl never.
+(* for triggering related_to_val_rep_v *)
+Arguments repinject: simpl never.
+Arguments sep_list: simpl never.
+
+Section automation_tests.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+
+  (* to programs.v *)
+  Definition normal_type_assert R := {| T_normal := R; T_break := False; T_continue := False; T_return := λ _ _, False |}.
+
+  Goal forall Espec ge f (_x:ident) (x:val),
+  temp _x x
+  ⊢ typed_stmt Espec ge (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint)
+                                              (Econst_int (Int.repr 1) tint) tint)) f
+                        (normal_type_assert (temp _x (Vint (Int.repr 42))
+                                ∗ ⎡ Vint (Int.repr 42) ◁ᵥₐₗ|tint| 42 @ int tint ⎤)).
+  Proof.
+    iIntros.
+    repeat liRStep.
+    (* FIXME add these Integer facts to Lithium automation *)
+    rewrite -Int.add_signed add_repr /= Int.signed_repr; last rep_lia.
+    repeat liRStep.
+    liShow.
+    rewrite Int.signed_repr; last rep_lia.
+    done.
+  Qed.
+
+  Goal forall Espec ge f (_x:ident) b (l:address) ty,
+  TCDone (ty_has_op_type ty tint MCNone) ->
+  ⊢ lvar _x tint b -∗
+    ⎡ (b, Ptrofs.zero) ◁ₗ int tint ⎤ -∗
+    typed_stmt Espec ge (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) f
+               (normal_type_assert (⎡ (b, Ptrofs.zero) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True)).
+  Proof.
+    iIntros.
+    repeat liRStep.
+    Unshelve. constructor.
+  Qed.
+
+End automation_tests.
+
+Transparent Archi.ptr64.
 
 Section automation_tests.
 Import Clightdefs.ClightNotations.
@@ -597,7 +598,7 @@ Require Import VST.veric.make_compspecs.
       type_function_end.
       Unshelve. 
     Qed.
-  End f_test1.
+  End f_test1. 
 
   Section f_test2.
     Context `{!typeG OK_ty Σ} {cs : compspecs}.
