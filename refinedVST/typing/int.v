@@ -957,6 +957,44 @@ Section programs.
     iApply ("HΦ" with "[own_v]"); done.
   Qed.*)
 
+  Lemma type_cast_same ge f e T:
+    typed_val_expr ge f e (λ v ty, (<affine> ⌜val_casted v (typeof e)⌝ ∗ T v ty))
+    ⊢ typed_val_expr ge f (Ecast e (typeof e)) T.
+  Proof.
+    iIntros "He %Φ HΦ".
+    iApply wp_cast0.
+    iApply "He".
+    iIntros (v ty) "own_v (% & HT)".
+    iExists v; iSplit.
+    { iPureIntro; intros; by apply cast_val_casted. }
+    iApply ("HΦ" with "own_v HT").
+  Qed.
+
+  Lemma type_cast_int_same ge f e T:
+    typed_val_expr ge f e (λ v ty, ⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ ∃ n, ⎡v ◁ᵥₐₗ|typeof e| n @ int (typeof e)⎤ ∗
+      (<affine> ⌜n ∈ typeof e⌝ -∗ T v (n @ int (typeof e))))
+    ⊢ typed_val_expr ge f (Ecast e (typeof e)) T.
+  Proof.
+    rewrite -type_cast_same.
+    iIntros "He %Φ HΦ"; iApply "He".
+    iIntros (??) "own_v HT".
+    iDestruct ("HT" with "own_v") as (?) "((_ & %Hv & %Hn) & HT)".
+    pose proof (val_to_Z_by_value _ _ _ Hn).
+    rewrite repinject_valinject // in Hn.
+    pose proof (proj1 Hv) as Htc.
+    pose proof (proj2 Hv).
+    rewrite value_fits_by_value // repinject_valinject // in Htc.
+    specialize (Htc (val_to_Z_not_Vundef _ _ _ Hn)).
+    pose proof (val_to_Z_in_range _ _ _ Hn Htc).
+    iSpecialize ("HT" with "[//]").
+    iApply ("HΦ" with "[] [$HT]").
+    - iPureIntro; split3; auto.
+      rewrite repinject_valinject //.
+    - iPureIntro; destruct v, (typeof e); try done; constructor.
+      pose proof (sem_cast_i2i_correct_range _ _ _ Htc) as Hcast.
+      by injection Hcast.
+  Qed.
+
   Lemma type_cast_int ge f e it2 T:
     typed_val_expr ge f e (λ v ty, ⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ ∃ n, ⎡v ◁ᵥₐₗ|typeof e| n @ int (typeof e)⎤ ∗
       (<affine> ⌜n ∈ typeof e⌝ -∗ <affine> ⌜n ∈ it2⌝ ∗ <affine> ⌜is_bool_type it2 = false ∧ type_is_volatile it2 = false⌝ ∗

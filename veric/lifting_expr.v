@@ -1244,6 +1244,16 @@ destruct t   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto; try discriminat
  simpl in H1; revert H1; simple_if_tac; simpl; rewrite Hp; intros [].
 Qed.
 
+Lemma wp_cast0 : forall E f e ty P,
+  wp_expr E f e (λ v, ∃ v', ⌜forall m, Cop.sem_cast v (typeof e) ty m = Some v'⌝ ∧ P v') ⊢ wp_expr E f (Ecast e ty) P.
+Proof.
+  intros; rewrite /wp_expr.
+  do 8 f_equiv. iIntros "(% & ? & Hm & ? & %v' & %Hcast & P)".
+  iExists v'; iFrame.
+  iStopProof; do 7 f_equiv.
+  intros ??; econstructor; eauto.
+Qed.
+
 Lemma wp_cast : forall E f e ty P, cast_pointer_to_bool (typeof e) ty = false ->
   wp_expr E f e (λ v, ⌜tc_val (typeof e) v⌝ ∧ ∃ v', ⌜Clight_Cop2.sem_cast (typeof e) ty v = Some v'⌝ ∧ P v') ⊢ wp_expr E f (Ecast e ty) P.
 Proof.

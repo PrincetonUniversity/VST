@@ -218,7 +218,7 @@ Ltac liRExpr :=
   lazymatch goal with
   | |- envs_entails ?Δ (typed_val_expr _ _ ?e ?T) =>
     lazymatch e with
-    | Ecast _ _ => notypeclasses refine (tac_fast_apply (type_cast_int _ _ _ _ _) _)
+    | Ecast _ _ => first [notypeclasses refine (tac_fast_apply (type_cast_int_same _ _ _ _) _) | notypeclasses refine (tac_fast_apply (type_cast_int _ _ _ _ _) _)]
     | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _ _ _) _)
     | Ebinop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_bin_op _ _ _ _ _ _ _) _)
     | Ederef _ _ => notypeclasses refine (tac_fast_apply (type_deref _ _ _ _ _ _) _);[done|]
@@ -486,7 +486,8 @@ Section automation_tests.
   Proof.
     iIntros.
     repeat liRStep.
-    (* FIXME add these Integer facts to Lithium automation *)
+    (* FIXME add these Integer facts to Lithium automation -- but where?
+       Just adding them to lithium_rewrite doesn't do it. *)
     rewrite -Int.add_signed add_repr /= Int.signed_repr; last rep_lia.
     repeat liRStep.
     liShow.
@@ -592,11 +593,8 @@ Require Import VST.veric.make_compspecs.
     Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_ret_expr spec_f_ret_expr.
     Proof.
       type_function "f" ( x ).
-      do 34 liRStep.
-      (* we should prove the is_int using the type of v here -- refactor? *)
       repeat liRStep.
       type_function_end.
-      Unshelve. 
     Qed.
   End f_test1. 
 
@@ -611,6 +609,6 @@ Require Import VST.veric.make_compspecs.
       type_function "f" ( x ).
       repeat liRStep.
       type_function_end.
-  Qed.
+    Qed.
 
-End f_test2.
+  End f_test2.
