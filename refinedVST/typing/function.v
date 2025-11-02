@@ -6,7 +6,7 @@ Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key"
 From VST.typing Require Import type_options.
 
 Section function.
-  Context `{!typeG OK_ty Σ} {cs : compspecs} {A : TypeTree}. (* should we fix this to ConstType? *)
+  Context `{!typeG OK_ty Σ} {cs : compspecs} {A : Type}.
   Record fn_ret := FR {
     (* return type (rc::returns) *)
     fr_rty : type;
@@ -56,7 +56,7 @@ Section function.
     ([∗ list] idt ∈ fn_vars f, typed_var_block idt) ∗
     ([∗ list] idt;v ∈ (Clight.fn_params f ++ fn_temps f);lv, temp (fst idt) v).
 
-  Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
+  Definition typed_function (fn : function) (fp : A → fn_params) : iProp Σ :=
     (<affine> ∀ x, <affine> ⌜Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn)⌝ ∗
       □ ∀ n (lsa : vec val (length (fp x).(fp_atys))),
          (([∗ list] v;'(cty,t)∈lsa;zip (map snd (Clight.fn_params fn)) (fp x).(fp_atys), v ◁ᵥₐₗ|cty| t) ∗
@@ -72,7 +72,7 @@ Section function.
   Global Instance leibniz_val : Equiv val := equivL.
 
   Import EqNotations.
-  Lemma typed_function_equiv fn1 fn2 (fp1 fp2 : @dtfr Σ A → _) :
+  Lemma typed_function_equiv fn1 fn2 (fp1 fp2 : A → _) :
     fn1 = fn2 →
     ((∀ x, Forall2 (λ ty '(_, p), ty_has_op_type ty p MCNone) (fp_atys (fp2 x)) (Clight.fn_params fn2)) →
     (* TODO: replace the following with an equivalence relation for fn_params? *)
@@ -128,7 +128,7 @@ Section function.
     destruct f; intros ?? (_ & ? & _) (_ & ? & _); congruence.
   Qed.
 
-  Program Definition function_ptr_type (fp : dtfr A → fn_params) (f : address) : type := {|
+  Program Definition function_ptr_type (fp : A → fn_params) (f : address) : type := {|
     ty_has_op_type ot mt := (∃ fn, fntbl_entry f fn /\ ot = tptr (type_of_function fn))%type;
     ty_own β l := (∃ fn, <affine> ⌜l `has_layout_loc` tptr (type_of_function fn)⌝ ∗ l ↦[β]|tptr (type_of_function fn)| adr2val f ∗ <affine> ⌜fntbl_entry f fn⌝ ∗ ▷ typed_function fn fp)%I;
     ty_own_val cty v := (∃ fn, <affine> ⌜cty = tptr (type_of_function fn) /\ repinject cty v = adr2val f⌝ ∗ <affine> ⌜fntbl_entry f fn⌝ ∗ ▷ typed_function fn fp)%I;
@@ -145,7 +145,7 @@ Section function.
     iIntros "[%fn [-> ?]]". iPureIntro. naive_solver.
   Qed. *)
 
-  Definition function_ptr (fp : dtfr A → fn_params) : rtype _ :=
+  Definition function_ptr (fp : A → fn_params) : rtype _ :=
     RType (function_ptr_type fp).
 
 (*   Global Program Instance copyable_function_ptr p fp : Copyable (p @ function_ptr fp).
@@ -246,7 +246,7 @@ Section function.
   Definition type_call_fnptr_inst := [instance type_call_fnptr].
 (*  Global Existing Instance type_call_fnptr_inst. *)
 
-  Lemma subsume_fnptr_val_ex B v cty l1 l2 (fnty1 : dtfr A → fn_params) fnty2 `{!∀ x, ContainsEx (fnty2 x)} T:
+  Lemma subsume_fnptr_val_ex B v cty l1 l2 (fnty1 : A → fn_params) fnty2 `{!∀ x, ContainsEx (fnty2 x)} T:
     (∃ x, <affine> ⌜l1 = l2 x⌝ ∗ <affine> ⌜fnty1 = fnty2 x⌝ ∗ T x)
     ⊢ subsume (v ◁ᵥₐₗ|cty| l1 @ function_ptr fnty1) (λ x : B, v ◁ᵥₐₗ|cty| (l2 x) @ function_ptr (fnty2 x)) T.
   Proof. iIntros "H".
@@ -259,7 +259,7 @@ Section function.
   Global Existing Instance subsume_fnptr_val_ex_inst | 5.
 
   (* TODO: split this in an ex and no_ex variant as for values *)
-  Lemma subsume_fnptr_loc B l l1 l2  (fnty1 : dtfr A → fn_params) fnty2 T:
+  Lemma subsume_fnptr_loc B l l1 l2  (fnty1 : A → fn_params) fnty2 T:
     (∃ x, <affine> ⌜l1 = l2 x⌝ ∗ <affine> ⌜fnty1 = fnty2 x⌝ ∗ T x)
       ⊢ subsume (l ◁ₗ l1 @ function_ptr fnty1) (λ x : B, l ◁ₗ (l2 x)  @ function_ptr (fnty2 x))  T .
   Proof.
@@ -276,7 +276,7 @@ Section function_extra.
   Context `{!typeG OK_ty Σ}.
  
   (*
-  Lemma subsume_fnptr_no_ex A A1 A2 v l1 l2 (fnty1 : { A1 : TypeTree & (dtfr A1 → fn_params)%type}) (fnty2 : { A2 : TypeTree & (dtfr A2 → fn_params)%type})
+  Lemma subsume_fnptr_no_ex A A1 A2 v l1 l2 (fnty1 : A1 → fn_params) (fnty2 : A2 → fn_params)
     `{!Inhabited A1} T:
     subsume (v ◁ᵥ l1 @ function_ptr fnty1) (λ x : A, v ◁ᵥ (l2 x) @ function_ptr fnty2) T :-
       and:
@@ -490,6 +490,6 @@ Section test.
   Local Definition test_fn2 := fn(∀ () : (); True) → ∃ () : (), void; True.
   Local Definition test_fn3 := fn(∀ (n1, n2, n3, n4, n5, n6, n7) : Z * Z * Z * Z * Z * Z * Z; uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t; True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True) → ∃ (n1, n2, n3, n4, n5, n6, n7) : Z * Z * Z * Z * Z * Z * Z, uninit size_t; True%I.
 
-  Goal ∀ Espec ge cty (l : address) fn, l ◁ᵥₐₗ|cty| l @ function_ptr(A := ConstType _) Espec ge test_fn2 -∗ typed_function(A := ConstType _) Espec ge fn test_fn.
+  Goal ∀ Espec ge cty (l : address) fn, l ◁ᵥₐₗ|cty| l @ function_ptr Espec ge test_fn2 -∗ typed_function Espec ge fn test_fn.
   Abort.
 End test.

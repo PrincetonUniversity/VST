@@ -65,7 +65,7 @@ endif
 # CLIGHTGEN=$(my_local_bin_path)/clightgen
 
 # # User settable variables #
-COMPCERT ?= bundled
+COMPCERT ?= platform
 ZLIST ?= bundled
 ARCH ?= 
 BITSIZE ?= 64

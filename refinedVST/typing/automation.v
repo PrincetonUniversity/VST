@@ -330,8 +330,7 @@ Tactic Notation "type_function" constr(fnname) "(" simple_intropattern(x) ")" :=
   rewrite /typed_function;
   let y := fresh in
   iIntros  "!>" ( y );
-  (* computes the ofe_car in introduced arguments *)
-  match goal with | H: ofe_car _ |- _ => hnf in H; destruct H end;
+  destruct y;
   iSplit; [iPureIntro; simpl; by [repeat constructor] || fail "in" fnname "argument types don't match layout of arguments" |];
   let lsa := fresh "lsa" in let lsb := fresh "lsb" in
   let stk := fresh "stk" in
@@ -590,7 +589,7 @@ Require Import VST.veric.make_compspecs.
       fn(∀ () : (); emp) → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
     Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
-    Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_ret_expr spec_f_ret_expr.
+    Goal forall Espec ge, ⊢ typed_function Espec ge f_f_ret_expr spec_f_ret_expr.
     Proof.
       type_function "f" ( x ).
       repeat liRStep.
@@ -604,7 +603,7 @@ Require Import VST.veric.make_compspecs.
     Definition spec_f_temps :=
       fn(∀ () : (); emp) → ∃ z : Z, (z @ (int tint)) ; ⌜z=42⌝.
 
-    Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_temps spec_f_temps.
+    Goal forall Espec ge, ⊢ typed_function Espec ge f_f_temps spec_f_temps.
     Proof.
       type_function "f" ( x ).
       repeat liRStep.
