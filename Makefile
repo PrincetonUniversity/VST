@@ -723,6 +723,10 @@ INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST
 INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(INSTALL_FILES_SRC))
 INSTALL_FILES=$(sort $(INSTALL_FILES_SRC) $(INSTALL_FILES_VO))
 
+RC_INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) ZLIST=$(ZLIST) BITSIZE=$(BITSIZE) ARCH=$(ARCH) IGNORECOQVERSION=$(IGNORECOQVERSION) IGNORECOMPCERTVERSION=$(IGNORECOMPCERTVERSION) MAKE=$(MAKE) util/calc_install_files refinedVST/typing/automation.vo)
+RC_INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(RC_INSTALL_FILES_SRC))
+RC_INSTALL_FILES=$(sort $(RC_INSTALL_FILES_SRC) $(RC_INSTALL_FILES_VO))
+
 # ########## Rules ##########
 
 %_stripped.v: %.v
@@ -841,7 +845,13 @@ install: VST.config
 	for d in $(sort $(dir $(INSTALL_FILES) $(EXTRA_INSTALL_FILES))); do install -d "$(INSTALLDIR)/$$d"; done
 	for f in $(INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 	for f in $(EXTRA_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
-	cd ora; $(MAKE) install
+
+install_rc: VST.config
+	install -d "$(INSTALLDIR)"
+	install -d "$(INSTALLDIR)"
+	for d in $(sort $(dir $(RC_INSTALL_FILES) $(EXTRA_INSTALL_FILES))); do install -d "$(INSTALLDIR)/$$d"; done
+	for f in $(RC_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
+	for f in $(EXTRA_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 
 dochtml:
 	mkdir -p doc/html
