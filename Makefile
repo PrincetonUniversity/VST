@@ -852,6 +852,7 @@ install_rc: VST.config
 	for d in $(sort $(dir $(RC_INSTALL_FILES) $(EXTRA_INSTALL_FILES))); do install -d "$(INSTALLDIR)/$$d"; done
 	for f in $(RC_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 	for f in $(EXTRA_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
+	cd refinedVST; make INSTALLDIR=$(INSTALLDIR) install
 
 dochtml:
 	mkdir -p doc/html
