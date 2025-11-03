@@ -312,45 +312,20 @@ End coq_tactics.
 in the number of blocks! *)
 (* TODO: don't use i... tactics here *)
 (* FIXME for now the intropattern is just x for the entire array of arguments. *)
-(* was start_function in refinedc; name conflict with the floyd tactic *)
   
-Lemma mpred_to_assert {I:biIndex} {prop:bi} (P Q:monPred I prop ) : (⊢ P -∗ Q) -> (forall m, ⊢ monPred_at P m -∗ monPred_at Q m).
-  intros. destruct H as [H]. specialize (H m). rewrite monPred_at_wand in H.
-    rewrite /bi_emp_valid -(monPred_at_emp m) // H.
-  iIntros "H ?". iApply "H"; done.
-Qed. 
-Lemma to_bi_emp_valid {prop:bi} (P Q:prop) :  (⊢ (P -∗ Q)) -> (P ⊢  Q).
-  rewrite /bi_emp_valid => x.
-  rewrite -(bi.wand_elim_r P Q). rewrite -x. iIntros. iFrame; done. Qed.
-
-
-Tactic Notation "type_function" constr(fnname) "(" simple_intropattern(x) ")" :=
+Tactic Notation "start_function" constr(fnname) "(" simple_intropattern(x) ")" :=
   intros;
-  repeat iIntros "#?";
-  rewrite /typed_function;
-  let y := fresh in
-  iIntros  "!>" ( y );
-  destruct y;
-  iSplit; [iPureIntro; simpl; by [repeat constructor] || fail "in" fnname "argument types don't match layout of arguments" |];
-  let lsa := fresh "lsa" in let lsb := fresh "lsb" in
-  let stk := fresh "stk" in
-  iIntros "!#" (stk lsa); inv_vec lsa;
-  rewrite /typed_stackframe;
-  iIntros "(? & ? & ?)";
-  cbn;
-  iStopProof;
-  apply to_bi_emp_valid;
-  try rewrite -(monPred_at_emp stk);
-  (* rewrite -?(monPred_at_pure stk) diverges *)
-  try rewrite -(monPred_at_pure stk);
-  try rewrite -(monPred_at_affinely stk);
-  rewrite -?monPred_at_sep;
-  apply mpred_to_assert;
+  apply prove_typed_function; [apply _..|];
+  intros x;
+  split; [simpl; by [repeat constructor] || fail "in" fnname "argument types don't match layout of arguments" |];
+  let lsa := fresh "lsa" in intros lsa; inv_vec lsa.
+
+Tactic Notation "start_function2" :=
+  iIntros "#?";
   iIntros "(? & (stk1 & stk2) & ?)";
   repeat iDestruct "stk1" as "[? stk1]";
   repeat iDestruct "stk2" as "[? stk2]";
   cbn.
-
 
 Ltac type_function_end :=
   let l := fresh in
@@ -586,12 +561,13 @@ Require Import VST.veric.make_compspecs.
     Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
     Definition spec_f_ret_expr :=
-      fn(∀ () : (); emp) → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
+      fn(∀ x : (); emp) → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
     Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
     Goal forall Espec ge, ⊢ typed_function Espec ge f_f_ret_expr spec_f_ret_expr.
     Proof.
-      type_function "f" ( x ).
+      start_function "f" ( x ).
+      start_function2.
       repeat liRStep.
       type_function_end.
     Qed.
@@ -601,11 +577,12 @@ Require Import VST.veric.make_compspecs.
     Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
     Definition spec_f_temps :=
-      fn(∀ () : (); emp) → ∃ z : Z, (z @ (int tint)) ; ⌜z=42⌝.
+      fn(∀ x : (); emp) → ∃ z : Z, (z @ (int tint)) ; ⌜z=42⌝.
 
     Goal forall Espec ge, ⊢ typed_function Espec ge f_f_temps spec_f_temps.
     Proof.
-      type_function "f" ( x ).
+      start_function "f" ( x ).
+      start_function2.
       repeat liRStep.
       type_function_end.
     Qed.

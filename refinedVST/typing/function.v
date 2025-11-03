@@ -113,6 +113,30 @@ Section function.
       by f_equiv.
   Qed.
 
+  Lemma prove_typed_function P `{!Persistent P} `{!Affine P} fn fp :
+    (forall x, Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn) ∧
+     forall (lsa : vec val (length (fp x).(fp_atys))), ⎡P⎤ -∗ (([∗ list] v;'(cty,t)∈lsa;zip (map snd (Clight.fn_params fn)) (fp x).(fp_atys), ⎡v ◁ᵥₐₗ|cty| t⎤) ∗
+          typed_stackframe fn (lsa ++ repeat Vundef (length fn.(fn_temps))) ∗
+          ⎡(fp x).(fp_Pa)⎤) -∗
+          typed_stmt Espec ge (fn.(fn_body)) fn (fn_ret_assert fn (fp x).(fp_fr))) →
+    P ⊢ typed_function fn fp.
+  Proof.
+    intros; iIntros "#P".
+    rewrite /typed_function.
+    iIntros "!>" (x).
+    destruct (H x) as (? & Hty).
+    iSplit => //.
+    iIntros "!>" (n lsa) "H".
+    specialize (Hty lsa); apply monPred_in_entails with (i := n) in Hty.
+    rewrite monPred_at_emp in Hty.
+    iPoseProof (Hty with "[//]") as "Hty"; monPred.unseal.
+    iApply ("Hty" with "[//] P [//]").
+    iDestruct "H" as "(H & $ & $)".
+    rewrite monPred_at_big_sepL2.
+    iApply (big_sepL2_mono with "H").
+    intros ?? (?,?) ??; by rewrite -monpred.monPred_embed_unseal monPred_at_embed.
+  Qed.
+    
   Definition fntbl_entry f fn := let '(b, o) := f in o = Ptrofs.zero /\ Genv.find_def ge b = Some (Gfun (Internal fn)) /\
     (Forall (λ it : ident * Ctypes.type, complete_type cenv_cs it.2 = true) (fn_vars fn)
        ∧ list_norepet (map fst (Clight.fn_params fn) ++ map fst (fn_temps fn))

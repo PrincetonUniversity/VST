@@ -6,7 +6,9 @@ Require Import compcert.common.Globalenvs.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 
+Set Warnings "-custom-entry-overridden".
 Require Import VST.veric.juicy_mem.
+Set Warnings "custom-entry-overridden".
 
 (*Definition pures_sub (phi phi' : rmap) :=
   forall adr,
