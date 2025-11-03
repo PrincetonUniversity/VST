@@ -322,10 +322,11 @@ Tactic Notation "start_function" constr(fnname) "(" simple_intropattern(x) ")" :
 
 Tactic Notation "start_function2" :=
   iIntros "#?";
-  iIntros "(? & (stk1 & stk2) & ?)";
+  iIntros "(args & (stk1 & stk2) & ?)";
+  cbn;
+  repeat iDestruct "args" as "[? args]";
   repeat iDestruct "stk1" as "[? stk1]";
-  repeat iDestruct "stk2" as "[? stk2]";
-  cbn.
+  repeat iDestruct "stk2" as "[? stk2]".
 
 Ltac type_function_end :=
   let l := fresh in
