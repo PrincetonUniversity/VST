@@ -317,7 +317,7 @@ Tactic Notation "start_function" constr(fnname) "(" simple_intropattern(x) ")" :
   intros;
   apply prove_typed_function; [apply _..|];
   intros x;
-  split; [simpl; by [repeat constructor] || fail "in" fnname "argument types don't match layout of arguments" |];
+  split; [simpl; by [repeat constructor; try econstructor] || fail "in" fnname "argument types don't match layout of arguments" |];
   let lsa := fresh "lsa" in intros lsa; inv_vec lsa.
 
 Tactic Notation "start_function2" :=
