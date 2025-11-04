@@ -3,7 +3,7 @@ Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-k
 From VST.veric Require Import lifting.
 From VST.lithium Require Export proof_state.
 From lithium Require Import hooks.
-From VST.typing Require Export type.
+From VST.typing Require Export type ClightSugar.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
 
@@ -221,6 +221,18 @@ Section judgements.
   Proof.
     intros. rewrite /typed_stmt. apply wp_conseq; intros; simpl; rewrite -?fupd_intro //.
     iIntros "(% & ? & ?)"; rewrite H2; eauto with iFrame.
+  Qed.
+
+  Lemma typed_stmt_strong_mono s f R1 R2 :
+   ((T_normal R1 -∗ T_normal R2) ∧
+    (T_break R1 -∗ T_break R2) ∧
+    (T_continue R1 -∗ T_continue R2) ∧
+    (∀ v t, T_return R1 v t -∗ T_return R2 v t)) ∗
+    typed_stmt s f R1 ⊢ typed_stmt s f R2.
+  Proof.
+    intros. iIntros "(H & Hs)"; iApply wp_strong_mono; iFrame.
+    iStopProof; repeat apply bi.and_mono; rewrite -?fupd_intro //=.
+    iIntros "H" (v) "(% & $ & ?)"; by iApply "H".
   Qed.
 
   Definition switch_type_assert (R: type_ret_assert) : type_ret_assert :=
@@ -1617,13 +1629,27 @@ Section typing.
        T_continue := False;
        T_return := T_return R |}.
 
-  (* convert to use invariant? *)
   Lemma type_loop Espec ge f s1 s2 R:
     ▷ typed_stmt Espec ge s1 f (loop1_type_assert
-      (typed_stmt Espec ge s2 f (loop2_type_assert (typed_stmt Espec ge (Sloop s1 s2) f R) R)) R)
-    ⊢ typed_stmt Espec ge (Sloop s1 s2) f R.
+      (typed_stmt Espec ge s2 f (loop2_type_assert (typed_stmt Espec ge (Clight.Sloop s1 s2) f R) R)) R)
+    ⊢ typed_stmt Espec ge (Clight.Sloop s1 s2) f R.
   Proof.
     rewrite /typed_stmt -{2}wp_loop //.
+  Qed.
+
+  Lemma type_inv_loop Espec ge f inv s1 s2 R:
+    ▷ (inv ∗ □ (inv -∗ typed_stmt Espec ge s1 f (loop1_type_assert
+      (typed_stmt Espec ge s2 f (loop2_type_assert inv R)) R)))
+    ⊢ typed_stmt Espec ge (Sloop inv s1 s2) f R.
+  Proof.
+    rewrite /Sloop.
+    iLöb as "IH".
+    iIntros "H"; iApply type_loop.
+    iNext.
+    iDestruct "H" as "(inv & #H)".
+    iApply typed_stmt_strong_mono; iSplitR; last (by iApply "H").
+    iSplit; [|iSplit; [|iSplit]]; iIntros; rewrite //=;
+      iApply (typed_stmt_strong_mono); iFrame; (iSplit; [|iSplit; [|iSplit]]; iIntros; rewrite //=); iApply "IH"; by iFrame.
   Qed.
 
   Lemma type_switch Espec ge f e ls R:
@@ -1668,7 +1694,7 @@ Section typing.
 
   Lemma type_skips' s fn ls Q R:
     typed_stmt s fn ls R Q ⊢ typed_stmt (SkipS s) fn ls R Q.
-  Proof. iIntros "Hs". iApply type_skips. by iApply step_fupd_intro. Qed.
+  Proof. iIntros "Hs". iApply type_skips. by iApply step_fupd_intro. Qed. *)
 
   Lemma type_annot_stmt {A} p (a : A) s fn ls Q R:
     (typed_addr_of p (λ l β ty, typed_annot_stmt a l (l ◁ₗ{β} ty) (typed_stmt s fn ls R Q)))
