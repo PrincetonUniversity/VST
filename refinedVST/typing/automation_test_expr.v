@@ -11,9 +11,9 @@ Module Info.
   Definition build_tag := "".
   Definition build_branch := "".
   Definition arch := "x86".
-  Definition model := "32sse2".
+  Definition model := "64".
   Definition abi := "standard".
-  Definition bitsize := 32.
+  Definition bitsize := 64.
   Definition big_endian := false.
   Definition source_file := "refinedVST/typing/automation_test.c".
   Definition normalized := true.
@@ -132,9 +132,9 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      ((tptr tvoid) :: nil) tdouble cc_default)) ::
  (___compcert_va_composite,
    Gfun(External (EF_runtime "__compcert_va_composite"
-                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xptr
-                     cc_default)) ((tptr tvoid) :: tuint :: nil) (tptr tvoid)
-     cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xlong :: nil) AST.Xptr
+                     cc_default)) ((tptr tvoid) :: tulong :: nil)
+     (tptr tvoid) cc_default)) ::
  (___compcert_i64_dtos,
    Gfun(External (EF_runtime "__compcert_i64_dtos"
                    (mksignature (AST.Xfloat :: nil) AST.Xlong cc_default))
@@ -227,8 +227,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (tuint :: nil) tint cc_default)) ::
  (___builtin_clzl,
    Gfun(External (EF_builtin "__builtin_clzl"
-                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
-     (tuint :: nil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tulong :: nil) tint cc_default)) ::
  (___builtin_clzll,
    Gfun(External (EF_builtin "__builtin_clzll"
                    (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
@@ -239,8 +239,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (tuint :: nil) tint cc_default)) ::
  (___builtin_ctzl,
    Gfun(External (EF_builtin "__builtin_ctzl"
-                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
-     (tuint :: nil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tulong :: nil) tint cc_default)) ::
  (___builtin_ctzll,
    Gfun(External (EF_builtin "__builtin_ctzll"
                    (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
@@ -264,9 +264,9 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (___builtin_memcpy_aligned,
    Gfun(External (EF_builtin "__builtin_memcpy_aligned"
                    (mksignature
-                     (AST.Xptr :: AST.Xptr :: AST.Xint :: AST.Xint :: nil)
+                     (AST.Xptr :: AST.Xptr :: AST.Xlong :: AST.Xlong :: nil)
                      AST.Xvoid cc_default))
-     ((tptr tvoid) :: (tptr tvoid) :: tuint :: tuint :: nil) tvoid
+     ((tptr tvoid) :: (tptr tvoid) :: tulong :: tulong :: nil) tvoid
      cc_default)) ::
  (___builtin_sel,
    Gfun(External (EF_builtin "__builtin_sel"
@@ -313,8 +313,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      cc_default)) ::
  (___builtin_expect,
    Gfun(External (EF_builtin "__builtin_expect"
-                   (mksignature (AST.Xint :: AST.Xint :: nil) AST.Xint
-                     cc_default)) (tint :: tint :: nil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
  (___builtin_fmax,
    Gfun(External (EF_builtin "__builtin_fmax"
                    (mksignature (AST.Xfloat :: AST.Xfloat :: nil) AST.Xfloat
