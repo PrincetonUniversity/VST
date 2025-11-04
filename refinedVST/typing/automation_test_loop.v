@@ -11,11 +11,11 @@ Module Info.
   Definition build_tag := "".
   Definition build_branch := "".
   Definition arch := "x86".
-  Definition model := "32sse2".
+  Definition model := "64".
   Definition abi := "standard".
-  Definition bitsize := 32.
+  Definition bitsize := 64.
   Definition big_endian := false.
-  Definition source_file := "refinedVST/typing/automation_test.c".
+  Definition source_file := "refinedVST/typing/automation_test_loop.c".
   Definition normalized := true.
 End Info.
 
@@ -75,47 +75,139 @@ Definition ___compcert_va_composite : ident := $"__compcert_va_composite".
 Definition ___compcert_va_float64 : ident := $"__compcert_va_float64".
 Definition ___compcert_va_int32 : ident := $"__compcert_va_int32".
 Definition ___compcert_va_int64 : ident := $"__compcert_va_int64".
-Definition _a : ident := $"a".
-Definition _f_ret_expr : ident := $"f_ret_expr".
-Definition _f_temps : ident := $"f_temps".
+Definition _append : ident := $"append".
+Definition _append_loop_2 : ident := $"append_loop_2".
+Definition _end : ident := $"end".
+Definition _k : ident := $"k".
+Definition _l : ident := $"l".
+Definition _list_node : ident := $"list_node".
 Definition _main : ident := $"main".
+Definition _next : ident := $"next".
+Definition _reverse_2 : ident := $"reverse_2".
+Definition _reversed : ident := $"reversed".
+Definition _tmp : ident := $"tmp".
+Definition _val : ident := $"val".
+Definition _t'1 : ident := 128%positive.
+Definition _t'2 : ident := 129%positive.
 
-Definition f_main := {|
-  fn_return := tint;
+Definition f_reverse_2 := {|
+  fn_return := (tptr (Tstruct _list_node noattr));
   fn_callconv := cc_default;
-  fn_params := nil;
+  fn_params := ((_l, (tptr (Tstruct _list_node noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := nil;
-  fn_body :=
-(Sreturn (Some (Econst_int (Int.repr 0) tint)))
-|}.
-
-Definition f_f_ret_expr := {|
-  fn_return := tint;
-  fn_callconv := cc_default;
-  fn_params := nil;
-  fn_vars := nil;
-  fn_temps := nil;
-  fn_body :=
-(Sreturn (Some (Ebinop Oadd (Econst_int (Int.repr 1) tint)
-                 (Econst_int (Int.repr 2) tint) tint)))
-|}.
-
-Definition f_f_temps := {|
-  fn_return := tint;
-  fn_callconv := cc_default;
-  fn_params := nil;
-  fn_vars := nil;
-  fn_temps := ((_a, tint) :: nil);
+  fn_temps := ((_reversed, (tptr (Tstruct _list_node noattr))) ::
+               (_tmp, (tptr (Tstruct _list_node noattr))) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _a (Econst_int (Int.repr 1) tint))
-  (Sreturn (Some (Ebinop Oadd (Etempvar _a tint)
-                   (Econst_int (Int.repr 41) tint) tint))))
+  (Sset _reversed (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+  (Ssequence
+    (Swhile
+      (Ebinop One (Etempvar _l (tptr (Tstruct _list_node noattr)))
+        (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
+      (Ssequence
+        (Sset _tmp
+          (Efield
+            (Ederef (Etempvar _l (tptr (Tstruct _list_node noattr)))
+              (Tstruct _list_node noattr)) _next
+            (tptr (Tstruct _list_node noattr))))
+        (Ssequence
+          (Sassign
+            (Efield
+              (Ederef (Etempvar _l (tptr (Tstruct _list_node noattr)))
+                (Tstruct _list_node noattr)) _next
+              (tptr (Tstruct _list_node noattr)))
+            (Etempvar _reversed (tptr (Tstruct _list_node noattr))))
+          (Ssequence
+            (Sset _reversed (Etempvar _l (tptr (Tstruct _list_node noattr))))
+            (Sset _l (Etempvar _tmp (tptr (Tstruct _list_node noattr))))))))
+    (Sreturn (Some (Etempvar _reversed (tptr (Tstruct _list_node noattr)))))))
+|}.
+
+Definition f_append := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := ((_l, (tptr (tptr (Tstruct _list_node noattr)))) ::
+                (_k, (tptr (Tstruct _list_node noattr))) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_t'2, (tptr (Tstruct _list_node noattr))) ::
+               (_t'1, (tptr (Tstruct _list_node noattr))) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _t'1
+    (Ederef (Etempvar _l (tptr (tptr (Tstruct _list_node noattr))))
+      (tptr (Tstruct _list_node noattr))))
+  (Sifthenelse (Ebinop Oeq (Etempvar _t'1 (tptr (Tstruct _list_node noattr)))
+                 (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
+    (Sassign
+      (Ederef (Etempvar _l (tptr (tptr (Tstruct _list_node noattr))))
+        (tptr (Tstruct _list_node noattr)))
+      (Etempvar _k (tptr (Tstruct _list_node noattr))))
+    (Ssequence
+      (Sset _t'2
+        (Ederef (Etempvar _l (tptr (tptr (Tstruct _list_node noattr))))
+          (tptr (Tstruct _list_node noattr))))
+      (Scall None
+        (Evar _append (Tfunction
+                        ((tptr (tptr (Tstruct _list_node noattr))) ::
+                         (tptr (Tstruct _list_node noattr)) :: nil) tvoid
+                        cc_default))
+        ((Eaddrof
+           (Efield
+             (Ederef (Etempvar _t'2 (tptr (Tstruct _list_node noattr)))
+               (Tstruct _list_node noattr)) _next
+             (tptr (Tstruct _list_node noattr)))
+           (tptr (tptr (Tstruct _list_node noattr)))) ::
+         (Etempvar _k (tptr (Tstruct _list_node noattr))) :: nil)))))
+|}.
+
+Definition f_append_loop_2 := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := ((_l, (tptr (tptr (Tstruct _list_node noattr)))) ::
+                (_k, (tptr (Tstruct _list_node noattr))) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_end, (tptr (tptr (Tstruct _list_node noattr)))) ::
+               (_t'2, (tptr (Tstruct _list_node noattr))) ::
+               (_t'1, (tptr (Tstruct _list_node noattr))) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _end (Etempvar _l (tptr (tptr (Tstruct _list_node noattr)))))
+  (Ssequence
+    (Sloop
+      (Ssequence
+        (Ssequence
+          (Sset _t'2
+            (Ederef (Etempvar _end (tptr (tptr (Tstruct _list_node noattr))))
+              (tptr (Tstruct _list_node noattr))))
+          (Sifthenelse (Ebinop One
+                         (Etempvar _t'2 (tptr (Tstruct _list_node noattr)))
+                         (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))
+                         tint)
+            Sskip
+            Sbreak))
+        (Ssequence
+          (Sset _t'1
+            (Ederef (Etempvar _end (tptr (tptr (Tstruct _list_node noattr))))
+              (tptr (Tstruct _list_node noattr))))
+          (Sset _end
+            (Eaddrof
+              (Efield
+                (Ederef (Etempvar _t'1 (tptr (Tstruct _list_node noattr)))
+                  (Tstruct _list_node noattr)) _next
+                (tptr (Tstruct _list_node noattr)))
+              (tptr (tptr (Tstruct _list_node noattr)))))))
+      Sskip)
+    (Sassign
+      (Ederef (Etempvar _end (tptr (tptr (Tstruct _list_node noattr))))
+        (tptr (Tstruct _list_node noattr)))
+      (Etempvar _k (tptr (Tstruct _list_node noattr))))))
 |}.
 
 Definition composites : list composite_definition :=
-nil.
+(Composite _list_node Struct
+   (Member_plain _val tint ::
+    Member_plain _next (tptr (Tstruct _list_node noattr)) :: nil)
+   noattr :: nil).
 
 Definition global_definitions : list (ident * globdef fundef type) :=
 ((___compcert_va_int32,
@@ -132,9 +224,9 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      ((tptr tvoid) :: nil) tdouble cc_default)) ::
  (___compcert_va_composite,
    Gfun(External (EF_runtime "__compcert_va_composite"
-                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xptr
-                     cc_default)) ((tptr tvoid) :: tuint :: nil) (tptr tvoid)
-     cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xlong :: nil) AST.Xptr
+                     cc_default)) ((tptr tvoid) :: tulong :: nil)
+     (tptr tvoid) cc_default)) ::
  (___compcert_i64_dtos,
    Gfun(External (EF_runtime "__compcert_i64_dtos"
                    (mksignature (AST.Xfloat :: nil) AST.Xlong cc_default))
@@ -227,8 +319,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (tuint :: nil) tint cc_default)) ::
  (___builtin_clzl,
    Gfun(External (EF_builtin "__builtin_clzl"
-                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
-     (tuint :: nil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tulong :: nil) tint cc_default)) ::
  (___builtin_clzll,
    Gfun(External (EF_builtin "__builtin_clzll"
                    (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
@@ -239,8 +331,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (tuint :: nil) tint cc_default)) ::
  (___builtin_ctzl,
    Gfun(External (EF_builtin "__builtin_ctzl"
-                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
-     (tuint :: nil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tulong :: nil) tint cc_default)) ::
  (___builtin_ctzll,
    Gfun(External (EF_builtin "__builtin_ctzll"
                    (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
@@ -264,9 +356,9 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (___builtin_memcpy_aligned,
    Gfun(External (EF_builtin "__builtin_memcpy_aligned"
                    (mksignature
-                     (AST.Xptr :: AST.Xptr :: AST.Xint :: AST.Xint :: nil)
+                     (AST.Xptr :: AST.Xptr :: AST.Xlong :: AST.Xlong :: nil)
                      AST.Xvoid cc_default))
-     ((tptr tvoid) :: (tptr tvoid) :: tuint :: tuint :: nil) tvoid
+     ((tptr tvoid) :: (tptr tvoid) :: tulong :: tulong :: nil) tvoid
      cc_default)) ::
  (___builtin_sel,
    Gfun(External (EF_builtin "__builtin_sel"
@@ -313,8 +405,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      cc_default)) ::
  (___builtin_expect,
    Gfun(External (EF_builtin "__builtin_expect"
-                   (mksignature (AST.Xint :: AST.Xint :: nil) AST.Xint
-                     cc_default)) (tint :: tint :: nil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
  (___builtin_fmax,
    Gfun(External (EF_builtin "__builtin_fmax"
                    (mksignature (AST.Xfloat :: AST.Xfloat :: nil) AST.Xfloat
@@ -374,12 +466,12 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (tint :: nil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
- (_main, Gfun(Internal f_main)) ::
- (_f_ret_expr, Gfun(Internal f_f_ret_expr)) ::
- (_f_temps, Gfun(Internal f_f_temps)) :: nil).
+ (_reverse_2, Gfun(Internal f_reverse_2)) ::
+ (_append, Gfun(Internal f_append)) ::
+ (_append_loop_2, Gfun(Internal f_append_loop_2)) :: nil).
 
 Definition public_idents : list ident :=
-(_f_temps :: _f_ret_expr :: _main :: ___builtin_debug ::
+(_append_loop_2 :: _append :: _reverse_2 :: ___builtin_debug ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
