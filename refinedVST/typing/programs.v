@@ -1661,6 +1661,13 @@ Section typing.
     iIntros (??) "Hv H"; iDestruct ("H" with "Hv") as (?) "($ & $)".
   Qed.
 
+  Lemma type_label Espec ge l s f R:
+    typed_stmt Espec ge s f R
+    ⊢ typed_stmt Espec ge (Slabel l s) f R.
+  Proof.
+    rewrite /typed_stmt -wp_label //.
+  Qed.
+
 (*  Lemma type_assert Q ot e s fn ls R:
     typed_val_expr e (λ v ty, typed_assert ot v (v ◁ᵥ ty) s fn ls R Q)
     ⊢ typed_stmt (assert{ot}: e; s) fn ls R Q.
@@ -1684,19 +1691,15 @@ Section typing.
     iIntros "Hs ?". wps_bind. iApply "Hs". iIntros (v ty) "Hv Hs".
     iApply wps_exprs. iApply step_fupd_intro => //. iModIntro.
     by iApply ("Hs" with "Hv").
-  Qed.
+  Qed. *)
 
-  Lemma type_skips Espec Delta s R:
-    (|={⊤}[∅]▷=> typed_stmt Espec Delta s R) ⊢ typed_stmt (Sskip s) fn ls R Q.
+  Lemma type_skips Espec ge f R:
+    T_normal R ⊢ typed_stmt Espec ge Sskip f R.
   Proof.
-    iIntros "Hs ?". iApply wps_skip. iApply (step_fupd_wand with "Hs"). iIntros "Hs". by iApply "Hs".
+    iIntros "Hs". iApply wp_skip. done.
   Qed.
 
-  Lemma type_skips' s fn ls Q R:
-    typed_stmt s fn ls R Q ⊢ typed_stmt (SkipS s) fn ls R Q.
-  Proof. iIntros "Hs". iApply type_skips. by iApply step_fupd_intro. Qed. *)
-
-  Lemma type_annot_stmt {A} p (a : A) s fn ls Q R:
+  (*Lemma type_annot_stmt {A} p (a : A) s fn ls Q R:
     (typed_addr_of p (λ l β ty, typed_annot_stmt a l (l ◁ₗ{β} ty) (typed_stmt s fn ls R Q)))
     ⊢ typed_stmt (annot: a; expr: &p; s) fn ls R Q.
   Proof.
@@ -1704,14 +1707,14 @@ Section typing.
     wps_bind. rewrite /AddrOf. iApply "Hs".
     iIntros (l β ty) "Hl Ha". iApply wps_exprs.
       by iApply ("Ha" with "Hl").
-  Qed.
+  Qed.*)
 
-  Lemma type_annot_stmt_assert {A} P id s fn ls R Q:
-    (∃ a : A, P a ∗ (P a -∗ (typed_stmt s fn ls R Q)))
-    ⊢ typed_stmt (annot: (AssertAnnot id); s) fn ls R Q.
-  Proof. iIntros "[%a [HP Hcont]] ?". iApply wps_annot => /=. by iApply ("Hcont" with "HP"). Qed.
+  Lemma type_annot_stmt_assert Espec ge P f R:
+    ((*∃ a : A,*) P ∗ (P -∗ T_normal R))
+    ⊢ typed_stmt Espec ge (Sannot P) f R.
+  Proof. rewrite /Sannot. iIntros "[HP Hcont]". iApply wp_skip. by iApply ("Hcont" with "HP"). Qed.
 
-  Lemma typed_block_rec Ps Q fn ls R s:
+  (*Lemma typed_block_rec Ps Q fn ls R s:
     ([∗ map] b ↦ P ∈ Ps, ∃ s, ⌜Q !! b = Some s⌝ ∗ □(([∗ map] b ↦ P ∈ Ps, typed_block P b fn ls R Q) -∗ P -∗ typed_stmt s fn ls R Q)) -∗
     (([∗ map] b ↦ P ∈ Ps, typed_block P b fn ls R Q) -∗ typed_stmt s fn ls R Q) -∗
     typed_stmt s fn ls R Q.
