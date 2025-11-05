@@ -735,11 +735,11 @@ Section proper.
     l ◁ₗ{β} ty2 ∗ T ⊢ simplify_goal (l◁ₗ{β} ty1) T.
   Proof. rewrite Heq. iIntros "$". Qed.
 
-  Lemma simplify_hyp_val_eq cty ty1 ty2 (Heq : ty1 ≡@{type} ty2) v T:
+  Lemma simplify_hyp_val_eq ty1 ty2 (Heq : ty1 ≡@{type} ty2) cty v T:
     (v ◁ᵥ|cty| ty2 -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| ty1) T.
   Proof. iIntros "HT ?". rewrite Heq. by iApply "HT". Qed.
 
-  Lemma simplify_goal_val_eq cty ty1 ty2 (Heq : ty1 ≡@{type} ty2) v T:
+  Lemma simplify_goal_val_eq ty1 ty2 (Heq : ty1 ≡@{type} ty2) cty v T:
     v ◁ᵥ|cty| ty2 ∗ T ⊢ simplify_goal (v ◁ᵥ|cty| ty1) T.
   Proof. rewrite Heq. iIntros "$". Qed.
 
