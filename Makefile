@@ -281,7 +281,7 @@ COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend export $(BACKEND)
 
 ifeq ($(COMPCERT_EXPLICIT_PATH),true)
   COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT_INST_DIR)/$(d) compcert.$(d)) $(FLOCQ)
-  EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT_INST_DIR)/$(d) compcert.$(d)) $(FLOCQ) -Q ora/theories iris_ora
+  EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT_INST_DIR)/$(d) compcert.$(d)) $(FLOCQ)
 else
   COMPCERT_R_FLAGS=
   EXTFLAGS=
@@ -673,7 +673,6 @@ C_FILES = $(SINGLE_C_FILES) $(LINKED_C_FILES)
 FILES = \
  veric/version.v \
  $(MSL_FILES:%=msl/%) \
- $(ORA_FILES:%=ora/%) \
  $(SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
@@ -767,7 +766,7 @@ endif
 # ########## Targets ##########
 
 default_target: vst $(PROGSDIR)
-vst: _CoqProject msl veric ora floyd simpleconc
+vst: _CoqProject msl veric floyd simpleconc
 
 ifeq ($(BITSIZE),64)
 test: vst progs64

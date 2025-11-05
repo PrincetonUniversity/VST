@@ -177,6 +177,7 @@ Ltac liRStmt :=
       | Ssequence _ _ => notypeclasses refine (tac_fast_apply (type_seq _ _ _ _ _ _) _)
       | Sreturn $ Some _ => notypeclasses refine (tac_fast_apply (type_return_some _ _ _ _ _) _)
       | Sreturn None => notypeclasses refine (tac_fast_apply (type_return_none _ _ _ _ _) _)
+      | Sannot _ => notypeclasses refine (tac_fast_apply (type_annot_stmt_assert _ _ _ _ _) _)
       | Sskip => notypeclasses refine (tac_fast_apply (type_skips _ _ _ _) _)
       | Scall _ _ _ => notypeclasses refine (tac_fast_apply (type_call_fnptr _ _ _ _ _ _ _ _ _ _) _); [done|]
       | Sifthenelse _ _ _ => notypeclasses refine (tac_fast_apply (type_if _ _ _ _ _ _ _) _)
@@ -185,7 +186,6 @@ Ltac liRStmt :=
       | Scontinue => notypeclasses refine (tac_fast_apply (type_continue _ _ _ _) _)
       | Sswitch _ _ => notypeclasses refine (tac_fast_apply (type_switch _ _ _ _ _ _) _)
       | Slabel _ _ => notypeclasses refine (tac_fast_apply (type_label _ _ _ _ _ _) _)
-      | Sannot _ => notypeclasses refine (tac_fast_apply (type_annot_stmt_assert _ _ _ _ _) _)
       | _ => fail "do_stmt: unknown stmt" s
       end
     end
@@ -330,12 +330,7 @@ Tactic Notation "start_function" constr(fnname) "(" simple_intropattern(x) ")" :
   let lsa := fresh "lsa" in intros lsa; inv_vec lsa.
 
 Tactic Notation "start_function2" :=
-  iIntros "#?";
-  iIntros "(args & (stk1 & stk2) & ?)";
-  cbn;
-  repeat iDestruct "args" as "[? args]";
-  repeat iDestruct "stk1" as "[? stk1]";
-  repeat iDestruct "stk2" as "[? stk2]".
+  iIntros "#?"; rewrite /typed_stackframe.
 
 Ltac type_function_end :=
   let l := fresh in

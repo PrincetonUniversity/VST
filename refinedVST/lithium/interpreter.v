@@ -922,7 +922,6 @@ End test. End liSep_tests.
 (** ** [liWand] *)
 Section coq_tactics.
   Context {prop : bi}.
-  Hypothesis BiPositive_prop : BiPositive prop.
   Hypothesis BiPersistentlyForall_prop : BiPersistentlyForall prop.
 
   Lemma tac_do_intro_pure Δ (P : Prop) (Q : prop) :
@@ -972,9 +971,10 @@ Section coq_tactics.
     envs_entails Δ P → envs_entails Δ (emp -∗ P).
   Proof. apply tac_fast_apply. by iIntros. Qed.
 
+  (* relies on BiPositive; do we need it?
   Lemma tac_wand_pers_sep Δ (P : prop) (Q1 Q2 : prop) :
     envs_entails Δ ((□ Q1 ∗ □ Q2) -∗ P) → envs_entails Δ (□ (Q1 ∗ Q2) -∗ P).
-  Proof using BiPositive_prop. apply tac_fast_apply. iIntros "Hx #[? ?]". iApply "Hx". iFrame "#". Qed.
+  Proof. apply tac_fast_apply. iIntros "Hx #[? ?]". iApply "Hx". iFrame "#". Qed.*)
 
   Lemma tac_wand_pers_exist A Δ (P : prop) (Q : A → prop) :
     envs_entails Δ ((∃ x, □ Q x) -∗ P) → envs_entails Δ (□ (∃ x, Q x) -∗ P).
@@ -1010,7 +1010,7 @@ Ltac liWand :=
       | bi_exist _ => fail "handled by liForall"
       | bi_emp => notypeclasses refine (tac_wand_emp _ _ _)
       | bi_affinely (bi_pure _) => notypeclasses refine (tac_do_intro_pure _ _ _ _)
-      | bi_intuitionistically (bi_sep _ _) => notypeclasses refine (tac_wand_pers_sep _ _ _ _ _)
+(*      | bi_intuitionistically (bi_sep _ _) => notypeclasses refine (tac_wand_pers_sep _ _ _ _ _) *)
       | bi_intuitionistically (bi_exist _) => notypeclasses refine (tac_wand_pers_exist _ _ _ _ _)
       | bi_intuitionistically (bi_pure _) => notypeclasses refine (tac_wand_pers_pure _ _ _ _)
       | match ?x with _ => _ end => fail "should not have match in wand"

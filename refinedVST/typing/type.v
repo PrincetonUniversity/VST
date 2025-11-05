@@ -429,7 +429,7 @@ Record type `{!typeG OK_ty Σ} {cs : compspecs}  := {
 }.
 Arguments ty_own : simpl never.
 Arguments ty_has_op_type {_ _ _ _} _ _.
-Arguments ty_own_val {_ _ _ _ } t cty v : simpl never.
+Arguments ty_own_val {_ _ _ _} t cty v : simpl never.
 Global Existing Instance ty_shr_pers.
 
 (*Section memcast.
@@ -800,6 +800,7 @@ Ltac simpl_type :=
   repeat match goal with
         | |- context C [ty_own {| ty_own := ?f |}] => let G := context C [f] in change G
         | |- context C [ty_own_val {| ty_own_val := ?f |}] => let G := context C [f] in change G
+        | |- context C [ty_own_val_at ?cty {| ty_own_val := ?f |}] => let G := context C [f cty] in change G
         | |- context C [ty_own (?x @ {| rty := ?f |} )] =>
             let G := context C [let '({| ty_own := y |} ) := (f x) in y ] in
             change G

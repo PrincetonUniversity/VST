@@ -307,21 +307,38 @@ Section programs.
     rep_lia.
   Qed.
 
-  (** Ke: TODO this rule should have a different triggering condition *)
-  (* Lemma type_val_int_u32 (n:Integers.int) T :
-    typed_value (Vint n) T :-
+  Lemma type_val_int_u32 (n:Integers.int) T :
+    typed_value tuint (Vint n) T :-
       exhale (<affine> ⌜(Int.unsigned n) ∈ tuint⌝);
       return T ((Int.unsigned n) @ (int tuint)).
   Proof.
     iIntros "[%Hn HT]".
-    iExists _. iFrame.  iPureIntro. simpl.
-    rewrite -Int_modulus_Z_pow_pos.
-    pose proof (Int.unsigned_range n).
-    erewrite zlt_true. -done. - lia.
+    iExists _. iFrame. by iPureIntro.
   Qed.
-
   Definition type_val_int_u32_inst := [instance type_val_int_u32].
-  Global Existing Instance type_val_int_u32_inst. *)
+  Global Existing Instance type_val_int_u32_inst.
+
+  Lemma type_val_long n T :
+    typed_value tlong (Vlong n) T :-
+      exhale (<affine> ⌜(Int64.signed n) ∈ tint⌝);
+      return T ((Int64.signed n) @ (int tlong)).
+  Proof.
+    iIntros "[%Hn HT]".
+    iExists _. iFrame. by iPureIntro.
+  Qed.
+  Definition type_val_long_inst := [instance type_val_long].
+  Global Existing Instance type_val_long_inst.
+
+  Lemma type_val_ulong n T :
+    typed_value tulong (Vlong n) T :-
+      exhale (<affine> ⌜(Int64.unsigned n) ∈ tint⌝);
+      return T ((Int64.unsigned n) @ (int tulong)).
+  Proof.
+    iIntros "[%Hn HT]".
+    iExists _. iFrame. by iPureIntro.
+  Qed.
+  Definition type_val_ulong_inst := [instance type_val_ulong].
+  Global Existing Instance type_val_ulong_inst.
 
   (* TODO: instead of adding it_in_range to the context here, have a
   SimplifyPlace/Val instance for int which adds it to the context if
