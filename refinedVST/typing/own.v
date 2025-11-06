@@ -99,13 +99,20 @@ Section own.
     iSplit => //.
   Qed. *)
 
-  Lemma simplify_frac_ptr (v : val) (p : address) cty ty β T:
+  Lemma simplify_frac_ptr_v (v : val) (p : address) cty ty β T:
     (<affine> ⌜v = p⌝ -∗ p ◁ₗ{β} ty -∗ T)
-      ⊢ simplify_hyp (v◁ᵥₐₗ|tptr cty| p @ frac_ptr β ty) T.
+      ⊢ simplify_hyp (v◁ᵥ|tptr cty| p @ frac_ptr β ty) T.
   Proof. iIntros "HT Hl".
          iDestruct "Hl" as (?) "Hl".
          iApply "HT"; try done.
   Qed.
+  Definition simplify_frac_ptr_v_inst := [instance simplify_frac_ptr_v with 0%N].
+  Global Existing Instance simplify_frac_ptr_v_inst.
+
+  Lemma simplify_frac_ptr (v : val) (p : address) cty ty β T:
+    (<affine> ⌜v = p⌝ -∗ p ◁ₗ{β} ty -∗ T)
+      ⊢ simplify_hyp (v◁ᵥₐₗ|tptr cty| p @ frac_ptr β ty) T.
+  Proof. apply simplify_frac_ptr_v. Qed.
   Definition simplify_frac_ptr_inst := [instance simplify_frac_ptr with 0%N].
   Global Existing Instance simplify_frac_ptr_inst.
 

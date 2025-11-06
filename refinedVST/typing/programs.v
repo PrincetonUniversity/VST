@@ -1212,10 +1212,18 @@ Section typing.
   Definition simplify_place_refine_l_inst := [instance simplify_place_refine_l with 0%N].
   Global Existing Instance simplify_place_refine_l_inst.
 
+  Lemma simplify_v_refine_l A (ty : rtype A) cty v T:
+    (∀ x, v ◁ᵥ|cty| (x @ ty) -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| ty) T.
+  Proof.
+    iIntros "HT Hl". unfold ty_of_rty; simpl_type. iDestruct "Hl" as (x) "Hv". by iApply "HT".
+  Qed.
+  Definition simplify_v_refine_l_inst := [instance simplify_v_refine_l with 0%N].
+  Global Existing Instance simplify_v_refine_l_inst.
+
   Lemma simplify_val_refine_l A (ty : rtype A) cty v T:
     (∀ x, v ◁ᵥₐₗ|cty| (x @ ty) -∗ T) ⊢ simplify_hyp (v ◁ᵥₐₗ|cty| ty) T.
   Proof.
-    iIntros "HT Hl". unfold ty_of_rty; simpl_type. iDestruct "Hl" as (x) "Hv". by iApply "HT".
+    apply simplify_v_refine_l.
   Qed.
   Definition simplify_val_refine_l_inst := [instance simplify_val_refine_l with 0%N].
   Global Existing Instance simplify_val_refine_l_inst.
@@ -1228,9 +1236,15 @@ Section typing.
   Definition simplify_goal_place_refine_r_inst := [instance simplify_goal_place_refine_r with 10%N].
   Global Existing Instance simplify_goal_place_refine_r_inst.
 
+  Lemma simplify_goal_v_refine_r A (ty : rtype A) cty v T :
+    (∃ x, v ◁ᵥ|cty| (x @ ty) ∗ T) ⊢ simplify_goal (v ◁ᵥ|cty| ty) T.
+  Proof. iDestruct 1 as (x) "[? $]". by iExists _. Qed.
+  Definition simplify_goal_v_refine_r_inst := [instance simplify_goal_v_refine_r with 10%N].
+  Global Existing Instance simplify_goal_v_refine_r_inst.
+
   Lemma simplify_goal_val_refine_r A (ty : rtype A) cty v T :
     (∃ x, v ◁ᵥₐₗ|cty| (x @ ty) ∗ T) ⊢ simplify_goal (v ◁ᵥₐₗ|cty| ty) T.
-  Proof. iDestruct 1 as (x) "[? $]". by iExists _. Qed.
+  Proof. apply simplify_goal_v_refine_r. Qed.
   Definition simplify_goal_val_refine_r_inst := [instance simplify_goal_val_refine_r with 10%N].
   Global Existing Instance simplify_goal_val_refine_r_inst.
 
@@ -1810,7 +1824,6 @@ Section typing.
     find_in_context (FindTemp _x) (λ v, env.temp _x v -∗ ⎡v ◁ᵥₐₗ|cty| ty⎤ ∗ T v ty)
     ⊢ typed_val_expr ge f (Etempvar _x cty) T.
   Proof.
-
     rewrite /find_in_context. simpl.
     iIntros "(%b & Hx & HT)" (Φ) "HΦ".
     iApply wp_tempvar_local.
@@ -2139,7 +2152,26 @@ Section typing.
   Definition type_read_copy_inst := [instance type_read_copy].
   Global Existing Instance type_read_copy_inst | 10.
 
-  Lemma type_write_deref ge f ty T T' e v e_ty cty:
+  Lemma type_write_lvalue ge f (a : bool) ty T T' e v ot:
+    IntoPlaceCtx ge f e T' → is_lvalue e = true →
+    T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty1),
+      typed_place ge K l β1 ty1 (λ l2 β2 ty2 typ R,
+         typed_write_end a ⊤ ot v ty l2 β2 ty2 (λ ty3, ⎡l ◁ₗ{β1} typ ty3⎤ -∗ R ty3 -∗ T))))
+    ⊢ typed_write ge f a e ot v ty T.
+  Proof.
+    iIntros (HT' H) "HT'". iIntros (Φ) "HΦ".
+    iPoseProof (HT' with "HT'") as "HT'".
+    rewrite /wp_lvexpr H; iApply "HT'".
+    iIntros (K l). iDestruct 1 as ([β1 ty1]) "[Hl HK]".
+    iApply ("HK" with "Hl"). iIntros (l2 β2 ty2 typ R) "Hl' Hc He".
+    iApply "HΦ". iIntros "Hv".
+    rewrite /typed_write_end. iMod ("He" with "Hl' Hv") as "[$ [$ Hc2]]".
+    iIntros "!# !# Hl".
+    iMod ("Hc2" with "Hl") as (ty3) "[Hl HT]".
+    iMod ("Hc" with "Hl") as "[? ?]". by iApply ("HT" with "[$]").
+  Qed.
+
+(*  Lemma type_write_deref ge f ty T T' e v e_ty cty:
     IntoPlaceCtx ge f e T' → is_lvalue e = false →
     T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty_l1),
       typed_place ge K l β1 ty_l1 (λ l2 β2 ty_l2 typ R,
@@ -2158,7 +2190,7 @@ Section typing.
     iIntros "!# !# Hl".
     iMod ("Hc2" with "Hl") as (ty3) "[Hl HT]".
     iMod ("Hc" with "Hl") as "[? ?]". by iApply ("HT" with "[$]").
-  Qed.
+  Qed. *)
 
   (* for expr `e:=v` => eval_expr e = l ∧ typed l v  *)
   (* typed_lvalue e (typed_write_end ...)   *)

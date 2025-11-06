@@ -229,7 +229,11 @@ Ltac liRExpr :=
     lazymatch e with
     | Ecast _ _ => first [notypeclasses refine (tac_fast_apply (type_cast_int_same _ _ _ _) _) | notypeclasses refine (tac_fast_apply (type_cast_int _ _ _ _ _) _)]
     | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _ _ _) _)
+    | Econst_float _ _ => notypeclasses refine (tac_fast_apply (type_const_float _ _ _ _ _) _)
+    | Econst_single _ _ => notypeclasses refine (tac_fast_apply (type_const_single _ _ _ _ _) _)
+    | Econst_long _ _ => notypeclasses refine (tac_fast_apply (type_const_long _ _ _ _ _) _)
     | Ebinop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_bin_op _ _ _ _ _ _ _) _)
+    | Eunop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_un_op _ _ _ _ _ _) _)
     | Ederef _ _ => notypeclasses refine (tac_fast_apply (type_deref _ _ _ _ _ _) _);[done|]
     | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
@@ -244,10 +248,8 @@ Ltac liRExpr :=
 Ltac liRJudgement :=
   lazymatch goal with
     | |- envs_entails _ (typed_write _ _ _ ?e _ _ _ _) =>
-      lazymatch e with
-      | (Ederef _ _) => notypeclasses refine (tac_fast_apply (type_write_deref _ _ _ _ _ _ _ _ _ _ _) _); [ solve [refine _ ] | reflexivity |]
-      | _ => notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _ _ _) _)
-      end
+      first [ notypeclasses refine (tac_fast_apply (type_write_lvalue _ _ _ _ _ _ _ _ _ _ _) _); [ solve [refine _ ] | reflexivity |]
+            | notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _ _ _) _)]
     | |- envs_entails _ (typed_read _ _ _ _ _ _) =>
       notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _ _) _); [ solve [refine _ ] | reflexivity |]
     | |- envs_entails _ (typed_addr_of _ _ _ _) =>
