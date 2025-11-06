@@ -43,7 +43,7 @@ RefinedCC's frontend is modified from RefinedC's frontend and CompCert.
 It parses annotations and emits the spec & proof files similar to RefinedC, but emits a Clight AST with syntactic sugars that also holds annotations.
 
 Clone the frontend from
-[github.com/UIC-verif-group/compcert-mod/tree/modular](github.com/UIC-verif-group/compcert-mod/tree/modular) to any location, and follow the build instruction there.
+[compcert-mod](https://github.com/UIC-verif-group/compcert-mod/tree/modular) to any location, and follow the build instruction there.
 
 ### Install Backend Files
 Requires VST builddep (opam pin add builddep). Note that coq-vst-ora (included in builddep) must be installed in the opam switch. To check this:
