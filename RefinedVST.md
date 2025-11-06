@@ -35,24 +35,39 @@ opam pin ./refinedc -y
 Now we use the VST makefile to compile any refinedVST Coq file:
 
 ```[bash]
-make refinedVST/typing/typing.vo -j <jobs>
+make refinedVST
 ```
 
-## Running the frontend
+### Install the Frontend
+RefinedCC's frontend is modified from RefinedC's frontend and CompCert.
+It parses annotations and emits the spec & proof files similar to RefinedC, but emits a Clight AST with syntactic sugars that also holds annotations.
 
-The files for the frontend is in [./refinedVST/typing/frontend_stuff](./refinedVST/typing/frontend_stuff), adapted from the RefinedC frontend.
+Clone the frontend from
+[github.com/UIC-verif-group/compcert-mod/tree/modular](github.com/UIC-verif-group/compcert-mod/tree/modular) to any location, and follow the build instruction there.
 
-The best way to use the frontend is to use the script [RefinedVST.sh](RefinedVST.sh)
-(requires refinedVST/typing/typing.v compiled):
-
+### Install Backend Files
+Requires VST builddep (opam pin add builddep). Note that coq-vst-ora (included in builddep) must be installed in the opam switch. To check this:
 ```[bash]
-./RefinedVST.sh
+$ opam info -f installed-version coq-vst-ora
+1.0
 ```
 
- The script checks [./refinedVST/typing/frontend_stuff/examples/test_f_temps.c](./refinedVST/typing/frontend_stuff/examples/test_f_temps.c) and generates proofs in [./refinedVST/typing/frontend_stuff/examples/proofs](./refinedVST/typing/frontend_stuff/examples/proofs).
-
-To delete generated files:
-
+Then install RefinedCC backend files to switch:
 ```[bash]
-make clean-refinedVST-frontend
+$ make install_rc
+```
+This should install, for example, refinedVST/typing/typing.vo in the switch:
+```[bash]
+$ ls ${OPAM_SWITCH_PREFIX}/lib/coq/user-contrib/VST/typing/
+... automation.vo ... typing.vo ...
+```
+
+### Check a file with RefinedCC
+Once both frontend and backend of RefinedCC are installed, we can use the frontend binary `refinedcc` to check an annotated program. The usage is the same as in RefinedC.
+
+`refinedcc` will need to create a new Coq project, so we recommend doing it in an empty folder. Assuming `refinedcc` is already in the PATH:
+```[bash]
+mkdir check_progs; cd check_progs
+refinedcc init
+refinedcc check progs
 ```
