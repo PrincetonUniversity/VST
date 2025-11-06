@@ -1236,15 +1236,9 @@ Section typing.
   Definition simplify_goal_place_refine_r_inst := [instance simplify_goal_place_refine_r with 10%N].
   Global Existing Instance simplify_goal_place_refine_r_inst.
 
-  Lemma simplify_goal_v_refine_r A (ty : rtype A) cty v T :
-    (∃ x, v ◁ᵥ|cty| (x @ ty) ∗ T) ⊢ simplify_goal (v ◁ᵥ|cty| ty) T.
-  Proof. iDestruct 1 as (x) "[? $]". by iExists _. Qed.
-  Definition simplify_goal_v_refine_r_inst := [instance simplify_goal_v_refine_r with 10%N].
-  Global Existing Instance simplify_goal_v_refine_r_inst.
-
   Lemma simplify_goal_val_refine_r A (ty : rtype A) cty v T :
     (∃ x, v ◁ᵥₐₗ|cty| (x @ ty) ∗ T) ⊢ simplify_goal (v ◁ᵥₐₗ|cty| ty) T.
-  Proof. apply simplify_goal_v_refine_r. Qed.
+  Proof. iDestruct 1 as (x) "[? $]". by iExists _. Qed.
   Definition simplify_goal_val_refine_r_inst := [instance simplify_goal_val_refine_r with 10%N].
   Global Existing Instance simplify_goal_val_refine_r_inst.
 
