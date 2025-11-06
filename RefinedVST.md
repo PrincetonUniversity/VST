@@ -63,11 +63,17 @@ $ ls ${OPAM_SWITCH_PREFIX}/lib/coq/user-contrib/VST/typing/
 ```
 
 ### Check a file with RefinedCC
-Once both frontend and backend of RefinedCC are installed, we can use the frontend binary `refinedcc` to check an annotated program. The usage is the same as in RefinedC.
+Once both frontend and backend of RefinedCC are installed, we can use the frontend binary `refinedcc` to check an annotated program. 
 
 `refinedcc` will need to create a new Coq project, so we recommend doing it in an empty folder. Assuming `refinedcc` is already in the PATH:
 ```[bash]
 mkdir check_progs; cd check_progs
 refinedcc init
-refinedcc check progs
 ```
+
+Then copy your C programs under this folder, and run
+```
+refinedcc check prog.c
+```
+
+The usage is the same as in RefinedC; for details, refer to the [RefinedC repository](https://github.com/PrincetonUniversity/VST/blob/92867829a0ac2a8b9ecfdd1b75cc3bffe085f4f5/RefinedVST.md).
