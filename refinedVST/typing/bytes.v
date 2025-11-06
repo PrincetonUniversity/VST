@@ -271,6 +271,16 @@ Section uninit.
   Qed.
   Definition type_read_move_copy_inst := [instance type_read_move_copy].
   Global Existing Instance type_read_move_copy_inst | 70. *)
+
+  Definition ty_own_var_uninit f x : assert :=
+    match list_to_map(M := gmap ident Ctypes.type) (f.(fn_params) ++ f.(fn_temps)) !! x with
+    | Some cty => env.temp x Vundef
+    | None => match list_to_map(M := gmap ident Ctypes.type) f.(fn_vars) !! x with
+              | Some cty => ∃ b, env.lvar x cty b ∗ ⎡(b, Ptrofs.zero) ◁ₗ uninit cty⎤
+              | None => False
+              end
+    end.
+
 End uninit.
 
 Notation "uninit< ly >" := (uninit ly) (only printing, format "'uninit<' ly '>'") : printing_sugar.

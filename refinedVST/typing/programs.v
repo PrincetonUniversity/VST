@@ -1005,6 +1005,16 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
 Section typing.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
+  (* We may want to make more use of this. *)
+  Definition ty_own_var f x ty : assert :=
+    match list_to_map(M := gmap ident Ctypes.type) (f.(fn_params) ++ f.(fn_temps)) !! x with
+    | Some cty => ∃ v, env.temp x v ∗ ⎡v ◁ᵥₐₗ|cty| ty⎤
+    | None => match list_to_map(M := gmap ident Ctypes.type) f.(fn_vars) !! x with
+              | Some cty => ∃ b, env.lvar x cty b ∗ ⎡(b, Ptrofs.zero) ◁ₗ ty⎤
+              | None => False
+              end
+    end.
+
   Lemma find_in_context_tempvar _id T:
     (∃ v, env.temp _id v ∗ T v)
     ⊢ find_in_context (FindTemp _id) T.
@@ -1645,10 +1655,10 @@ Section typing.
     rewrite /typed_stmt -{2}wp_loop //.
   Qed.
 
-  Lemma type_inv_loop Espec ge f inv s1 s2 R:
+  Lemma type_inv_loop Espec ge f i inv s1 s2 R:
     ▷ (inv ∗ □ (inv -∗ typed_stmt Espec ge s1 f (loop1_type_assert
       (typed_stmt Espec ge s2 f (loop2_type_assert inv R)) R)))
-    ⊢ typed_stmt Espec ge (Sloop inv s1 s2) f R.
+    ⊢ typed_stmt Espec ge (Sloop i s1 s2) f R.
   Proof.
     rewrite /Sloop.
     iLöb as "IH".
@@ -1707,20 +1717,15 @@ Section typing.
     iIntros "Hs". iApply wp_skip. done.
   Qed.
 
-  (*Lemma type_annot_stmt {A} p (a : A) s fn ls Q R:
-    (typed_addr_of p (λ l β ty, typed_annot_stmt a l (l ◁ₗ{β} ty) (typed_stmt s fn ls R Q)))
-    ⊢ typed_stmt (annot: a; expr: &p; s) fn ls R Q.
-  Proof.
-    iIntros "Hs ?". iApply wps_annot => /=.
-    wps_bind. rewrite /AddrOf. iApply "Hs".
-    iIntros (l β ty) "Hl Ha". iApply wps_exprs.
-      by iApply ("Ha" with "Hl").
-  Qed.*)
+  Lemma type_annot_stmt Espec ge {A} (a : A) f R:
+    T_normal R
+    ⊢ typed_stmt Espec ge (Sannot (ExprAnnot_annot a)) f R.
+  Proof. rewrite /Sannot. apply type_skips. Qed.
 
-  Lemma type_annot_stmt_assert Espec ge P f R:
+  Lemma type_annot_stmt_assert Espec ge i P f R:
     ((*∃ a : A,*) P ∗ (P -∗ T_normal R))
-    ⊢ typed_stmt Espec ge (Sannot P) f R.
-  Proof. rewrite /Sannot. iIntros "[HP Hcont]". iApply wp_skip. by iApply ("Hcont" with "HP"). Qed.
+    ⊢ typed_stmt Espec ge (Sannot (ExprAnnot_assert i)) f R.
+  Proof. rewrite /Sannot -type_skips. iIntros "[HP Hcont]"; by iApply "Hcont". Qed.
 
   (*Lemma typed_block_rec Ps Q fn ls R s:
     ([∗ map] b ↦ P ∈ Ps, ∃ s, ⌜Q !! b = Some s⌝ ∗ □(([∗ map] b ↦ P ∈ Ps, typed_block P b fn ls R Q) -∗ P -∗ typed_stmt s fn ls R Q)) -∗

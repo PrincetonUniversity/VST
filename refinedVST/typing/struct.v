@@ -698,8 +698,8 @@ Section struct.
     - iDestruct 1 as (v Hv Hl ?) "Hl". iSplit => //. iSplit.
       { iPureIntro. rewrite length_fmap map_length //. }
       destruct β; rewrite /heap_mapsto_own_state /=.
-      + rewrite mapsto_struct.
-      + Check inv_split.
+      + rewrite mapsto_struct //. admit.
+      + Check inv_split. admit.
 (*      rewrite mapsto_struct.
       rewrite /has_layout_val in Hv.
 Check value_fits_eq.
@@ -713,6 +713,10 @@ Check value_fits_eq.
       try rewrite length_drop; try iPureIntro; lia. *)
     - iIntros "[$ Hl]". iDestruct "Hl" as (_) "Hl".
       rewrite /has_layout_val /type_is_volatile. setoid_rewrite value_fits_eq; simpl.
+      destruct β; rewrite /heap_mapsto_own_state /=.
+      + setoid_rewrite mapsto_struct. iFrame. admit.
+      + Check inv_split. admit.
+(*    rewrite mapsto_struct.
 (*      iInduction (sl_members s) as [|[n ly] ms] "IH" forall (l) => //; csimpl in *.
       { iExists []. rewrite Forall_nil. repeat iSplit => //. by rewrite heap_mapsto_own_state_nil. }
       rewrite shift_loc_0. setoid_rewrite <-shift_loc_assoc_nat.
@@ -725,23 +729,42 @@ Check value_fits_eq.
       all: rewrite heap_mapsto_own_state_app length_app Hv1 Hv2.
       all: rewrite Forall_app !Forall_forall.
       all: by iFrame.*)
-  Qed.
+  Qed.*) *)
+
+  (*Lemma uninit_struct_impl l β i a :
+    (l ◁ₗ{β} uninit (Tstruct i a)) ⊢ (l ◁ₗ{β} struct i (uninit <$> (map type_member (get_co i).(co_members)))).
+  Proof.
+    rewrite {1}/uninit /struct; simpl_type.
+    iDestruct 1 as (v Hv Hl ?) "Hl". erewrite <- has_layout_struct_noattr.
+    iSplit => //. iSplit.
+    { iPureIntro. rewrite length_fmap map_length //. }
+    pose proof (get_co_members_no_replicate i) as Hnorep.
+    destruct β; rewrite /heap_mapsto_own_state /=.
+    - rewrite mapsto_struct.
+      iApply (aggregate_pred.struct_pred_ext_derives with "Hl"); first done.
+      intros. rewrite -heap_withspacer_eq /heap_withspacer /mapsto_memory_block.at_offset /=.
+      iIntros "(H & $)".
+    Search proj_struct make_ty_prod.
+      Check proj_struct_lookup.
+      admit.
+    - rewrite /mapsto. (* induction *)
+  Admitted.
 
   Lemma uninit_struct_simpl_hyp l β i a T:
     (l ◁ₗ{β} (struct i (uninit <$> map type_member (get_co i).(co_members))) -∗ T)
     ⊢ simplify_hyp (l ◁ₗ{β} uninit (Tstruct i a)) T.
-  Proof. iIntros "HT Hl". rewrite uninit_struct_equiv. by iApply "HT". Qed.
+  Proof. iIntros "HT Hl". rewrite uninit_struct_impl. by iApply "HT". Qed.
   Definition uninit_struct_simpl_hyp_inst := [instance uninit_struct_simpl_hyp with 0%N].
-  Global Existing Instance uninit_struct_simpl_hyp_inst.
+  Global Existing Instance uninit_struct_simpl_hyp_inst.*)
 
-  Lemma uninit_struct_simpl_goal l β i a T:
+(*  Lemma uninit_struct_simpl_goal l β i a T:
     l ◁ₗ{β} (struct i (uninit <$> map type_member (get_co i).(co_members))) ∗ T
     ⊢ simplify_goal (l ◁ₗ{β} uninit (Tstruct i a)) T.
-  Proof. iIntros "[? $]". by rewrite uninit_struct_equiv. Qed.
+  Proof. iIntros "[? $]". by rewrite uninit_struct_impl. Qed.
   Definition uninit_struct_simpl_goal_inst := [instance uninit_struct_simpl_goal with 50%N].
-  Global Existing Instance uninit_struct_simpl_goal_inst.
+  Global Existing Instance uninit_struct_simpl_goal_inst. *)
 
-  Lemma subsume_struct_uninit A β i a ly tys l T :
+  (*Lemma subsume_struct_uninit A β i a ly tys l T :
     subsume (l ◁ₗ{β} struct i tys) (λ x : A, l ◁ₗ{β} uninit ly) T :-
       exhale <affine> ⌜ly = Tstruct i a⌝;
       x ← {subsume (l ◁ₗ{β} struct i tys) (λ x : A,
@@ -753,6 +776,19 @@ Check value_fits_eq.
   Qed.
   Definition subsume_struct_uninit_inst := [instance subsume_struct_uninit].
   Global Existing Instance subsume_struct_uninit_inst. *)
+
+  (*Lemma subsume_uninit_struct A β i a ly tys l T :
+    subsume (l ◁ₗ{β} uninit ly) (λ x : A, l ◁ₗ{β} struct i tys) T :-
+      exhale <affine> ⌜ly = Tstruct i a⌝;
+      x ← {subsume (l ◁ₗ{β} struct i (uninit <$> map type_member (get_co i).(co_members))) (λ x : A,
+             l ◁ₗ{β} struct i tys)};
+      return T x.
+  Proof.
+    iIntros "[-> Ht] Hstruct". rewrite uninit_struct_impl. iDestruct ("Ht" with "Hstruct") as "[%x Ht]".
+    iExists x. done.
+  Qed.
+  Definition subsume_uninit_struct_inst := [instance subsume_uninit_struct].
+  Global Existing Instance subsume_uninit_struct_inst.*)
 
 End struct.
 Global Typeclasses Opaque struct.

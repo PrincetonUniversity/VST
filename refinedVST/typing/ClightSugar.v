@@ -1,17 +1,16 @@
 Require Import compcert.cfrontend.Clight.
-Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Import VST.typing.type.
-Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
+Require Import VST.typing.annotations.
 
-Section type.
-  Context `{!typeG OK_ty Σ}.
+Inductive expr_annot :=
+  | ExprAnnot_annot  {A} (a : A)
+  | ExprAnnot_assert (n : nat).
 
-  Definition Sannot (a : assert) := Sskip.
-  #[global] Arguments Sannot : simpl never.
-  Global Typeclasses Opaque Sannot.
+Definition Sannot (e : expr_annot) := Sskip.
+#[global] Arguments Sannot : simpl never.
+Global Typeclasses Opaque Sannot.
 
-  Definition Sloop (a : assert) s1 s2 := Sloop s1 s2.
-  #[global] Arguments Sloop : simpl never.
-  Global Typeclasses Opaque Sloop.
+Definition Sloop (n : nat) s1 s2 := Sloop s1 s2.
+#[global] Arguments Sloop : simpl never.
+Global Typeclasses Opaque Sloop.
 
-End type.
+Definition Swhile (n : nat) e s := Sloop n (Ssequence (Sifthenelse e Sskip Sbreak) s) Sskip.
