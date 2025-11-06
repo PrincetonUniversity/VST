@@ -178,14 +178,22 @@ Ltac liRStmt :=
       | Sreturn $ Some _ => notypeclasses refine (tac_fast_apply (type_return_some _ _ _ _ _) _)
       | Sreturn None => notypeclasses refine (tac_fast_apply (type_return_none _ _ _ _ _) _)
       (* need to use hints *)
-      | Sannot (ExprAnnot_assert ?id) => notypeclasses refine (tac_fast_apply (type_annot_stmt_assert _ _ _ _ _ _) _)
+      | Sannot (ExprAnnot_assert ?id) =>
+        lazymatch goal with
+        | H : IPROP_HINT (ASSERT_COND id) ?P |- _ =>
+            notypeclasses refine (tac_fast_apply (type_annot_stmt_assert P _ _ _ _ _) _)
+        end
       | Sannot _ => notypeclasses refine (tac_fast_apply (type_annot_stmt _ _ _ _ _) _)
       | Sskip => notypeclasses refine (tac_fast_apply (type_skips _ _ _ _) _)
       | Scall _ _ _ => notypeclasses refine (tac_fast_apply (type_call_fnptr _ _ _ _ _ _ _ _ _ _) _); [done|]
       | Sifthenelse _ _ _ => notypeclasses refine (tac_fast_apply (type_if _ _ _ _ _ _ _) _)
       (* need to use hints *)
-      | Sloop _ _ _ => notypeclasses refine (tac_fast_apply (type_inv_loop _ _ _ _ _ _ _ _) _)
-      | Sbreak =>notypeclasses refine (tac_fast_apply (type_break _ _ _ _) _)
+      | Sloop ?id _ _ =>
+        lazymatch goal with
+        | H : IPROP_HINT (LOOP_INV id) (λ _, ?P) |- _ =>
+            notypeclasses refine (tac_fast_apply (type_inv_loop _ _ _ P _ _ _ _) _)
+        end
+      | Sbreak => notypeclasses refine (tac_fast_apply (type_break _ _ _ _) _)
       | Scontinue => notypeclasses refine (tac_fast_apply (type_continue _ _ _ _) _)
       | Sswitch _ _ => notypeclasses refine (tac_fast_apply (type_switch _ _ _ _ _ _) _)
       | Slabel _ _ => notypeclasses refine (tac_fast_apply (type_label _ _ _ _ _ _) _)
@@ -354,7 +362,7 @@ Ltac type_function_end :=
 Tactic Notation "prepare_parameters" "(" ident_list(i) ")" :=
   revert i; repeat liForall.
 
-Ltac liRSplitBlocksIntro :=
+(*Ltac liRSplitBlocksIntro :=
   repeat (
       liEnsureInvariant;
       first [
@@ -364,10 +372,10 @@ Ltac liRSplitBlocksIntro :=
         | liForall
         | liExist
         | liUnfoldLetGoal]; liSimpl);
-        li_unfold_lets_in_context.
-(*
+        li_unfold_lets_in_context.*)
+
 (* TODO: don't use i... tactics here *)
-Ltac split_blocks Pfull Ps :=
+Ltac prepare_hints Ps :=
   (* cbn in *|- is important here to simplify the types of local
   variables, otherwise unification gets confused later *)
   cbn -[union] in * |-;
@@ -380,7 +388,7 @@ Ltac split_blocks Pfull Ps :=
       | nil => idtac
       end
   in
-  pose_Ps Ps;
+  pose_Ps Ps(*;
   let Hfull := fresh "Hfull" in
   (* We must do this pose first since do_split_block_intro might call
   subst and we want to subst in Ps as well. *)
@@ -390,8 +398,7 @@ Ltac split_blocks Pfull Ps :=
   iApply (typed_block_rec Hfull); unfold Hfull; clear Hfull; last first; [|
   repeat (iApply big_sepM_insert; [reflexivity|]; iSplitL); last by [iApply big_sepM_empty];
   iExists _; (iSplitR; [iPureIntro; unfold_code_marker_and_compute_map_lookup|]); iModIntro ];
-  repeat (iApply tac_split_big_sepM; [reflexivity|]; iIntros "?"); iIntros "_".
-*)
+  repeat (iApply tac_split_big_sepM; [reflexivity|]; iIntros "?"); iIntros "_"*).
 
 Ltac repeat' tac :=
   let rec aux n :=

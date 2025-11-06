@@ -1655,7 +1655,7 @@ Section typing.
     rewrite /typed_stmt -{2}wp_loop //.
   Qed.
 
-  Lemma type_inv_loop Espec ge f i inv s1 s2 R:
+  Lemma type_inv_loop Espec ge f inv i s1 s2 R:
     ▷ (inv ∗ □ (inv -∗ typed_stmt Espec ge s1 f (loop1_type_assert
       (typed_stmt Espec ge s2 f (loop2_type_assert inv R)) R)))
     ⊢ typed_stmt Espec ge (Sloop i s1 s2) f R.
@@ -1722,10 +1722,10 @@ Section typing.
     ⊢ typed_stmt Espec ge (Sannot (ExprAnnot_annot a)) f R.
   Proof. rewrite /Sannot. apply type_skips. Qed.
 
-  Lemma type_annot_stmt_assert Espec ge i P f R:
-    ((*∃ a : A,*) P ∗ (P -∗ T_normal R))
+  Lemma type_annot_stmt_assert Espec ge {A} P i f R:
+    (∃ a : A, P ∗ (P -∗ T_normal R))
     ⊢ typed_stmt Espec ge (Sannot (ExprAnnot_assert i)) f R.
-  Proof. rewrite /Sannot -type_skips. iIntros "[HP Hcont]"; by iApply "Hcont". Qed.
+  Proof. rewrite /Sannot -type_skips. iIntros "[% [HP Hcont]]"; by iApply "Hcont". Qed.
 
   (*Lemma typed_block_rec Ps Q fn ls R s:
     ([∗ map] b ↦ P ∈ Ps, ∃ s, ⌜Q !! b = Some s⌝ ∗ □(([∗ map] b ↦ P ∈ Ps, typed_block P b fn ls R Q) -∗ P -∗ typed_stmt s fn ls R Q)) -∗

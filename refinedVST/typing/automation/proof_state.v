@@ -20,13 +20,15 @@ Definition pop_location_info {A} (i : location_info) (a : A) : A := a.
 Arguments pop_location_info : simpl never.
 Global Typeclasses Opaque pop_location_info.
 
+Inductive LOOP_INV_HINT := | LOOP_INV (id : nat).
 Inductive BLOCK_PRECOND_HINT := | BLOCK_PRECOND (bid : label).
-Inductive ASSERT_COND_HINT := | ASSERT_COND (id : string).
+Inductive ASSERT_COND_HINT := | ASSERT_COND (id : nat).
 
 (* The `{!typeG Σ} is necessary to infer Σ if P is True. *)
 Definition IPROP_HINT `{!typeG OK_ty Σ} {A B} (a : A) (P : B → iProp Σ) : Prop := True.
 Arguments IPROP_HINT : simpl never.
 
+Notation "'inv' id : P" := (IPROP_HINT (LOOP_INV id) (λ _ : unit, P)) (at level 200, only printing).
 Notation "'block' bid : P" := (IPROP_HINT (BLOCK_PRECOND bid) (λ _ : unit, P)) (at level 200, only printing).
 Notation "'assert' id : P" := (IPROP_HINT (ASSERT_COND id) P) (at level 200, only printing).
 
