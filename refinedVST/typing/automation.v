@@ -6,9 +6,10 @@ Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-k
 From VST.typing Require Export type.
 From VST.typing.automation Require Export proof_state (* solvers simplification loc_eq. *).
 From VST.typing Require Import programs function singleton array (* struct *) bytes own int.
+From VST.typing Require Import ClightSugar.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Set Default Proof Using "Type".
-Set Nested Proofs Allowed.
+
 (** * Defining extensions *)
 (** The [sidecond_hook] and [unsolved_sidecond_hook] hooks that get
 called for all sideconditions resp. all sideconditions that are not
@@ -188,6 +189,11 @@ Ltac liRStmt :=
       | Scall _ _ _ => notypeclasses refine (tac_fast_apply (type_call_fnptr _ _ _ _ _ _ _ _ _ _) _); [done|]
       | Sifthenelse _ _ _ => notypeclasses refine (tac_fast_apply (type_if _ _ _ _ _ _ _) _)
       (* need to use hints *)
+      | Swhile ?id _ _ =>
+        lazymatch goal with
+        | H : IPROP_HINT (LOOP_INV id) (λ _, ?P) |- _ =>
+            notypeclasses refine (tac_fast_apply (type_inv_loop _ _ _ P _ _ _ _) _)
+        end
       | Sloop ?id _ _ =>
         lazymatch goal with
         | H : IPROP_HINT (LOOP_INV id) (λ _, ?P) |- _ =>

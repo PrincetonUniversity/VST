@@ -25,7 +25,7 @@ Inductive BLOCK_PRECOND_HINT := | BLOCK_PRECOND (bid : label).
 Inductive ASSERT_COND_HINT := | ASSERT_COND (id : nat).
 
 (* The `{!typeG Σ} is necessary to infer Σ if P is True. *)
-Definition IPROP_HINT `{!typeG OK_ty Σ} {A B} (a : A) (P : B → iProp Σ) : Prop := True.
+Definition IPROP_HINT `{!typeG OK_ty Σ} {A B} (a : A) (P : B → assert) : Prop := True.
 Arguments IPROP_HINT : simpl never.
 
 Notation "'inv' id : P" := (IPROP_HINT (LOOP_INV id) (λ _ : unit, P)) (at level 200, only printing).

@@ -1007,13 +1007,36 @@ Section typing.
 
   (* We may want to make more use of this. *)
   Definition ty_own_var f x ty : assert :=
-    match list_to_map(M := gmap ident Ctypes.type) (f.(fn_params) ++ f.(fn_temps)) !! x with
-    | Some cty => ∃ v, env.temp x v ∗ ⎡v ◁ᵥₐₗ|cty| ty⎤
-    | None => match list_to_map(M := gmap ident Ctypes.type) f.(fn_vars) !! x with
-              | Some cty => ∃ b, env.lvar x cty b ∗ ⎡(b, Ptrofs.zero) ◁ₗ ty⎤
-              | None => False
-              end
-    end.
+    (∃ cty, <affine> ⌜(x, cty) ∈ f.(fn_params) ++ f.(fn_temps)⌝ ∗ ∃ v, env.temp x v ∗ ⎡v ◁ᵥₐₗ|cty| ty⎤) ∨
+    (∃ cty, <affine> ⌜(x, cty) ∈ f.(fn_vars)⌝ ∗ ∃ b, env.lvar x cty b ∗ ⎡(b, Ptrofs.zero) ◁ₗ ty⎤).
+
+  Lemma TCElemOf_inv {A} (a : A) l `{!TCElemOf a l}: a ∈ l.
+  Proof.
+    induction TCElemOf0; by constructor.
+  Qed.
+
+  (* Does this work? *)
+  Lemma simplify_goal_ty_own_var_temp f x ty cty
+    `{!TCElemOf (x, cty) (f.(fn_params) ++ f.(fn_temps))} T:
+    (∃ v, env.temp x v ∗ ⎡v ◁ᵥₐₗ|cty| ty⎤ ∗ T) ⊢ simplify_goal (ty_own_var f x ty) T.
+  Proof.
+    rewrite /ty_own_var; iIntros "(% & ? & ? & $)".
+    iLeft; iFrame.
+    iPureIntro; by apply TCElemOf_inv.
+  Qed.
+  Definition simplify_goal_ty_own_var_temp_inst := [instance simplify_goal_ty_own_var_temp with 10%N].
+  Global Existing Instance simplify_goal_ty_own_var_temp_inst.
+
+  Lemma simplify_goal_ty_own_var_local f x ty cty
+    `{!TCElemOf (x, cty) (f.(fn_vars))} T:
+    (∃ b, env.lvar x cty b ∗ ⎡(b, Ptrofs.zero) ◁ₗ ty⎤ ∗ T) ⊢ simplify_goal (ty_own_var f x ty) T.
+  Proof.
+    rewrite /ty_own_var; iIntros "(% & ? & ? & $)".
+    iRight; iFrame.
+    iPureIntro; by apply TCElemOf_inv.
+  Qed.
+  Definition simplify_goal_ty_own_var_local_inst := [instance simplify_goal_ty_own_var_local with 10%N].
+  Global Existing Instance simplify_goal_ty_own_var_local_inst.
 
   Lemma find_in_context_tempvar _id T:
     (∃ v, env.temp _id v ∗ T v)
