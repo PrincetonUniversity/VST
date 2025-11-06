@@ -1002,41 +1002,24 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
   | _ => fail "unknown judgement" c
   end.
 
+Fixpoint list_assoc {A B} `{!EqDecision A} a (l : list (A * B)) :=
+  match l with
+  | [] => None
+  | (x, y) :: rest => if decide (x = a) then Some y else list_assoc a rest
+  end.
+
 Section typing.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   (* We may want to make more use of this. *)
   Definition ty_own_var f x ty : assert :=
-    (∃ cty, <affine> ⌜(x, cty) ∈ f.(fn_params) ++ f.(fn_temps)⌝ ∗ ∃ v, env.temp x v ∗ ⎡v ◁ᵥₐₗ|cty| ty⎤) ∨
-    (∃ cty, <affine> ⌜(x, cty) ∈ f.(fn_vars)⌝ ∗ ∃ b, env.lvar x cty b ∗ ⎡(b, Ptrofs.zero) ◁ₗ ty⎤).
-
-  Lemma TCElemOf_inv {A} (a : A) l `{!TCElemOf a l}: a ∈ l.
-  Proof.
-    induction TCElemOf0; by constructor.
-  Qed.
-
-  (* Does this work? *)
-  Lemma simplify_goal_ty_own_var_temp f x ty cty
-    `{!TCElemOf (x, cty) (f.(fn_params) ++ f.(fn_temps))} T:
-    (∃ v, env.temp x v ∗ ⎡v ◁ᵥₐₗ|cty| ty⎤ ∗ T) ⊢ simplify_goal (ty_own_var f x ty) T.
-  Proof.
-    rewrite /ty_own_var; iIntros "(% & ? & ? & $)".
-    iLeft; iFrame.
-    iPureIntro; by apply TCElemOf_inv.
-  Qed.
-  Definition simplify_goal_ty_own_var_temp_inst := [instance simplify_goal_ty_own_var_temp with 10%N].
-  Global Existing Instance simplify_goal_ty_own_var_temp_inst.
-
-  Lemma simplify_goal_ty_own_var_local f x ty cty
-    `{!TCElemOf (x, cty) (f.(fn_vars))} T:
-    (∃ b, env.lvar x cty b ∗ ⎡(b, Ptrofs.zero) ◁ₗ ty⎤ ∗ T) ⊢ simplify_goal (ty_own_var f x ty) T.
-  Proof.
-    rewrite /ty_own_var; iIntros "(% & ? & ? & $)".
-    iRight; iFrame.
-    iPureIntro; by apply TCElemOf_inv.
-  Qed.
-  Definition simplify_goal_ty_own_var_local_inst := [instance simplify_goal_ty_own_var_local with 10%N].
-  Global Existing Instance simplify_goal_ty_own_var_local_inst.
+    match list_assoc x (f.(fn_params) ++ f.(fn_temps)) with
+    | Some cty => ∃ v, env.temp x v ∗ ⎡v ◁ᵥₐₗ|cty| ty⎤
+    | None => match list_assoc x f.(fn_vars) with
+              | Some cty => ∃ b, env.lvar x cty b ∗ ⎡(b, Ptrofs.zero) ◁ₗ ty⎤
+              | None => False
+              end
+    end.
 
   Lemma find_in_context_tempvar _id T:
     (∃ v, env.temp _id v ∗ T v)
@@ -1679,7 +1662,7 @@ Section typing.
   Qed.
 
   Lemma type_inv_loop Espec ge f inv i s1 s2 R:
-    ▷ (inv ∗ □ (inv -∗ typed_stmt Espec ge s1 f (loop1_type_assert
+    (inv ∗ □ (inv -∗ typed_stmt Espec ge s1 f (loop1_type_assert
       (typed_stmt Espec ge s2 f (loop2_type_assert inv R)) R)))
     ⊢ typed_stmt Espec ge (Sloop i s1 s2) f R.
   Proof.
