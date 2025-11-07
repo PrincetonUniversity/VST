@@ -113,28 +113,27 @@ Lemma type_read_move l ty ot a E `{!TCDone (ty.(ty_has_op_type) ot MCId)}
   Definition type_read_move_inst := [instance type_read_move].
   Global Existing Instance type_read_move_inst | 50.
 
-(*
   (* TODO: this constraint on the layout is too strong, we only need
   that the length is the same and the alignment is lower. Adapt when necessary. *)
-  Lemma type_write_own a ty E l2 ty2 v ot T:
+  Lemma type_write_own a ty E l2 ty2 ot v T:
     typed_write_end a E ot v ty l2 Own ty2 T where
     `{!TCDone (ty.(ty_has_op_type) ot MCId ∧
-               ty2.(ty_has_op_type) (UntypedOp (ot_layout ot)) MCNone)} :-
-      ∀ v', inhale v ◁ᵥ ty; inhale v' ◁ᵥ ty2; return T (value ot v).
+               ty2.(ty_has_op_type) ot MCNone)} :-
+      ∀ v', inhale ⎡v ◁ᵥₐₗ|ot| ty⎤; inhale ⎡v' ◁ᵥ|ot| ty2⎤; return T (value ot v).
   Proof.
     unfold TCDone, typed_write_end => -[??]. iIntros "HT Hl Hv".
     iDestruct (ty_aligned with "Hl") as %?; [done|].
     iDestruct (ty_deref with "Hl") as (v') "[Hl Hv']"; [done|].
     iDestruct (ty_size_eq with "Hv") as %?; [done|].
     iDestruct (ty_size_eq with "Hv'") as %?; [done|].
-    iDestruct (ty_memcast_compat_id with "Hv") as %Hid; [done|].
+    (*iDestruct (ty_memcast_compat_id with "Hv") as %Hid; [done|].*)
     iApply fupd_mask_intro; [destruct a; solve_ndisj|]. iIntros "Hmask".
     iSplit; [done|]. iSplitL "Hl". { iExists _. by iFrame. }
     iIntros "!# Hl". iMod "Hmask". iModIntro.
     iExists _. iDestruct ("HT" with "Hv Hv'") as "$". by iFrame.
   Qed.
   Definition type_write_own_inst := [instance type_write_own].
-  Global Existing Instance type_write_own_inst | 50. *)
+  Global Existing Instance type_write_own_inst | 50.
 End value.
 Global Typeclasses Opaque value.
 Notation "value< ot , v >" := (value ot v) (only printing, format "'value<' ot ',' v '>'") : printing_sugar.

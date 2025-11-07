@@ -2246,14 +2246,13 @@ Section typing.
   Qed.
   Definition type_write_own_copy_inst := [instance type_write_own_copy].
   Global Existing Instance type_write_own_copy_inst | 20.
-  (*
 
   (* Note that there is also [type_write_own] in singleton.v which applies if one can prove MCId. *)
   Lemma type_write_own_move a E ty l2 ty2 v ot T:
     typed_write_end a E ot v ty l2 Own ty2 T where
-    `{!TCDone (ty2.(ty_has_op_type) (UntypedOp (ot_layout ot)) MCNone)} :-
-      exhale ⌜ty.(ty_has_op_type) (UntypedOp (ot_layout ot)) MCNone⌝;
-      ∀ v', inhale v' ◁ᵥ ty2; return T ty.
+    `{!TCDone (ty2.(ty_has_op_type) ot MCNone)} :-
+      exhale <affine> ⌜ty.(ty_has_op_type) ot MCNone⌝;
+      ∀ v', inhale ⎡v' ◁ᵥ|ot| ty2⎤; return T ty.
   Proof.
     unfold TCDone, typed_write_end => ?. iDestruct 1 as (?) "HT". iIntros "Hl Hv".
     iDestruct (ty_aligned with "Hl") as %?; [done|].
@@ -2269,7 +2268,7 @@ Section typing.
   Definition type_write_own_move_inst := [instance type_write_own_move].
   Global Existing Instance type_write_own_move_inst | 70.
 
-  Lemma type_addr_of_place T T' e:
+  (*Lemma type_addr_of_place T T' e:
     IntoPlaceCtx e T' →
     T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty1),
       typed_place K l β1 ty1 (λ l2 β2 ty2 typ R,
