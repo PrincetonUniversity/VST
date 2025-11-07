@@ -228,6 +228,15 @@ Notation "'[type_from_syntax' x ]" :=
     ltac:(let t := type of x in let t := liFromSyntaxTerm t in exact t) (only parsing).
 
 Definition liToSyntax_UNFOLD_MARKER {A} (x : A) : A := x.
+
+Lemma affine_pure_true_li_done {prop:bi} :
+  <affine> ⌜True⌝ ⊣⊢ @li.done prop.
+Proof. iSplit; by iIntros "_". Qed.
+
+Lemma liToSyntax_UNFOLD_MARKER_li_done_affine_pure_true {prop:bi} :
+  liToSyntax_UNFOLD_MARKER (@li.done prop) ⊣⊢ <affine> ⌜True⌝.
+Proof. iSplit; by iIntros "_". Qed.
+
 (* This tactic heurisitically converts the goal to the Lithium syntax.
 It is not perfect as it might convert occurences to Lithium syntax
 that should stay in Iris syntax, so it should only be used for
@@ -243,7 +252,8 @@ Ltac liToSyntax :=
   change (@bi_forall ?PROP ?A) with (@li.all PROP A);
   change (@bi_exist ?PROP ?A) with (@li.exist PROP A);
   change (@monPred_exist ?I ?PROP ?A) with (@li.monPred_exist PROP A I);
-  change (@bi_pure ?PROP True) with (@li.done PROP);
+  (* <affine> ⌜True⌝ cannot be changed into li.done for some reason *)
+  rewrite ?affine_pure_true_li_done;
   change (@bi_pure ?PROP False) with (@li.false PROP);
   repeat (progress change (big_opM bi_and ?f ?m) with (li.bind2 (li.and_map m) f));
   change (@bi_and ?PROP) with (@li.and PROP);
@@ -262,8 +272,9 @@ Ltac liToSyntax :=
               with (a ∗ liToSyntax_UNFOLD_MARKER b)%I
             | progress change (liToSyntax_UNFOLD_MARKER (li.bind0 (@li.drop_spatial ?Σ) ?b))
               with (□ liToSyntax_UNFOLD_MARKER b)%I ]);
-  change (liToSyntax_UNFOLD_MARKER (@li.done ?PROP)) with (@bi_pure PROP True);
+  rewrite ?liToSyntax_UNFOLD_MARKER_li_done_affine_pure_true;
   change (liToSyntax_UNFOLD_MARKER (@li.false ?PROP)) with (@bi_pure PROP False);
+  change (liToSyntax_UNFOLD_MARKER (bi_affinely $ @li.false ?PROP)) with (bi_affinely $ @bi_pure PROP False);
   unfold liToSyntax_UNFOLD_MARKER.
 
 Ltac liToSyntaxGoal :=
