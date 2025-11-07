@@ -8,32 +8,31 @@ From VST.typing Require Import type_options.
 (* NOTE: we might want to have a type [bytes : list mbyte → type] one day,
 and the [bytewise] abstraction could be encoded on top of it. *)
 
-Section bytewise.
+(*Section bytewise.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
   Implicit Types P : memval → Prop.
 
-  (* Because ty_own_val is at the reptype level, for now this is defined only for bytewise representations
-     of reptypes, rather than arbitrary byte arrays that happen to have the right layout. *)
+  (* It's unclear whether we need direct access to memvals here or whether any meaningful
+     property could be stated on byte-sized vals. The only difference is whether we can recognize fragments.
+     I don't know of any examples of using this other than uninit, so let's just define uninit separately for now. *)
   Program Definition bytewise (P : memval → Prop) (cty : Ctypes.type) : type := {|
     ty_has_op_type ot mt := ot = cty;
     ty_own β l :=
-      ∃ (v:reptype cty), <affine> ⌜v `has_layout_val` cty⌝ ∗
-           <affine> ⌜l `has_layout_loc` cty⌝ ∗
-           <affine> ⌜∃ bl, encode_reptype cty v = bl ∧ Forall P bl⌝ ∗
-           l ↦[β]|cty| v;
+      ∃ vl, <affine> ⌜l `has_layout_loc` cty⌝ ∗
+            <affine> ⌜Forall P bl⌝ ∗
+            [∗ list] i↦b ∈ bl, (l.1, Ptrofs.add l.2 (Ptrofs.repr i)) ↦[β]|tuchar| b;
     ty_own_val cty' v_rep := 
       <affine> ⌜cty' = cty⌝ ∗ 
       <affine> ⌜v_rep `has_layout_val` cty'⌝ ∗
       <affine> ⌜∃ bl, encode_reptype cty' v_rep = bl ∧ Forall P bl⌝;
   |}%I.
   Next Obligation.
-    iIntros (?????). iDestruct 1 as (?) "(?&?&?&Hl)".
-    iMod (heap_mapsto_own_state_share with "Hl") as "Hl".
-    eauto with iFrame.
+    iIntros (?????). iDestruct 1 as (?) "($&$&Hl)"; simpl.
+    iApply inv_alloc. iModIntro. iExists _. iFrame; auto.
   Qed.
   Next Obligation. iIntros (?????->). by iDestruct 1 as (???) "_". Qed.
   Next Obligation. iIntros (?????->(?&?&?)). done. Qed.
-  Next Obligation. iIntros (?????->). iDestruct 1 as (????) "?". by iFrame. Qed.
+  Next Obligation. iIntros (?????->). iDestruct 1 as (???) "?". by iFrame. Qed.
   Next Obligation. iIntros (????? v -> ?) "? [% [% %]]". eauto. Qed.
 (*   Next Obligation. iIntros (ly P v ot mt st ?). apply mem_cast_compat_Untyped. destruct ot; naive_solver. Qed. *)
 
@@ -180,34 +179,35 @@ End bytewise.
 Notation "bytewise< P , ly >" := (bytewise P ly)
   (only printing, format "'bytewise<' P ',' ly '>'") : printing_sugar.
 
-Global Typeclasses Opaque bytewise.
-
-Notation uninit := (bytewise (λ _, True%type)).
+Global Typeclasses Opaque bytewise.*)
 
 Section uninit.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-(*  (* RefinedC defines uninit in terms of bytewise, but that's an unnecessary complication when vals aren't
+  Definition heap_memory_block β n v :=
+    match β with
+    | Own => mapsto_memory_block.memory_block Tsh n v
+    | Shr => inv mtN (∃ q, ⌜readable_share q⌝ ∧ mapsto_memory_block.memory_block q n v)
+    end.
+
+  (* RefinedC defines uninit in terms of bytewise, but that's an unnecessary complication when vals aren't
      already at the memval level. *)
   Program Definition uninit cty : type := {|
-    ty_has_op_type ot mt := ot = cty;
-    ty_own β l :=
-      ∃ v, <affine> ⌜v `has_layout_val` cty⌝ ∗
-           <affine> ⌜l `has_layout_loc` cty⌝ ∗
-           l ↦[β]|cty| v;
+    ty_has_op_type ot mt := (*ot = cty*) False%type; (* don't dereference uninit! *)
+    ty_own β l := <affine> ⌜l `has_layout_loc` cty⌝ ∗
+           heap_memory_block β (sizeof cty) l;
     ty_own_val cty' v := (<affine> ⌜cty' = cty⌝ ∗ <affine> ⌜v `has_layout_val` cty'⌝)%I;
   |}%I.
   Next Obligation.
-    iIntros (????). iDestruct 1 as (?) "(?&?&Hl)".
-    iMod (heap_mapsto_own_state_share with "Hl") as "Hl".
-    eauto with iFrame.
+    iIntros (????). iDestruct 1 as "($&Hl)".
+    iApply inv_alloc. iModIntro. iExists _. iFrame; auto.
   Qed.
-  Next Obligation. iIntros (????->). by iDestruct 1 as (???) "_". Qed.
-  Next Obligation. by iIntros (????-> [??]). Qed.
-  Next Obligation. iIntros (????->). iDestruct 1 as (???) "?". by eauto. Qed.
-  Next Obligation. iIntros (???? v -> ?) "? [%%]". iExists v. by iFrame. Qed. *)
+  Next Obligation. iIntros (????[]). Qed.
+  Next Obligation. by iIntros (????[] [??]). Qed.
+  Next Obligation. iIntros (????[]). Qed.
+  Next Obligation. iIntros (???? v [] ?) "? [%%]". Qed.
 
-  Lemma uninit_own_spec l ly:
+  (*Lemma uninit_own_spec l ly:
     (l ◁ₗ uninit ly)%I ≡ (mapsto_layout l Tsh ly)%I.
   Proof.
     rewrite /ty_own/=; iSplit.
@@ -216,6 +216,18 @@ Section uninit.
       iPureIntro; split3; try done.
       eexists; split; first done.
       by rewrite Forall_forall.
+  Qed.*)
+
+  Lemma uninit_own l ly:
+    mapsto_layout l Tsh ly ⊢ l ◁ₗ uninit ly.
+  Proof.
+    rewrite /ty_own/=.
+    iDestruct 1 as (v ? Hl) "Hl".
+    iSplit => //.
+    destruct Hl as (_ & ? & ? & ? & ?).
+    assert (0 ≤ Ptrofs.unsigned l.2 ∧ Ptrofs.unsigned l.2 + sizeof ly < Ptrofs.modulus) by (simpl in *; rep_lia).
+    rewrite /mapsto /adr2val -(Ptrofs.repr_unsigned l.2) data_at_rec_data_at_rec_ // 
+      data_at_rec_lemmas.memory_block_data_at_rec_default_val //.
   Qed.
 
    (* This only works for [Own] since [ty] might have interior mutability. *)
@@ -227,7 +239,7 @@ Section uninit.
     iDestruct (ty_aligned with "Hl") as %?; [done|].
     iDestruct (ty_deref with "Hl") as (v) "[Hl Hv]"; [done|].
     iDestruct (ty_size_eq with "Hv") as %?; [done|].
-    iDestruct ("HT" with "Hv") as (?) "?". iExists _. rewrite uninit_own_spec. by iFrame.
+    iDestruct ("HT" with "Hv") as (?) "?". iExists _. rewrite -uninit_own. by iFrame.
   Qed.
   (* This rule is handled with a definition and an [Hint Extern] (not
   with an instance) since this rule should only apply ty is not uninit
@@ -235,7 +247,19 @@ Section uninit.
   be quite expensive. *)
   Definition uninit_mono_inst := [instance uninit_mono].
 
-(*   (* Typing rule for [Return] (used in [theories/typing/automation.v]). *)
+  Lemma uninit_mono' A l ty ly `{!TCDone (ty.(ty_has_op_type) ly MCNone)} (T : A → assert):
+    (∀ v, ⎡v ◁ᵥ|ly| ty⎤ -∗ ∃ x, T x)
+    ⊢ subsume ⎡l ◁ₗ ty⎤ (λ x : A, ⎡l ◁ₗ uninit ly⎤) T.
+  Proof.
+    unfold TCDone in *; subst. iIntros "HT Hl".
+    iDestruct (ty_aligned with "Hl") as %?; [done|].
+    iDestruct (ty_deref with "Hl") as (v) "[Hl Hv]"; [done|].
+    iDestruct (ty_size_eq with "Hv") as %?; [done|].
+    iDestruct ("HT" with "Hv") as (?) "?". iExists _. rewrite -uninit_own. by iFrame.
+  Qed.
+  Definition uninit_mono'_inst := [instance uninit_mono'].
+
+  (*   (* Typing rule for [Return] (used in [theories/typing/automation.v]). *)
   Lemma type_return Q e fn ls R:
     typed_val_expr e (λ v ty,
       foldr (λ (e : (loc * layout)) T, e.1 ◁ₗ uninit e.2 ∗ T)
@@ -302,18 +326,14 @@ Section void.
   Lemma type_void T:
     T void ⊢ typed_value tvoid Vundef T.
   Proof. iIntros "HT". iExists _. iFrame. rewrite /=/ty_own_val_at/ty_own_val/=. iPureIntro; split3; auto.
-    - split; auto.
-      by intros ?.
-    - rewrite encode_reptype_eq /=.
-      eexists; split; try done.
-      repeat constructor.
+    by intros ?.
   Qed.
   Definition type_void_inst := [instance type_void].
   Global Existing Instance type_void_inst.
 End void.
 
-Notation zeroed := (bytewise (λ b, b = Byte Byte.zero)).
-
+(*Notation zeroed := (bytewise (λ b, b = Byte Byte.zero)).
+(* This, at least, only cares about Bytes. *)
 Section zeroed.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
@@ -332,4 +352,4 @@ Section zeroed.
   Global Existing Instance subsume_uninit_zeroed_inst | 3.*)
 End zeroed.
 Notation "zeroed< ly >" := (zeroed ly)
-  (only printing, format "'zeroed<' ly '>'") : printing_sugar.
+  (only printing, format "'zeroed<' ly '>'") : printing_sugar.*)

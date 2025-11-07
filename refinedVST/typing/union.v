@@ -37,27 +37,57 @@ Section union.
     split; inversion 1; try done; eapply align_compatible_rec_Tunion; done.
   Qed.
 
-(*  Lemma type_place_uninit_union ge K β ul a n l T:
+  Lemma mapsto_union : forall id a l v, l ↦|Tunion id a| v ⊣⊢ aggregate_pred.union_pred (co_members (get_co id))
+    (fun it v => mapsto_memory_block.withspacer Tsh (sizeof (field_type (name_member it) (co_members (get_co id))))
+                        (co_sizeof (get_co id))
+                        (data_at_rec Tsh (field_type (name_member it) (co_members (get_co id))) v))
+    (unfold_reptype v) l.
+  Proof.
+    intros; rewrite /mapsto data_at_rec_eq //.
+  Qed.
+
+  Lemma type_place_uninit_union ge K (*β*) ul a n l T:
     (∃ ly, <affine> ⌜Ctypes.field_type n (co_members (get_co ul)) = Errors.OK ly⌝ ∗
-    typed_place ge (GetMemberUnionPCtx ul n :: K) l β (active_union ul n (uninit ly)) T)
-    ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l β (uninit (Tunion ul a)) T.
+    typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (active_union ul n (uninit ly)) T)
+    ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (uninit (Tunion ul a)) T.
   Proof.
     iDestruct 1 as (ly Hly) "HP".
     iIntros (Φ) "Hs HΦ" => /=.
     iApply ("HP" with "[Hs] HΦ").
+    iApply (embed_mono with "Hs"); iIntros "Hs".
+    pose proof (field_type_in_members n (co_members (get_co ul))) as Hin; rewrite Hly in Hin.
     iExists (get_member n (co_members (get_co ul))). iSplit => //.
     { iPureIntro. unfold get_co in *; destruct (cenv_cs !! ul)%maps eqn: Hi; try done.
       eauto. }
-    iSplit.
-    { rewrite /ty_own /=.
-      by iDestruct "Hs" as (???%has_layout_union_noattr) "Hs". }
-    (* Right now uninit for a union means that there is a valid value for *one* of its cases. *)
-    iApply subsume_uninit_withspacer.
-    iExists tt. iSplit => //. iPureIntro.
-    split; apply max_list_elem_of_le; apply elem_of_list_fmap_1; by apply: layout_of_union_member_in_ul.
+    rewrite {1}/uninit {1}/ty_own /=.
+    iDestruct "Hs" as (?) "Hs"; iSplit.
+    { by erewrite <- has_layout_union_noattr. }
+    rewrite name_member_get Hly.
+    replace (match (cenv_cs !! ul)%maps with | Some co => co_sizeof co | None => 0 end) with (co_sizeof (get_co ul));
+      last by rewrite /get_co; destruct (cenv_cs !! ul)%maps.
+    rewrite -{1}(isptr_offset_val_zero l) // -withspacer_uninit_memory_block //.
+    - iStopProof; f_equiv; try done.
+      rewrite /mapsto_memory_block.at_offset; extensionality p.
+      destruct p; try done.
+      rewrite isptr_offset_val_zero //.
+    - apply (field_compatible_app_inv' [UnionField n]), field_compatible_nested_field in H; last done.
+      rewrite app_nil_r /nested_field_type /nested_field_offset /= in H.
+      apply compute_in_members_true_iff in Hin; rewrite Hin Hly // in H.
+    - split.
+      + replace ly with (field_type n (co_members (get_co ul))) by rewrite /= Hly //.
+        etrans; first by apply sizeof_union_in_members.
+        eapply sizeof_Tunion_co_sizeof, H.
+      + destruct H as (_ & _ & Hsz & _); simpl in Hsz.
+        replace (match (cenv_cs !! ul)%maps with | Some co => co_sizeof co | None => 0 end) with (co_sizeof (get_co ul)) in *;
+          last by rewrite /get_co; destruct (cenv_cs !! ul)%maps.
+        rep_lia.
+    - destruct H as (_ & _ & Hsz & _); simpl in Hsz.
+      replace (match (cenv_cs !! ul)%maps with | Some co => co_sizeof co | None => 0 end) with (co_sizeof (get_co ul)) in Hsz;
+        last by rewrite /get_co; destruct (cenv_cs !! ul)%maps.
+      lia.
   Qed.
   Definition type_place_uninit_union_inst := [instance type_place_uninit_union].
-  Global Existing Instance type_place_uninit_union_inst. *)
+  Global Existing Instance type_place_uninit_union_inst.
 
   Lemma type_place_active_union ge K β ul n l ty T:
     typed_place ge K (l at_union{ul}ₗ n) β ty (λ l2 β ty2 typ, T l2 β ty2 (λ t, active_union ul n (typ t)))
@@ -169,15 +199,6 @@ Section union.
   Global Existing Instance type_binop_tunion_tag_int_ge_inst.
   Definition type_binop_tunion_tag_int_le_inst ge := [instance type_binop_tunion_tag_int ge Cop.Ole].
   Global Existing Instance type_binop_tunion_tag_int_le_inst.
-
-  Lemma mapsto_union : forall id a l v, l ↦|Tunion id a| v ⊣⊢ aggregate_pred.union_pred (co_members (get_co id))
-    (fun it v => mapsto_memory_block.withspacer Tsh (sizeof (field_type (name_member it) (co_members (get_co id))))
-                        (co_sizeof (get_co id))
-                        (data_at_rec Tsh (field_type (name_member it) (co_members (get_co id))) v))
-    (unfold_reptype v) l.
-  Proof.
-    intros; rewrite /mapsto data_at_rec_eq //.
-  Qed.
 
   Opaque field_type.
 
@@ -350,19 +371,19 @@ Section union.
   Definition type_place_variant_inst := [instance type_place_variant].
   Global Existing Instance type_place_variant_inst | 20.
 
-  (* goes via uninit
   Lemma type_place_variant_neq ge K ul a n l ty ti x T :
-    (<affine> ⌜ul = ti.(ti_union_layout)⌝ ∗ <affine> ⌜ty.(ty_has_op_type) (field_type (name_member (ti_member ti x)) (get_co ul).(co_members)) MCNone⌝ ∗ ∀ v, ⎡v ◁ᵥ|field_type (name_member (ti_member ti x)) (get_co ul).(co_members)|  ty⎤ -∗ typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (uninit (Tunion ul a)) T)
+    (<affine> ⌜ul = ti.(ti_union_layout)⌝ ∗ <affine> ⌜ty.(ty_has_op_type) (field_type (name_member (ti_member ti x)) (get_co ul).(co_members)) MCNone⌝ ∗
+     ∀ v, ⎡v ◁ᵥ|field_type (name_member (ti_member ti x)) (get_co ul).(co_members)|  ty⎤ -∗ typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (uninit (Tunion ul a)) T)
     ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (variant ti x ty) T.
   Proof.
-    iIntros "[-> [% HP]]". 
-    
-    iApply (typed_place_subsume _ _ _ (uninit (ti_union_layout ti))).
-    iApply subsume_padded_uninit. iSplit; [done|]. iIntros (v) "Hv $". iExists tt.
-    by iApply "HP".
+    iIntros "[-> [% HP]]". iApply (typed_place_subsume _ _ _ _ (uninit (Tunion (ti_union_layout ti) a))).
+    iApply uninit_mono'.
+    { split; eauto. }
+    iIntros (?) "(% & % & Hv)".
+    iExists tt. by iApply "HP".
   Qed.
   Definition type_place_variant_neq_inst := [instance type_place_variant_neq].
-  Global Existing Instance type_place_variant_neq_inst | 50. *)
+  Global Existing Instance type_place_variant_neq_inst | 50.
 End union.
 
 Section tunion.

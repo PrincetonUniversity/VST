@@ -365,6 +365,8 @@ MCId implies the other two and MCCopy implies MCNone.
 Inductive memcast_compat_type : Set :=
 | MCNone | MCCopy | MCId.
 
+#[global] Instance memcast_inhabited : Inhabited memcast_compat_type := populate MCNone.
+
 Notation "v `has_layout_val` cty" := (has_layout_val cty v) (at level 50) : stdpp_scope.
 Notation "l `has_layout_loc` cty" := (has_layout_loc l cty) (at level 50) : stdpp_scope.
 Notation "l ↦{ sh '}' '|' cty '|' v" := (mapsto l sh cty v)
