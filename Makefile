@@ -660,7 +660,8 @@ AES_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 REFINEDVST_FILES = \
-  refinedVST/typing/typing.v refinedVST/typing/automation.v refinedVST/typing/ClightSugar.v
+  refinedVST/typing/typing.v refinedVST/typing/automation.v \
+  refinedVST/typing/ClightSugar.v
 
 # SINGLE_C_FILES are those to be clightgen'd individually with -normalize flag
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
