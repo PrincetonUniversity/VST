@@ -1,11 +1,17 @@
 (** This file collects simplification instances specific to RefinedCC *)
 From VST.lithium Require Import simpl_classes.
-From VST.typing Require Import int.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
+From VST.typing Require Import programs int.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
-(** * FIXME is this even true?  *)
 Global Instance simpl_it_elem_of (z : Z) (it : Ctypes.type) :
   SimplBoth (z ∈ it) (min_int it ≤ z ∧ z ≤ max_int it).
-Admitted.
+Proof.
+  rewrite /elem_of /elem_of_type /in_range.
+  split.
+  - destruct it; simpl; try done; try destruct i; destruct s; simpl; rep_lia.
+  - destruct it; simpl; try lia; try destruct i; destruct s; simpl; rep_lia.
+Qed.
 
 (** * layout *)
 (* Global Instance simpl_layout_eq ly1 ly2 : SimplAndRel (=) ly1 ly2 (ly1.(ly_size) = ly2.(ly_size) ∧ ly_align ly1 = ly_align ly2).

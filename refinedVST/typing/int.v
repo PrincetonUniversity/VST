@@ -18,8 +18,16 @@ Definition is_signed t :=
   | _ => false
   end.
 
+Definition int_size t :=
+  match t with
+  | Tint sz _ _ => bitsize_intsize sz
+  | Tlong _ _ => 64
+  | _ => 0
+  end.
+
 Definition min_int t :=
   match t with
+  | Tint IBool _ _ => 0 (* no signed bool *)
   | Tint sz Signed _ => - Z.pow 2 (bitsize_intsize sz - 1)
   | Tlong Signed _ => Int64.min_signed
   | _ => 0
@@ -27,18 +35,12 @@ Definition min_int t :=
 
 Definition max_int t :=
   match t with
-  | Tint _ Signed _ => Int.max_signed
-  | Tint _ Unsigned _ => Int.max_unsigned
+  | Tint IBool _ _ => 1 (* no signed bool *)
+  | Tint sz Signed _ => Z.pow 2 (bitsize_intsize sz - 1) - 1
+  | Tint sz Unsigned _ => Z.pow 2 (bitsize_intsize sz) - 1
   | Tlong Signed _ => Int64.max_signed
-  | Tlong Unsigned _ =>  Int64.max_unsigned
-  | _ => 0
-  end.
-
-Definition int_size t :=
-  match t with
-  | Tint sz _ _ => bitsize_intsize sz
-  | Tlong _ _ => 64
-  | _ => 0
+  | Tlong Unsigned _ => Int64.max_unsigned
+  | _ => -1
   end.
 
 Lemma bitsize_wordsize : forall sz, bitsize_intsize sz <= Int.zwordsize.

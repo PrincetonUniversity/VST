@@ -1,5 +1,7 @@
 Require Import compcert.cfrontend.Clight.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.typing.annotations.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
 Inductive expr_annot :=
   | ExprAnnot_annot  {A} (a : A)
