@@ -3,6 +3,7 @@ From VST.typing Require Export type.
 From VST.typing Require Import programs optional boolean int singleton.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
+From compcert Require Import Ctypesdefs.
 
 Section own.
   Context `{!typeG OK_ty Σ} {cs : compspecs} (ge : genv).
@@ -10,7 +11,7 @@ Section own.
   Local Typeclasses Transparent place.
 
   Program Definition frac_ptr_type (β : own_state) (ty : type) (l' : address) : type := {|
-    ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
+    ty_has_op_type ot mt := (match ot with | Tpointer t attr => ot = tptr t | _ => False end)%type;
     ty_own β' l := (<affine>⌜l `has_layout_loc` (tptr tvoid)⌝ ∗ l ↦[β']|tptr tvoid| l' ∗ (l' ◁ₗ{own_state_min β' β} ty))%I;
     ty_own_val cty v_rep := (<affine> ⌜repinject cty v_rep = adr2val l'⌝ ∗ l' ◁ₗ{β} ty)%I;
   |}.
@@ -20,28 +21,33 @@ Section own.
     destruct β => //=. by iApply ty_share.
   Qed.
   Next Obligation.
-    iIntros (β ty l ot mt l' (? & ->)).
+    iIntros (β ty l ot mt l' ?). destruct ot; try done.
     rewrite /has_layout_loc !field_compatible_tptr.
     by iDestruct 1 as (?) "_". Qed.
   Next Obligation.
-    iIntros (β ty l ot mt l' (? & ->)) "(%H1 & Hl)".
+    iIntros (β ty l ot mt l' ?) "(%H1 & Hl)".
     rewrite /repinject /has_layout_val /= in H1; subst.
     iPureIntro.
+    destruct ot; try done.
+    inv H. 
     split; [|done].
     rewrite /value_fits => ? /=.
     simple_if_tac; done.
   Qed.
   Next Obligation.
-    iIntros (β ty l ot mt l' (? & ->)) "(%&Hl&Hl')".
-    rewrite left_id. unfold heap_mapsto_own_state. 
-    erewrite (mapsto_tptr _ _ tvoid x).
+    iIntros (β ty l ot mt l' ?) "(%&Hl&Hl')".
+    rewrite left_id. unfold heap_mapsto_own_state.
+    destruct ot; try done. inv H. simpl.
+    rewrite /tptr.
+    erewrite (mapsto_tptr _ _ tvoid ot).
     eauto with iFrame.
   Qed.
   Next Obligation.
-    iIntros (β ty l ot mt l' v (? & ->) ?) "Hl [% Hl']".
-    simpl in H0. rewrite H0.
-    unfold has_layout_loc in *. rewrite field_compatible_tptr in H. unfold heap_mapsto_own_state.
-    erewrite (mapsto_tptr _ _ tvoid x). by iFrame.
+    iIntros (β ty l ot mt l' v ? ?) "Hl [% Hl']".
+    destruct ot; try done. inv H.
+    simpl in H1. rewrite H1.
+    unfold has_layout_loc in *. rewrite field_compatible_tptr in H0. unfold heap_mapsto_own_state.
+    erewrite (mapsto_tptr _ _ tvoid ot). by iFrame.
   Qed.
 
   Global Instance frac_ptr_type_le : Proper ((=) ==> (⊑) ==> (=) ==> (⊑)) frac_ptr_type.
@@ -431,7 +437,7 @@ Section ptr.
 
   (* at present n doesn't do anything *)
   Program Definition ptr_type (n : nat) (l' : address) : type := {|
-    ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
+    ty_has_op_type ot mt := (match ot with | Tpointer t attr => ot = tptr t | _ => False end)%type;
     ty_own β l := (<affine> ⌜l `has_layout_loc` (tptr tvoid)⌝ ∗ (*valid_pointer l' (*n*) ∧*) l ↦[β]|tptr tvoid| l')%I;
     ty_own_val cty v := (<affine> ⌜repinject cty v = adr2val l'⌝ (*∗ loc_in_bounds l' n*))%I;
   |}.
@@ -441,31 +447,40 @@ Section ptr.
     iMod (heap_mapsto_own_state_share with "Hl") as "$"; done.
   Qed.
   Next Obligation.
-    iIntros (?????(?&->)) "(% & Hl)".
+    iIntros (??????) "(% & Hl)".
     rewrite /has_layout_loc in H |- *.
+    destruct cty; try done.
     by rewrite field_compatible_tptr.
   Qed.
   Next Obligation.
-    iIntros (?????(?&->)?).
+    iIntros (???????).
     rewrite /repinject /= in H; subst.
     iPureIntro.
     rewrite /has_layout_val.
-    destruct x; try done.
+    destruct cty; try done. inv H.
+    split; try done.
+    rewrite /value_fits /=.
+    rewrite /tc_val' /=.
+    intros. 
+    destruct v_rep; try done.
+    simple_if_tac; try done.
   Qed.
   Next Obligation.
-    iIntros (?????(?&->)) "(% & Hl)".
-    rewrite / heap_mapsto_own_state. 
-    erewrite (mapsto_tptr _ _ tvoid x).
+    iIntros (??????) "(% & Hl)".
+    rewrite / heap_mapsto_own_state.
+    destruct cty; try done; inv H.
+    erewrite (mapsto_tptr _ _ tvoid cty).
     iExists _. iFrame.
     by iPureIntro.
   Qed.
   Next Obligation.
-    iIntros (??????(? & ->)?) "Hl".
+    iIntros (????????) "Hl".
     iIntros "%".
     unfold has_layout_loc in *.
-    rewrite /= in H0. rewrite H0.
-    unfold has_layout_loc in *. rewrite field_compatible_tptr in H. unfold heap_mapsto_own_state.
-    erewrite (mapsto_tptr _ _ tvoid x). by iFrame.
+    destruct cty; try done; inv H.
+    rewrite /= in H1. rewrite H1.
+    unfold has_layout_loc in *. rewrite field_compatible_tptr in H0. unfold heap_mapsto_own_state.
+    erewrite (mapsto_tptr _ _ tvoid cty). by iFrame.
   Qed.
 
   Definition ptr (n : nat) : rtype _ := RType (ptr_type n).
@@ -508,13 +523,11 @@ Section ptr.
     iIntros "HT Hp".
     iDestruct (ty_aligned _ (tptr tvoid) MCNone with "Hp") as %?; [eexists; eauto|].
     iDestruct (ty_deref _ (tptr tvoid) MCNone with "Hp") as (v) "(Hp & Hl)"; try done.
-    { rewrite /ty_has_op_type /=. eexists; eauto. }
-    { rewrite /ty_own_val /=.
-      iDestruct "Hl" as "(% & Hl)".
-      rewrite H0.
-      iDestruct ("HT" with "[$Hl]") as (? ->) "?".
-      iExists _. by iFrame "∗".
-    }
+    rewrite /ty_own_val /=.
+    iDestruct "Hl" as "(% & Hl)".
+    rewrite H0.
+    iDestruct ("HT" with "[$Hl]") as (? ->) "?".
+    iExists _. by iFrame "∗".
   Qed.
   Definition subsume_own_ptr_inst := [instance subsume_own_ptr].
   Global Existing Instance subsume_own_ptr_inst.
@@ -546,7 +559,7 @@ Section null.
   Context `{!typeG OK_ty Σ} {cs : compspecs} (ge : genv).
 
   Program Definition null : type := {|
-    ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
+    ty_has_op_type ot mt := (match ot with | Tpointer t attr => ot = tptr t | _ => False end)%type;
     ty_own β l := (<affine> ⌜l `has_layout_loc` (tptr tvoid)⌝ ∗ l ↦[β]|tptr tvoid| nullval)%I;
     ty_own_val cty v := <affine> ⌜repinject cty v = nullval⌝%I;
   |}.
@@ -555,30 +568,36 @@ Section null.
     by iApply (heap_mapsto_own_state_share with "[Hl]").
   Qed.
   Next Obligation.
-    iIntros (???(? & ->)) "[% _]".
+    iIntros (????) "[% _]".
+    destruct cty; try done; inv H.
     rewrite /has_layout_loc field_compatible_tptr //.
   Qed.
   Next Obligation.
-    iIntros (???(?&->)?).
+    iIntros (?????).
     rewrite /repinject /= in H; subst.
-    iPureIntro. hnf.
+    destruct cty; try done; inv H.
+    simpl in H0. rewrite H0.
+    iPureIntro. 
+    hnf.
     split; auto.
     intros ?; apply Clight_mapsto_memory_block.tc_val_pointer_nullval.
   Qed.
   Next Obligation.
-    iIntros (???(?&->)) "(% & Hl)".
+    iIntros (????) "(% & Hl)".
+    destruct cty; try done; inv H.
     rewrite /heap_mapsto_own_state.
-    erewrite (mapsto_tptr _ _ tvoid x).
+    erewrite (mapsto_tptr _ _ tvoid cty).
     eauto with iFrame.
   Qed.
   Next Obligation.
-    iIntros (????(?&->)) "% Hl %Hl1".
+    iIntros (?????) "% Hl %Hl1".
+    destruct cty; try done; inv H.
     rewrite /repinject /= in Hl1; subst.
     rewrite /heap_mapsto_own_state.
-    erewrite (mapsto_tptr _ _ tvoid x).
+    erewrite (mapsto_tptr _ _ tvoid cty).
     iFrame.
     iPureIntro.
-    by rewrite /has_layout_loc field_compatible_tptr in H.
+    by rewrite /has_layout_loc field_compatible_tptr in H0.
   Qed.
 
 (*  Global Instance null_loc_in_bounds β : LocInBounds null β (Z.to_nat (expr.sizeof (tptr tvoid))).

@@ -89,24 +89,31 @@ Section value.
   Definition value_merge_inst := [instance value_merge with 50%N].
   Global Existing Instance value_merge_inst | 20. *)
 
-(*   Lemma type_read_move l ty ot a E mc `{!TCDone (ty.(ty_has_op_type) ot MCId)} T:
+Lemma type_read_move l ty ot a E `{!TCDone (ty.(ty_has_op_type) ot MCId)} 
+  `{!TCDone (type_is_by_value ot = true)} T:
     (∀ v, T v (value ot v) ty)
-    ⊢ typed_read_end a E l Own ty ot mc T.
+    ⊢ typed_read_end a E l Own ty ot T.
   Proof.
-    unfold TCDone, typed_read_end in *. iIntros "HT Hl".
+    unfold TCDone, typed_read_end in *. intros. iIntros "HT Hl".
     iApply fupd_mask_intro; [destruct a; solve_ndisj|]. iIntros "Hclose".
     iDestruct (ty_aligned with "Hl") as %?; [done|].
     iDestruct (ty_deref with "Hl") as (v) "[Hl Hv]"; [done|].
     iDestruct (ty_size_eq with "Hv") as %?; [done|].
-    iDestruct (ty_memcast_compat_id with "Hv") as %Hid; [done|].
-    iExists _, _, _. iFrame. do 2 iSplit => //=.
-    iIntros "!# %st Hl Hv". iMod "Hclose".
-    iExists _, ty. rewrite Hid. have -> : (if mc then v else v) = v by destruct mc.
-    iFrame "Hv". iSplitR "HT" => //. by iFrame.
+    (* iDestruct (ty_memcast_compat_id with "Hv") as %Hid; [done|]. *)
+    iExists _, (repinject ot v), _. rewrite valinject_repinject //.
+    iFrame. do 3 iSplit => //=.
+    { iPureIntro. apply readable_share_top.  }
+    iIntros "? ?". iMod "Hclose". iModIntro.
+    iFrame.
+    iSpecialize ("HT" $! (repinject ot v)).
+    iFrame.
+    rewrite /ty_own /= valinject_repinject //.
+    do 2 iSplit => //=.
   Qed.
   Definition type_read_move_inst := [instance type_read_move].
   Global Existing Instance type_read_move_inst | 50.
 
+(*
   (* TODO: this constraint on the layout is too strong, we only need
   that the length is the same and the alignment is lower. Adapt when necessary. *)
   Lemma type_write_own a ty E l2 ty2 v ot T:
