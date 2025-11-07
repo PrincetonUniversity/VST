@@ -25,6 +25,15 @@ Definition min_int t :=
   | _ => 0
   end.
 
+Definition max_int t :=
+  match t with
+  | Tint _ Signed _ => Int.max_signed
+  | Tint _ Unsigned _ => Int.max_unsigned
+  | Tlong Signed _ => Int64.max_signed
+  | Tlong Unsigned _ =>  Int64.max_unsigned
+  | _ => 0
+  end.
+
 Definition int_size t :=
   match t with
   | Tint sz _ _ => bitsize_intsize sz

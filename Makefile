@@ -519,7 +519,7 @@ VERIC_FILES= \
   semax.v semax_lemmas.v semax_conseq.v semax_call.v semax_straight.v semax_loop.v semax_switch.v \
   initial_world.v Clight_initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
   NullExtension.v SequentialClight.v tcb.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
-  mem_lessdef.v Clight_mem_lessdef.v mpred.v
+  mem_lessdef.v Clight_mem_lessdef.v mpred.v make_compspecs.v
 
 ZLIST_FILES= \
   sublist.v Zlength_solver.v list_solver.v
@@ -659,6 +659,9 @@ AES_FILES = \
 #  HMAC_DRBG_pure_lemmas.v HMAC_DRBG_common_lemmas.v verif_mocked_md.v \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
+REFINEDVST_FILES = \
+  refinedVST/typing/typing.v refinedVST/typing/automation.v \
+  refinedVST/typing/ClightSugar.v
 
 # SINGLE_C_FILES are those to be clightgen'd individually with -normalize flag
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
@@ -722,7 +725,9 @@ INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST
 INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(INSTALL_FILES_SRC))
 INSTALL_FILES=$(sort $(INSTALL_FILES_SRC) $(INSTALL_FILES_VO))
 
-RC_INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) ZLIST=$(ZLIST) BITSIZE=$(BITSIZE) ARCH=$(ARCH) IGNORECOQVERSION=$(IGNORECOQVERSION) IGNORECOMPCERTVERSION=$(IGNORECOMPCERTVERSION) MAKE=$(MAKE) util/calc_install_files veric/make_compspecs.vo refinedVST/typing/typing.vo)
+# util/calc_install_files_refinedcc takes the directory name as the only argument
+RC_INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) ZLIST=$(ZLIST) BITSIZE=$(BITSIZE) ARCH=$(ARCH) IGNORECOQVERSION=$(IGNORECOQVERSION) IGNORECOMPCERTVERSION=$(IGNORECOMPCERTVERSION) MAKE=$(MAKE) util/calc_install_files_refinedcc refinedVST)
+RC_INSTALL_FILES_SRC+=veric/make_compspecs.v
 RC_INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(RC_INSTALL_FILES_SRC))
 RC_INSTALL_FILES=$(sort $(RC_INSTALL_FILES_SRC) $(RC_INSTALL_FILES_VO))
 
@@ -799,6 +804,7 @@ sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
 veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo) veric/version.vo
+refinedVST: _CoqProject $(REFINEDVST_FILES:%.v=%.vo)
 zlist:   _CoqProject $(ZLIST_FILES:%.v=zlist/%.vo)
 floyd:   _CoqProject $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   _CoqProject $(PROGS_FILES:%.v=$(PROGSDIR)/%.vo)
@@ -845,7 +851,7 @@ install: VST.config
 	for f in $(INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 	for f in $(EXTRA_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 
-install_rc: VST.config veric/make_compspecs.vo refinedVST/typing/typing.vo
+install_rc: VST.config refinedVST/typing/typing.vo
 	install -d "$(INSTALLDIR)"
 	install -d "$(INSTALLDIR)"
 	for d in $(sort $(dir $(RC_INSTALL_FILES) $(EXTRA_INSTALL_FILES))); do install -d "$(INSTALLDIR)/$$d"; done
@@ -964,9 +970,9 @@ clean-concur:
 clean-linking:
 	rm -f $(LINKING_FILES:%.v=linking/%.vo) $(LINKING_FILES:%.v=linking/%.glob)
 
-clean-refinedVST-frontend:
-	rm -fr refinedVST/typing/frontend_stuff/_build
-	rm -fr refinedVST/typing/frontend_stuff/examples/proofs
+clean-refinedVST:
+	rm -f refinedVST/*/*.{vo,vos,vok,glob} ||:
+	rm -f refinedVST/*/*/*.{vo,vos,vok,glob} ||:
 
 count:
 	wc $(FILES)

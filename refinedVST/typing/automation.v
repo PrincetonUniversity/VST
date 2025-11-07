@@ -4,7 +4,7 @@ From lithium Require Import hooks normalize.
 From VST.lithium Require Export all.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
-From VST.typing.automation Require Export proof_state (* solvers simplification loc_eq. *).
+From VST.typing.automation Require Export proof_state (* solvers *) simplification (* loc_eq. *).
 From VST.typing Require Import programs function singleton array (* struct *) bytes own int.
 From VST.typing Require Import ClightSugar.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
@@ -468,3 +468,18 @@ Arguments FindVal: simpl never.
 (* for triggering related_to_val_rep_v *)
 Arguments repinject: simpl never.
 Arguments sep_list: simpl never.
+
+(* overwriting the solver in lithium base. 
+  This is to make `assert_is_trivial P` succeed when P is like
+  `Int.unsigned (Int.repr 1) ∈ tuint` so that when the goal is `P -> Q`,
+  we can throw P away. *)
+Ltac splitting_fast_done ::=
+    solve
+[ repeat first
+  [ fast_done
+  (* All the tactics below will introduce themselves anyway, or make no sense
+    for goals of product type. So this is a good place for us to do it. *)
+  | progress intros
+  | split ]
+| rep_lia
+].
