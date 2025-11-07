@@ -679,7 +679,7 @@ Ltac liDoneEvar :=
 (** ** [liSep] *)
 Section coq_tactics.
   Context {prop : bi}.
-  Hypothesis BiPositive_prop : BiPositive prop.
+  (*Hypothesis BiPositive_prop : BiPositive prop.*)
   Hypothesis BiPersistentlyForall_prop : BiPersistentlyForall prop.
 
   Lemma tac_sep_sep_assoc Δ (P Q R : prop) :
@@ -703,14 +703,14 @@ Section coq_tactics.
   Proof. apply tac_fast_apply. apply bi.exist_mono => ?. by rewrite bi.sep_exist_r. Qed.
 
   Lemma tac_do_intro_intuit_sep Δ (P Q : prop) :
-    envs_entails Δ (□ (P ∗ True) ∧ Q) → envs_entails Δ (□ P ∗ Q).
-  Proof using BiPersistentlyForall_prop BiPositive_prop. apply tac_fast_apply. iIntros "[#[$ _] $]". Qed.
+    envs_entails Δ (□ P ∧ Q) → envs_entails Δ (□ P ∗ Q).
+  Proof using BiPersistentlyForall_prop. apply tac_fast_apply. iIntros "[$ $]". Qed.
 
   Lemma tac_do_intro_intuit_sep_ex {A B X} Δ (P Q : (A *ₗ B) → prop) (f : X → _) :
-    (∀ y, envs_entails Δ (□ (∃ₗ x, P x ∗ li_done_evar x y f))) →
+    (∀ y, envs_entails Δ (∃ₗ x, □ P x ∗ □ li_done_evar x y f)) →
     envs_entails Δ (∃ y, Q (f y)) →
     envs_entails Δ (∃ₗ x, □ (P x) ∗ Q x).
-  Proof using BiPersistentlyForall_prop BiPositive_prop.
+  Proof using BiPersistentlyForall_prop.
     rewrite envs_entails_unseal /li_done_evar. move => /bi.forall_intro HP HQ.
     iIntros "HΔ". iDestruct (HP with "HΔ") as "#HP".
     iDestruct (HQ with "HΔ") as (y) "HQ".
@@ -756,7 +756,7 @@ Ltac liSep :=
     | bi_exist _ => notypeclasses refine (tac_sep_exist_assoc _ _ _ _)
     | bi_emp => notypeclasses refine (tac_sep_emp _ _ _)
     | (⌜_⌝)%I => fail "handled by liSideCond"
-    | (□ ?P)%I => notypeclasses refine (tac_do_intro_intuit_sep _ _ _ _ _ _)
+    | (□ ?P)%I => notypeclasses refine (tac_do_intro_intuit_sep _ _ _ _ _)
     | match ?x with _ => _ end => fail "should not have match in sep"
     | ?P => first [
         progress liFindHyp FICSyntactic
@@ -773,7 +773,7 @@ Ltac liSep :=
     | (λ _, bi_exist _) => notypeclasses refine (tac_sep_exist_assoc_ex _ _ _ _)
     (* bi_emp cannot happen because it is independent of evars *)
     | (λ _, (⌜_⌝)%I) => fail "handled by liSideCond"
-    | (λ _, (□ _)%I) => refine (tac_do_intro_intuit_sep_ex _ _ _ _ _ _ _ _)
+    | (λ _, (□ _)%I) => refine (tac_do_intro_intuit_sep_ex _ _ _ _ _ _ _)
     (* The following is probably not necessary: *)
     (* | match ?x with _ => _ end => fail "should not have match in sep" *)
     | ?P => first [
@@ -843,7 +843,7 @@ Module liSep_tests. Section test.
     end.
   Abort.
 
-  Goal  ∀ P : Z → Z → Z → prop,
+  (*Goal  ∀ P : Z → Z → Z → prop,
       ⊢ ∃ x y z, □ (<affine> ⌜x = 1%Z⌝ ∗ <affine> ⌜y = 2%Z⌝) ∗ <affine> ⌜z = 3%Z⌝ ∗ P x y z.
     intros. iStartProof. iIntros. repeat liExist.
     1: liSep.
@@ -858,9 +858,9 @@ Module liSep_tests. Section test.
     lazymatch goal with
     | |- envs_entails _ (P 1%Z 2%Z 3%Z) => idtac
     end.
-  Abort.
+  Abort.*)
 
-  Goal  ∀ P : Z → Z → Z → prop,
+  (*Goal  ∀ P : Z → Z → Z → prop,
       ⊢ ∃ x y z, □ (<affine> ⌜x = 1%Z⌝ ∗ □ <affine> ⌜y = 2%Z⌝) ∗ <affine> ⌜z = 3%Z⌝ ∗ P x y z.
     intros. iStartProof. iIntros. repeat liExist.
     1: liSep.
@@ -879,9 +879,9 @@ Module liSep_tests. Section test.
     lazymatch goal with
     | |- envs_entails _ (P 1%Z 2%Z 3%Z) => idtac
     end.
-  Abort.
+  Abort.*)
 
-  Goal  ∀ P : Z → Z → Z → prop,
+  (*Goal  ∀ P : Z → Z → Z → prop,
       ⊢ ∃ x y z, □ (<affine> ⌜x = 1%Z⌝ ∗ <affine> ⌜y = 2%Z⌝ ∗ <affine> ⌜z = 3%Z⌝) ∗ P x y z.
     intros. iStartProof. iIntros. repeat liExist.
     1: liSep.
@@ -899,14 +899,14 @@ Module liSep_tests. Section test.
     lazymatch goal with
     | |- envs_entails _ (P 1%Z 2%Z 3%Z) => idtac
     end.
-  Abort.
+  Abort.*)
 
-  Goal  ∀ P : Z → prop,
+  (*Goal  ∀ P : Z → prop,
       ⊢ ∃ x, □ (const (<affine> True) x) ∗ <affine> ⌜x = 1%Z⌝ ∗ P x.
     intros. iStartProof. iIntros. repeat liExist.
     1: liSep.
     1: liForall.
-    1: iModIntro. 1: simpl.
+    1: simpl.
     1: liSideCond.
     1: liDoneEvar.
     1: liSideCond.
@@ -914,7 +914,7 @@ Module liSep_tests. Section test.
     lazymatch goal with
     | |- envs_entails _ (P 1%Z) => idtac
     end.
-  Abort.
+  Abort.*)
 
 End test. End liSep_tests.
 
@@ -1049,26 +1049,24 @@ Ltac liAnd :=
   end.
 
 (* TODO Ke: is not valid anymore because logic is linear? maybe to a weaker version where spatial context is empty? *)
-(* 
 (** ** [liPersistent] *)
 Section coq_tactics.
   Context {prop : bi}.
 
-  Lemma tac_persistent Δ (P : prop) :
-    envs_entails (envs_clear_spatial Δ) P → envs_entails Δ (□ P).
+  Lemma tac_persistent Δ (P : prop) : env_spatial_is_nil Δ = true →
+    envs_entails Δ P → envs_entails Δ (□ P).
   Proof.
-    rewrite envs_entails_unseal => HP. iIntros "Henv".
-    iDestruct (envs_clear_spatial_sound with "Henv") as "[#Henv _]".
-    iModIntro. iApply (HP with "Henv").
+    rewrite envs_entails_unseal => ? HP.
+    rewrite env_spatial_is_nil_intuitionistically //.
+    by f_equiv.
   Qed. 
 End coq_tactics.
 
 Ltac liPersistent :=
   lazymatch goal with
   | |- envs_entails ?Δ (bi_intuitionistically ?P) =>
-      notypeclasses refine (tac_persistent _ _ _); li_pm_reduce
+      notypeclasses refine (tac_persistent _ _ _); [reflexivity | li_pm_reduce]
   end.
-*)
 
 (** ** [liCase] *)
 Section coq_tactics.
@@ -1304,7 +1302,7 @@ Ltac liStep :=
     | liCase
     | liTrace
     | liTactic
-    (* | liPersistent *)
+    | liPersistent
     | liTrue
     | liFalse
     | liAccu

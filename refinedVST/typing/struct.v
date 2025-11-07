@@ -731,8 +731,93 @@ Check value_fits_eq.
       all: by iFrame.*)
   Qed.*) *)
 
+  Lemma uninit_struct_equiv l i a :
+    (l ◁ₗ uninit (Tstruct i a)) ⊣⊢ (l ◁ₗ struct i (uninit <$> (map (λ m, field_type (name_member m) (co_members (get_co i))) (get_co i).(co_members)))).
+  Proof.
+    (*rewrite {1}/ty_own /=.
+    iSplit.
+    - iDestruct 1 as (v Hv Hl ?) "Hl".
+      iApply (ty_ref with "[//] Hl").
+      + simpl. rewrite /is_struct_ot. admit.
+      + rewrite /ty_own_val /=.
+        iExists _, eq_refl.
+        iSplit => //.
+        rewrite !length_fmap; iSplit => //.
+        admit.
+    - iIntros "Hl". iPoseProof (ty_deref with "Hl") as "(% & $ & H)". { admit. }
+      rewrite /ty_own_val /=.
+      iDestruct "H" as "(% & % & % & % & H)".
+      iSplit => //. admit.*)
+
+    rewrite /struct{1 2}/ty_own/=.
+    setoid_rewrite has_layout_struct_noattr.
+    rewrite /heap_mapsto_own_state /=.
+    setoid_rewrite mapsto_struct.
+    pose proof (get_co_members_no_replicate i) as Hnorep.
+    iSplit.
+    - iDestruct 1 as (v Hv Hl ?) "Hl". iSplit => //. iSplit.
+      { iPureIntro. rewrite length_fmap map_length //. }
+      iApply (aggregate_pred.struct_pred_ext_derives with "Hl"); first done.
+      intros f ?? Hin. rewrite -heap_withspacer_eq /heap_withspacer /mapsto_memory_block.at_offset /=.
+      iIntros "(H & $)".
+      pose proof (in_get_member _ _ Hin) as (? & Hf)%elem_of_list_In%elem_of_list_lookup_1.
+      erewrite proj_struct_lookup; [|try done..].
+      2: { rewrite !list_lookup_fmap Hf //. }
+      iDestruct (data_at_rec_value_fits with "H") as %Hfits.
+      rewrite /ty_own /=; iFrame; iPureIntro.
+      split3.
+      + rewrite /has_layout_val; split; first done.
+      Print type_is_volatile. admit. (* need to know no fields are volatile *)
+      + rewrite name_member_get.
+        unfold has_layout_loc in *.
+        apply (field_compatible_app_inv' [StructField f]), field_compatible_nested_field in Hl; last done.
+        rewrite app_nil_r /nested_field_type /nested_field_offset /= in Hl.
+        apply compute_in_members_true_iff in Hin; rewrite Hin // in Hl.
+      + eexists; split; first done.
+        rewrite Forall_forall //.
+    - iIntros "[$ Hl]". iDestruct "Hl" as (_) "Hl".
+      rewrite /has_layout_val /type_is_volatile. setoid_rewrite value_fits_eq; simpl.
+      iAssert (∀ mems, ⌜mems = co_members (get_co i)⌝ → ∃ v : compact_prod (map (λ it : member, reptype (field_type (name_member it) mems)) (co_members (get_co i))),
+        <affine> ⌜aggregate_pred.aggregate_pred.struct_Prop (co_members (get_co i))
+          (λ it : member, value_fits (field_type (name_member it) mems)) v ∧ false = false⌝ ∗
+        aggregate_pred.struct_pred (co_members (get_co i)) (λ (it : member) (v : reptype (field_type (name_member it) mems)),
+          mapsto_memory_block.withspacer Tsh (field_offset cenv_cs (name_member it) mems +
+          sizeof (field_type (name_member it) mems))
+          (field_offset_next cenv_cs (name_member it) mems (co_sizeof (get_co i)))
+          (mapsto_memory_block.at_offset (data_at_rec Tsh (field_type (name_member it) mems) v)
+            (field_offset cenv_cs (name_member it) mems))) v l)%I with "[Hl]" as "Hl".
+      2: { iDestruct ("Hl" with "[//]") as (?) "Hl"; iExists (fold_reptype(t := Tstruct i a) v).
+           rewrite unfold_fold_reptype.
+           iDestruct "Hl" as "($ & $)". iPureIntro.
+           eexists; split; first done.
+           rewrite Forall_forall //. }
+      iIntros (? Hmems).
+      rewrite -{2 3 4 5 6}Hmems; clear Hmems.
+      iInduction (co_members (get_co i)) as [|m ms] "IH" forall (l).
+      { csimpl; done. }
+      rewrite /members_no_replicate /= in Hnorep.
+      destruct (id_in_list _ _) eqn: Hm; first done.
+      destruct ms.
+      + simpl.
+        setoid_rewrite <- heap_withspacer_eq; iDestruct "Hl" as "(Hl & $)".
+        rewrite /mapsto_memory_block.at_offset /=.
+        rewrite /ty_own /=.
+        iDestruct "Hl" as "(% & %Hv & % & % & $)".
+        destruct Hv; auto.
+      + rewrite -/aggregate_pred.aggregate_pred.struct_pred struct_pred_cons2.
+        simpl fmap; rewrite make_ty_prod_cons2.
+        setoid_rewrite struct_Prop_cons2; setoid_rewrite struct_pred_cons2.
+        iDestruct "Hl" as "((Hl & Hspacer) & Hls)".
+        iDestruct ("IH" with "[//] Hls") as (vs (? & ?)) "Hls"; iClear "IH".
+        rewrite /mapsto_memory_block.at_offset; simpl val2adr; cbn match.
+        rewrite /ty_own.
+        iDestruct "Hl" as "(%v & %Hv & % & % & ?)".
+        iExists (v, vs); rewrite -heap_withspacer_eq; iFrame.
+        iPureIntro; destruct Hv; auto.
+  Admitted.
+
   (*Lemma uninit_struct_impl l β i a :
-    (l ◁ₗ{β} uninit (Tstruct i a)) ⊢ (l ◁ₗ{β} struct i (uninit <$> (map type_member (get_co i).(co_members)))).
+    (l ◁ₗ{β} uninit (Tstruct i a)) ⊢ (l ◁ₗ{β} struct i (uninit <$> (map (λ m, field_type (name_member m) (co_members (get_co i))) (get_co i).(co_members)))).
   Proof.
     rewrite {1}/uninit /struct; simpl_type.
     iDestruct 1 as (v Hv Hl ?) "Hl". erewrite <- has_layout_struct_noattr.
@@ -748,39 +833,39 @@ Check value_fits_eq.
       Check proj_struct_lookup.
       admit.
     - rewrite /mapsto. (* induction *)
-  Admitted.
+  Admitted.*)
 
-  Lemma uninit_struct_simpl_hyp l β i a T:
-    (l ◁ₗ{β} (struct i (uninit <$> map type_member (get_co i).(co_members))) -∗ T)
-    ⊢ simplify_hyp (l ◁ₗ{β} uninit (Tstruct i a)) T.
-  Proof. iIntros "HT Hl". rewrite uninit_struct_impl. by iApply "HT". Qed.
+  Lemma uninit_struct_simpl_hyp l (*β*) i a T:
+    (l ◁ₗ (struct i (uninit <$> map (λ m, field_type (name_member m) (co_members (get_co i))) (get_co i).(co_members))) -∗ T)
+    ⊢ simplify_hyp (l ◁ₗ uninit (Tstruct i a)) T.
+  Proof. iIntros "HT Hl". rewrite uninit_struct_equiv. by iApply "HT". Qed.
   Definition uninit_struct_simpl_hyp_inst := [instance uninit_struct_simpl_hyp with 0%N].
-  Global Existing Instance uninit_struct_simpl_hyp_inst.*)
+  Global Existing Instance uninit_struct_simpl_hyp_inst.
 
-(*  Lemma uninit_struct_simpl_goal l β i a T:
-    l ◁ₗ{β} (struct i (uninit <$> map type_member (get_co i).(co_members))) ∗ T
-    ⊢ simplify_goal (l ◁ₗ{β} uninit (Tstruct i a)) T.
-  Proof. iIntros "[? $]". by rewrite uninit_struct_impl. Qed.
+  Lemma uninit_struct_simpl_goal l (*β*) i a T:
+    l ◁ₗ (struct i (uninit <$> map (λ m, field_type (name_member m) (co_members (get_co i))) (get_co i).(co_members))) ∗ T
+    ⊢ simplify_goal (l ◁ₗ uninit (Tstruct i a)) T.
+  Proof. iIntros "[? $]". by rewrite uninit_struct_equiv. Qed.
   Definition uninit_struct_simpl_goal_inst := [instance uninit_struct_simpl_goal with 50%N].
-  Global Existing Instance uninit_struct_simpl_goal_inst. *)
+  Global Existing Instance uninit_struct_simpl_goal_inst.
 
-  (*Lemma subsume_struct_uninit A β i a ly tys l T :
-    subsume (l ◁ₗ{β} struct i tys) (λ x : A, l ◁ₗ{β} uninit ly) T :-
+  Lemma subsume_struct_uninit A (*β*) i a ly tys l T :
+    subsume (l ◁ₗ struct i tys) (λ x : A, l ◁ₗ uninit ly) T :-
       exhale <affine> ⌜ly = Tstruct i a⌝;
-      x ← {subsume (l ◁ₗ{β} struct i tys) (λ x : A,
-             l ◁ₗ{β} struct i (uninit <$> map type_member (get_co i).(co_members)))};
+      x ← {subsume (l ◁ₗ struct i tys) (λ x : A,
+             l ◁ₗ struct i (uninit <$> map (λ m, field_type (name_member m) (co_members (get_co i))) (get_co i).(co_members)))};
       return T x.
   Proof.
     iIntros "[-> Ht] Hstruct". iDestruct ("Ht" with "Hstruct") as "[%x Ht]".
     iExists x. by rewrite uninit_struct_equiv.
   Qed.
   Definition subsume_struct_uninit_inst := [instance subsume_struct_uninit].
-  Global Existing Instance subsume_struct_uninit_inst. *)
+  Global Existing Instance subsume_struct_uninit_inst.
 
   (*Lemma subsume_uninit_struct A β i a ly tys l T :
     subsume (l ◁ₗ{β} uninit ly) (λ x : A, l ◁ₗ{β} struct i tys) T :-
       exhale <affine> ⌜ly = Tstruct i a⌝;
-      x ← {subsume (l ◁ₗ{β} struct i (uninit <$> map type_member (get_co i).(co_members))) (λ x : A,
+      x ← {subsume (l ◁ₗ{β} struct i (uninit <$> map type(λ m, field_type (name_member m) (co_members (get_co i)))_member (get_co i).(co_members))) (λ x : A,
              l ◁ₗ{β} struct i tys)};
       return T x.
   Proof.
