@@ -430,6 +430,24 @@ Section tunion.
   Definition simplify_goal_tunion_inst := [instance simplify_goal_tunion with 0%N].
   Global Existing Instance simplify_goal_tunion_inst.
 
+  Lemma simplify_hyp_tunion' ti x l β (T : assert):
+    (⎡l ◁ₗ{β} struct ti.(ti_base_layout) [
+         tunion_tag ti x;
+         variant ti x (ti.(ti_type) x) ]⎤ -∗ T)
+    ⊢ simplify_hyp ⎡l◁ₗ{β} x @ tunion ti⎤ T.
+  Proof. iIntros "HT Hl". by iApply "HT". Qed.
+  Definition simplify_hyp_tunion'_inst := [instance simplify_hyp_tunion' with 0%N].
+  Global Existing Instance simplify_hyp_tunion'_inst.
+
+  Lemma simplify_goal_tunion' ti x l β (T : assert):
+    ⎡l ◁ₗ{β} struct ti.(ti_base_layout) [
+         tunion_tag ti x;
+         variant ti x (ti.(ti_type) x) ]⎤ ∗ T
+    ⊢ simplify_goal ⎡l◁ₗ{β} x @ tunion ti⎤ T.
+  Proof. iIntros "[$ $]". Qed.
+  Definition simplify_goal_tunion'_inst := [instance simplify_goal_tunion' with 0%N].
+  Global Existing Instance simplify_goal_tunion'_inst.
+
 End tunion.
 
 Global Typeclasses Opaque active_union variant tunion tunion_tag.

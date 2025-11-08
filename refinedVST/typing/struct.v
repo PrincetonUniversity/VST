@@ -6,6 +6,12 @@ Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key"
 From VST.typing Require Import type_options.
 Require Import Coq.Program.Equality.
 
+Definition GetMemberLoc {cs : compspecs} (l : address) (i : ident) (m : ident) : address :=
+  (l.1, Ptrofs.add l.2 (Ptrofs.repr (field_offset cenv_cs m (get_co i).(co_members)))).
+Notation "l 'at{' s '}ₗ' m" := (GetMemberLoc l s m) (at level 10, format "l  'at{' s '}ₗ'  m") : stdpp_scope.
+Global Typeclasses Opaque GetMemberLoc.
+Global Arguments GetMemberLoc : simpl never.
+
 Section struct.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
@@ -378,12 +384,6 @@ Section struct.
   Global Instance struct_proper : Proper ((=) ==> Forall2 (≡) ==> (≡)) struct.
   Proof. move => ??-> ?? Heq. apply type_le_equiv_list; [by apply struct_le|done]. Qed.
 
-  Definition GetMemberLoc (l : address) (i : ident) (m : ident) : address :=
-    (l.1, Ptrofs.add l.2 (Ptrofs.repr (field_offset cenv_cs m (get_co i).(co_members)))).
-  Notation "l 'at{' s '}ₗ' m" := (GetMemberLoc l s m) (at level 10, format "l  'at{' s '}ₗ'  m") : stdpp_scope.
-  Global Typeclasses Opaque GetMemberLoc.
-  Global Arguments GetMemberLoc : simpl never.
-
   Lemma struct_focus l β i tys:
     l ◁ₗ{β} struct i tys -∗ ([∗ list] n;ty∈map name_member (get_co i).(co_members);tys, l at{i}ₗ n ◁ₗ{β} ty) ∗ (∀ tys',
            ([∗ list] n;ty∈map name_member (get_co i).(co_members);tys', l at{i}ₗ n ◁ₗ{β} ty) -∗ l ◁ₗ{β} struct i tys').
@@ -562,6 +562,53 @@ Section struct.
   Qed.
   Definition struct_mono_inst := [instance struct_mono].
   Global Existing Instance struct_mono_inst.
+
+  (* up *)
+  Lemma embed_big_sepL2 `{BiEmbedEmp PROP1 PROP2} {A B} (Φ : nat → A → B → PROP1) l1 l2 :
+      ⎡[∗ list] k↦x1;x2 ∈ l1;l2, Φ k x1 x2⎤ ⊣⊢ [∗ list] k↦x1;x2 ∈ l1;l2, ⎡Φ k x1 x2⎤.
+  Proof.
+    revert Φ l2; induction l1; destruct l2; simpl; intros.
+    - apply embed_emp.
+    - apply embed_pure.
+    - apply embed_pure.
+    - rewrite embed_sep IHl1 //.
+  Qed.
+
+  Lemma struct_mono' A i tys1 tys2 l β (T : A → assert):
+    subsume ⎡l ◁ₗ{β} struct i tys1⎤ (λ x : A, ⎡l ◁ₗ{β} struct i (tys2 x)⎤) T :-
+      iterate: zip (map name_member (get_co i).(co_members)) tys1 {{e T,
+        inhale ⎡l at{i}ₗ e.1 ◁ₗ{β} e.2⎤; return T}};
+      ∃ x, exhale <affine> ⌜length tys1 = length (tys2 x)⌝;
+      iterate: zip (map name_member (get_co i).(co_members)) (tys2 x) {{e T,
+        exhale ⎡l at{i}ₗ e.1 ◁ₗ{β} e.2⎤; return T}};
+      return T x.
+  Proof.
+    iIntros "HG Hl". iDestruct (struct_focus with "Hl") as "[Hs Hc]".
+    rewrite embed_big_sepL2.
+    iDestruct (big_sepL2_length with "Hs") as %?.
+    pose (INV := (λ j,
+      [∗ list] n;ty ∈ drop j (map name_member (get_co i).(co_members));drop j tys1, ⎡l at{i}ₗ n ◁ₗ{β} ty⎤)%I : nat → assert).
+    iDestruct (iterate_elim0 INV with "HG [Hs] [#]") as "[H0 HG]"; unfold INV; clear INV.
+    { by rewrite !drop_0. } {
+      iIntros "!>" (j x ? (?&?&?&?&?)%lookup_zip_with_Some); simplify_eq/=.
+      iIntros "Hinv HT". erewrite drop_S; [|done]. erewrite (drop_S _ _ j); [|done] => /=.
+      iDestruct "Hinv" as "[Hl $]". by iApply "HT".
+    }
+    rewrite !drop_ge; [|rewrite length_zip_with; lia..].
+    iDestruct "HG" as (x Hlen) "HG".
+    pose (INV := (λ j,
+      [∗ list] n;ty ∈ take j (map name_member (get_co i).(co_members));take j (tys2 x), ⎡l at{i}ₗ n ◁ₗ{β} ty⎤)%I : nat → assert ).
+    iDestruct (iterate_elim0 INV with "HG [] [#]") as "[Hinv HG]"; unfold INV; clear INV.
+    { by rewrite !take_0. } {
+      iIntros "!>" (j ? ? (?&?&?&?&?)%lookup_zip_with_Some); simplify_eq/=.
+      iIntros "Hinv [? $]". erewrite take_S_r; [|done]. erewrite take_S_r; [|done].
+      rewrite big_sepL2_snoc. iFrame.
+    }
+    rewrite !length_zip_with !take_ge; [|lia..]. iFrame.
+    by iApply "Hc"; rewrite embed_big_sepL2.
+  Qed.
+  Definition struct_mono'_inst := [instance struct_mono'].
+  Global Existing Instance struct_mono'_inst.
 
   Lemma struct_mono_val A cty i tys1 tys2 v T:
     subsume (v ◁ᵥ|cty| struct i tys1) (λ x : A, v ◁ᵥ|cty| struct i (tys2 x)) T :-
@@ -873,6 +920,19 @@ Check value_fits_eq.
   Qed.
   Definition subsume_struct_uninit_inst := [instance subsume_struct_uninit].
   Global Existing Instance subsume_struct_uninit_inst.
+
+  Lemma subsume_struct_uninit' A (*β*) i a ly tys l (T : A → assert) :
+    subsume ⎡l ◁ₗ struct i tys⎤ (λ x : A, ⎡l ◁ₗ uninit ly⎤) T :-
+      exhale <affine> ⌜ly = Tstruct i a⌝;
+      x ← {subsume ⎡l ◁ₗ struct i tys⎤ (λ x : A,
+             ⎡l ◁ₗ struct i (uninit <$> map (λ m, field_type (name_member m) (co_members (get_co i))) (get_co i).(co_members))⎤)};
+      return T x.
+  Proof.
+    iIntros "[-> Ht] Hstruct". iDestruct ("Ht" with "Hstruct") as "[%x Ht]".
+    iExists x. by rewrite uninit_struct_equiv.
+  Qed.
+  Definition subsume_struct_uninit'_inst := [instance subsume_struct_uninit'].
+  Global Existing Instance subsume_struct_uninit'_inst.
 
   (*Lemma subsume_uninit_struct A β i a ly tys l T :
     subsume (l ◁ₗ{β} uninit ly) (λ x : A, l ◁ₗ{β} struct i tys) T :-

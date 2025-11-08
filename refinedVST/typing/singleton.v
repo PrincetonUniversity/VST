@@ -303,11 +303,11 @@ Section place.
   Definition type_addr_of_singleton_inst := [instance type_addr_of_singleton].
   Global Existing Instance type_addr_of_singleton_inst.
 
-(*   Lemma typed_place_simpl P l ty1 β1 n {SH:SimplifyHyp (l ◁ₗ{β1} ty1) (Some n)} T:
+  Lemma typed_place_simpl ge P l ty1 β1 n {SH:SimplifyHyp ⎡l ◁ₗ{β1} ty1⎤ (Some n)} T:
     (SH (find_in_context (FindLoc l) (λ '(β2, ty2),
-        typed_place P l β2 ty2 (λ l3 β3 ty3 typ R,
-           T l3 β3 ty3 (λ _, place l) (λ ty', l ◁ₗ{β2} typ ty' ∗ R ty' ))))).(i2p_P)
-    ⊢ typed_place P l β1 ty1 T.
+        typed_place ge P l β2 ty2 (λ l3 β3 ty3 typ R,
+           T l3 β3 ty3 (λ _, place l) (λ ty', ⎡l ◁ₗ{β2} typ ty'⎤ ∗ R ty' ))))).(i2p_P)
+    ⊢ typed_place ge P l β1 ty1 T.
   Proof.
     iIntros "SH" (Φ) "Hl HΦ".
     iDestruct (i2p_proof with "SH Hl") as ([β2 ty2]) "[Hl HP]".
@@ -319,33 +319,33 @@ Section place.
   Definition typed_place_simpl_inst := [instance typed_place_simpl].
   Global Existing Instance typed_place_simpl_inst | 1000.
 
-  Lemma typed_read_end_simpl E l β ty ly n mc {SH:SimplifyHyp (l ◁ₗ{β} ty) (Some n)} a T:
+  Lemma typed_read_end_simpl E l β ty ly n {SH:SimplifyHyp ⎡l ◁ₗ{β} ty⎤ (Some n)} a T:
     (SH (find_in_context (FindLoc l) (λ '(β2, ty2),
-        typed_read_end a E l β2 ty2 ly mc (λ v ty' ty3, l ◁ₗ{β2} ty' -∗ T v (place l) ty3)))).(i2p_P)
-    ⊢ typed_read_end a E l β ty ly mc T.
+        typed_read_end a E l β2 ty2 ly (λ v ty' ty3, ⎡l ◁ₗ{β2} ty'⎤ -∗ T v (place l) ty3)))).(i2p_P)
+    ⊢ typed_read_end a E l β ty ly T.
   Proof.
     iIntros "SH". iApply typed_read_end_mono_strong; [done|]. iIntros "Hl !>".
     iDestruct (i2p_proof with "SH Hl") as ([β2 ty2]) "[Hl HP]" => /=.
-    iExists _, _, True%I. iFrame. iSplit; [done|].
+    iExists _, _, emp%I. iFrame "Hl". iSplit; [done|].
     iApply (typed_read_end_wand with "HP"). iIntros (v ty1 ty2') "HT _ Hl Hv !>".
     iExists (place l), _. iFrame. iSplit; [done|]. by iApply "HT".
   Qed.
   Definition typed_read_end_simpl_inst := [instance typed_read_end_simpl].
   Global Existing Instance typed_read_end_simpl_inst | 1000.
 
-  Lemma typed_write_end_simpl b E ot v ty1 l β ty2 n {SH:SimplifyHyp (l ◁ₗ{β} ty2) (Some n)} T:
+  Lemma typed_write_end_simpl b E ot v ty1 l β ty2 n {SH:SimplifyHyp ⎡l ◁ₗ{β} ty2⎤ (Some n)} T:
     (SH (find_in_context (FindLoc l) (λ '(β3, ty3),
-        typed_write_end b E ot v ty1 l β3 ty3 (λ ty', l ◁ₗ{β3} ty' -∗ T (place l))))).(i2p_P)
+        typed_write_end b E ot v ty1 l β3 ty3 (λ ty', ⎡l ◁ₗ{β3} ty'⎤ -∗ T (place l))))).(i2p_P)
     ⊢ typed_write_end b E ot v ty1 l β ty2 T.
   Proof.
     iIntros "SH". iApply typed_write_end_mono_strong; [done|]. iIntros "Hv Hl !>".
     iDestruct (i2p_proof with "SH Hl") as ([β2' ty2']) "[Hl HP]" => /=.
-    iExists _, _, _, True%I. iFrame. iSplit; [done|].
+    iExists _, _, _, emp%I. iFrame "Hv Hl". iSplit; [done|].
     iApply (typed_write_end_wand with "HP"). iIntros (ty3) "HT _ Hl !>".
     iExists (place l). iSplit; [done|]. by iApply "HT".
   Qed.
   Definition typed_write_end_simpl_inst := [instance typed_write_end_simpl].
-  Global Existing Instance typed_write_end_simpl_inst | 1000. *)
+  Global Existing Instance typed_write_end_simpl_inst | 1000.
 
 End place.
 Global Typeclasses Opaque place.

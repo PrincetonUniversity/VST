@@ -827,37 +827,36 @@ Section proper.
   Qed.
 
 
-(*
   (** typed_read_end *)
-  Lemma typed_read_end_mono_strong (a : bool) E1 E2 l β ty ot mc T:
+  Lemma typed_read_end_mono_strong (a : bool) E1 E2 l β ty ot T:
     (if a then ∅ else E2) = (if a then ∅ else E1) →
-    (l ◁ₗ{β} ty ={E1, E2}=∗ ∃ β' ty' P, l ◁ₗ{β'} ty' ∗ ▷ P ∗
-       typed_read_end a E2 l β' ty' ot mc (λ v ty2 ty3,
-          P -∗ l ◁ₗ{β'} ty2 -∗ v ◁ᵥ ty3 ={E2, E1}=∗
-          ∃ ty2' ty3', l ◁ₗ{β} ty2' ∗ v ◁ᵥ ty3' ∗ T v ty2' ty3')) -∗
-    typed_read_end a E1 l β ty ot mc T.
+    (⎡l ◁ₗ{β} ty⎤ ={E1, E2}=∗ ∃ β' ty' P, ⎡l ◁ₗ{β'} ty'⎤ ∗ P ∗
+       typed_read_end a E2 l β' ty' ot (λ v ty2 ty3,
+          P -∗ ⎡l ◁ₗ{β'} ty2⎤ -∗ ⎡v ◁ᵥₐₗ|ot| ty3⎤ ={E2, E1}=∗
+          ∃ ty2' ty3', ⎡l ◁ₗ{β} ty2'⎤ ∗ ⎡v ◁ᵥₐₗ|ot| ty3'⎤ ∗ T v ty2' ty3')) -∗
+    typed_read_end a E1 l β ty ot T.
   Proof.
     iIntros (Ha) "HT Hl". iMod ("HT" with "Hl") as (β' ty' P) "(Hl&HP&HT)".
-    iMod ("HT" with " Hl") as (?????) "(Hl&Hv&HT)". rewrite Ha.
+    iMod ("HT" with " Hl") as (???????) "(Hl&Hv&HT)". rewrite Ha.
     iModIntro. iExists _, _, _.
-    iFrame "Hl Hv". iSplit; [done|]. iSplit; [done|].
-    iIntros "!> %st Hl Hv". iMod ("HT" with "Hl Hv") as (? ty3) "(Hcast&Hl&HT)".
-    iMod ("HT" with "HP Hl Hcast") as (ty2' ty3') "(?&?&?)". iExists _, _. by iFrame.
+    iFrame "Hl Hv". do 4 (iSplit; [done|]).
+    iIntros "Hl Hv". iMod ("HT" with "Hl Hv") as (? ty3) "(Hcast&Hl&HT)".
+    iMod ("HT" with "HP Hcast Hl") as (ty2' ty3') "(?&?&?)". iExists _, _. by iFrame.
   Qed.
 
-  Lemma typed_read_end_wand (a : bool) E l β ty ot mc T T':
-    typed_read_end a E l β ty ot mc T' -∗
+  Lemma typed_read_end_wand (a : bool) E l β ty ot T T':
+    typed_read_end a E l β ty ot T' -∗
     (∀ v ty1 ty2, T' v ty1 ty2 -∗ T v ty1 ty2) -∗
-    typed_read_end a E l β ty ot mc T.
+    typed_read_end a E l β ty ot T.
   Proof.
-    iIntros "HT Hw Hl". iMod ("HT" with "Hl") as (???) "(%&%&Hl&Hv&HT)".
+    iIntros "HT Hw Hl". iMod ("HT" with "Hl") as (???) "(%&%&%&%&Hl&Hv&HT)".
     iModIntro. iExists _, _, _.
-    iFrame "Hl Hv". iSplit; [done|]. iSplit; [done|].
-    iIntros "!> %st Hl Hv". iMod ("HT" with "Hl Hv") as (? ty3) "(Hcast&Hl&HT)".
+    iFrame "Hl Hv". do 4 (iSplit; [done|]).
+    iIntros "Hl Hv". iMod ("HT" with "Hl Hv") as (? ty3) "(Hcast&Hl&HT)".
     iExists _, _. iFrame. by iApply "Hw".
   Qed.
 
-  Lemma fupd_typed_read_end a E l β ty ot mc T:
+  (*Lemma fupd_typed_read_end a E l β ty ot mc T:
     (|={E}=> typed_read_end a E l β ty ot mc T)
     ⊢ typed_read_end a E l β ty ot mc T.
   Proof. iIntros ">H". by iApply "H". Qed.
@@ -900,16 +899,16 @@ Section proper.
     iMod "Hacc" as (x) "[Hα Hclose]".
     iApply (typed_read_end_wand with "(Hinner Hα)").
     iIntros (v ty1 ty2) ">[Hβ HT]". iMod ("Hclose" with "Hβ"). by iApply "HT".
-  Qed.
+  Qed.*)
 
   (** typed_write_end *)
   Lemma typed_write_end_mono_strong (a : bool) E1 E2 ot v1 ty1 l2 β2 ty2 T:
     (if a then ∅ else E2) = (if a then ∅ else E1) →
-    (v1 ◁ᵥ ty1 -∗ l2 ◁ₗ{β2} ty2 ={E1, E2}=∗ ∃ ty1' β2' ty2' P,
-       v1 ◁ᵥ ty1' ∗ l2 ◁ₗ{β2'} ty2' ∗ ▷ P ∗
+    (⎡v1 ◁ᵥₐₗ|ot| ty1⎤ -∗ ⎡l2 ◁ₗ{β2} ty2⎤ ={E1, E2}=∗ ∃ ty1' β2' ty2' P,
+       ⎡v1 ◁ᵥₐₗ|ot| ty1'⎤ ∗ ⎡l2 ◁ₗ{β2'} ty2'⎤ ∗ ▷ P ∗
        typed_write_end a E2 ot v1 ty1' l2 β2' ty2' (λ ty3,
-          P -∗ l2 ◁ₗ{β2'} ty3 ={E2, E1}=∗
-          ∃ ty3', l2 ◁ₗ{β2} ty3' ∗ T ty3')) -∗
+          P -∗ ⎡l2 ◁ₗ{β2'} ty3⎤ ={E2, E1}=∗
+          ∃ ty3', ⎡l2 ◁ₗ{β2} ty3'⎤ ∗ T ty3')) -∗
     typed_write_end a E1 ot v1 ty1 l2 β2 ty2 T.
   Proof.
     iIntros (Ha) "HT Hl Hv". iMod ("HT" with "Hv Hl") as (ty1' β2' ty2' P) "(Hv&Hl&HP&HT)".
@@ -928,7 +927,7 @@ Section proper.
     iIntros "!> Hl". iMod ("HT" with "Hl") as (ty3) "(Hl&HT)".
     iExists _. iFrame. by iApply "Hw".
   Qed.
-
+ 
   Lemma fupd_typed_write_end a E v1 ty1 l2 β2 ty2 ot T:
     (|={E}=> typed_write_end a E ot v1 ty1 l2 β2 ty2 T)
     ⊢ typed_write_end a E ot v1 ty1 l2 β2 ty2 T.
@@ -937,7 +936,7 @@ Section proper.
   (* TODO: can this be Global? *)
   Local Typeclasses Opaque typed_write_end.
   Global Instance elim_modal_fupd_typed_write_end P p a E v1 ty1 l2 β2 ty2 ot T:
-    ElimModal True p false (|={E}=> P) P (typed_write_end a E ot v1 ty1 l2 β2 ty2 T) (typed_write_end a E ot v1 ty1 l2 β2 ty2 T).
+    ElimModal True%type p false (|={E}=> P) P (typed_write_end a E ot v1 ty1 l2 β2 ty2 T) (typed_write_end a E ot v1 ty1 l2 β2 ty2 T).
   Proof.
     iIntros (?) "[HP HT]".
     rewrite bi.intuitionistically_if_elim -{2}fupd_typed_write_end.
@@ -947,7 +946,7 @@ Section proper.
   Global Instance is_except_0_typed_write_end a E v1 ty1 l2 β2 ty2 ot T : IsExcept0 (typed_write_end a E ot v1 ty1 l2 β2 ty2 T).
   Proof. by rewrite /IsExcept0 -{2}fupd_typed_write_end -except_0_fupd -fupd_intro. Qed.
 
-  Global Instance elim_modal_fupd_typed_write_end_atomic p E1 E2 v1 ty1 l2 β2 ty2 ot T P:
+(*t  Global Instance elim_modal_fupd_typed_write_end_atomic p E1 E2 v1 ty1 l2 β2 ty2 ot T P:
     ElimModal True p false
             (|={E1,E2}=> P) P
             (typed_write_end true E1 ot v1 ty1 l2 β2 ty2 T)
