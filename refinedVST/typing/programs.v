@@ -472,16 +472,16 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
   Definition place_item_to_wp (Ki : place_ectx_item) (Φ : address → assert) (l : address) : assert :=
     match Ki with
     | DerefPCtx cty =>
-        ∃ (sh : share) (v : val),
+        |={⊤}=> ∃ (sh : share) (v : val),
           <affine> ⌜readable_share sh⌝ ∗
            ⎡▷ simple_mapsto.mapsto sh cty (adr2val l) v⎤ ∗
             ∃ l', <affine> ⌜v = adr2val l'⌝ ∗
             (⎡▷ simple_mapsto.mapsto sh cty (adr2val l) v⎤ -∗ Φ l')
     | GetMemberPCtx sl m => (* unfold wp_lvalue_field *)
-        ∃ co delta, <affine> ⌜(cenv_cs !! sl)%maps = Some co ∧ Ctypes.field_offset cenv_cs m (co_members co) = Errors.OK (delta, Full)⌝ ∗
+        |={⊤}=> ∃ co delta, <affine> ⌜(cenv_cs !! sl)%maps = Some co ∧ Ctypes.field_offset cenv_cs m (co_members co) = Errors.OK (delta, Full)⌝ ∗
           Φ (l.1, Ptrofs.add l.2 (Ptrofs.repr delta))
     | GetMemberUnionPCtx ul m =>
-        ∃ co delta, <affine> ⌜(cenv_cs !! ul)%maps = Some co ∧ union_field_offset cenv_cs m (co_members co) = Errors.OK (delta, Full)⌝ ∗
+        |={⊤}=> ∃ co delta, <affine> ⌜(cenv_cs !! ul)%maps = Some co ∧ union_field_offset cenv_cs m (co_members co) = Errors.OK (delta, Full)⌝ ∗
           Φ (l.1, Ptrofs.add l.2 (Ptrofs.repr delta))
     (*| AnnotExprPCtx n x => WP AnnotExpr n x l {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }} *)
     (* we have proved typed_val_expr e1 before so we can use v ◁ᵥ ty here *)
@@ -506,9 +506,9 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
     iIntros "HP HΦ".
     rewrite /place_item_to_wp.
     move: K => [cty|i m|i m|op cty_l cty_v cty v ty|op cty_v cty_l cty v ty]//=.
-    - iDestruct "HP" as "(% & % & $ & $ & % & $ & HP)"; iIntros; by iApply "HΦ"; iApply "HP".
-    - iDestruct "HP" as "(% & % & $ & HP)"; by iApply "HΦ".
-    - iDestruct "HP" as "(% & % & $ & HP)"; by iApply "HΦ".
+    - iMod "HP" as "(% & % & $ & $ & % & $ & HP)"; iIntros "!> ?"; by iApply "HΦ"; iApply "HP".
+    - iMod "HP" as "(% & % & $ & HP)"; by iApply "HΦ".
+    - iMod "HP" as "(% & % & $ & HP)"; by iApply "HΦ".
     - iIntros; iApply wp_binop_strong_mono; iSplitL "HΦ"; last by iApply "HP".
       iIntros (?) "(% & $ & ?)"; by iApply "HΦ".
     - iIntros; iApply wp_binop_strong_mono; iSplitL "HΦ"; last by iApply "HP".
@@ -607,12 +607,14 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
       instantiate (1 := if is_lvalue e then _ else _).
       rewrite /wp_lvexpr; destruct (is_lvalue e) eqn: Hlv.
       + rewrite -[X in environments.envs_entails _ X]wp_expr_mapsto.
+        iApply wp_lvalue_mono; first by intros; apply derives_refl.
         iApply "HT".
         iIntros (K l) "Φ'".
         iDestruct ("HΦ'" with "[$]") as "HΦ".
         rewrite place_to_wp_app {2}/place_to_wp /foldr /place_item_to_wp.
         iApply (place_to_wp_mono with "HΦ").
-        iIntros ((?, ?)) "(% & % & $ & ? & % & -> & HWP)".
+        iIntros ((?, ?)) "H".
+        iMod "H" as "(% & % & $ & ? & % & -> & HWP)"; iModIntro.
         iExists _; iSplit; first by iFrame.
         iModIntro; iExists _, _; iSplit => //.
         destruct l'; iApply ("HWP" with "[$]").
@@ -633,7 +635,7 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
           rewrite place_to_wp_app {2}/place_to_wp /= /place_item_to_wp //. }
         rewrite -wp_expr_mapsto.
         iApply wp_lvalue_strong_mono; iFrame.
-        iIntros ((?, ?)) "(% & % & $ & ? & % & -> & H) !>".
+        iIntros ((?, ?)) ">(% & % & $ & ? & % & -> & H) !>".
         iExists _; iSplit; first by iFrame.
         iApply ("H" with "[$] Hv").
       + iSpecialize ("HT" with "[HΦ']").
@@ -656,7 +658,7 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
           rewrite place_to_wp_app {2}/place_to_wp /= /place_item_to_wp //. }
         rewrite -wp_expr_mapsto.
         iApply wp_lvalue_strong_mono; iFrame.
-        iIntros ((?, ?)) "(% & % & $ & ? & % & -> & H) !>".
+        iIntros ((?, ?)) ">(% & % & $ & ? & % & -> & H) !>".
         iExists _; iSplit; first by iFrame.
         iApply ("H" with "[$] Hv").
       + iSpecialize ("HT" with "[HΦ']").
@@ -680,15 +682,15 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
       + destruct (typeof e) eqn: Ht; try by iApply wp_lvalue_False_expr.
         * rewrite -wp_expr_ptr; last by rewrite Ht.
           iApply (wp_lvalue_mono with "HT").
-          iIntros ((?, ?)) "? !>".
+          iIntros ((?, ?)) ">? !>".
           iExists _, _; iSplit => //.
         * rewrite -wp_expr_ptr; last by rewrite Ht.
           iApply (wp_lvalue_mono with "HT").
-          iIntros ((?, ?)) "? !>".
+          iIntros ((?, ?)) ">? !>".
           iExists _, _; iSplit => //.
       + iApply (wp_expr_mono with "HT").
-        iIntros (?) "(% & -> & H) !>".
-        iExists _, _; iSplit => //.
+        iIntros (?) "(% & -> & H)".
+        iExists _, _; iSplitR => //.
         destruct (typeof e); done.
   Qed.
   End find_place_ctx_correct.
@@ -722,7 +724,7 @@ Global Hint Mode CopyAsDefined + + + + + + + + : typeclass_instances.
 Global Hint Mode SimpleSubsumePlace + + + + + ! - : typeclass_instances.
 Global Hint Mode SimpleSubsumeVal + + + + + ! ! - : typeclass_instances.
 Global Hint Mode TypedIf + + + + + : typeclass_instances.
-(* Global Hint Mode TypedAssert + + + + + + : typeclass_instances. *)
+Global Hint Mode TypedAssert + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedValue + + + + + + : typeclass_instances.
 Global Hint Mode TypedBinOp + + + + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedUnOp + + + + + + + + + : typeclass_instances.
@@ -1011,8 +1013,8 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
   | typed_annot_expr ?x1 ?x2 ?x3 ?x4 => constr:(TypedAnnotExpr x1 x2 x3 x4)
 (*   | typed_macro_expr ?x1 ?x2 => constr:(TypedMacroExpr x1 x2) *)
   | typed_if ?x1 ?x2 ?x3 ?x4 => constr:(TypedIf x1 x2 x3 x4)
-(*   | typed_assert ?x1 ?x2 ?x3 => constr:(TypedAssert x1 x2 x3) *)
-   | typed_switch ?x1 ?x2 ?x3 => constr:(TypedSwitch x1 x2 x3)
+  | typed_assert ?x1 ?x2 ?x3 => constr:(TypedAssert x1 x2 x3)
+  | typed_switch ?x1 ?x2 ?x3 => constr:(TypedSwitch x1 x2 x3)
   | typed_annot_stmt ?x1 ?x2 ?x3 => constr:(TypedAnnotStmt x1 x2 x3)
   | copy_as ?x1 ?x2 ?x3 ?x4 => constr:(CopyAs x1 x2 x3 x4)
   | copy_as_defined ?x1 ?x2 ?x3 ?x4 => constr:(CopyAsDefined x1 x2 x3 x4)

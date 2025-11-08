@@ -418,14 +418,20 @@ Section inline_function.
   Definition inline_function_ptr (fn : function) : rtype _ :=
     RType (inline_function_ptr_type fn).
 
-  Global Program Instance copyable_inline_function_ptr p fn : Copyable (tptr tvoid) (p @ inline_function_ptr fn).
+  Global Program Instance copyable_inline_function_ptr cty p fn : Copyable (tptr cty) (p @ inline_function_ptr fn).
   Next Obligation.
-    iIntros (p fn E l ?). iDestruct 1 as "(%&Hl&%)".
+    iIntros (? p fn E l ?). iDestruct 1 as "(%&Hl&%)".
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[% [% Hl]]" => //.
-    iFrame. iModIntro. do 3 iSplit => //.
+    rewrite (mapsto_tptr _ _ _ cty); iFrame. iModIntro. rewrite has_layout_loc_tptr. do 3 iSplit => //.
+    rewrite (mapsto_tptr _ _ _ tvoid).
     iIntros "Hl"; iMod (heap_mapsto_own_state_from_mt with "Hl") as "$"; auto.
   Qed.
 
+  Global Instance inline_function_ptr_defined p fn : DefinedTy (tptr tvoid) (p @ inline_function_ptr fn).
+  Proof.
+    iIntros (?) "(% & %)".
+    by destruct v.
+  Qed.
 
 (*  Lemma type_call_inline_fnptr l v vl tys fn T:
     (⌜Forall2 (λ ty '(_, p), ty.(ty_has_op_type) (UntypedOp p) MCNone) tys (f_args fn)⌝ ∗

@@ -95,7 +95,7 @@ Section union.
     typed_place ge K (l at_union{ul}ₗ n) β ty (λ l2 β ty2 typ, T l2 β ty2 (λ t, active_union ul n (typ t)))
     ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l β (active_union ul n ty) T.
   Proof.
-    iIntros "HP" (Φ) "Hs HΦ" => /=.
+    iIntros "HP" (Φ) "Hs HΦ !>" => /=.
     iDestruct "Hs" as (? (i & Hi & Hn & <-) ?) "[Hty Hspace]".
     iExists _, _. iSplit => //.
     { iPureIntro; split; first done.
@@ -165,6 +165,12 @@ Section union.
     rewrite /ty_own/ty_own_val/= => ?????/=.
     iIntros "Hl". iMod (copy_shr_acc _ _ with "Hl") as (???) "Hc" => //.
     iSplitR => //. iExists _, _. by iFrame.
+  Qed.
+
+  Global Instance tunion_tag_defined ti x : DefinedTy size_t (tunion_tag ti x).
+  Proof.
+    iIntros (?) "H"; rewrite /tunion_tag; simpl_type.
+    iApply (defined_ty with "H").
   Qed.
 
   Lemma subsume_int_tunion_tag B ti x (n : Z) l β T:
@@ -351,7 +357,7 @@ Section union.
     ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l β (variant ti x ty) T.
   Proof.
     move: Heq => /TCEq_eq <-.
-    iIntros "[-> HP]" (Φ) "Hs HΦ" => /=.
+    iIntros "[-> HP]" (Φ) "Hs HΦ !>" => /=.
     rewrite {1}/ty_own /=. iDestruct "Hs" as (?) "[Hty Hpad]".
     pose proof (index_of_ti_member ti x) as Hf.
     unfold get_co in *; destruct (cenv_cs !! ti_union_layout ti)%maps eqn: Hi; last done.

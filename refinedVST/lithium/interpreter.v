@@ -13,7 +13,10 @@ Ltac liShow := li_unfold_lets_in_context; simpl; try liToSyntaxGoal.
 Ltac liSimpl :=
   (* simpl inserts a cast even if it does not do anything
      (see https://coq.zulipchat.com/#narrow/stream/237656-Coq-devs.20.26.20plugin.20devs/topic/exact_no_check.2C.20repeated.20casts.20in.20proof.20terms/near/259371220 ) *)
-  try progress simpl.
+  try progress simpl;
+  (* refold monPred ops: probably because of a simpl never bug fixed in Rocq 9.1 *)
+  change (@monpred.monPred_defs.monPred_wand ?A ?B) with (@bi_wand (monpred.monPredI A B));
+  change (@monpred.monPred_defs.monPred_exist ?A ?B) with (@bi_exist (monpred.monPredI A B)).
 
 Ltac liUnfoldLetGoal :=
   let do_unfold P :=

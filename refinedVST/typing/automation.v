@@ -25,6 +25,26 @@ Ltac normalize_hook ::= normalize_autorewrite.
 (*   move => ???. normalize_goal. *)
 (* Abort. *)
 
+(* Maybe eventually we should always rewrite with signed_repr and unsigned_repr,
+   but adding these for now. *)
+Lemma signed_bool_to_Z_neq_0_bool_decide b :
+  bool_decide (Int.signed (Int.repr (bool_to_Z b)) ≠ 0) = b.
+Proof. by destruct b. Qed.
+
+Lemma unsigned_bool_to_Z_neq_0_bool_decide b :
+  bool_decide (Int.unsigned (Int.repr (bool_to_Z b)) ≠ 0) = b.
+Proof. by destruct b. Qed.
+
+Lemma signed_bool_to_Z_eq_0_bool_decide b :
+  bool_decide (Int.signed (Int.repr (bool_to_Z b)) = 0) = negb b.
+Proof. by destruct b. Qed.
+
+Lemma unsigned_bool_to_Z_eq_0_bool_decide b :
+  bool_decide (Int.unsigned (Int.repr (bool_to_Z b)) = 0) = negb b.
+Proof. by destruct b. Qed.
+
+#[export] Hint Rewrite signed_bool_to_Z_neq_0_bool_decide unsigned_bool_to_Z_eq_0_bool_decide signed_bool_to_Z_neq_0_bool_decide unsigned_bool_to_Z_eq_0_bool_decide : lithium_rewrite.
+
 Ltac solve_protected_eq_hook ::=
   lazymatch goal with
   (* unfold constants for function types *)
@@ -244,6 +264,7 @@ Ltac liRExpr :=
   lazymatch goal with
   | |- envs_entails ?Δ (typed_val_expr _ _ ?e ?T) =>
     lazymatch e with
+    | Ecast _ (Tpointer _ _) => notypeclasses refine (tac_fast_apply (type_cast_ptr_ptr _ _ _ _ _ _ _) _);[done|]
     | Ecast _ _ => first [notypeclasses refine (tac_fast_apply (type_cast_int_same _ _ _ _) _) | notypeclasses refine (tac_fast_apply (type_cast_int _ _ _ _ _) _)]
     | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _ _ _) _)
     | Econst_float _ _ => notypeclasses refine (tac_fast_apply (type_const_float _ _ _ _ _) _)

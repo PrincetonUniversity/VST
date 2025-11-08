@@ -672,7 +672,7 @@ Section struct.
     pose proof (proj1 (elem_of_list_In _ _) (elem_of_list_lookup_2 _ _ _ Hm)).
     assert (in_members (name_member m) (co_members c)) as Hin.
     { apply in_map_iff; eauto. }
-    iExists _, _; iSplit.
+    iModIntro; iExists _, _; iSplit.
     { iPureIntro; split; first done; apply plain_members_field_offset; auto.
       destruct H as (_ & H & _).
       apply nested_pred_lemmas.complete_Tstruct_plain in H.

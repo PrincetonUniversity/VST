@@ -1253,6 +1253,12 @@ Section offsetof.
     iExists _. iFrame "H3". done.
   Qed.
 
+  Global Instance offsetof_defined s m : DefinedTy size_t (offsetof s m).
+  Proof.
+    iIntros (?) "(% & % & % & H)".
+    iApply (defined_ty with "H").
+  Qed.
+
 (*  Lemma type_offset_of s m T:
     ⌜Some m ∈ s.(sl_members).*1⌝ ∗ (∀ v, T v (offsetof s m))
     ⊢ typed_val_expr (OffsetOf s m) T.

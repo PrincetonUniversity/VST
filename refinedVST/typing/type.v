@@ -303,7 +303,7 @@ Section own_state.
     iIntros (?) "Hl".
     destruct β; simpl; eauto with iFrame.
     iInv "Hl" as ">H". iDestruct "H" as (q ?) "H".
-      exploit slice.split_readable_share; first done; intros (? & ? & ? & ? & ?).
+    exploit slice.split_readable_share; first done; intros (? & ? & ? & ? & ?).
     rewrite /mapsto.
     rewrite -{1}data_at_rec_share_join; last done.
     iDestruct "H" as "(H1 & H2)"; iSplitL "H1"; iExists _; iFrame; try done.
@@ -403,6 +403,7 @@ Record type `{!typeG OK_ty Σ} {cs : compspecs}  := {
   ty_share l E : ↑shrN ⊆ E → ty_own Own l ={E}=∗ ty_own Shr l;
   (** [ty_shr_pers] states that shared ownership is persistent. *)
   ty_shr_pers l : Persistent (ty_own Shr l);
+  (* should also be Affine *)
   (** [ty_aligned] states that from [l ◁ₗ{β} ty] follows that [l] is
   aligned according to [ty_has_op_type]. *)
   ty_aligned cty mt l : ty_has_op_type cty mt → ty_own Own l -∗ <absorb> ⌜l `has_layout_loc` cty ⌝;
