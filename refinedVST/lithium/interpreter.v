@@ -1283,7 +1283,7 @@ Ltac push_in_embed_for_head :=
     | embed ?H => push_in_embed (embed H)
     | bi_wand ?H _ => push_in_embed_inside_term H
     | bi_sep ?H _ => push_in_embed_inside_term H
-    | bi_exist ?H => idtac H; progress push_in_embed_setoid
+    | bi_exist ?H => progress push_in_embed_setoid
     (* | ?un_op ?H => idtac "unop" un_op; push_in_embed H
     | ?bin_op ?H _ => idtac "binop" bin_op; push_in_embed H *)
     end end.
