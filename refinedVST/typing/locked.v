@@ -1,13 +1,11 @@
 From iris.algebra Require Import csum excl auth cmra_big_op.
 From iris.algebra Require Import big_op gset frac agree.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Import programs.
 From VST.typing Require Import type_options.
 From iris_ora.algebra Require Import frac_auth ext_order excl.
-From VST.veric Require Import lifting.
-From compcert.cfrontend Require Import Clight.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From lithium Require Import hooks.
-From VST.floyd Require Import globals_lemmas.
-
 
 Definition lockN : namespace := nroot.@"lockN".
 Definition lock_id := gname.
@@ -52,8 +50,6 @@ Section type.
     iMod (own_alloc (●{dfrac.DfracOwn 1} (GSet ∅): gset_disjUR_authR)) as (γ) "Hγ"; first by apply auth_auth_valid.
     iModIntro. iExists γ, ∅. by iFrame.
   Qed.
-
-  Check ty_has_op_type.
 
   Program Definition tylocked_ex {A} (γ : lock_id) (n : string) (x : A) (ty : A → type) : type := {|
     ty_has_op_type ot mt := (ty x).(ty_has_op_type) ot mt;

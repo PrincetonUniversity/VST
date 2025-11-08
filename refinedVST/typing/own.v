@@ -65,6 +65,12 @@ Section own.
     iApply loc_in_bounds_shorten; last done. by rewrite /val_of_loc.
   Qed. *)
 
+  Global Instance frac_ptr_defined cty p β ty: DefinedTy cty (p @ frac_ptr β ty).
+  Proof.
+    iIntros (?) "(% & _)".
+    destruct cty; try done; destruct v; try done.
+  Qed.
+
   Lemma frac_ptr_mono A ty1 ty2 l β β' p p' T:
     (p ◁ₗ{own_state_min β β'} ty1 -∗ ∃ x, <affine> ⌜p = p' x⌝ ∗ p ◁ₗ{own_state_min β β'} (ty2 x) ∗ T x)
     ⊢ subsume (l ◁ₗ{β} p @ frac_ptr β' ty1) (λ x : A, l ◁ₗ{β} (p' x) @ frac_ptr β' (ty2 x)) T.

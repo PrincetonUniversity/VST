@@ -42,6 +42,12 @@ Section own_constrained.
   Qed.
   *)
   
+  Global Instance constrained_defined cty P `{!OwnConstraint P} ty `{!DefinedTy cty ty} : DefinedTy cty (own_constrained P ty).
+  Proof.
+    iIntros (?) "(? & _)".
+    by iApply defined_ty.
+  Qed.
+
   Lemma copy_as_own_constrained l β cty P `{!OwnConstraint P} ty {HC: CopyAs l β cty ty} T:
     (⎡P β⎤ -∗ (HC T).(i2p_P)) ⊢ copy_as l β cty (own_constrained P ty) T.
   Proof.
@@ -49,6 +55,14 @@ Section own_constrained.
   Qed.
   Definition copy_as_own_constrained_inst := [instance copy_as_own_constrained].
   Global Existing Instance copy_as_own_constrained_inst.
+
+  Lemma copy_as_defined_own_constrained l β cty P `{!OwnConstraint P} ty {HC: CopyAsDefined l β cty ty} T:
+    (⎡P β⎤ -∗ (HC T).(i2p_P)) ⊢ copy_as_defined l β cty (own_constrained P ty) T.
+  Proof.
+    iIntros "HT [Hty HP]". iDestruct (i2p_proof with "(HT HP)") as "HT". by iApply "HT".
+  Qed.
+  Definition copy_as_defined_own_constrained_inst := [instance copy_as_defined_own_constrained].
+  Global Existing Instance copy_as_defined_own_constrained_inst.
 
   Lemma simplify_hyp_place_own_constrained P l β ty `{!OwnConstraint P} T:
     (P β -∗ l ◁ₗ{β} ty -∗ T) ⊢ simplify_hyp (l◁ₗ{β} own_constrained P ty) T.

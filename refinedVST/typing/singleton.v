@@ -28,6 +28,16 @@ Section value.
     move => [?[? ->]]. by destruct ot' => //; simplify_eq/=.
   Qed.*)
 
+  Lemma valinject_inj cty v1 v2: type_is_by_value cty = true →
+    valinject cty v1 = valinject cty v2 → v1 = v2.
+  Proof. by destruct cty. Qed.
+
+  Global Instance value_defined ot v `{!TCDone (type_is_by_value ot = true)} `{!TCDone (v ≠ Vundef)}: DefinedTy ot (value ot v).
+  Proof.
+    iIntros (? (_ & ? & _)).
+    apply valinject_inj in H as ->; done.
+  Qed.
+
   Lemma value_simplify v ot p T:
     (<affine> ⌜valinject ot v = valinject ot p⌝ -∗ <affine>⌜(valinject ot v) `has_layout_val` ot⌝ -∗ T)
     ⊢ simplify_hyp (v ◁ᵥₐₗ|ot| value ot p) T.
@@ -89,7 +99,7 @@ Section value.
   Definition value_merge_inst := [instance value_merge with 50%N].
   Global Existing Instance value_merge_inst | 20. *)
 
-Lemma type_read_move l ty ot a E `{!TCDone (ty.(ty_has_op_type) ot MCId)} 
+Lemma type_read_move l ty ot a E `{!TCDone (ty.(ty_has_op_type) ot MCId)} `{!DefinedTy ot ty}
   `{!TCDone (type_is_by_value ot = true)} T:
     (∀ v, T v (value ot v) ty)
     ⊢ typed_read_end a E l Own ty ot T.
@@ -100,9 +110,12 @@ Lemma type_read_move l ty ot a E `{!TCDone (ty.(ty_has_op_type) ot MCId)}
     iDestruct (ty_deref with "Hl") as (v) "[Hl Hv]"; [done|].
     iDestruct (ty_size_eq with "Hv") as %?; [done|].
     (* iDestruct (ty_memcast_compat_id with "Hv") as %Hid; [done|]. *)
+    iDestruct (defined_ty (repinject ot v) with "[Hv]") as %?.
+    { rewrite /ty_own_val_at valinject_repinject //. }
     iExists _, (repinject ot v), _. rewrite valinject_repinject //.
     iFrame. do 3 iSplit => //=.
-    { iPureIntro. apply readable_share_top.  }
+    { iPureIntro. apply readable_share_top. }
+    iSplit => //.
     iIntros "? ?". iMod "Hclose". iModIntro.
     iFrame.
     iSpecialize ("HT" $! (repinject ot v)).
@@ -157,10 +170,10 @@ Section at_value.
   Qed.
 
   Lemma mem_block_mapsto_tptr:
-    forall sh t1 t2, simple_mapsto.mapsto sh (tptr t1) = simple_mapsto.mapsto sh (tptr t2).
+    forall sh t1 t2, mapsto_memory_block.mapsto sh (tptr t1) = mapsto_memory_block.mapsto sh (tptr t2).
   Proof.
     intros.
-    unfold simple_mapsto.mapsto.
+    unfold mapsto_memory_block.mapsto.
     extensionality v1 v2.
     unfold tc_val', tc_val. simpl.
     rewrite !andb_false_r //.

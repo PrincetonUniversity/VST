@@ -47,7 +47,7 @@ Section optional.
   Program Definition optional_type  (ty : type) (optty : type) (b : Prop) : type := {|
       ty_has_op_type ot mt := (ty.(ty_has_op_type) ot mt ∧ optty.(ty_has_op_type) ot mt)%type;
       ty_own β l := (<affine> ⌜b⌝ ∗ l◁ₗ{β}ty ∨ <affine> ⌜¬b⌝ ∗ l◁ₗ{β}optty)%I;
-                                                                                 ty_own_val cty v := (<affine> ⌜b⌝ ∗ v ◁ᵥ|cty| ty ∨ <affine> ⌜¬b⌝ ∗ v ◁ᵥ|cty| optty)%I
+      ty_own_val cty v := (<affine> ⌜b⌝ ∗ v ◁ᵥ|cty| ty ∨ <affine> ⌜¬b⌝ ∗ v ◁ᵥ|cty| optty)%I
   |}.
   Next Obligation.
     iIntros (??????).
@@ -101,6 +101,11 @@ Section optional.
   despair which is not a good user experience. Thus you should make
   sure that the other rules in this file work for you, which don't
   cause unnecssary case splits. *)
+
+  Global Instance optional_defined cty e ty optty `{!DefinedTy cty ty} `{!DefinedTy cty optty}: DefinedTy cty (e @ optional ty optty).
+  Proof.
+    iIntros (?) "[(%&H)|(%&H)]"; iApply (defined_ty with "H").
+  Qed.
 
   (* TODO: should be allow different opttys? *)
   Global Instance simple_subsume_place_optional ty1 ty2 optty b1 b2 `{!Affine P} `{!SimpleSubsumePlace ty1 ty2 P}:

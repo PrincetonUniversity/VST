@@ -2,7 +2,6 @@ Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-k
 From VST.typing Require Export type.
 From VST.typing Require Import programs int own.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-From VST.floyd Require Import encode_reptype.
 From VST.typing Require Import type_options.
 
 (* NOTE: we might want to have a type [bytes : list mbyte → type] one day,
@@ -184,53 +183,49 @@ Global Typeclasses Opaque bytewise.*)
 Section uninit.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  Definition heap_memory_block β n v :=
-    match β with
-    | Own => mapsto_memory_block.memory_block Tsh n v
-    | Shr => inv mtN (∃ q, ⌜readable_share q⌝ ∧ mapsto_memory_block.memory_block q n v)
-    end.
-
   (* RefinedC defines uninit in terms of bytewise, but that's an unnecessary complication when vals aren't
      already at the memval level. *)
   Program Definition uninit cty : type := {|
-    ty_has_op_type ot mt := (*ot = cty*) False%type; (* don't dereference uninit! *)
-    ty_own β l := <affine> ⌜l `has_layout_loc` cty⌝ ∗
-           heap_memory_block β (sizeof cty) l;
+    ty_has_op_type ot mt := ot = cty;
+    ty_own β l := ∃ v, <affine> ⌜l `has_layout_loc` cty⌝ ∗
+           <affine> ⌜v `has_layout_val` cty⌝ ∗
+           l ↦[β]|cty| v;
     ty_own_val cty' v := (<affine> ⌜cty' = cty⌝ ∗ <affine> ⌜v `has_layout_val` cty'⌝)%I;
   |}%I.
   Next Obligation.
-    iIntros (????). iDestruct 1 as "($&Hl)".
+    iIntros (????). iDestruct 1 as (?) "($&$&Hl)".
     iApply inv_alloc. iModIntro. iExists _. iFrame; auto.
   Qed.
-  Next Obligation. iIntros (????[]). Qed.
-  Next Obligation. by iIntros (????[] [??]). Qed.
-  Next Obligation. iIntros (????[]). Qed.
-  Next Obligation. iIntros (???? v [] ?) "? [%%]". Qed.
+  Next Obligation. iIntros (????->) "(%&$&_)". Qed.
+  Next Obligation. by iIntros (????-> [??]). Qed.
+  Next Obligation. by iIntros (????->) "(%&%&%&$)". Qed.
+  Next Obligation. iIntros (???? v -> ?) "? [%%]". by iFrame. Qed.
 
-  (*Lemma uninit_own_spec l ly:
+  Lemma uninit_own_spec l ly:
     (l ◁ₗ uninit ly)%I ≡ (mapsto_layout l Tsh ly)%I.
   Proof.
     rewrite /ty_own/=; iSplit.
-    - iDestruct 1 as (??? _) "Hl". iExists _; by iFrame.
-    - iDestruct 1 as (v ??) "Hl". iExists v; iFrame.
-      iPureIntro; split3; try done.
-      eexists; split; first done.
-      by rewrite Forall_forall.
-  Qed.*)
-
-  Lemma uninit_own l ly:
-    mapsto_layout l Tsh ly ⊢ l ◁ₗ uninit ly.
-  Proof.
-    rewrite /ty_own/=.
-    iDestruct 1 as (v ? Hl) "Hl".
-    iSplit => //.
-    destruct Hl as (_ & ? & ? & ? & ?).
-    assert (0 ≤ Ptrofs.unsigned l.2 ∧ Ptrofs.unsigned l.2 + sizeof ly < Ptrofs.modulus) by (simpl in *; rep_lia).
-    rewrite /mapsto /adr2val -(Ptrofs.repr_unsigned l.2) data_at_rec_data_at_rec_ // 
-      data_at_rec_lemmas.memory_block_data_at_rec_default_val //.
+    - iDestruct 1 as (???) "Hl". iExists _; by iFrame.
+    - iDestruct 1 as (v ??) "Hl". iExists v; by iFrame.
   Qed.
 
-   (* This only works for [Own] since [ty] might have interior mutability. *)
+  Lemma uninit_memory_block ly l: type_is_volatile ly = false → l ◁ₗ uninit ly ⊣⊢ <affine> ⌜l `has_layout_loc` ly⌝ ∗ memory_block Tsh (sizeof ly) l.
+  Proof.
+    intros; iSplit.
+    - iIntros "(% & % & % & H)".
+      iSplit => //.
+      iApply data_at_memory_block.
+      rewrite /data_at /field_at /mapsto_memory_block.at_offset /nested_field_offset /= Ptrofs.add_zero /heap_mapsto_own_state /mapsto; by iFrame.
+    - iIntros "(%Hl & ?)".
+      rewrite /uninit /ty_own /= /heap_mapsto_own_state /mapsto /adr2val -(Ptrofs.repr_unsigned l.2) -memory_block_data_at_rec_default_val; first iFrame.
+      + iPureIntro; split3; try done.
+        apply default_value_fits.
+      + apply Hl.
+      + destruct Hl as (_ & _ & ? & _); simpl in *; rep_lia.
+      + apply Hl.
+  Qed.
+
+  (* This only works for [Own] since [ty] might have interior mutability. *)
   Lemma uninit_mono A l ty ly `{!TCDone (ty.(ty_has_op_type) ly MCNone)} T:
     (∀ v, v ◁ᵥ|ly| ty -∗ ∃ x, T x)
     ⊢ subsume (l ◁ₗ ty) (λ x : A, l ◁ₗ uninit ly) T.
@@ -239,7 +234,7 @@ Section uninit.
     iDestruct (ty_aligned with "Hl") as %?; [done|].
     iDestruct (ty_deref with "Hl") as (v) "[Hl Hv]"; [done|].
     iDestruct (ty_size_eq with "Hv") as %?; [done|].
-    iDestruct ("HT" with "Hv") as (?) "?". iExists _. rewrite -uninit_own. by iFrame.
+    iDestruct ("HT" with "Hv") as (?) "?". iExists _. rewrite uninit_own_spec. by iFrame.
   Qed.
   (* This rule is handled with a definition and an [Hint Extern] (not
   with an instance) since this rule should only apply ty is not uninit
@@ -255,7 +250,7 @@ Section uninit.
     iDestruct (ty_aligned with "Hl") as %?; [done|].
     iDestruct (ty_deref with "Hl") as (v) "[Hl Hv]"; [done|].
     iDestruct (ty_size_eq with "Hv") as %?; [done|].
-    iDestruct ("HT" with "Hv") as (?) "?". iExists _. rewrite -uninit_own. by iFrame.
+    iDestruct ("HT" with "Hv") as (?) "?". iExists _. rewrite uninit_own_spec. by iFrame.
   Qed.
   Definition uninit_mono'_inst := [instance uninit_mono'].
 

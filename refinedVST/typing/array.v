@@ -1,14 +1,13 @@
 From iris.algebra Require Import list.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
-From VST.typing Require Import programs singleton (* bytes *) boolean int own.
+From VST.typing Require Import programs singleton bytes boolean int own.
 Import int.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
 From VST.floyd Require Import aggregate_pred.
 Import aggregate_pred.
 From VST.floyd Require Export field_at.
-
 
 Definition offset_def {cs:compspecs} (l:address) cty path := (l.1, Ptrofs.add l.2 (Ptrofs.repr (nested_field_offset cty path))).
 Arguments nested_field_offset: simpl never.
@@ -424,16 +423,6 @@ Section array.
 
   (* Global Instance array_loc_in_bounds ly β tys : LocInBounds (array ly tys) β (ly_size ly * length tys).
   Proof. constructor. iIntros (?) "(?&$&?)". Qed. *)
-
-
-  (* TODO delete this when programs.v works *)
-  Program Definition place (l : address) : type := {|
-    ty_own β l' := (<affine> ⌜l = l'⌝)%I;
-    ty_has_op_type _ _ := False%type;
-    ty_own_val _ _ := emp;
-  |}.
-  Solve Obligations with try done.
-  Next Obligation. by iIntros (????) "$". Qed.
 
   (* array has type `tarray cty (length tys)` *)
   Lemma array_get_type (i : nat) cty tys ty l β:

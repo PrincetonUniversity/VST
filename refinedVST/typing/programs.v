@@ -154,6 +154,9 @@ Section judgements.
   Class SimpleSubsumeVal cty (ty1 ty2 : type) (P : iProp Σ) : Prop :=
     simple_subsume_val v: P ⊢ v ◁ᵥ|cty| ty1 -∗ v ◁ᵥ|cty| ty2.
 
+  Class DefinedTy cty ty : Prop :=
+    defined_ty v: v ◁ᵥₐₗ|cty| ty -∗ ⌜v ≠ Vundef⌝.
+
   (* This is similar to simplify hyp place (Some 0), but targeted at
   Copy and applying all simplifications at once instead of step by
   step. We need this because copying duplicates a type and we want to
@@ -163,6 +166,11 @@ Section judgements.
     (⎡l ◁ₗ{β} ty⎤ -∗ ∃ ty', ⎡l ◁ₗ{β} ty'⎤ ∗ <affine> ⌜Copyable cty ty'⌝ ∗ T ty')%I.
   Class CopyAs (l : address) (β : own_state) (cty:Ctypes.type) (ty : type) : Type :=
     copy_as_proof T : iProp_to_Prop (copy_as l β cty ty T).
+
+  Definition copy_as_defined (l : address) (β : own_state) (cty:Ctypes.type) (ty : type) (T : type → assert) : assert :=
+    (⎡l ◁ₗ{β} ty⎤ -∗ ∃ ty', ⎡l ◁ₗ{β} ty'⎤ ∗ <affine> ⌜Copyable cty ty'⌝ ∗ <affine> ⌜DefinedTy cty ty'⌝ ∗ T ty')%I.
+  Class CopyAsDefined (l : address) (β : own_state) (cty:Ctypes.type) (ty : type) : Type :=
+    copy_as_defined_proof T : iProp_to_Prop (copy_as_defined l β cty ty T).
 
   (* A is the annotation from the code *)
   Definition typed_annot_expr (n : nat) {A} (a : A) (v : val) (P : iProp Σ) (T : iProp Σ) : iProp Σ :=
@@ -372,7 +380,7 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
        (∀ (l:address), 
           (|={⊤, E}=>
             (∃ v q (ty : type), <affine> ⌜l `has_layout_loc` ot⌝ ∗ <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
-            <affine> ⌜readable_share q⌝ ∗
+            <affine> ⌜readable_share q⌝ ∗ <affine> ⌜v ≠ Vundef⌝ ∗
             ⎡ l ↦{q}|ot| (valinject ot v) ⎤ ∗ ⎡v ◁ᵥₐₗ|ot| ty⎤ ∗ 
             (⎡ l ↦{q}|ot| (valinject ot v) ⎤ -∗ ⎡v ◁ᵥₐₗ|ot| ty⎤ ={E, ⊤}=∗
               ∃ ty', ⎡v ◁ᵥₐₗ|ot| ty'⎤ ∗ T v ty')))
@@ -395,7 +403,7 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
     (⎡l◁ₗ{β}ty⎤ ={E, E'}=∗
       ∃ q v (ty2 : type),
       <affine> ⌜l `has_layout_loc` ot⌝ ∗ <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
-      <affine> ⌜readable_share q⌝ ∗
+      <affine> ⌜readable_share q⌝ ∗ <affine> ⌜v ≠ Vundef⌝ ∗
       ⎡l↦{q}|ot| valinject ot v⎤ ∗  ⎡v ◁ᵥₐₗ|ot| ty2⎤ ∗
       (⎡l↦{q}|ot| valinject ot v⎤ -∗  ⎡v ◁ᵥₐₗ|ot| ty2⎤ ={E', E}=∗
        ∃ ty' ty2',  ⎡l◁ₗ{β} ty'⎤ ∗ ⎡v ◁ᵥₐₗ|ot| ty2'⎤ ∗ T v ty' ty2'))%I.
@@ -702,6 +710,7 @@ Global Hint Extern 0 (IntoPlaceCtx _ _ _ _) => solve_into_place_ctx : typeclass_
 Global Hint Mode Learnable + + : typeclass_instances.
 (*Global Hint Mode LearnAlignment + + + + - : typeclass_instances.*)
 Global Hint Mode CopyAs + + + + + + + + : typeclass_instances.
+Global Hint Mode CopyAsDefined + + + + + + + + : typeclass_instances.
 Global Hint Mode SimpleSubsumePlace + + + + + ! - : typeclass_instances.
 Global Hint Mode SimpleSubsumeVal + + + + + ! ! - : typeclass_instances.
 Global Hint Mode TypedIf + + + + + : typeclass_instances.
@@ -999,6 +1008,7 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
    | typed_switch ?x1 ?x2 ?x3 => constr:(TypedSwitch x1 x2 x3)
   | typed_annot_stmt ?x1 ?x2 ?x3 => constr:(TypedAnnotStmt x1 x2 x3)
   | copy_as ?x1 ?x2 ?x3 ?x4 => constr:(CopyAs x1 x2 x3 x4)
+  | copy_as_defined ?x1 ?x2 ?x3 ?x4 => constr:(CopyAsDefined x1 x2 x3 x4)
   | _ => fail "unknown judgement" c
   end.
 
@@ -1524,7 +1534,7 @@ Section typing.
   Proof.
     intros.
     unfold typed_stmt.
-    rewrite -wp_store.
+    rewrite -wp_store0.
     iIntros "[% H]". iApply "H".
     iIntros (v ty) "H (% & % & ty_write)".
     simpl.
@@ -1542,13 +1552,13 @@ Section typing.
     iDestruct "Hl" as (v_rep) "(%Hv & %Hl & ↦)".
     destruct Hv.
     iSplitR "upd".
-    - rewrite /mapsto -mapsto_mapsto_ /adr2val /=.
-      rewrite by_value_data_at_rec_nonvolatile //.
+    - rewrite /mapsto /adr2val /=.
+      rewrite by_value_data_at_rec_nonvolatile // mapsto_mapsto_ //.
     - iIntros "!> l↦".
       iMod ("upd" with "[l↦]"); try done.
       rewrite /mapsto /mapsto_ /adr2val /=.
       rewrite by_value_data_at_rec_nonvolatile //.
-      rewrite repinject_valinject //.
+      rewrite repinject_valinject // simple_mapsto.mapsto_weaken //.
   Qed.
 
   (* sets any v' to v *)
@@ -2024,7 +2034,7 @@ Section typing.
     iApply wp_expr_mono; first by intros; apply derives_refl.
     iApply "typed_read".
     iIntros (l) "typed_read".
-    iMod "typed_read" as "(%v & %q & %ty & %Hl & %Hv & %Hq & own_l & own_v & typed_read)".
+    iMod "typed_read" as "(%v & %q & %ty & %Hl & %Hv & %Hq & % & own_l & own_v & typed_read)".
     iExists _, _.
     rewrite -fupd_frame_l.
     iSplit => //.
@@ -2037,7 +2047,7 @@ Section typing.
     {
       destruct Hv as [? ?].
       rewrite /mapsto by_value_data_at_rec_nonvolatile // repinject_valinject //=.
-      iFrame.
+      rewrite simple_mapsto.mapsto_eq //; iFrame.
     }
     iMod ("typed_read" with "[$] [$]") as (ty') "[? ?]".
     iApply ("HΦ" with "[$] [$]").
@@ -2060,7 +2070,7 @@ Section typing.
     iIntros (v_l ty_l) "Hl (%l & -> & own_l & typed_read_end)".
     iApply ("HΦ" $! l).
     rewrite /typed_read_end.
-    iMod ("typed_read_end" with "own_l") as "(%q & %v & %ty_v & %Hl & %Hv & %Hq & own_l & own_v & HT)".
+    iMod ("typed_read_end" with "own_l") as "(%q & %v & %ty_v & %Hl & %Hv & %Hq & % & own_l & own_v & HT)".
     iModIntro.
     iExists _, _, _.
     repeat iSplit => //.
@@ -2086,8 +2096,8 @@ Section typing.
     iIntros (K l). iDestruct 1 as ([β ty]) "[Hl HP]".
     iApply ("HP" with "Hl").
     iIntros (l' β2 ty2 typ R) "Hl' Hc HT" => /=. iApply "HΦ".
-    rewrite /typed_read_end. iMod ("HT" with "Hl'") as (q v ty3 Hly Hv) "(%&Hl&Hv&HT)".
-    iModIntro. iExists _,_,_. iFrame "Hl Hv". do 3 iSplitR => //.
+    rewrite /typed_read_end. iMod ("HT" with "Hl'") as (q v ty3 Hly Hv ?) "(%&Hl&Hv&HT)".
+    iModIntro. iExists _,_,_. iFrame "Hl Hv". do 4 iSplitR => //.
     iIntros "!> Hl Hv".
     iMod ("HT" with "Hl Hv") as (ty' ty4) "(Hv&Hl&HT)".
     iMod ("Hc" with "[$]") as "[? ?]". iExists _. iFrame. by iApply ("HT" with "[$]").
@@ -2111,7 +2121,7 @@ Section typing.
     rewrite -H.
     iApply ("HΦ").
     rewrite /typed_read_end.
-    iMod ("typed_read_end" with "own_l") as "(%q & %v & %ty_v & %Hl & %Hv & %Hq & own_l & own_v & HT)".
+    iMod ("typed_read_end" with "own_l") as "(%q & %v & %ty_v & %Hl & %Hv & %Hq & % & own_l & own_v & HT)".
     iModIntro.
     iExists _, _, _.
     repeat iSplit => //.
@@ -2122,12 +2132,12 @@ Section typing.
     iFrame. done.
   Qed.
 
-  Lemma type_read_copy a β l ty cty E {HC: CopyAs l β cty ty} (T:val → type → type → assert):
+  Lemma type_read_copy a β l ty cty E {HC: CopyAsDefined l β cty ty} (T:val → type → type → assert):
     <affine> ⌜type_is_by_value cty = true⌝ ∗
     ((HC (λ ty', <affine> ⌜ty'.(ty_has_op_type) cty MCCopy⌝ ∗ <affine> ⌜mtE ⊆ E⌝ ∗ ∀ v, T v (ty' : type) ty')).(i2p_P))
     ⊢ typed_read_end a E l β ty cty T.
   Proof.
-    iIntros "[% Hs] Hl". iDestruct (i2p_proof with "Hs Hl") as (ty') "(Hl&%&%&%&HT)".
+    iIntros "[% Hs] Hl". iDestruct (i2p_proof with "Hs Hl") as (ty') "(Hl&%&%&%&%&HT)".
     destruct β.
     - iApply fupd_mask_intro; [destruct a; solve_ndisj|]. iIntros "Hclose".
       iDestruct (ty_aligned with "Hl") as %?; [done|].
@@ -2137,6 +2147,9 @@ Section typing.
       rewrite !valinject_repinject /ty_own_val_at //.
       iFrame "∗Hv". do 2 iSplitR => //=.
       iSplit; first by (rewrite /Tsh; iPureIntro; apply readable_share_top).
+      iSplit.
+      { iDestruct (defined_ty with "[Hv]") as %?; last done.
+        rewrite /ty_own_val_at valinject_repinject //. }
       iDestruct ("HT" $! (repinject cty v)) as "T".
       iIntros "Hl #own_v". iFrame.
       iDestruct (ty_ref with "[//] Hl own_v") as "$"; [done|].
@@ -2147,9 +2160,11 @@ Section typing.
       iApply fupd_mask_intro; [destruct a; solve_ndisj|]. iIntros "Hclose".
       iExists _, (repinject cty v), _.
       rewrite !valinject_repinject /ty_own_val_at //.
+      iDestruct (defined_ty (repinject cty v) with "[Hv]") as %?.
+      { rewrite /ty_own_val_at valinject_repinject //. }
       iFrame.
       iDestruct ("HT" $! (repinject cty v)) as "HT".
-      do 3 iSplitR => //.
+      do 4 iSplitR => //.
       iIntros "Hmt Hv". iMod "Hclose".
       iMod ("Hc" with "Hmt") as "?".
       iExists _, _. iFrame "Hl". iFrame. iModIntro. done.
@@ -2310,6 +2325,21 @@ Section typing.
   Qed.
   Definition copy_as_refinement_inst := [instance copy_as_refinement].
   Global Existing Instance copy_as_refinement_inst.
+
+  Lemma copy_as_defined_id l β cty ty `{!Copyable cty ty} `{!DefinedTy cty ty} T:
+    T ty ⊢ copy_as_defined l β cty ty T.
+  Proof. iIntros "HT Hl". iExists _. by iFrame. Qed.
+  Definition copy_as_defined_id_inst := [instance copy_as_defined_id].
+  Global Existing Instance copy_as_defined_id_inst | 1000.
+
+  Lemma copy_as_defined_refinement A l β cty (ty : rtype A) {HC: ∀ x, CopyAsDefined l β cty (x @ ty)} T:
+    (∀ x, (HC x T).(i2p_P)) ⊢ copy_as_defined l β cty ty T.
+  Proof.
+    iIntros "HT Hl". unfold ty_of_rty; simpl_type. iDestruct "Hl" as (x) "Hl".
+    iSpecialize ("HT" $! x). iDestruct (i2p_proof with "HT") as "HT". by iApply "HT".
+  Qed.
+  Definition copy_as_defined_refinement_inst := [instance copy_as_defined_refinement].
+  Global Existing Instance copy_as_defined_refinement_inst.
 
 (*  Lemma annot_share l ty T:
     (l ◁ₗ{Shr} ty -∗ T)

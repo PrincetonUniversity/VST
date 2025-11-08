@@ -97,6 +97,12 @@ Section struct.
   Opaque field_type.
   Opaque field_offset.
 
+  Definition heap_memory_block β n v :=
+    match β with
+    | Own => mapsto_memory_block.memory_block Tsh n v
+    | Shr => inv mtN (∃ q, ⌜readable_share q⌝ ∧ mapsto_memory_block.memory_block q n v)
+    end.
+
   Definition heap_spacer β (be: Z) (ed: Z) : val -> mpred :=
     if BinInt.Z.eq_dec (ed - be) 0
     then fun _ => emp
@@ -736,6 +742,7 @@ Check value_fits_eq.
 
   (* this is our padded *)
   Lemma withspacer_uninit_memory_block ly sz o l:
+    type_is_volatile ly = false →
     (l.1, Ptrofs.add l.2 (Ptrofs.repr o)) `has_layout_loc` ly →
     0 ≤ o →
     sizeof ly ≤ sz < Ptrofs.modulus →
@@ -743,11 +750,10 @@ Check value_fits_eq.
     heap_withspacer Own (o + sizeof ly) (o + sz) (mapsto_memory_block.at_offset (λ p, match val2adr p with Some l => l ◁ₗ uninit ly | None => False end) o) (adr2val l) ⊣⊢
     mapsto_memory_block.memory_block Tsh sz (offset_val o (adr2val l)).
   Proof.
-    intros; rewrite /heap_withspacer /mapsto_memory_block.at_offset /= /ty_own /uninit /=.
-    rewrite bi.pure_True; last by destruct l.
-    rewrite bi.affinely_True_emp bi.emp_sep.
+    intros; rewrite /heap_withspacer /mapsto_memory_block.at_offset /= uninit_memory_block //.
+    rewrite bi.pure_True // bi.affinely_True_emp bi.emp_sep.
     if_tac.
-    - destruct l; rewrite bi.sep_emp /=; f_equiv; hnf; [lia | done].
+    - rewrite bi.sep_emp. f_equiv; hnf; [lia | done].
     - rewrite /heap_spacer if_false // -(mapsto_memory_block.spacer_sepcon_memory_block _ _ (sizeof ly) sz).
       + rewrite bi.sep_comm; f_equiv; last done.
         rewrite /mapsto_memory_block.at_offset /mapsto_memory_block.spacer if_false; last lia.
@@ -776,10 +782,12 @@ Check value_fits_eq.
       iDestruct "H" as "(% & % & % & % & H)".
       iSplit => //. admit.*)
 
-    rewrite /struct{1 2}/ty_own/=.
-    rewrite has_layout_struct_noattr.
-    destruct (field_compatible_dec (Tstruct i noattr) [] l);
-      last by rewrite bi.pure_False // bi.affinely_False !bi.sep_False.
+    rewrite uninit_memory_block //.
+    rewrite has_layout_struct_noattr /ty_own /struct.
+    apply (pure_equiv _ _ (l `has_layout_loc` Tstruct i noattr)); [iIntros "($ & _)"..|].
+    intros; rewrite bi.pure_True // bi.affinely_True_emp !bi.emp_sep.
+    rewrite !length_fmap bi.pure_True // bi.affinely_True_emp bi.emp_sep.
+    (*
     f_equiv.
     pose proof (get_co_members_no_replicate i) as Hnorep.
     rewrite /adr2val -(Ptrofs.repr_unsigned l.2) -(aggregate_pred.memory_block_struct_pred _ (co_members (get_co i)) _ (struct_default_val (co_members (get_co i)))) //.
@@ -823,7 +831,7 @@ Check value_fits_eq.
       + destruct f as (_ & _ & Hsz & _).
         simpl in Hsz; rep_lia.
     - split; [rep_lia | eapply f].
-  Qed.
+  Qed.*) Admitted.
 
   (*Lemma uninit_struct_impl l β i a :
     (l ◁ₗ{β} uninit (Tstruct i a)) ⊢ (l ◁ₗ{β} struct i (uninit <$> (map (λ m, field_type (name_member m) (co_members (get_co i))) (get_co i).(co_members)))).

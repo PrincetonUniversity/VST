@@ -185,6 +185,12 @@ Section int.
     : LearnAlignment β (n @ int it) (Some (ly_align it)).
   Next Obligation. by iIntros (β it n ?) "(%&%&%&?)". Qed. *)
 
+  Global Instance int_defined it n: DefinedTy it (n @ int it).
+  Proof.
+    iIntros (?) "(_ & _ & %)".
+    destruct it; try done; destruct v; try done.
+  Qed.
+
   Lemma val_to_Z_not_Vundef it v n:
     val_to_Z v it = Some n -> v ≠ Vundef.
   Proof.

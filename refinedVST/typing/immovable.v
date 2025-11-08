@@ -1,5 +1,7 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
 From VST.typing Require Import programs.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
 
 Section immovable.
@@ -8,7 +10,7 @@ Section immovable.
   Program Definition immovable (ty : address → type) : type := {|
     ty_own q l := (ty l).(ty_own) q l;
     ty_has_op_type _ _ := false;
-    ty_own_val _ := True;
+    ty_own_val _ _ := True;
   |}.
   Solve Obligations with try done.
   Next Obligation. iIntros (????). by iApply ty_share. Qed.

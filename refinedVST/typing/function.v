@@ -182,7 +182,7 @@ Section function.
     erewrite singleton.mapsto_tptr. iFrame. iModIntro. unfold has_layout_loc. rewrite singleton.field_compatible_tptr. do 2 iSplit => //. by iIntros "_".
   Qed. *)
 
-  Opaque memory_block.
+  Opaque simple_mapsto.memory_block.
 
   Lemma stackframe_of_typed : forall f lv
     (Hcomplete : Forall (λ it, composite_compute.complete_legal_cosu_type it.2 = true) (fn_vars f))
@@ -195,18 +195,17 @@ Section function.
     iApply (big_sepL_mono with "H"); intros ?? H%elem_of_list_lookup_2.
     rewrite !Forall_forall in Hcomplete Halign Hvolatile.
     specialize (Hcomplete _ H); specialize (Halign _ H); specialize (Hvolatile _ H).
-    rewrite /var_block0 /typed_var_block /ty_own /= /heap_mapsto_own_state /mapsto.
+    rewrite /var_block0 /typed_var_block.
     iIntros "(% & % & $ & H)"; iSplit; first done.
-    iAssert ⌜(b, Ptrofs.zero) `has_layout_loc` y.2⌝ as %?. {
-      iPureIntro.
-      split3; simpl; auto.
-      change expr.sizeof with Ctypes.sizeof.
-      rewrite Z.add_0_l; split3; first rep_lia; last done.
-      apply la_env_cs_sound; auto. }
-    rewrite memory_block_weaken; by iFrame.
+    rewrite simple_mapsto.memory_block_weaken uninit_memory_block //; iFrame.
+    iPureIntro.
+    split3; simpl; auto.
+    change expr.sizeof with Ctypes.sizeof.
+    rewrite Z.add_0_l; split3; first rep_lia; last done.
+    apply la_env_cs_sound; auto.
   Qed.
 
-  Transparent memory_block.
+  Transparent simple_mapsto.memory_block.
 
   Lemma type_call_fnptr l i v vl ctys retty cc tys fp T :
     length vl = length ctys →

@@ -1,3 +1,4 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
 From VST.typing Require Import type_options.
 From iris_ora.algebra Require Import frac_auth ext_order excl.
@@ -6,8 +7,8 @@ From compcert.cfrontend Require Import Clight.
 From VST.lithium Require Export proof_state.
 From lithium Require Import hooks.
 From VST.typing Require Export type.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
-From VST.floyd Require Import globals_lemmas.
 
 Section wand.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
