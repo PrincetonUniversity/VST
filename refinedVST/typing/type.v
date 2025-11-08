@@ -135,6 +135,7 @@ Section CompatRefinedC.
 
   (* refinedC only checks if `v` fits in the size of cty *)
   (* this is implied by the current mapsto (i.e. data_at_rec_value_fits) *)
+  (* we need to either lift the volatile requirement or propagate it to the type's components *)
   Definition has_layout_val (cty:Ctypes.type) (v:reptype cty) : Prop :=
     value_fits cty v ∧ type_is_volatile cty = false.
 

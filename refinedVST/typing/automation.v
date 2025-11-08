@@ -251,7 +251,8 @@ Ltac liRExpr :=
     | Econst_long _ _ => notypeclasses refine (tac_fast_apply (type_const_long _ _ _ _ _) _)
     | Ebinop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_bin_op _ _ _ _ _ _ _) _)
     | Eunop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_un_op _ _ _ _ _ _) _)
-    | Ederef _ _ => notypeclasses refine (tac_fast_apply (type_deref _ _ _ _ _ _) _);[done|]
+    | Ederef _ _ => notypeclasses refine (tac_fast_apply (type_read_lvalue _ _ _ _ _ _) _);[done|done|]
+    | Efield _ _ _ => notypeclasses refine (tac_fast_apply (type_read_lvalue _ _ _ _ _ _) _);[done|done|]
     | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
@@ -268,7 +269,7 @@ Ltac liRJudgement :=
       first [ notypeclasses refine (tac_fast_apply (type_write_lvalue _ _ _ _ _ _ _ _ _ _ _) _); [ solve [refine _ ] | reflexivity |]
             | notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _ _ _) _)]
     | |- envs_entails _ (typed_read _ _ _ _ _ _) =>
-      notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _ _) _); [ solve [refine _ ] | reflexivity |]
+      notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _) _); [ solve [refine _ ] |]
     | |- envs_entails _ (typed_addr_of _ _ _ _) =>
       fail "liRJudgement: type_addr_of not implemented yet"
       (* notypeclasses refine (tac_fast_apply (type_addr_of_place _ _ _ _) _); [solve [refine _] |] *)

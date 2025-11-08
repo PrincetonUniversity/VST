@@ -3,5 +3,5 @@ From VST.typing Require Export int programs type boolean (*intptr*) function byt
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Close Scope bi_scope.
 Global Transparent Archi.ptr64.
-
+Global Transparent peq.
 #[global] Notation int := VST.typing.int.int.

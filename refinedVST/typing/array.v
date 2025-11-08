@@ -654,7 +654,7 @@ Section array.
       `Ebinop Oadd (Exxx (tptr tint)) (Exxx tint) (tptr tint)`
   *)
 
-  Definition is_tptr cty : bool := match cty with | Tpointer _ _ => true | _ => false end.
+  (*Definition is_tptr cty : bool := match cty with | Tpointer _ _ => true | _ => false end.
 
   Lemma type_place_ptr_ofs genv_t f o e1 e2 cty (T:address → own_state → type → assert)
   `{!TCEq (is_tptr (typeof e1)) true} `{!TCEq (is_tptr (typeof e2)) false} `{!TCEq (is_tptr cty) true}:
@@ -689,7 +689,7 @@ Section array.
     iFrame. iIntros "H_x".
     iDestruct ("HT" with "[$]") as "[? ?]".
     iApply ("HΦ" with "[//] [$] [$]").
-  Qed.
+  Qed.*)
 
   
   (* Lemma has_layout_loc_array_offset l elm_cty arr_len (i:nat):

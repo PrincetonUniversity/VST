@@ -368,6 +368,26 @@ Section judgements.
               -∗ Φ l) -∗
        wp_lvalue ge ⊤ f e Φ)%I.
 
+  (* The relationship between reads in CompCert and Caesium is confusing.
+     In Caesium, deref is an expression that loads a value from memory.
+     In CompCert, it essentially just casts an expression to an lvalue. So for instance,
+     a[1] := 5 will appear in Caesium as Assign (a + 1) 5 where a + 1 computes the pointer,
+     but in CompCert as Assign (Ederef (a + 1)) 5 (i.e., *(a + 1) = 5).
+     Actual loads in CompCert occur when an lvalue (var, deref, field) appears in an
+     "expression position", e.g., on the RHS of an Assign or Set, and with no particular
+     syntax other than the fact that an lvalue is in an expression position. *)
+  Definition is_lvalue e := match e with Evar _ _ | Ederef _ _ | Efield _ _ _ => true | _ => false end.
+
+  Definition wp_lvexpr f e Φ := if is_lvalue e then wp_lvalue ge ⊤ f e Φ else wp_expr ge ⊤ f e (λ v, ∃ l' : address, <affine> ⌜v = adr2val l'⌝ ∗ Φ l').
+
+  Lemma wp_lvexpr_strong_mono : forall f e P1 P2, (∀ v, P1 v ={⊤}=∗ P2 v) ∗ wp_lvexpr f e P1 ⊢ wp_lvexpr f e P2.
+  Proof.
+    intros; rewrite /wp_lvexpr.
+    simple_if_tac; [apply wp_lvalue_strong_mono|].
+    iIntros "(H & ?)"; iApply wp_expr_strong_mono; iFrame.
+    iIntros (?) "(% & $ & ?)"; by iApply "H".
+  Qed.
+
   (** [typed_read atomic e ot memcast] typechecks a read with op_type
   ot of the expression [e]. [atomic] says whether the read is an
   atomic read and [memcast] says whether a memcast is performed during
@@ -376,7 +396,7 @@ Section judgements.
   (* We probably don't need the memcast in refinedC's typed_read; not sure if we need `ty'` or not. *)
 Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val → type → assert) : assert :=
   let E := if atomic then ∅ else ⊤ in
-    (∀ (Φ: val->assert),
+    (∀ Φ,
        (∀ (l:address), 
           (|={⊤, E}=>
             (∃ v q (ty : type), <affine> ⌜l `has_layout_loc` ot⌝ ∗ <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
@@ -385,7 +405,7 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
             (⎡ l ↦{q}|ot| (valinject ot v) ⎤ -∗ ⎡v ◁ᵥₐₗ|ot| ty⎤ ={E, ⊤}=∗
               ∃ ty', ⎡v ◁ᵥₐₗ|ot| ty'⎤ ∗ T v ty')))
         -∗ Φ l) -∗
-     wp_expr ge E f e Φ)%I.
+     wp_lvexpr f e Φ)%I.
 
   (** [typed_addr_of e] typechecks an address of operation on the expression [e].
   The typing rule for [typed_addr_of] typechecks [e] and then dispatches to [typed_addr_of_end]*)
@@ -446,18 +466,6 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
     (* for ptr-to-ptr casts, ot must be PtrOp *)
   (* | UnOpPCtx (op : Cop.unary_operation) *)
   .
-
-  (* The relationship between find_place_ctx in CompCert and Caesium is confusing.
-     In Caesium, deref is an expression that loads a value from memory.
-     In CompCert, it essentially just casts an expression to an lvalue. So for instance,
-     a[1] := 5 will appear in Caesium as Assign (a + 1) 5 where a + 1 computes the pointer,
-     but in CompCert as Assign (Ederef (a + 1)) 5 (i.e., *(a + 1) = 5).
-     Actual loads in CompCert occur when an lvalue (var, deref, field) appears in an
-     "expression position", e.g., on the RHS of an Assign or Set, and with no particular
-     syntax other than the fact that an lvalue is in an expression position. *)
-  Definition is_lvalue e := match e with Evar _ _ | Ederef _ _ | Efield _ _ _ => true | _ => false end.
-
-  Definition wp_lvexpr f e Φ := if is_lvalue e then wp_lvalue ge ⊤ f e Φ else wp_expr ge ⊤ f e (λ v, ∃ l' : address, <affine> ⌜v = adr2val l'⌝ ∗ Φ l').
 
   (* Computes the WP one has to prove for the place ectx_item Ki
   applied to the location l. *)
@@ -2021,41 +2029,34 @@ Section typing.
   Proof. done. Qed.
 *)
 
-  (* l↦v, [[e]]=l, v:cty *)
-  Lemma type_deref ge f cty e T:
-    type_is_by_value cty = true ->
-    typed_read ge f false e cty T 
-    ⊢ typed_val_expr ge f (Ederef e cty) T.
+  Lemma type_read_lvalue ge f e T:
+    is_lvalue e = true →
+    type_is_by_value (typeof e) = true ->
+    typed_read ge f false e (typeof e) T 
+    ⊢ typed_val_expr ge f e T.
   Proof.
     intros.
     iIntros "typed_read" (Φ) "HΦ".
-    rewrite -wp_expr_mapsto /=.
-    rewrite -wp_deref.
-    iApply wp_expr_mono; first by intros; apply derives_refl.
+    rewrite -wp_expr_mapsto /typed_read /wp_lvexpr H.
+    iApply wp_lvalue_mono; first by intros; apply derives_refl.
     iApply "typed_read".
-    iIntros (l) "typed_read".
+    iIntros ((b, o)) "typed_read".
     iMod "typed_read" as "(%v & %q & %ty & %Hl & %Hv & %Hq & % & own_l & own_v & typed_read)".
     iExists _, _.
     rewrite -fupd_frame_l.
     iSplit => //.
-    destruct l.
-    iExists _ ,_.
-    rewrite -fupd_frame_l.
-    iSplit => //.
     iModIntro.
     iSplit.
-    {
-      destruct Hv as [? ?].
+    { destruct Hv as [? ?].
       rewrite /mapsto by_value_data_at_rec_nonvolatile // repinject_valinject //=.
-      rewrite simple_mapsto.mapsto_eq //; iFrame.
-    }
+      rewrite simple_mapsto.mapsto_eq //; iFrame. }
     iMod ("typed_read" with "[$] [$]") as (ty') "[? ?]".
     iApply ("HΦ" with "[$] [$]").
   Qed.
 
-
   (* l↦v, [[e]]=l, v:cty *)
   Lemma type_read_simple ge f e β cty T:
+    is_lvalue e = false →
     typed_val_expr ge f e (λ v_l ty_l,
       ∃ l, <affine> ⌜v_l=adr2val l⌝ ∗
       ⎡ l ◁ₗ{β} ty_l ⎤ ∗
@@ -2063,11 +2064,13 @@ Section typing.
         ⎡l ◁ₗ{β} ty_l'⎤ -∗ ⎡l ◁ᵥₐₗ|typeof e| ty_l⎤ -∗ T v ty_v'))
     ⊢ typed_read ge f false e cty T.
   Proof.
+    intros.
     iIntros "Hl".
-    rewrite /typed_read.
+    rewrite /typed_read /wp_lvexpr H.
     iIntros (Φ) "HΦ".
     iApply "Hl".
     iIntros (v_l ty_l) "Hl (%l & -> & own_l & typed_read_end)".
+    iExists _; iSplit => //.
     iApply ("HΦ" $! l).
     rewrite /typed_read_end.
     iMod ("typed_read_end" with "own_l") as "(%q & %v & %ty_v & %Hl & %Hv & %Hq & % & own_l & own_v & HT)".
@@ -2082,54 +2085,25 @@ Section typing.
   Qed.
 
   Lemma type_read ge f T T' e cty:
-    IntoPlaceCtx ge f e T' → is_lvalue e = false →
+    IntoPlaceCtx ge f e T' →
     T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty_l1),
       typed_place ge K l β1 ty_l1 (λ l2 β2 ty_l2 typ R,
           typed_read_end false ⊤ l2 β2 ty_l2 cty (λ v ty_l3 ty_v,
             ⎡l ◁ₗ{β1} typ ty_l3⎤ -∗ R ty_l3 -∗ T v ty_v))))
     ⊢ typed_read ge f false e cty T.
   Proof.
-    iIntros (HT' Hlv) "HT'". iIntros (Φ) "HΦ".
-    rewrite /IntoPlaceCtx /wp_lvexpr Hlv in HT'.
-    iApply wp_expr_strong_mono; iSplitR; last iApply (HT' with "HT' ").
-    { iIntros (?) "(% & -> & H)". iApply "H". }
+    iIntros (HT') "HT'". iIntros (Φ) "HΦ".
+    rewrite /IntoPlaceCtx in HT'.
+    iApply (HT' with "HT' ").
     iIntros (K l). iDestruct 1 as ([β ty]) "[Hl HP]".
     iApply ("HP" with "Hl").
-    iIntros (l' β2 ty2 typ R) "Hl' Hc HT" => /=. iApply "HΦ".
+    iIntros (l' β2 ty2 typ R) "Hl' Hc HT" => /=.
+    iApply "HΦ".
     rewrite /typed_read_end. iMod ("HT" with "Hl'") as (q v ty3 Hly Hv ?) "(%&Hl&Hv&HT)".
     iModIntro. iExists _,_,_. iFrame "Hl Hv". do 4 iSplitR => //.
-    iIntros "!> Hl Hv".
+    iIntros "Hl Hv".
     iMod ("HT" with "Hl Hv") as (ty' ty4) "(Hv&Hl&HT)".
     iMod ("Hc" with "[$]") as "[? ?]". iExists _. iFrame. by iApply ("HT" with "[$]").
-  Qed.
-
-  Definition typed_place_expr ge f (e : expr) (T : address → own_state → type → assert) : assert :=
-    (∀ Φ, (∀ v (ty : type) β l, <affine> ⌜v=adr2val l⌝ -∗ ⎡ l ◁ₗ{β} ty ⎤ -∗ T l β ty -∗ Φ v) -∗ wp_expr ge ⊤ f e Φ).
-  Global Arguments typed_place_expr _ _ _ _%_I.
-  Lemma type_read_simple_place_ver genv_t f e cty T:
-    typed_place_expr (Build_genv genv_t _) f e (λ l β ty_l,
-      typed_read_end false ⊤ l β ty_l cty (λ v ty_l' ty_v',
-        ⎡l ◁ₗ{β} ty_l'⎤ -∗ T v ty_v'))
-    ⊢ typed_read genv_t f false e cty T.
-  Proof.
-    iIntros "Hl".
-    rewrite /typed_read.
-    iIntros (Φ) "HΦ".
-    iApply "Hl".
-    iIntros (v_l ty_l β l) "% own_l typed_read_end".
-    iSpecialize ("HΦ" $! l).
-    rewrite -H.
-    iApply ("HΦ").
-    rewrite /typed_read_end.
-    iMod ("typed_read_end" with "own_l") as "(%q & %v & %ty_v & %Hl & %Hv & %Hq & % & own_l & own_v & HT)".
-    iModIntro.
-    iExists _, _, _.
-    repeat iSplit => //.
-    iFrame.
-    iIntros "↦ Hv".
-    iMod ("HT" with "[$] [$]") as "(%ty' & %ty2' & own_l & own_v & H)".
-    iDestruct ("H" with "[$]") as "$".
-    iFrame. done.
   Qed.
 
   Lemma type_read_copy a β l ty cty E {HC: CopyAsDefined l β cty ty} (T:val → type → type → assert):

@@ -767,71 +767,52 @@ Check value_fits_eq.
   Lemma uninit_struct_equiv l i a :
     (l ◁ₗ uninit (Tstruct i a)) ⊣⊢ (l ◁ₗ struct i (uninit <$> (map (λ m, field_type (name_member m) (co_members (get_co i))) (get_co i).(co_members)))).
   Proof.
-    (*rewrite {1}/ty_own /=.
-    iSplit.
-    - iDestruct 1 as (v Hv Hl ?) "Hl".
-      iApply (ty_ref with "[//] Hl").
-      + simpl. rewrite /is_struct_ot. admit.
-      + rewrite /ty_own_val /=.
-        iExists _, eq_refl.
-        iSplit => //.
-        rewrite !length_fmap; iSplit => //.
-        admit.
-    - iIntros "Hl". iPoseProof (ty_deref with "Hl") as "(% & $ & H)". { admit. }
-      rewrite /ty_own_val /=.
-      iDestruct "H" as "(% & % & % & % & H)".
-      iSplit => //. admit.*)
-
-    rewrite uninit_memory_block //.
-    rewrite has_layout_struct_noattr /ty_own /struct.
-    apply (pure_equiv _ _ (l `has_layout_loc` Tstruct i noattr)); [iIntros "($ & _)"..|].
-    intros; rewrite bi.pure_True // bi.affinely_True_emp !bi.emp_sep.
+    rewrite {1}/uninit /struct {1 2}/ty_own.
+    rewrite -bi.sep_exist_l -(has_layout_struct_noattr _ a); apply (pure_equiv _ _ (l `has_layout_loc` Tstruct i a)); [iIntros "($ & _)"..|].
+    intros Hl; rewrite bi.pure_True // bi.affinely_True_emp !bi.emp_sep.
     rewrite !length_fmap bi.pure_True // bi.affinely_True_emp bi.emp_sep.
-    (*
-    f_equiv.
+    assert (0 ≤ Ptrofs.unsigned l.2 ∧ Ptrofs.unsigned l.2 + sizeof (Tstruct i a) < Ptrofs.modulus).
+    { destruct Hl as (_ & _ & Hsz & _); simpl in *; rep_lia. }
+    trans (l↦|(Tstruct i a)| default_val (Tstruct i a)).
+    { rewrite /heap_mapsto_own_state /mapsto /adr2val; setoid_rewrite <- (Ptrofs.repr_unsigned l.2).
+      iSplit.
+      - iIntros "(% & % & H)"; iApply (data_at_rec_data_at_rec_ with "H"); try done; try apply Hl.
+      - iIntros "$"; iPureIntro; split; last done; apply default_value_fits. }
+    rewrite mapsto_struct.
     pose proof (get_co_members_no_replicate i) as Hnorep.
-    rewrite /adr2val -(Ptrofs.repr_unsigned l.2) -(aggregate_pred.memory_block_struct_pred _ (co_members (get_co i)) _ (struct_default_val (co_members (get_co i)))) //.
-    - rewrite !length_fmap bi.pure_True // bi.affinely_True_emp bi.emp_sep.
-      apply aggregate_pred.struct_pred_ext; first done; intros.
-      match goal with |-context[Vptr ?a ?b] => change (Vptr a b) with (adr2val (a, b)) end.
-      assert (complete_legal_cosu_type (Tstruct i noattr) = true) as Hcomplete by apply f.
-      pose proof (nested_pred_lemmas.complete_Tstruct_plain _ _ Hcomplete).
-      epose proof (in_members_field_offset_pos _ _ _ ltac:(eassumption) H) as Hpos.
-      exploit field_offset_next_in_range; [done | done | by eapply sizeof_Tstruct_co_sizeof |].
-      intros (? & ?).
-      replace (match (cenv_cs !! i)%maps with | Some co => co_sizeof co | None => 0 end) with (co_sizeof (get_co i));
+    apply aggregate_pred.struct_pred_ext; first done; intros f ?? Hin.
+    rewrite -heap_withspacer_eq /heap_withspacer /mapsto_memory_block.at_offset /=; f_equiv.
+    pose proof (in_get_member _ _ Hin) as (? & Hi)%elem_of_list_In%elem_of_list_lookup_1.
+    erewrite proj_struct_lookup; try done.
+    2: rewrite !list_lookup_fmap Hi /= name_member_get //.
+    rewrite uninit_memory_block.
+    2: admit. (* volatile *)
+    assert (complete_legal_cosu_type (Tstruct i a) = true) as Hcomplete by apply Hl.
+    apply (field_compatible_app_inv' [StructField f]), field_compatible_nested_field in Hl; last done.
+    rewrite app_nil_r /nested_field_type /nested_field_offset /= in Hl.
+    replace (compute_in_members _ _) with true in Hl by (symmetry; by apply compute_in_members_true_iff).
+    rewrite bi.pure_True; last by rewrite name_member_get.
+    rewrite bi.affinely_True_emp bi.emp_sep.
+    assert (0 ≤ Ptrofs.unsigned l.2 + Ptrofs.unsigned (Ptrofs.repr (field_offset cenv_cs f (co_members (get_co i))))
+      ≤ Ptrofs.max_unsigned).
+    { apply field_offset_in_range in Hin as (? & ?); last by eapply nested_pred_lemmas.complete_Tstruct_plain.
+      apply sizeof_Tstruct_co_sizeof in Hcomplete as (? & ?).
+      pose (sizeof_pos (field_type f (co_members (get_co i)))).
+      rewrite Ptrofs.unsigned_repr; rep_lia. }
+    rewrite -memory_block_data_at_rec_default_val ?name_member_get; try apply Hl.
+    - rewrite Ptrofs.add_unsigned. erewrite data_at_rec_type_changable; first done.
+      + rewrite name_member_get //.
+      + rewrite default_val_eq /= unfold_fold_reptype /struct_default_val /proj_struct compact_prod_proj_gen.
+        * rewrite name_member_get //.
+        * by apply in_get_member.
+    - destruct Hl as (_ & _ & Hsz & _); simpl in H, Hsz.
+      replace (match (cenv_cs !! i)%maps with | Some co => co_sizeof co | None => 0 end) with (co_sizeof (get_co i)) in *;
         last by rewrite /get_co; destruct (cenv_cs !! i)%maps.
-      rewrite Ptrofs.repr_unsigned name_member_get -withspacer_uninit_memory_block.
-      + f_equiv.
-        * done.
-        * hnf; lia.
-        * f_equiv; hnf; extensionality p.
-          destruct p; try done; simpl.
-          pose proof (in_get_member _ _ H) as (? & Hi)%elem_of_list_In%elem_of_list_lookup_1.
-          erewrite proj_struct_lookup; try done.
-          rewrite !list_lookup_fmap Hi /= name_member_get //.
-      + apply (field_compatible_app_inv' [StructField i0]), field_compatible_nested_field in f; last done.
-        rewrite app_nil_r /nested_field_type /nested_field_offset /= in f.
-        apply compute_in_members_true_iff in H; rewrite H // in f.
-      + done.
-      + destruct f as (_ & _ & Hsz & _); simpl in Hsz.
-        replace (match (cenv_cs !! i)%maps with | Some co => co_sizeof co | None => 0 end) with (co_sizeof (get_co i)) in Hsz; first rep_lia.
-        rewrite /get_co; destruct (cenv_cs !! i)%maps; done.
-      + destruct f as (_ & _ & Hsz & _); simpl in *.
-        replace (match (cenv_cs !! i)%maps with | Some co => co_sizeof co | None => 0 end) with (co_sizeof (get_co i)) in Hsz; first rep_lia.
-        rewrite /get_co; destruct (cenv_cs !! i)%maps; done.
-    - intros H%get_co_members_nil_sizeof_0.
-      rewrite /get_co in H.
-      destruct (_ !! _)%maps; done.
-    - eapply nested_pred_lemmas.complete_Tstruct_plain, f.
-    - split.
-      + replace (match (cenv_cs !! i)%maps with | Some co => co_sizeof co | None => 0 end) with (co_sizeof (get_co i)) in *.
-        2: { rewrite /get_co; destruct (cenv_cs !! i)%maps; done. }
-        eapply sizeof_Tstruct_co_sizeof, f.
-      + destruct f as (_ & _ & Hsz & _).
-        simpl in Hsz; rep_lia.
-    - split; [rep_lia | eapply f].
-  Qed.*) Admitted.
+      split; first rep_lia.
+      rewrite Z.add_0_l Ptrofs.add_unsigned Ptrofs.unsigned_repr // in Hsz.
+    - destruct Hl as (_ & _ & _ & Ha & _).
+      rewrite /align_compatible_dec.align_compatible Z.add_0_l Ptrofs.add_unsigned Ptrofs.unsigned_repr // in Ha.
+  Admitted.
 
   (*Lemma uninit_struct_impl l β i a :
     (l ◁ₗ{β} uninit (Tstruct i a)) ⊢ (l ◁ₗ{β} struct i (uninit <$> (map (λ m, field_type (name_member m) (co_members (get_co i))) (get_co i).(co_members)))).
