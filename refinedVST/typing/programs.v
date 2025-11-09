@@ -1255,13 +1255,21 @@ Section typing.
   Definition simplify_v_refine_l_inst := [instance simplify_v_refine_l with 0%N].
   Global Existing Instance simplify_v_refine_l_inst.
 
-  Lemma simplify_val_refine_l A (ty : rtype A) cty v T:
-    (∀ x, v ◁ᵥₐₗ|cty| (x @ ty) -∗ T) ⊢ simplify_hyp (v ◁ᵥₐₗ|cty| ty) T.
+  Lemma simplify_place_refine_l' A (ty : rtype A) l β (T : assert):
+    (∀ x, ⎡l ◁ₗ{β} x @ ty⎤ -∗ T) ⊢ simplify_hyp ⎡l◁ₗ{β}ty⎤ T.
   Proof.
-    apply simplify_v_refine_l.
+    iIntros "HT Hl". unfold ty_of_rty; simpl_type. iDestruct "Hl" as (x) "Hv". by iApply "HT".
   Qed.
-  Definition simplify_val_refine_l_inst := [instance simplify_val_refine_l with 0%N].
-  Global Existing Instance simplify_val_refine_l_inst.
+  Definition simplify_place_refine_l'_inst := [instance simplify_place_refine_l' with 0%N].
+  Global Existing Instance simplify_place_refine_l'_inst.
+
+  Lemma simplify_v_refine_l' A (ty : rtype A) cty v (T : assert):
+    (∀ x, ⎡v ◁ᵥ|cty| (x @ ty)⎤ -∗ T) ⊢ simplify_hyp ⎡v ◁ᵥ|cty| ty⎤ T.
+  Proof.
+    iIntros "HT Hl". unfold ty_of_rty; simpl_type. iDestruct "Hl" as (x) "Hv". by iApply "HT".
+  Qed.
+  Definition simplify_v_refine_l'_inst := [instance simplify_v_refine_l' with 0%N].
+  Global Existing Instance simplify_v_refine_l'_inst.
 
   (* This is forced since it can create evars in places where we don't
   want them. We might first want to try subtyping without the evar (see e.g. optional ) *)
@@ -1276,6 +1284,18 @@ Section typing.
   Proof. iDestruct 1 as (x) "[? $]". by iExists _. Qed.
   Definition simplify_goal_val_refine_r_inst := [instance simplify_goal_val_refine_r with 10%N].
   Global Existing Instance simplify_goal_val_refine_r_inst.
+
+  Lemma simplify_goal_place_refine_r' A (ty : rtype A) l β (T : assert) :
+    (∃ x, ⎡l ◁ₗ{β} x @ ty⎤ ∗ T) ⊢ simplify_goal ⎡l◁ₗ{β}ty⎤ T.
+  Proof. iDestruct 1 as (x) "[Hl $]". by iExists _. Qed.
+  Definition simplify_goal_place_refine_r'_inst := [instance simplify_goal_place_refine_r' with 10%N].
+  Global Existing Instance simplify_goal_place_refine_r'_inst.
+
+  Lemma simplify_goal_val_refine_r' A (ty : rtype A) cty v (T : assert) :
+    (∃ x, ⎡v ◁ᵥₐₗ|cty| (x @ ty)⎤ ∗ T) ⊢ simplify_goal ⎡v ◁ᵥₐₗ|cty| ty⎤ T.
+  Proof. iDestruct 1 as (x) "[? $]". by iExists _. Qed.
+  Definition simplify_goal_val_refine_r'_inst := [instance simplify_goal_val_refine_r' with 10%N].
+  Global Existing Instance simplify_goal_val_refine_r'_inst.
 
   (* This rule is complete as [LocInBounds] implies that the location cannot be NULL. *)
 (*  Lemma simplify_goal_NULL_loc_in_bounds β ty n `{!LocInBounds ty β n} T:

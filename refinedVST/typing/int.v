@@ -191,6 +191,37 @@ Section int.
     destruct it; try done; destruct v; try done.
   Qed.
 
+  Lemma val_to_Z_inv v t n: val_to_Z v t = Some n → v = i2v n t.
+  Proof.
+    destruct v => //; destruct t => //; destruct s => //=; inversion 1.
+    - by rewrite Int.repr_signed.
+    - by rewrite Int.repr_unsigned.
+    - by rewrite Int64.repr_signed.
+    - by rewrite Int64.repr_unsigned.
+  Qed.
+
+  Lemma simplify_int (v : val) it n T:
+    (<affine> ⌜v = i2v n it⌝ -∗ T)
+      ⊢ simplify_hyp (v ◁ᵥₐₗ|it| n @ int it) T.
+  Proof.  iIntros "HT (_ & % & %)".
+          iApply "HT"; iPureIntro.
+          apply val_to_Z_inv.
+          destruct it; done.
+  Qed.
+  Definition simplify_int_inst := [instance simplify_int with 0%N].
+  Global Existing Instance simplify_int_inst.
+
+  Lemma simplify_int' (v : val) it n (T : assert):
+    (<affine> ⌜v = i2v n it⌝ -∗ T)
+      ⊢ simplify_hyp ⎡v ◁ᵥₐₗ|it| n @ int it⎤ T.
+  Proof.  iIntros "HT (_ & % & %)".
+          iApply "HT"; iPureIntro.
+          apply val_to_Z_inv.
+          destruct it; done.
+  Qed.
+  Definition simplify_int'_inst := [instance simplify_int' with 0%N].
+  Global Existing Instance simplify_int'_inst.
+
   Lemma val_to_Z_not_Vundef it v n:
     val_to_Z v it = Some n -> v ≠ Vundef.
   Proof.
@@ -910,15 +941,6 @@ Section programs.
   Qed.
   Definition type_neg_int_inst := [instance type_neg_int].
   Global Existing Instance type_neg_int_inst.
-
-  Lemma val_to_Z_inv v t n: val_to_Z v t = Some n → v = i2v n t.
-  Proof.
-    destruct v => //; destruct t => //; destruct s => //=; inversion 1.
-    - by rewrite Int.repr_signed.
-    - by rewrite Int.repr_unsigned.
-    - by rewrite Int64.repr_signed.
-    - by rewrite Int64.repr_unsigned.
-  Qed.
 
   Definition is_bool_type t := match t with Tint IBool _ _ => true | _ => false end.
 

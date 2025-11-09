@@ -351,19 +351,32 @@ Section union.
   Definition subsume_active_union_variant_inst := [instance subsume_active_union_variant].
   Global Existing Instance subsume_active_union_variant_inst.
 
-  Lemma subsume_variant_variant B ti x1 x2 l β ty1 ty2 T:
-    (l at_union{ti.(ti_union_layout)}ₗ (name_member (ti_member ti x1)) ◁ₗ{β} ty1 -∗
+  Lemma subsume_active_union_variant' B ti i x l β ty1 ty2 n (T : B → assert):
+    (⎡l at_union{i}ₗ n ◁ₗ{β} ty1⎤ -∗
+      ∃ y, <affine> ⌜ti.(ti_union_layout) = i⌝ ∗ <affine> ⌜name_member (ti_member ti (x y)) = n⌝ ∗
+            ⎡l at_union{i}ₗ n ◁ₗ{β} ty2 y⎤ ∗ T y)
+    ⊢ subsume ⎡l ◁ₗ{β} active_union i n ty1⎤ (λ y : B, ⎡l ◁ₗ{β} variant ti (x y) (ty2 y)⎤) T.
+  Proof.
+    iIntros "HT". iDestruct 1 as (? (? & ? & ? & <-) ?) "[Hl Hpad]".
+    rewrite /GetMemberUnionLoc/=. destruct l; iDestruct ("HT" with "[$]") as (? <- <-) "[??]".
+    rewrite name_member_get. iExists _. iFrame. done.
+  Qed.
+  Definition subsume_active_union_variant'_inst := [instance subsume_active_union_variant'].
+  Global Existing Instance subsume_active_union_variant'_inst.
+
+  Lemma subsume_variant_variant' B ti x1 x2 l β ty1 ty2 (T : B → assert):
+    (⎡l at_union{ti.(ti_union_layout)}ₗ (name_member (ti_member ti x1)) ◁ₗ{β} ty1⎤ -∗
       ∃ y, <affine> ⌜ti.(ti_tag) x1 = ti.(ti_tag) (x2 y)⌝ ∗
-      l at_union{ti.(ti_union_layout)}ₗ (name_member (ti_member ti x1)) ◁ₗ{β} (ty2 y) ∗ T y)
-    ⊢ subsume (l ◁ₗ{β} variant ti x1 ty1) (λ y : B, l ◁ₗ{β} variant ti (x2 y) (ty2 y)) T.
+      ⎡l at_union{ti.(ti_union_layout)}ₗ (name_member (ti_member ti x1)) ◁ₗ{β} (ty2 y)⎤ ∗ T y)
+    ⊢ subsume ⎡l ◁ₗ{β} variant ti x1 ty1⎤ (λ y : B, ⎡l ◁ₗ{β} variant ti (x2 y) (ty2 y)⎤) T.
   Proof.
     iIntros "HT". rewrite {3 4}/ty_own/GetMemberUnionLoc/=/ti_member.
     iIntros "(% & Hl & Hpad)".
     destruct l; iDestruct ("HT" with "Hl") as (? Heq) "[??]". iExists _. iFrame.
     rewrite Heq. iFrame. done.
   Qed.
-  Definition subsume_variant_variant_inst := [instance subsume_variant_variant].
-  Global Existing Instance subsume_variant_variant_inst.
+  Definition subsume_variant_variant'_inst := [instance subsume_variant_variant'].
+  Global Existing Instance subsume_variant_variant'_inst.
 
   Lemma type_place_variant ge K β ul n l ty ti x {Heq: TCEq (name_member (ti_member ti x)) n} T :
     <affine> ⌜ul = ti.(ti_union_layout)⌝ ∗

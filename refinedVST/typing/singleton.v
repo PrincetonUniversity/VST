@@ -296,6 +296,26 @@ Section place.
   (* This is applied with Hint Extern for better performance. *)
   Definition simplify_goal_ex_place_inst := [instance simplify_goal_ex_place with 99%N].
 
+  Lemma place_simplify' l β p (T : assert):
+    (<affine> ⌜l = p⌝ -∗ T)
+    ⊢ simplify_hyp ⎡l◁ₗ{β} place p⎤ T.
+  Proof. iIntros "HT ->". by iApply "HT". Qed.
+  Definition place_simplify'_inst := [instance place_simplify' with 0%N].
+  Global Existing Instance place_simplify'_inst.
+
+  Lemma place_simplify_goal' l β p (T : assert):
+    <affine> ⌜l = p⌝ ∗ T
+    ⊢ simplify_goal ⎡l◁ₗ{β} place p⎤ T.
+  Proof. by iIntros "[-> $]". Qed.
+  Definition place_simplify_goal'_inst := [instance place_simplify_goal' with 0%N].
+  Global Existing Instance place_simplify_goal'_inst.
+
+  Lemma simplify_goal_ex_place' l β ty (T : assert):
+    simplify_goal ⎡l ◁ₗ{β} ty⎤ T :- exhale (<affine> ⌜ty = place l⌝); return T.
+  Proof. iIntros "[-> $]". done. Qed.
+  (* This is applied with Hint Extern for better performance. *)
+  Definition simplify_goal_ex_place'_inst := [instance simplify_goal_ex_place' with 99%N].
+
   Lemma type_addr_of_singleton l β ty T:
     T β ty (place l)
     ⊢ typed_addr_of_end l β ty T.
@@ -353,3 +373,5 @@ Notation "place< l >" := (place l) (only printing, format "'place<' l '>'") : pr
 
 Global Hint Extern 99 (SimplifyGoal (_ ◁ₗ{_} _.1ₗ) _) =>
   (class_apply simplify_goal_ex_place_inst) : typeclass_instances.
+Global Hint Extern 99 (SimplifyGoal (_ ◁ₗ{_} _.1ₗ) _) =>
+  (class_apply simplify_goal_ex_place'_inst) : typeclass_instances.

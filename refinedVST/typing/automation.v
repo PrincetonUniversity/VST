@@ -487,6 +487,7 @@ End additional_instances.
 Arguments find_in_context: simpl never.
 Arguments subsume: simpl never.
 Arguments FindVal: simpl never.
+Arguments case_destruct: simpl never.
 Arguments typed_if: simpl never.
 (* for triggering related_to_val_rep_v *)
 Arguments repinject: simpl never.
