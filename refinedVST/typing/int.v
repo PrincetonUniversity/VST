@@ -211,13 +211,12 @@ Section int.
   Definition simplify_int_inst := [instance simplify_int with 0%N].
   Global Existing Instance simplify_int_inst.
 
-  Lemma simplify_int' (v : val) it n (T : assert):
-    (<affine> ⌜v = i2v n it⌝ -∗ T)
-      ⊢ simplify_hyp ⎡v ◁ᵥₐₗ|it| n @ int it⎤ T.
+  Lemma simplify_int' it v n (T : assert):
+    (<affine> ⌜repinject it v = i2v n it⌝ -∗ T)
+      ⊢ simplify_hyp ⎡v ◁ᵥ|it| n @ int it⎤ T.
   Proof.  iIntros "HT (_ & % & %)".
           iApply "HT"; iPureIntro.
-          apply val_to_Z_inv.
-          destruct it; done.
+          by apply val_to_Z_inv.
   Qed.
   Definition simplify_int'_inst := [instance simplify_int' with 0%N].
   Global Existing Instance simplify_int'_inst.
