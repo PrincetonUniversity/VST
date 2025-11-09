@@ -38,16 +38,16 @@ Section value.
     apply valinject_inj in H as ->; done.
   Qed.
 
-  Lemma value_simplify v ot p T:
-    (<affine> ⌜valinject ot v = valinject ot p⌝ -∗ <affine>⌜(valinject ot v) `has_layout_val` ot⌝ -∗ T)
-    ⊢ simplify_hyp (v ◁ᵥₐₗ|ot| value ot p) T.
+  Lemma value_simplify ot v p T:
+    (<affine> ⌜v = valinject ot p⌝ -∗ <affine>⌜v `has_layout_val` ot⌝ -∗ T)
+    ⊢ simplify_hyp (v ◁ᵥ|ot| value ot p) T.
   Proof. iIntros "HT [% [% %]]". by iApply "HT". Qed.
   Definition value_simplify_inst := [instance value_simplify with 0%N].
   Global Existing Instance value_simplify_inst.
 
-  Lemma value_simplify' v ot p (T : assert):
-    (<affine> ⌜valinject ot v = valinject ot p⌝ -∗ <affine>⌜(valinject ot v) `has_layout_val` ot⌝ -∗ T)
-    ⊢ simplify_hyp ⎡v ◁ᵥₐₗ|ot| value ot p⎤ T.
+  Lemma value_simplify' ot v p (T : assert):
+    (<affine> ⌜v = valinject ot p⌝ -∗ <affine>⌜v `has_layout_val` ot⌝ -∗ T)
+    ⊢ simplify_hyp ⎡v ◁ᵥ|ot| value ot p⎤ T.
   Proof. iIntros "HT [% [% %]]". by iApply "HT". Qed.
   Definition value_simplify'_inst := [instance value_simplify' with 0%N].
   Global Existing Instance value_simplify'_inst.

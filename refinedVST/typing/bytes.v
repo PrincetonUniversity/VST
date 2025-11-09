@@ -201,6 +201,9 @@ Section uninit.
   Next Obligation. by iIntros (????->) "(%&%&%&$)". Qed.
   Next Obligation. iIntros (???? v -> ?) "? [%%]". by iFrame. Qed.
 
+  Global Instance uninit_affine cty v: Affine (v ◁ᵥ|cty| uninit cty).
+  Proof. apply _. Qed.
+
   Lemma uninit_own_spec l ly:
     (l ◁ₗ uninit ly)%I ≡ (mapsto_layout l Tsh ly)%I.
   Proof.

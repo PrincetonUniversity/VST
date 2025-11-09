@@ -424,6 +424,15 @@ Section array.
   (* Global Instance array_loc_in_bounds ly β tys : LocInBounds (array ly tys) β (ly_size ly * length tys).
   Proof. constructor. iIntros (?) "(?&$&?)". Qed. *)
 
+  Global Instance array_affine cty0 v cty tys `{!TCForall (λ ty, forall v, Affine (v ◁ᵥ|cty| ty)) tys}: Affine (v ◁ᵥ|cty0| array cty tys).
+  Proof.
+    rewrite /array; simpl_type.
+    apply bi.exist_affine; intros.
+    do 2 (apply bi.sep_affine; first apply _).
+    apply big_sepL2_affine; intros.
+    eapply TCForall_Forall, Forall_lookup_1 in TCForall0; done.
+  Qed.
+
   (* array has type `tarray cty (length tys)` *)
   Lemma array_get_type (i : nat) cty tys ty l β:
     tys !! i = Some ty →

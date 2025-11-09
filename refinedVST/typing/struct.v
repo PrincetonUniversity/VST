@@ -384,6 +384,34 @@ Section struct.
   Global Instance struct_proper : Proper ((=) ==> Forall2 (≡) ==> (≡)) struct.
   Proof. move => ??-> ?? Heq. apply type_le_equiv_list; [by apply struct_le|done]. Qed.
 
+  Global Instance struct_affine cty v i tys `{!TCForall (λ ty, forall cty v, Affine (v ◁ᵥ|cty| ty)) tys}: Affine (v ◁ᵥ|cty| struct i tys).
+  Proof.
+    rewrite /struct; simpl_type.
+    do 2 (apply bi.exist_affine; intros).
+    do 2 (apply bi.sep_affine; first apply _).
+    subst; simpl.
+    forget (unfold_reptype v) as v0; clear v; simpl in v0; revert v0.
+    rewrite /reptype_structlist.
+    assert (forall ms, ms = co_members (get_co i) → forall v0, Affine (aggregate_pred.struct_pred (co_members (get_co i))
+      (λ (m : member) (v : reptype (field_type (name_member m) ms)) (_ : val),
+       ∃ ty : type, <affine> ⌜∃ j : nat, ms !! j = Some m ∧ tys !! j = Some ty⌝ ∗
+      v ◁ᵥ| field_type (name_member m) ms | ty) v0 Vundef)); last by auto.
+    intros ? _; induction (co_members (get_co i)); first done; intros.
+    destruct m.
+    - simpl.
+      apply bi.exist_affine; intros.
+      rewrite /Affine.
+      iIntros "((% & % & %) & ?)".
+      eapply TCForall_Forall, Forall_lookup_1 in TCForall0; done.
+    - rewrite -/aggregate_pred.aggregate_pred.struct_pred struct_pred_cons2;
+        apply bi.sep_affine.
+      + apply bi.exist_affine; intros.
+        rewrite /Affine.
+        iIntros "((% & % & %) & ?)".
+        eapply TCForall_Forall, Forall_lookup_1 in TCForall0; done.
+      + apply IHm.
+  Qed.
+
   Lemma struct_focus l β i tys:
     l ◁ₗ{β} struct i tys -∗ ([∗ list] n;ty∈map name_member (get_co i).(co_members);tys, l at{i}ₗ n ◁ₗ{β} ty) ∗ (∀ tys',
            ([∗ list] n;ty∈map name_member (get_co i).(co_members);tys', l at{i}ₗ n ◁ₗ{β} ty) -∗ l ◁ₗ{β} struct i tys').

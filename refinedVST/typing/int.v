@@ -453,7 +453,7 @@ Section programs.
     | Cop.Oge => Some (bool_decide (n1 >= n2))
     | _ => None
     end = Some b →
-    (⌜n1 ∈ it⌝ -∗ ⌜n2 ∈ it⌝ -∗ T (i2v (bool_to_Z b) tint) (b @ boolean tint))
+    (<affine> ⌜n1 ∈ it⌝ -∗ <affine> ⌜n2 ∈ it⌝ -∗ T (i2v (bool_to_Z b) tint) (b @ boolean tint))
     ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it| n1 @ int it⎤ v2 ⎡v2 ◁ᵥₐₗ|it| n2 @ int it⎤ op it it tint T.
   Proof.
     iIntros "%Hop HT (%H1 & [%H %Hv1]) (%H2 & [%H0 %Hv2]) %Φ HΦ".
@@ -955,7 +955,7 @@ Section programs.
   Global Existing Instance type_switch_int_inst. *)
 
   Lemma type_neg_int n it v T:
-    (⌜n ∈ it⌝ -∗ <affine> ⌜is_signed it⌝ ∗ <affine> ⌜n ≠ min_int it⌝ ∗ T (i2v (-n) it) ((-n) @ int it))
+    (<affine> ⌜n ∈ it⌝ -∗ <affine> ⌜is_signed it⌝ ∗ <affine> ⌜n ≠ min_int it⌝ ∗ T (i2v (-n) it) ((-n) @ int it))
     ⊢ typed_un_op v ⎡v ◁ᵥₐₗ|it| n @ int it⎤%I Oneg it it T.
   Proof.
     iIntros "HT (%_ & [%H %Hv]) %Φ HΦ".

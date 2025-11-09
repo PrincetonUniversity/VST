@@ -377,18 +377,17 @@ Tactic Notation "start_function2" :=
   iIntros "#?"; rewrite /typed_stackframe.
 
 Ltac type_function_end :=
-  let l := fresh in
-  evar (l: list val);
-  iExists (li_pair l tt) => /=; liShow;
+  match goal with |- envs_entails _ (∃ₗ _, stackframe_of1' _ _ _) =>
+  iExists (li_pair _ tt) => /=; liShow;
   rewrite /stackframe_of0' /stackframe_of1'; cbn;
   repeat match goal with
   | |- context [ [∗ list] _;_ ∈ (cons _ _); _ , _ ] =>
-    instantiate (l:= cons _ _);
-    rewrite big_sepL2_cons; iFrame
+    setoid_rewrite big_sepL2_cons; iFrame
   | |- context [ [∗ list] _;_ ∈ []; ?l , _] =>
-    assert (l=nil) as -> by (subst; reflexivity)
+    setoid_rewrite big_sepL2_nil
    end;
-  rewrite big_sepL2_nil //.
+  try done
+  end.
 
 Tactic Notation "prepare_parameters" "(" ident_list(i) ")" :=
   revert i; repeat liForall.

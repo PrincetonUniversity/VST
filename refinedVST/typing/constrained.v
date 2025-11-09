@@ -17,7 +17,7 @@ Section own_constrained.
   Program Definition own_constrained (P : own_state → mpred) `{!OwnConstraint P} (ty : type) : type := {|
     ty_has_op_type ot mt := ty.(ty_has_op_type) ot mt;
     ty_own β l := (l ◁ₗ{β} ty ∗ P β)%I;
-     ty_own_val cty v := (v ◁ᵥ|cty| ty ∗ P Own)%I;
+    ty_own_val cty v := (v ◁ᵥ|cty| ty ∗ P Own)%I;
   |}.
   Next Obligation. iIntros (??????) "(H1 & H2)".
                    iMod (ty_share with "[$H1]") as "$" => //.

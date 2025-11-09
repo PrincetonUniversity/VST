@@ -505,7 +505,7 @@ End memcast.*)
 Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} (cty:Ctypes.type) (ty : type) := {
   copy_own_val_persistent v : Persistent (ty.(ty_own_val) cty v);
   copy_own_val_affine v : Affine (ty.(ty_own_val) cty v);
-  copy_own_affine l : Affine (ty.(ty_own) Shr l);
+  copy_own_affine l : Affine (ty.(ty_own) Shr l); (* should always be true? *)
   copy_shr_acc E l :
     mtE ⊆ E →
     ty.(ty_own) Shr l ={E}=∗ <affine> ⌜l `has_layout_loc` cty⌝ ∗

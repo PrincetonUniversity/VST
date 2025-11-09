@@ -173,6 +173,9 @@ Section union.
     iApply (defined_ty with "H").
   Qed.
 
+  Global Instance tunion_tag_affine ti x v: Affine (v ◁ᵥ|size_t| tunion_tag ti x).
+  Proof. apply _. Qed.
+
   Lemma subsume_int_tunion_tag B ti x (n : Z) l β T:
     (∃ y, <affine> ⌜ti.(ti_tag) (x y) =@{Z} n⌝ ∗ T y)
     ⊢ subsume (l ◁ₗ{β} n @ int size_t) (λ y : B, l ◁ₗ{β} tunion_tag ti (x y)) T.
