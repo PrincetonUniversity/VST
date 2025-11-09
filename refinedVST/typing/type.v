@@ -218,6 +218,8 @@ Definition own_state_min (β1 β2 : own_state) : own_state :=
   | _ => Shr
   end.
 
+Global Instance own_state_inhabited : Inhabited own_state := populate Own.
+
 (* Should this be lower (e.g., no type and memval, and a single ↦ instead of mapsto)? *)
 Definition heap_mapsto_own_state `{!typeG OK_ty Σ} {cs : compspecs} (cty : type) (l : address) (β : own_state) v : iProp Σ :=
   match β with

@@ -28,7 +28,7 @@ Definition is_bool_ot (ot : op_type) (it : int_type) (stn : bool_strictness) : P
   end.*)
 
 Section is_bool_ot.
-  Context `{!typeG OK_ty Σ} `{cs :compspecs} (ge : genv).
+  Context `{!typeG OK_ty Σ} `{cs :compspecs} (ge : Genv.t Clight.fundef Ctypes.type).
 
   Lemma represents_boolean_eq stn n b :
     represents_boolean stn n b → bool_decide (n ≠ 0) = b.
@@ -164,24 +164,38 @@ Section generic_boolean.
     destruct it, v; try discriminate; eauto.
   Qed.
   Definition type_if_generic_boolean_inst := [instance type_if_generic_boolean].
-  (* Global Existing Instance type_if_generic_boolean_inst. *)
+  Global Existing Instance type_if_generic_boolean_inst.
 
-(*  Lemma type_assert_generic_boolean v stn it (b : bool) s fn ls R Q :
-    (<affine> ⌜b⌝ ∗ typed_stmt s fn ls R Q)
-    ⊢ typed_assert it v (v ◁ᵥ b @ generic_boolean stn it) s fn ls R Q.
+  Lemma type_if_generic_boolean' stn it (b : bool) v (T1 T2 : assert):
+     case_destruct b (λ b' _,
+     li_trace (TraceIfBool b, b') (if b' then T1 else T2))
+    ⊢ typed_if it v ⎡v ◁ᵥₐₗ|it| b @ generic_boolean stn it⎤ ⎡valid_val v⎤ T1 T2.
   Proof.
-    iIntros "[% [% ?]] (%n&%&%Hb)". destruct b; last by exfalso.
-    destruct ot; destruct_and? => //; simplify_eq/=.
-    - iExists true. iFrame. iPureIntro. split; [|done]. by apply val_to_bool_iff_val_to_Z.
-    - iExists n. iFrame. iSplit; first done. iPureIntro.
-      by apply represents_boolean_eq, bool_decide_eq_true in Hb.
+    unfold case_destruct, li_trace. iIntros "[% Hs] (%n&%&%&%Hval_to_Z&%Hb)".
+    apply val_to_Z_by_value in Hval_to_Z as Hit.
+    rewrite repinject_valinject // in Hval_to_Z.
+    apply represents_boolean_eq in Hb as <-.
+    destruct it, v; try discriminate; eauto.
+  Qed.
+  Definition type_if_generic_boolean'_inst := [instance type_if_generic_boolean'].
+  Global Existing Instance type_if_generic_boolean'_inst.
+
+  Lemma type_assert_generic_boolean Espec ge v stn it (b : bool) s f R :
+    (<affine> ⌜b⌝ ∗ typed_stmt Espec ge s f R)
+    ⊢ typed_assert Espec ge it v ⎡v ◁ᵥₐₗ|it| b @ generic_boolean stn it⎤ s f R.
+  Proof.
+    iIntros "[% ?] (%n&%&%&%&%Hb)". destruct b; last by exfalso.
+    destruct it; destruct_and? => //; simplify_eq/=; try (by destruct v); iFrame.
+    - iFrame "%". by apply represents_boolean_eq, bool_decide_eq_true in Hb.
+    - iFrame "%". by apply represents_boolean_eq, bool_decide_eq_true in Hb.
   Qed.
   Definition type_assert_generic_boolean_inst := [instance type_assert_generic_boolean].
-  Global Existing Instance type_assert_generic_boolean_inst.*)
+  (*Global Existing Instance type_assert_generic_boolean_inst.*)
+  Global Instance type_assert_generic_boolean_inst' Espec ge v stn it (b : bool) : TypedAssert Espec ge it v ⎡v ◁ᵥₐₗ|it| b @ generic_boolean stn it⎤ := type_assert_generic_boolean_inst Espec ge v stn it b.
 End generic_boolean.
 
 Section boolean.
-  Context `{!typeG OK_ty Σ} `{cs :compspecs} (ge : genv).
+  Context `{!typeG OK_ty Σ} `{cs :compspecs} (ge : Genv.t Clight.fundef Ctypes.type).
 
 
   Lemma type_relop_boolean b1 b2 op b it v1 v2

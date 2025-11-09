@@ -180,12 +180,26 @@ Section union.
   Definition subsume_int_tunion_tag_inst := [instance subsume_int_tunion_tag].
   Global Existing Instance subsume_int_tunion_tag_inst.
 
+  Lemma subsume_int_tunion_tag' B ti x (n : Z) l β (T : B → assert):
+    (∃ y, <affine> ⌜ti.(ti_tag) (x y) =@{Z} n⌝ ∗ T y)
+    ⊢ subsume ⎡l ◁ₗ{β} n @ int size_t⎤ (λ y : B, ⎡l ◁ₗ{β} tunion_tag ti (x y)⎤) T.
+  Proof. iIntros "[% [<- ?]] ?". iExists _. iFrame. Qed.
+  Definition subsume_int_tunion_tag'_inst := [instance subsume_int_tunion_tag'].
+  Global Existing Instance subsume_int_tunion_tag'_inst.
+
   Lemma subsume_tunion_tag B ti x1 x2 l β T:
     (∃ y, <affine> ⌜ti.(ti_tag) x1 = ti.(ti_tag) (x2 y)⌝ ∗ T y)
     ⊢ subsume (l ◁ₗ{β} tunion_tag ti x1) (λ y : B, l ◁ₗ{β} tunion_tag ti (x2 y)) T.
   Proof. rewrite /ty_own/=. iIntros "[% [-> ?]] ?". iExists _. iFrame. Qed.
   Definition subsume_tunion_tag_inst := [instance subsume_tunion_tag].
   Global Existing Instance subsume_tunion_tag_inst.
+
+  Lemma subsume_tunion_tag' B ti x1 x2 l β (T : B → assert):
+    (∃ y, <affine> ⌜ti.(ti_tag) x1 = ti.(ti_tag) (x2 y)⌝ ∗ T y)
+    ⊢ subsume ⎡l ◁ₗ{β} tunion_tag ti x1⎤ (λ y : B, ⎡l ◁ₗ{β} tunion_tag ti (x2 y)⎤) T.
+  Proof. rewrite /ty_own/=. iIntros "[% [-> ?]] ?". iExists _. iFrame. Qed.
+  Definition subsume_tunion_tag'_inst := [instance subsume_tunion_tag'].
+  Global Existing Instance subsume_tunion_tag'_inst.
 
   Inductive trace_union :=
   | TraceUnion (info : tunion_info A).

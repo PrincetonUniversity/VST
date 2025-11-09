@@ -264,7 +264,7 @@ Ltac liRExpr :=
   lazymatch goal with
   | |- envs_entails ?Δ (typed_val_expr _ _ ?e ?T) =>
     lazymatch e with
-    | Ecast _ (Tpointer _ _) => notypeclasses refine (tac_fast_apply (type_cast_ptr_ptr _ _ _ _ _ _ _) _);[done|]
+    | Ecast _ (tptr _) => notypeclasses refine (tac_fast_apply (type_cast_ptr_ptr _ _ _ _ _ _ _) _);[done|]
     | Ecast _ _ => first [notypeclasses refine (tac_fast_apply (type_cast_int_same _ _ _ _) _) | notypeclasses refine (tac_fast_apply (type_cast_int _ _ _ _ _) _)]
     | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _ _ _) _)
     | Econst_float _ _ => notypeclasses refine (tac_fast_apply (type_const_float _ _ _ _ _) _)
@@ -487,6 +487,7 @@ End additional_instances.
 Arguments find_in_context: simpl never.
 Arguments subsume: simpl never.
 Arguments FindVal: simpl never.
+Arguments typed_if: simpl never.
 (* for triggering related_to_val_rep_v *)
 Arguments repinject: simpl never.
 Arguments sep_list: simpl never.

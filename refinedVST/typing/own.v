@@ -6,7 +6,7 @@ From VST.typing Require Import type_options.
 From compcert Require Import Ctypesdefs.
 
 Section own.
-  Context `{!typeG OK_ty Σ} {cs : compspecs} (ge : genv).
+  Context `{!typeG OK_ty Σ} {cs : compspecs} (ge : Genv.t Clight.fundef Ctypes.type).
 
   Local Typeclasses Transparent place.
 
@@ -118,7 +118,7 @@ Section own.
 
   Lemma simplify_frac_ptr (v : val) (p : address) cty ty β T:
     (<affine> ⌜v = p⌝ -∗ p ◁ₗ{β} ty -∗ T)
-      ⊢ simplify_hyp (v◁ᵥₐₗ|tptr cty| p @ frac_ptr β ty) T.
+      ⊢ simplify_hyp (v ◁ᵥₐₗ|tptr cty| p @ frac_ptr β ty) T.
   Proof.  iIntros "HT Hl".
           iDestruct "Hl" as (?) "Hl".
           iApply "HT"; try done.
@@ -128,13 +128,35 @@ Section own.
 
   Lemma simplify_frac_ptr' (v : val) (p : address) cty ty β (T : assert):
     (<affine> ⌜v = p⌝ -∗ ⎡p ◁ₗ{β} ty⎤ -∗ T)
-      ⊢ simplify_hyp ⎡v◁ᵥₐₗ|tptr cty| p @ frac_ptr β ty⎤ T.
+      ⊢ simplify_hyp ⎡v ◁ᵥₐₗ|tptr cty| p @ frac_ptr β ty⎤ T.
   Proof.  iIntros "HT Hl".
           iDestruct "Hl" as (?) "Hl".
           iApply "HT"; try done.
   Qed.
   Definition simplify_frac_ptr'_inst := [instance simplify_frac_ptr' with 0%N].
   Global Existing Instance simplify_frac_ptr'_inst.
+
+  Lemma simplify_frac_ptr_unrefined (v : val) (p : address) cty ty β T:
+    (∀ p : address, <affine> ⌜v = p⌝ -∗ p ◁ₗ{β} ty -∗ T)
+      ⊢ simplify_hyp (v ◁ᵥₐₗ|tptr cty| frac_ptr β ty) T.
+  Proof.  iIntros "HT Hl".
+          rewrite /ty_own_val_at /ty_own_val /=.
+          iDestruct "Hl" as (?) "Hl".
+          by iApply (simplify_frac_ptr with "HT").
+  Qed.
+  Definition simplify_frac_ptr_unrefined_inst := [instance simplify_frac_ptr_unrefined with 0%N].
+  Global Existing Instance simplify_frac_ptr_unrefined_inst.
+
+  Lemma simplify_frac_ptr_unrefined' (v : val) (p : address) cty ty β (T : assert):
+    (∀ p : address, <affine> ⌜v = p⌝ -∗ ⎡p ◁ₗ{β} ty⎤ -∗ T)
+      ⊢ simplify_hyp ⎡v ◁ᵥₐₗ|tptr cty| p @ frac_ptr β ty⎤ T.
+  Proof.  iIntros "HT Hl".
+          iDestruct "Hl" as (?) "Hl".
+          iApply (simplify_frac_ptr' _ p cty with "HT").
+          rewrite /ty_own_val_at /ty_own_val /=; by iFrame.
+  Qed.
+  Definition simplify_frac_ptr_unrefined'_inst := [instance simplify_frac_ptr_unrefined' with 0%N].
+  Global Existing Instance simplify_frac_ptr_unrefined'_inst.
 
   Lemma simplify_goal_frac_ptr_val cty ty (v : val) β (p : address) T:
     <affine> ⌜v = p⌝ ∗ p ◁ₗ{β} ty ∗ T

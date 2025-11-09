@@ -218,17 +218,23 @@ Section coq_tactics.
   Lemma tac_true Δ :
     envs_entails Δ (True%I : prop).
   Proof. rewrite envs_entails_unseal. by iIntros "_". Qed.
+
+  Lemma tac_embed_true `{!BiEmbed prop0 prop} Δ :
+    envs_entails Δ (⎡True%I : prop0⎤ : prop).
+  Proof. rewrite envs_entails_unseal. rewrite embed_pure. by iIntros "_". Qed.
 End coq_tactics.
 
 Ltac liTrue :=
   lazymatch goal with
   | |- envs_entails _ True => notypeclasses refine (tac_true _)
+  | |- envs_entails _ ⎡True⎤ => notypeclasses refine (tac_embed_true _)
   end.
 
 (** ** [liFalse] *)
 Ltac liFalse :=
   lazymatch goal with
   | |- envs_entails _ False => exfalso; shelve_sidecond
+  | |- envs_entails _ ⎡False⎤ => exfalso; shelve_sidecond
   | |- False => shelve_sidecond
   end.
 
