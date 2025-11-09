@@ -406,12 +406,12 @@ Section union.
   Definition type_place_variant_inst := [instance type_place_variant].
   Global Existing Instance type_place_variant_inst | 20.
 
-  Lemma type_place_variant_neq ge K ul a n l ty ti x T :
+  Lemma type_place_variant_neq ge K ul n l ty ti x T :
     (<affine> ⌜ul = ti.(ti_union_layout)⌝ ∗ <affine> ⌜ty.(ty_has_op_type) (field_type (name_member (ti_member ti x)) (get_co ul).(co_members)) MCNone⌝ ∗
-     ∀ v, ⎡v ◁ᵥ|field_type (name_member (ti_member ti x)) (get_co ul).(co_members)|  ty⎤ -∗ typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (uninit (Tunion ul a)) T)
+     ∀ v, ⎡v ◁ᵥ|field_type (name_member (ti_member ti x)) (get_co ul).(co_members)|  ty⎤ -∗ typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (uninit (Tunion ul noattr)) T)
     ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (variant ti x ty) T.
   Proof.
-    iIntros "[-> [% HP]]". iApply (typed_place_subsume _ _ _ _ (uninit (Tunion (ti_union_layout ti) a))).
+    iIntros "[-> [% HP]]". iApply (typed_place_subsume _ _ _ _ (uninit (Tunion (ti_union_layout ti) noattr))).
     iApply uninit_mono'.
     { split; eauto. }
     iIntros (?) "(% & % & Hv)".

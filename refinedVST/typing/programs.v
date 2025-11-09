@@ -1345,6 +1345,25 @@ Section typing.
   Definition simple_subsume_val_to_subsume_inst := [instance simple_subsume_val_to_subsume].
   Global Existing Instance simple_subsume_val_to_subsume_inst.
 
+  Lemma simple_subsume_place_to_subsume' A l β ty1 ty2 P
+    `{!∀ x, SimpleSubsumePlace ty1 (ty2 x) (P x)} (T : A → assert):
+    (∃ x, ⎡P x⎤ ∗ T x) ⊢ subsume ⎡l ◁ₗ{β} ty1⎤ (λ x : A, ⎡l ◁ₗ{β} ty2 x⎤) T.
+  Proof. iIntros "[% [HP ?]] Hl". iExists _. iFrame. iApply (@simple_subsume_place with "HP Hl"). Qed.
+  Definition simple_subsume_place_to_subsume'_inst := [instance simple_subsume_place_to_subsume'].
+  Global Existing Instance simple_subsume_place_to_subsume'_inst.
+
+  Lemma simple_subsume_val_to_subsume_inject' A cty v ty1 ty2 P `{!∀ x, SimpleSubsumeVal cty ty1 (ty2 x) (P x)} (T : A → assert):
+    (∃ x, ⎡P x⎤ ∗ T x) ⊢ subsume ⎡v ◁ᵥₐₗ|cty| ty1⎤ (λ x : A, ⎡v ◁ᵥₐₗ|cty| ty2 x⎤) T.
+  Proof. iIntros "[% [HP ?]] Hv". iExists _. iFrame. iApply (@simple_subsume_val with "HP Hv"). Qed.
+  Definition simple_subsume_val_to_subsume_inject'_inst := [instance simple_subsume_val_to_subsume_inject'].
+  Global Existing Instance simple_subsume_val_to_subsume_inject'_inst.
+
+  Lemma simple_subsume_val_to_subsume' A cty v ty1 ty2 P `{!∀ x, SimpleSubsumeVal cty ty1 (ty2 x) (P x)} (T : A → assert):
+    (∃ x, ⎡P x⎤ ∗ T x) ⊢ subsume ⎡v ◁ᵥ|cty| ty1⎤ (λ x : A, ⎡v ◁ᵥ|cty| ty2 x⎤) T.
+  Proof. iIntros "[% [HP ?]] Hv". iExists _. iFrame. iApply (@simple_subsume_val with "HP Hv"). Qed.
+  Definition simple_subsume_val_to_subsume_inst' := [instance simple_subsume_val_to_subsume'].
+  Global Existing Instance simple_subsume_val_to_subsume_inst'.
+  
   Lemma subsume_place_own_ex A ty1 ty2 l β1 β2 T:
     subsume (l ◁ₗ{β1} ty1) (λ x : A, l ◁ₗ{β2 x} ty2 x) T :-
       inhale (l ◁ₗ{β1} ty1); ∃ x, exhale (<affine> ⌜β2 x = β1⌝); exhale (l ◁ₗ{β2 x} ty2 x); return T x.
@@ -1864,6 +1883,7 @@ Section typing.
     by iApply ("Hop" with "Hv").
   Qed.
 
+  (* should we drop the val type and just give value<v>? *)
   Lemma type_tempvar ge f _x cty T ty:
     find_in_context (FindTemp _x) (λ v, env.temp _x v -∗ ⎡v ◁ᵥₐₗ|cty| ty⎤ ∗ T v ty)
     ⊢ typed_val_expr ge f (Etempvar _x cty) T.

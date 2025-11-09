@@ -200,26 +200,51 @@ Section int.
     - by rewrite Int64.repr_unsigned.
   Qed.
 
-  Lemma simplify_int (v : val) it n T:
-    (<affine> ⌜v = i2v n it⌝ -∗ T)
-      ⊢ simplify_hyp (v ◁ᵥₐₗ|it| n @ int it) T.
+  Lemma simplify_int it v n T:
+    (<affine> ⌜v = valinject it (i2v n it)⌝ -∗ T)
+      ⊢ simplify_hyp (v ◁ᵥ|it| n @ int it) T.
   Proof.  iIntros "HT (_ & % & %)".
           iApply "HT"; iPureIntro.
-          apply val_to_Z_inv.
-          destruct it; done.
+          destruct it; try done; destruct v; try done; unfold repinject, valinject in *;
+            by apply val_to_Z_inv.
   Qed.
   Definition simplify_int_inst := [instance simplify_int with 0%N].
   Global Existing Instance simplify_int_inst.
 
   Lemma simplify_int' it v n (T : assert):
-    (<affine> ⌜repinject it v = i2v n it⌝ -∗ T)
+    (<affine> ⌜v = valinject it (i2v n it)⌝ -∗ T)
       ⊢ simplify_hyp ⎡v ◁ᵥ|it| n @ int it⎤ T.
   Proof.  iIntros "HT (_ & % & %)".
           iApply "HT"; iPureIntro.
-          by apply val_to_Z_inv.
+          destruct it; try done; destruct v; try done; unfold repinject, valinject in *;
+            by apply val_to_Z_inv.
   Qed.
   Definition simplify_int'_inst := [instance simplify_int' with 0%N].
   Global Existing Instance simplify_int'_inst.
+
+  Lemma simplify_goal_int it v n T:
+    (<affine> ⌜type_is_volatile it = false ∧ v = valinject it (i2v n it) ∧ n ∈ it⌝ ∗ T)
+      ⊢ simplify_goal (v ◁ᵥ|it| n @ int it) T.
+  Proof.  iIntros "((%H & %Hv & %Hn) & $)"; subst.
+          iPureIntro; split3; auto.
+          - destruct it; try done; rewrite /has_layout_val value_fits_by_value //.
+            split; last done; intros ?; by apply in_range_i2v.
+          - rewrite -(i2v_to_Z _ it) //; by destruct it.
+  Qed.
+  Definition simplify_goal_int_inst := [instance simplify_goal_int with 0%N].
+  Global Existing Instance simplify_goal_int_inst.
+
+  Lemma simplify_goal_int' it v n (T : assert):
+    (<affine> ⌜type_is_volatile it = false ∧ v = valinject it (i2v n it) ∧ n ∈ it⌝ ∗ T)
+      ⊢ simplify_goal ⎡v ◁ᵥ|it| n @ int it⎤ T.
+  Proof.  iIntros "((%H & %Hv & %Hn) & $)"; subst.
+          iPureIntro; split3; auto.
+          - destruct it; try done; rewrite /has_layout_val value_fits_by_value //.
+            split; last done; intros ?; by apply in_range_i2v.
+          - rewrite -(i2v_to_Z _ it) //; by destruct it.
+  Qed.
+  Definition simplify_goal_int'_inst := [instance simplify_goal_int' with 0%N].
+  Global Existing Instance simplify_goal_int'_inst.
 
   Lemma val_to_Z_not_Vundef it v n:
     val_to_Z v it = Some n -> v ≠ Vundef.
