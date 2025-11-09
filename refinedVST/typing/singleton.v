@@ -45,6 +45,27 @@ Section value.
   Definition value_simplify_inst := [instance value_simplify with 0%N].
   Global Existing Instance value_simplify_inst.
 
+  Lemma value_simplify' v ot p (T : assert):
+    (<affine> ⌜valinject ot v = valinject ot p⌝ -∗ <affine>⌜(valinject ot v) `has_layout_val` ot⌝ -∗ T)
+    ⊢ simplify_hyp ⎡v ◁ᵥₐₗ|ot| value ot p⎤ T.
+  Proof. iIntros "HT [% [% %]]". by iApply "HT". Qed.
+  Definition value_simplify'_inst := [instance value_simplify' with 0%N].
+  Global Existing Instance value_simplify'_inst.
+
+  Lemma value_simplify_goal v ot p T:
+    (<affine> ⌜valinject ot v = valinject ot p⌝ ∗ <affine>⌜(valinject ot v) `has_layout_val` ot⌝ ∗ T)
+    ⊢ simplify_goal (v ◁ᵥₐₗ|ot| value ot p) T.
+  Proof. iIntros "(% & % & $)". done. Qed.
+  Definition value_simplify_goal_inst := [instance value_simplify_goal with 0%N].
+  Global Existing Instance value_simplify_goal_inst.
+
+  Lemma value_simplify_goal' v ot p (T : assert):
+    (<affine> ⌜valinject ot v = valinject ot p⌝ ∗ <affine>⌜(valinject ot v) `has_layout_val` ot⌝ ∗ T)
+    ⊢ simplify_goal ⎡v ◁ᵥₐₗ|ot| value ot p⎤ T.
+  Proof. iIntros "(% & % & $)". done. Qed.
+  Definition value_simplify_goal'_inst := [instance value_simplify_goal' with 0%N].
+  Global Existing Instance value_simplify_goal'_inst.
+
   (* might restore this if we find an analogue to memcast *)
 (*   Lemma value_subsume_goal A v v' ly ty T:
     (<affine> ⌜ty.(ty_has_op_type) ly MCId⌝ ∗ (v ◁ᵥ ty -∗ ∃ x, <affine> ⌜v = v' x⌝ ∗ T x))
@@ -168,6 +189,20 @@ Lemma type_read_move l ty ot a E `{!TCDone (ty.(ty_has_op_type) ot MCId)} `{!Def
   Qed.
   Definition type_write_own_inst := [instance type_write_own].
   Global Existing Instance type_write_own_inst | 50.
+
+  Lemma type_tempvar ge f _x cty T:
+    find_in_context (FindTemp _x) (λ v, env.temp _x v -∗ <affine> ⌜valinject cty v `has_layout_val` cty⌝ ∗ T v (value cty v))
+    ⊢ typed_val_expr ge f (Etempvar _x cty) T.
+  Proof.
+    rewrite /find_in_context. simpl.
+    iIntros "(%b & Hx & HT)" (Φ) "HΦ".
+    iApply wp_tempvar_local.
+    iFrame.
+    iIntros "Hx".
+    iDestruct ("HT" with "Hx") as "(% & HT)".
+    by iApply ("HΦ" with "[] [$]").
+  Qed.
+
 End value.
 Global Typeclasses Opaque value.
 Notation "value< ot , v >" := (value ot v) (only printing, format "'value<' ot ',' v '>'") : printing_sugar.

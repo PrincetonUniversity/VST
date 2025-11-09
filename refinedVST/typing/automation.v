@@ -264,7 +264,7 @@ Ltac liRExpr :=
   lazymatch goal with
   | |- envs_entails ?Δ (typed_val_expr _ _ ?e ?T) =>
     lazymatch e with
-    | Ecast _ (tptr _) => notypeclasses refine (tac_fast_apply (type_cast_ptr_ptr _ _ _ _ _ _ _) _);[done|]
+    | Ecast _ (tptr _) => notypeclasses refine (tac_fast_apply (type_cast_ptr_ptr _ _ _ _ _ _ _ _) _);[done|]
     | Ecast _ _ => first [notypeclasses refine (tac_fast_apply (type_cast_int_same _ _ _ _) _) | notypeclasses refine (tac_fast_apply (type_cast_int _ _ _ _ _) _)]
     | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _ _ _) _)
     | Econst_float _ _ => notypeclasses refine (tac_fast_apply (type_const_float _ _ _ _ _) _)
@@ -274,7 +274,7 @@ Ltac liRExpr :=
     | Eunop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_un_op _ _ _ _ _ _) _)
     | Ederef _ _ => notypeclasses refine (tac_fast_apply (type_read_lvalue _ _ _ _ _ _) _);[done|done|]
     | Efield _ _ _ => notypeclasses refine (tac_fast_apply (type_read_lvalue _ _ _ _ _ _) _);[done|done|]
-    | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _ _) _)
+    | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
   | |- envs_entails ?Δ (typed_lvalue _ _ ?β ?e ?T) =>

@@ -454,15 +454,6 @@ Section tunion.
   Definition simplify_hyp_tunion_inst := [instance simplify_hyp_tunion with 0%N].
   Global Existing Instance simplify_hyp_tunion_inst.
 
-  Lemma simplify_goal_tunion ti x l β T:
-    l ◁ₗ{β} struct ti.(ti_base_layout) [
-         tunion_tag ti x;
-         variant ti x (ti.(ti_type) x) ] ∗ T
-    ⊢ simplify_goal (l◁ₗ{β} x @ tunion ti) T.
-  Proof. iIntros "[$ $]". Qed.
-  Definition simplify_goal_tunion_inst := [instance simplify_goal_tunion with 0%N].
-  Global Existing Instance simplify_goal_tunion_inst.
-
   Lemma simplify_hyp_tunion' ti x l β (T : assert):
     (⎡l ◁ₗ{β} struct ti.(ti_base_layout) [
          tunion_tag ti x;
@@ -472,6 +463,15 @@ Section tunion.
   Definition simplify_hyp_tunion'_inst := [instance simplify_hyp_tunion' with 0%N].
   Global Existing Instance simplify_hyp_tunion'_inst.
 
+  Lemma simplify_goal_tunion ti x l β T:
+    l ◁ₗ{β} struct ti.(ti_base_layout) [
+         tunion_tag ti x;
+         variant ti x (ti.(ti_type) x) ] ∗ T
+    ⊢ simplify_goal (l◁ₗ{β} x @ tunion ti) T.
+  Proof. iIntros "[$ $]". Qed.
+  Definition simplify_goal_tunion_inst := [instance simplify_goal_tunion with 0%N].
+  Global Existing Instance simplify_goal_tunion_inst.
+
   Lemma simplify_goal_tunion' ti x l β (T : assert):
     ⎡l ◁ₗ{β} struct ti.(ti_base_layout) [
          tunion_tag ti x;
@@ -480,6 +480,25 @@ Section tunion.
   Proof. iIntros "[$ $]". Qed.
   Definition simplify_goal_tunion'_inst := [instance simplify_goal_tunion' with 0%N].
   Global Existing Instance simplify_goal_tunion'_inst.
+
+  (* How do they manage without these? *)
+    Lemma simplify_goal_tunion_unrefined ti l β T:
+    (∃ x, l ◁ₗ{β} struct ti.(ti_base_layout) [
+         tunion_tag ti x;
+         variant ti x (ti.(ti_type) x) ] ∗ T)
+    ⊢ simplify_goal (l◁ₗ{β} tunion ti) T.
+  Proof. iIntros "(% & ? & $)". iExists _; iFrame. Qed.
+  Definition simplify_goal_tunion_unrefined_inst := [instance simplify_goal_tunion_unrefined with 0%N].
+  Global Existing Instance simplify_goal_tunion_unrefined_inst.
+
+  Lemma simplify_goal_tunion_unrefined' ti l β (T : assert):
+    (∃ x, ⎡l ◁ₗ{β} struct ti.(ti_base_layout) [
+         tunion_tag ti x;
+         variant ti x (ti.(ti_type) x) ]⎤ ∗ T)
+    ⊢ simplify_goal ⎡l◁ₗ{β} tunion ti⎤ T.
+  Proof. iIntros "(% & ? & $)". iExists _; iFrame. Qed.
+  Definition simplify_goal_tunion_unrefined'_inst := [instance simplify_goal_tunion_unrefined' with 0%N].
+  Global Existing Instance simplify_goal_tunion_unrefined'_inst.
 
 End tunion.
 

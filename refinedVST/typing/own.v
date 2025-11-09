@@ -204,19 +204,18 @@ Section own.
   Definition type_offset_of_sub_inst := [instance type_offset_of_sub].
   Global Existing Instance type_offset_of_sub_inst. *)
 
-  Lemma type_cast_ptr_ptr f e ot β T:
+  Lemma type_cast_ptr_ptr f e ot β ty T:
     is_tptr (typeof e) = true →
-    typed_val_expr ge f e (λ v ty, ⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ match v with Vptr b o =>
-      ⎡(b, o) ◁ₗ{β} ty⎤ ∗ T v ((b, o) @ frac_ptr β ty) | _ => False end)
+    typed_val_expr ge f e (λ v ty0, ⎡v ◁ᵥₐₗ|typeof e| ty0⎤ -∗ ∃ l, <affine> ⌜v = adr2val l⌝ ∗
+      ⎡l ◁ₗ{β} ty⎤ ∗ T v (l @ frac_ptr β ty))
     ⊢ typed_val_expr ge f (Ecast e (tptr ot)) T.
   Proof.
     intros; iIntros "He %Φ HΦ".
     iApply wp_cast0.
     iApply "He".
-    iIntros (v ty) "own_v HT".
-    iSpecialize ("HT" with "own_v").
-    iExists v; destruct v; try done.
-    iSplit.
+    iIntros (v ?) "own_v HT".
+    iDestruct ("HT" with "own_v") as "(% & % & HT)".
+    iExists v; subst; iSplit.
     { iPureIntro; intros; destruct (typeof e); done. }
     iDestruct "HT" as "(Hp & HT)".
     iApply ("HΦ" with "[Hp] HT"). by iFrame.

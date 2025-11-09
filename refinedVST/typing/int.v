@@ -246,6 +246,34 @@ Section int.
   Definition simplify_goal_int'_inst := [instance simplify_goal_int' with 0%N].
   Global Existing Instance simplify_goal_int'_inst.
 
+  Lemma simplify_goal_int_unrefined it v T:
+    (<affine> ⌜type_is_volatile it = false ∧ ∃ n, val_to_Z (repinject it v) it = Some n ∧ n ∈ it⌝ ∗ T)
+      ⊢ simplify_goal (v ◁ᵥ|it| int it) T.
+  Proof.  iIntros "((%H & %n & %Hv & %Hn) & $)".
+          iExists n.
+          iPureIntro; split3; auto.
+          destruct it; try done; destruct v; try done; rewrite /has_layout_val value_fits_by_value //.
+          split; last done; intros ?.
+          apply val_to_Z_inv in Hv as ->.
+          by apply in_range_i2v.
+  Qed.
+  Definition simplify_goal_int_unrefined_inst := [instance simplify_goal_int_unrefined with 0%N].
+  Global Existing Instance simplify_goal_int_unrefined_inst.
+
+  Lemma simplify_goal_int_unrefined' it v (T : assert):
+    (<affine> ⌜type_is_volatile it = false ∧ ∃ n, val_to_Z (repinject it v) it = Some n ∧ n ∈ it⌝ ∗ T)
+      ⊢ simplify_goal ⎡v ◁ᵥ|it| int it⎤ T.
+  Proof.  iIntros "((%H & %n & %Hv & %Hn) & $)".
+          iExists n.
+          iPureIntro; split3; auto.
+          destruct it; try done; destruct v; try done; rewrite /has_layout_val value_fits_by_value //.
+          split; last done; intros ?.
+          apply val_to_Z_inv in Hv as ->.
+          by apply in_range_i2v.
+  Qed.
+  Definition simplify_goal_int_unrefined'_inst := [instance simplify_goal_int_unrefined' with 0%N].
+  Global Existing Instance simplify_goal_int_unrefined'_inst.
+
   Lemma val_to_Z_not_Vundef it v n:
     val_to_Z v it = Some n -> v ≠ Vundef.
   Proof.
@@ -1050,6 +1078,7 @@ Section programs.
     iApply ("HΦ" with "own_v HT").
   Qed.
 
+  (* could use val_of_Z v = Some n instead of v ◁ᵥₐₗ|typeof e| n @ int (typeof e) here *)
   Lemma type_cast_int_same ge f e T:
     typed_val_expr ge f e (λ v ty, ⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ ∃ n, ⎡v ◁ᵥₐₗ|typeof e| n @ int (typeof e)⎤ ∗
       (<affine> ⌜n ∈ typeof e⌝ -∗ T v (n @ int (typeof e))))
