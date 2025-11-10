@@ -1914,19 +1914,6 @@ Section typing.
     by iApply ("Hop" with "Hv").
   Qed.
 
-  Lemma type_tempvar ge f _x cty T ty:
-    find_in_context (FindTemp _x) (λ v, env.temp _x v -∗ ⎡v ◁ᵥₐₗ|cty| ty⎤ ∗ T v ty)
-    ⊢ typed_val_expr ge f (Etempvar _x cty) T.
-  Proof.
-    rewrite /find_in_context. simpl.
-    iIntros "(%b & Hx & HT)" (Φ) "HΦ".
-    iApply wp_tempvar_local.
-    iFrame.
-    iIntros "Hx".
-    iDestruct ("HT" with "Hx") as "(Hv & HT)".
-    iApply ("HΦ" with "[$]"). done.
-  Qed.
-
   (* FIXME change this to "find_in_context (Findlvar _x) (λ v, env.lvar _x v -∗ ⎡(v, 0) ◁ₗ ty⎤ ∗ T v ty)" *)
   Lemma type_var_local ge f _x b β ty c_ty (T: address -> own_state -> type -> assert) :
     env.lvar _x c_ty b ∗

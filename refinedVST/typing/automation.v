@@ -274,7 +274,7 @@ Ltac liRExpr :=
     | Eunop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_un_op _ _ _ _ _ _) _)
     | Ederef _ _ => notypeclasses refine (tac_fast_apply (type_read_lvalue _ _ _ _ _ _) _);[done|done|]
     | Efield _ _ _ => notypeclasses refine (tac_fast_apply (type_read_lvalue _ _ _ _ _ _) _);[done|done|]
-    | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _ _) _)
+    | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
   | |- envs_entails ?Δ (typed_lvalue _ _ ?β ?e ?T) =>
@@ -482,6 +482,8 @@ Section additional_instances.
   
 End additional_instances.
 
+
+#[export] Typeclasses Opaque adr2val.
 
 Arguments find_in_context: simpl never.
 Arguments subsume: simpl never.

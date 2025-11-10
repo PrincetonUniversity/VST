@@ -57,13 +57,12 @@ Proof. split; [by rewrite -{1}(shift_loc_0 l)=> /shift_loc_inj2 | move => ->; by
 Proof. split; unfold NULL; naive_solver. Qed. *)
 
 (** * value representation *)
-Global Instance simpl_and_eq_val_of_loc l1 l2
-  `{!TCDone (match val2adr l1 with | Some _ => True | None => False end)}:
-  SimplAnd (val2adr l1 = val2adr l2) (l1 = l2).
-Proof.
-  destruct l1 eqn:?; try done.
-  split; intros.
-  -  subst; done.
-  - destruct l2 eqn:?; try done.
-    inv H. done.
-Qed.
+Global Instance simpl_and_eq_val_of_loc l1 l2:
+  SimplBoth (adr2val l1 = adr2val l2) (l1 = l2).
+Proof. rewrite /adr2val; split; try naive_solver. destruct l1, l2; by inversion 1. Qed.
+
+(* don't do injection on address*)
+Ltac hooks.check_injection_hook ::= lazymatch goal with
+        | |- ((?x = _) → ?Q)%type => match type of x with address => fail
+            | _ => idtac end
+        | _ => idtac end.

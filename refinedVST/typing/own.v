@@ -233,6 +233,32 @@ Section own.
   Definition type_offset_of_sub_inst := [instance type_offset_of_sub].
   Global Existing Instance type_offset_of_sub_inst. *)
 
+  (* We could probably avoid the case analysis and generalize this rule if we had
+     a ty_own_var and temps were associated with types. For now, there's a degree of
+    separation, so we need to use the value to guess what to look for. *)
+  Lemma type_tempvar f _x cty T:
+    find_in_context (FindTemp _x) (λ v, env.temp _x v -∗
+      if is_tptr cty then ∃ l, <affine> ⌜v = adr2val l⌝ ∗ find_in_context (FindLoc l) (λ '(β, ty),
+          T v (ty_of_rty (frac_ptr β ty))) (* doesn't allow for null *)
+      else let int_ty := match val_to_Z v cty with Some n => n | _ => 0 end @ int.int cty in
+          ⎡v ◁ᵥₐₗ|cty| int_ty⎤ ∗ T v int_ty)
+    ⊢ typed_val_expr ge f (Etempvar _x cty) T.
+  Proof.
+    rewrite /find_in_context. simpl.
+    iIntros "(%b & Hx & HT)" (Φ) "HΦ".
+    iApply wp_tempvar_local.
+    iFrame.
+    iIntros "Hx".
+    iSpecialize ("HT" with "Hx"); destruct (is_tptr cty) eqn: Hptr.
+    - iDestruct "HT" as (? -> (?,?)) "(Hv & HT)".
+      iApply ("HΦ" with "[Hv] [$]").
+      iExists l; iFrame.
+      rewrite repinject_valinject //.
+      by destruct cty.
+    - iDestruct "HT" as "(Hv & HT)".
+      by iApply ("HΦ" with "[$]").
+  Qed.
+
   Lemma type_cast_ptr_ptr f e ot β ty T:
     is_tptr (typeof e) = true →
     typed_val_expr ge f e (λ v ty0, ⎡v ◁ᵥₐₗ|typeof e| ty0⎤ -∗ ∃ l, <affine> ⌜v = adr2val l⌝ ∗
