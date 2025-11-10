@@ -190,19 +190,6 @@ Lemma type_read_move l ty ot a E `{!TCDone (ty.(ty_has_op_type) ot MCId)} `{!Def
   Definition type_write_own_inst := [instance type_write_own].
   Global Existing Instance type_write_own_inst | 50.
 
-  Lemma type_tempvar ge f _x cty T:
-    find_in_context (FindTemp _x) (λ v, env.temp _x v -∗ <affine> ⌜valinject cty v `has_layout_val` cty⌝ ∗ T v (value cty v))
-    ⊢ typed_val_expr ge f (Etempvar _x cty) T.
-  Proof.
-    rewrite /find_in_context. simpl.
-    iIntros "(%b & Hx & HT)" (Φ) "HΦ".
-    iApply wp_tempvar_local.
-    iFrame.
-    iIntros "Hx".
-    iDestruct ("HT" with "Hx") as "(% & HT)".
-    by iApply ("HΦ" with "[] [$]").
-  Qed.
-
 End value.
 Global Typeclasses Opaque value.
 Notation "value< ot , v >" := (value ot v) (only printing, format "'value<' ot ',' v '>'") : printing_sugar.

@@ -551,8 +551,8 @@ Section coq_tactics.
   Context {prop : bi}.
 
   Lemma tac_sep_true Δ (P : prop) :
-    envs_entails Δ P → envs_entails Δ (True ∗ P).
-  Proof. rewrite envs_entails_unseal => ->. by apply bi.True_sep_2. Qed.
+    envs_entails Δ P → envs_entails Δ (emp ∗ P).
+  Proof. rewrite envs_entails_unseal => ->. by rewrite bi.emp_sep. Qed.
 
   Lemma tac_find_hyp_equal key (Q P P' R : prop) Δ `{!FindHypEqual key Q P P'}:
     envs_entails Δ (P' ∗ R) →

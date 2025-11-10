@@ -1072,6 +1072,14 @@ Section typing.
     [instance find_in_context_type_val_P_id with FICSyntactic].
   Global Existing Instance find_in_context_type_val_P_id_inst | 1.
 
+  (*Lemma find_in_context_type_val_P_emp v (T:assert->assert):
+    emp ∗ T emp
+    ⊢ find_in_context (FindValP v) T.
+  Proof. iIntros "H". iExists emp => /=. iFrame. Qed.
+  Definition find_in_context_type_val_P_emp_inst :=
+    [instance find_in_context_type_val_P_emp with FICSyntactic].
+  Global Existing Instance find_in_context_type_val_P_emp_inst | 2.*)
+
   Lemma find_in_context_type_val_P_loc_id l (T:assert->assert):
     (∃ β ty, ⎡l ◁ₗ{β} ty⎤ ∗ T (⎡l ◁ₗ{β} ty⎤))
     ⊢ find_in_context (FindValP l) T.
@@ -1904,6 +1912,19 @@ Section typing.
     iIntros "He" (Φ) "HΦ".
     iApply wp_unop_rule. iApply "He". iIntros (v ty) "Hv Hop".
     by iApply ("Hop" with "Hv").
+  Qed.
+
+  Lemma type_tempvar ge f _x cty T ty:
+    find_in_context (FindTemp _x) (λ v, env.temp _x v -∗ ⎡v ◁ᵥₐₗ|cty| ty⎤ ∗ T v ty)
+    ⊢ typed_val_expr ge f (Etempvar _x cty) T.
+  Proof.
+    rewrite /find_in_context. simpl.
+    iIntros "(%b & Hx & HT)" (Φ) "HΦ".
+    iApply wp_tempvar_local.
+    iFrame.
+    iIntros "Hx".
+    iDestruct ("HT" with "Hx") as "(Hv & HT)".
+    iApply ("HΦ" with "[$]"). done.
   Qed.
 
   (* FIXME change this to "find_in_context (Findlvar _x) (λ v, env.lvar _x v -∗ ⎡(v, 0) ◁ₗ ty⎤ ∗ T v ty)" *)

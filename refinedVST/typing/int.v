@@ -222,7 +222,7 @@ Section int.
   Definition simplify_int'_inst := [instance simplify_int' with 0%N].
   Global Existing Instance simplify_int'_inst.
 
-  Lemma simplify_goal_int it v n T:
+  Lemma simplify_goal_int_n it v n T:
     (<affine> ⌜type_is_volatile it = false ∧ v = valinject it (i2v n it) ∧ n ∈ it⌝ ∗ T)
       ⊢ simplify_goal (v ◁ᵥ|it| n @ int it) T.
   Proof.  iIntros "((%H & %Hv & %Hn) & $)"; subst.
@@ -231,10 +231,10 @@ Section int.
             split; last done; intros ?; by apply in_range_i2v.
           - rewrite -(i2v_to_Z _ it) //; by destruct it.
   Qed.
-  Definition simplify_goal_int_inst := [instance simplify_goal_int with 0%N].
-  Global Existing Instance simplify_goal_int_inst.
+  Definition simplify_goal_int_n_inst := [instance simplify_goal_int_n with 1%N].
+  Global Existing Instance simplify_goal_int_n_inst.
 
-  Lemma simplify_goal_int' it v n (T : assert):
+  Lemma simplify_goal_int_n' it v n (T : assert):
     (<affine> ⌜type_is_volatile it = false ∧ v = valinject it (i2v n it) ∧ n ∈ it⌝ ∗ T)
       ⊢ simplify_goal ⎡v ◁ᵥ|it| n @ int it⎤ T.
   Proof.  iIntros "((%H & %Hv & %Hn) & $)"; subst.
@@ -243,9 +243,35 @@ Section int.
             split; last done; intros ?; by apply in_range_i2v.
           - rewrite -(i2v_to_Z _ it) //; by destruct it.
   Qed.
+  Definition simplify_goal_int_n'_inst := [instance simplify_goal_int_n' with 1%N].
+  Global Existing Instance simplify_goal_int_n'_inst.
+
+  Lemma simplify_goal_int it v T:
+    (<affine> ⌜type_is_volatile it = false ∧ ∃ n, val_to_Z (repinject it v) it = Some n ∧ n ∈ it⌝ ∗ T)
+      ⊢ simplify_goal (v ◁ᵥ|it| match val_to_Z (repinject it v) it with Some n => n | _ => 0 end @ int it) T.
+  Proof.  iIntros "((%H & %n & %Hv & %Hn) & $)"; subst.
+          iPureIntro; split3; auto.
+          - destruct it; try done; destruct v; try done; rewrite /has_layout_val value_fits_by_value //.
+            split; last done; intros ?.
+            apply val_to_Z_inv in Hv as ->; by apply in_range_i2v.
+          - rewrite Hv //.
+  Qed.
+  Definition simplify_goal_int_inst := [instance simplify_goal_int with 0%N].
+  Global Existing Instance simplify_goal_int_inst.
+
+  Lemma simplify_goal_int' it v (T : assert):
+    (<affine> ⌜type_is_volatile it = false ∧ ∃ n, val_to_Z (repinject it v) it = Some n ∧ n ∈ it⌝ ∗ T)
+      ⊢ simplify_goal ⎡v ◁ᵥ|it| match val_to_Z (repinject it v) it with Some n => n | _ => 0 end @ int it⎤ T.
+  Proof.  iIntros "((%H & %n & %Hv & %Hn) & $)"; subst.
+          iPureIntro; split3; auto.
+          - destruct it; try done; destruct v; try done; rewrite /has_layout_val value_fits_by_value //.
+            split; last done; intros ?.
+            apply val_to_Z_inv in Hv as ->; by apply in_range_i2v.
+          - rewrite Hv //.
+  Qed.
   Definition simplify_goal_int'_inst := [instance simplify_goal_int' with 0%N].
   Global Existing Instance simplify_goal_int'_inst.
-
+  
   Lemma simplify_goal_int_unrefined it v T:
     (<affine> ⌜type_is_volatile it = false ∧ ∃ n, val_to_Z (repinject it v) it = Some n ∧ n ∈ it⌝ ∗ T)
       ⊢ simplify_goal (v ◁ᵥ|it| int it) T.
@@ -257,7 +283,7 @@ Section int.
           apply val_to_Z_inv in Hv as ->.
           by apply in_range_i2v.
   Qed.
-  Definition simplify_goal_int_unrefined_inst := [instance simplify_goal_int_unrefined with 0%N].
+  Definition simplify_goal_int_unrefined_inst := [instance simplify_goal_int_unrefined with 1%N].
   Global Existing Instance simplify_goal_int_unrefined_inst.
 
   Lemma simplify_goal_int_unrefined' it v (T : assert):
@@ -271,7 +297,7 @@ Section int.
           apply val_to_Z_inv in Hv as ->.
           by apply in_range_i2v.
   Qed.
-  Definition simplify_goal_int_unrefined'_inst := [instance simplify_goal_int_unrefined' with 0%N].
+  Definition simplify_goal_int_unrefined'_inst := [instance simplify_goal_int_unrefined' with 1%N].
   Global Existing Instance simplify_goal_int_unrefined'_inst.
 
   Lemma val_to_Z_not_Vundef it v n:
@@ -1078,50 +1104,47 @@ Section programs.
     iApply ("HΦ" with "own_v HT").
   Qed.
 
-  (* could use val_of_Z v = Some n instead of v ◁ᵥₐₗ|typeof e| n @ int (typeof e) here *)
   Lemma type_cast_int_same ge f e T:
-    typed_val_expr ge f e (λ v ty, ⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ ∃ n, ⎡v ◁ᵥₐₗ|typeof e| n @ int (typeof e)⎤ ∗
-      (<affine> ⌜n ∈ typeof e⌝ -∗ T v (n @ int (typeof e))))
+    typed_val_expr ge f e (λ v ty, ⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ <affine> ⌜type_is_volatile (typeof e) = false⌝ ∗
+      ∃ n, <affine> ⌜val_to_Z v (typeof e) = Some n⌝ ∗
+      <affine> ⌜n ∈ typeof e⌝ ∗ T v (n @ int (typeof e)))
     ⊢ typed_val_expr ge f (Ecast e (typeof e)) T.
   Proof.
     rewrite -type_cast_same.
     iIntros "He %Φ HΦ"; iApply "He".
     iIntros (??) "own_v HT".
-    iDestruct ("HT" with "own_v") as (?) "((_ & %Hv & %Hn) & HT)".
+    iDestruct ("HT" with "own_v") as (?? Hn ?) "HT".
     pose proof (val_to_Z_by_value _ _ _ Hn).
-    rewrite repinject_valinject // in Hn.
-    pose proof (proj1 Hv) as Htc.
-    pose proof (proj2 Hv).
-    rewrite value_fits_by_value // repinject_valinject // in Htc.
-    specialize (Htc (val_to_Z_not_Vundef _ _ _ Hn)).
-    pose proof (val_to_Z_in_range _ _ _ Hn Htc).
-    iSpecialize ("HT" with "[//]").
+    assert (tc_val (typeof e) v) as Htc.
+    { apply val_to_Z_inv in Hn as ->.
+      by apply in_range_i2v. }
     iApply ("HΦ" with "[] [$HT]").
     - iPureIntro; split3; auto.
-      rewrite repinject_valinject //.
+      + split; last done.
+        rewrite value_fits_by_value // repinject_valinject //.
+        by intros ?.
+      + rewrite repinject_valinject //.
     - iPureIntro; destruct v, (typeof e); try done; constructor.
       pose proof (sem_cast_i2i_correct_range _ _ _ Htc) as Hcast.
       by injection Hcast.
   Qed.
 
   Lemma type_cast_int ge f e it2 T:
-    typed_val_expr ge f e (λ v ty, ⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ ∃ n, ⎡v ◁ᵥₐₗ|typeof e| n @ int (typeof e)⎤ ∗
-      (<affine> ⌜n ∈ typeof e⌝ -∗ <affine> ⌜n ∈ it2⌝ ∗ <affine> ⌜is_bool_type it2 = false ∧ type_is_volatile it2 = false⌝ ∗
-       ∀ v, T v (n @ int it2)))
+    typed_val_expr ge f e (λ v ty, ⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ <affine> ⌜type_is_volatile (typeof e) = false⌝ ∗
+      ∃ n, <affine> ⌜val_to_Z v (typeof e) = Some n⌝ ∗ <affine> ⌜n ∈ typeof e⌝ ∗
+      <affine> ⌜n ∈ it2⌝ ∗ <affine> ⌜is_bool_type it2 = false ∧ type_is_volatile it2 = false⌝ ∗
+       ∀ v, T v (n @ int it2))
     ⊢ typed_val_expr ge f (Ecast e it2) T.
   Proof.
     iIntros "He %Φ HΦ".
     iApply wp_cast_sc.
     iApply "He".
     iIntros (v ty) "own_v HT".
-    iDestruct ("HT" with "own_v") as "(% & (_ & %Htc & %Hn) & HT)".
+    iDestruct ("HT" with "own_v") as "(% & % & %Hn & % & %Hit2 & (% & %) & HT)".
     pose proof (val_to_Z_by_value _ _ _ Hn).
-    rewrite repinject_valinject // in Hn.
-    destruct Htc as (Htc & ?).
-    rewrite value_fits_by_value // repinject_valinject // in Htc.
-    specialize (Htc (val_to_Z_not_Vundef _ _ _ Hn)).
-    pose proof (val_to_Z_in_range _ _ _ Hn Htc).
-    iDestruct ("HT" with "[//]") as "(%Hit2 & (% & %) & HT)".
+    assert (tc_val (typeof e) v) as Htc.
+    { apply val_to_Z_inv in Hn as ->.
+      by apply in_range_i2v. }
     iSplit.
     { rewrite /sc_cast.
       destruct (Cop.classify_cast (typeof e) it2); try done; destruct v; done. }
