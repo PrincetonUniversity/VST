@@ -186,6 +186,35 @@ Section own.
     T ⊢ l ◁ᵥₐₗ|tptr cty| l @ frac_ptr β (place l) ∗ T.
   Proof. by iDestruct 1 as "$". Qed.
 
+  (* We might not always want this. *)
+  Lemma own_value_simplify l ot p T:
+    (∃ ty, p ◁ₗ ty ∗ (l ◁ₗ p @ frac_ptr Own ty -∗ T))
+    ⊢ simplify_hyp (l ◁ₗ value (tptr ot) p) T.
+  Proof.
+    iIntros "(% & Hp & HT) Hl".
+    rewrite /value; simpl_type.
+    iDestruct "Hl" as "(%Hl & % & Hl)".
+    iApply "HT".
+    rewrite /heap_mapsto_own_state (mapsto_tptr _ _ _ tvoid); iFrame.
+    by apply has_layout_loc_tptr in Hl.
+  Qed.
+  Definition own_value_simplify_inst := [instance own_value_simplify with 0%N].
+  Global Existing Instance own_value_simplify_inst.
+
+  Lemma own_value_simplify' l ot p (T : assert):
+    (∃ ty, ⎡p ◁ₗ ty⎤ ∗ (⎡l ◁ₗ p @ frac_ptr Own ty⎤ -∗ T))
+    ⊢ simplify_hyp ⎡l ◁ₗ value (tptr ot) p⎤ T.
+  Proof.
+    iIntros "(% & Hp & HT) Hl".
+    rewrite /value; simpl_type.
+    iDestruct "Hl" as "(%Hl & % & Hl)".
+    iApply "HT".
+    rewrite /heap_mapsto_own_state (mapsto_tptr _ _ _ tvoid); iFrame.
+    by apply has_layout_loc_tptr in Hl.
+  Qed.
+  Definition own_value_simplify'_inst := [instance own_value_simplify' with 0%N].
+  Global Existing Instance own_value_simplify'_inst.
+
 (*   Lemma type_offset_of_sub v1 l s m P ly t T:
     ⌜ly_size ly = 1%nat⌝ ∗ (
       (P -∗ loc_in_bounds l 0 ∗ True) ∧ (P -∗ T (val_of_loc l) (l @ frac_ptr Own (place l))))

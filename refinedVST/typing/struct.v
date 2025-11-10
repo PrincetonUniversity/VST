@@ -675,6 +675,7 @@ Section struct.
   Global Existing Instance struct_mono_val_inst.
 
   Definition field_index_of ms n := fst <$> list_find (λ m, name_member m = n) ms.
+  #[global] Arguments field_index_of !_ !_ /.
 
   Lemma field_index_of_correct ms n j: field_index_of ms n = Some j →
     name_member <$> ms !! j = Some n.
