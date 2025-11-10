@@ -851,7 +851,7 @@ install: VST.config
 	for f in $(INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 	for f in $(EXTRA_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 
-install_rc: VST.config refinedVST/veric/make_compspecs.vo refinedVST/typing/typing.vo
+install_rc: VST.config veric/make_compspecs.vo refinedVST/typing/typing.vo
 	install -d "$(INSTALLDIR)"
 	install -d "$(INSTALLDIR)"
 	for d in $(sort $(dir $(RC_INSTALL_FILES) $(EXTRA_INSTALL_FILES))); do install -d "$(INSTALLDIR)/$$d"; done
