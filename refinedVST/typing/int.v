@@ -198,16 +198,12 @@ Section int.
   Proof.
     rewrite /simplify_hyp /ty_own_val_at /ty_own_val /=.
     iIntros "HT (_ & %H & %Hn)".
-    destruct H as [? ?].
+    destruct H as [Hv ?].
     iApply "HT"; iPureIntro.
     - destruct it; try done; unfold tc_val' in H;
       by apply val_to_Z_inv.
-    - rewrite -(val_to_Z_inv _ _ _ Hn).
-      destruct ((repinject it v)) eqn:Hv; try done; simpl; eapply val_to_Z_in_range; eauto;
-      destruct it; try done.
-      simpl in Hv.
-      rewrite value_fits_eq /= H0 Hv /tc_val' in H.
-      apply H. done.
+    - eapply val_to_Z_in_range; first done.
+      rewrite value_fits_by_value // in Hv; by eapply val_to_Z_by_value.
   Qed.
   Definition simplify_int_inst := [instance simplify_int with 0%N].
   Global Existing Instance simplify_int_inst.
@@ -288,8 +284,8 @@ Section int.
     iIntros "(% & % & %)".
     iPureIntro. eapply val_to_Z_in_range; try done.
     rewrite -> repinject_valinject in H1 |- *; [|by destruct it..].
-    eapply has_layout_val_tc_val; eauto.
-    eapply val_to_Z_not_Vundef; done.
+    apply has_layout_val_tc_val'2; last done.
+    eapply val_to_Z_by_value; done.
   Qed.
 
   Lemma ty_own_int_in_range l β n it :
@@ -299,13 +295,13 @@ Section int.
     iIntros "Hl". destruct β.
     - iDestruct (ty_deref _ _ MCNone with "Hl") as (?) "[_ (% & % & %)]"; [done|].
       iPureIntro. eapply val_to_Z_in_range; try done.
-      eapply has_layout_val_tc_val; eauto.
-      + eapply val_to_Z_not_Vundef; done.
-      + rewrite valinject_repinject //; eauto.
+      pose proof (val_to_Z_by_value _ _ _ H1).
+      apply has_layout_val_tc_val'2; try done.
+      rewrite valinject_repinject //.
     - iDestruct "Hl" as (?) "(% & % & _)".
       iPureIntro. eapply val_to_Z_in_range; try done.
-      eapply has_layout_val_tc_val; eauto.
-      eapply val_to_Z_not_Vundef; done.
+      apply has_layout_val_tc_val'2; try done.
+      by eapply val_to_Z_by_value.
   Qed.
 
   (* TODO: make a simple type as in lambda rust such that we do not
@@ -453,7 +449,7 @@ Section programs.
     eapply has_layout_val_tc_val in H; eauto.
     eapply has_layout_val_tc_val in H0; eauto.
     iDestruct ("HT" with "[] []" ) as "HT".
-    1-2: iPureIntro; by apply: val_to_Z_in_range.
+    1-2: iPureIntro; by apply: val_to_Z_in_range; first done; apply tc_val_tc_val'.
     rewrite /wp_binop.
     iIntros "!>" (?) "$ !>".
     iExists (i2v (bool_to_Z b) tint); iSplit.
@@ -625,7 +621,7 @@ Section programs.
     eapply has_layout_val_tc_val in Hv_layout1 as H; eauto.
     eapply has_layout_val_tc_val in Hv_layout2 as H0; eauto.
     iDestruct ("HT" with "[] []" ) as ((Hin & Hsc)) "HT".
-    1-2: iPureIntro; by apply: val_to_Z_in_range.
+    1-2: iPureIntro; by apply: val_to_Z_in_range; first done; apply tc_val_tc_val'.
     rewrite /wp_binop.
     iIntros "!>" (?) "$ !>".
     iExists (i2v n it); iSplit.
@@ -953,7 +949,7 @@ Section programs.
     apply val_to_Z_by_value in Hv as Hit2.
     rewrite repinject_valinject // in Hv.
     eapply has_layout_val_tc_val in H as Htc; eauto.
-    pose proof (val_to_Z_in_range _ _ _ Hv Htc) as Hin.
+    pose proof (val_to_Z_in_range _ _ _ Hv (tc_val_tc_val' _ _ Htc)) as Hin.
     iDestruct ("HT" with "[//]") as (Hs Hn) "HT".
     rewrite /wp_unop.
     iIntros "!>" (?) "$ !>".

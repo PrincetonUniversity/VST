@@ -99,13 +99,13 @@ Proof.
   - rewrite Int64.unsigned_repr //.
 Qed.
 
-Lemma val_to_Z_in_range : forall t v n, val_to_Z v t = Some n -> tc_val t v -> n ∈ t.
+Lemma val_to_Z_in_range : forall t v n, val_to_Z v t = Some n -> tc_val' t v -> n ∈ t.
 Proof.
-  destruct v; try done; destruct t; try done; simpl; intros.
+  destruct v; try done; destruct t; try done; rewrite /tc_val' /=; intros ?? Htc; specialize (Htc (ltac:(discriminate))).
   - destruct i0; [destruct s; inv H; hnf; simpl; try rep_lia..|].
-    + rewrite two_power_pos_equiv in H0; lia.
-    + rewrite two_power_pos_equiv in H0; rep_lia.
-    + destruct H0, s; inv H; hnf.
+    + rewrite two_power_pos_equiv in Htc; lia.
+    + rewrite two_power_pos_equiv in Htc; rep_lia.
+    + destruct Htc, s; inv H; hnf.
       * by rewrite Int.signed_zero.
       * by rewrite Int.unsigned_zero.
       * by rewrite Int.signed_one.
