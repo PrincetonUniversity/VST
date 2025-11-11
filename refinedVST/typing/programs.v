@@ -762,6 +762,22 @@ Section proper.
     v ◁ᵥ|cty| ty2 ∗ T ⊢ simplify_goal (v ◁ᵥ|cty| ty1) T.
   Proof. rewrite Heq. iIntros "$". Qed.
 
+  Lemma simplify_hyp_place_eq' ty1 ty2 (Heq : ty1 ≡@{type} ty2) l β (T : assert):
+    (⎡l ◁ₗ{β} ty2⎤ -∗ T) ⊢ simplify_hyp ⎡l◁ₗ{β} ty1⎤ T.
+  Proof. iIntros "HT ?". rewrite Heq. by iApply "HT". Qed.
+
+  Lemma simplify_goal_place_eq' ty1 ty2 (Heq : ty1 ≡@{type} ty2) l β (T : assert):
+    ⎡l ◁ₗ{β} ty2⎤ ∗ T ⊢ simplify_goal ⎡l◁ₗ{β} ty1⎤ T.
+  Proof. rewrite Heq. iIntros "$". Qed.
+
+  Lemma simplify_hyp_val_eq' ty1 ty2 (Heq : ty1 ≡@{type} ty2) cty v (T : assert):
+    (⎡v ◁ᵥ|cty| ty2⎤ -∗ T) ⊢ simplify_hyp ⎡v ◁ᵥ|cty| ty1⎤ T.
+  Proof. iIntros "HT ?". rewrite Heq. by iApply "HT". Qed.
+
+  Lemma simplify_goal_val_eq' ty1 ty2 (Heq : ty1 ≡@{type} ty2) cty v (T : assert):
+    ⎡v ◁ᵥ|cty| ty2⎤ ∗ T ⊢ simplify_goal ⎡v ◁ᵥ|cty| ty1⎤ T.
+  Proof. rewrite Heq. iIntros "$". Qed.
+
   Lemma typed_place_subsume' P l ty1 β T :
     (⎡l ◁ₗ{β} ty1⎤ -∗ ∃ ty2, ⎡l ◁ₗ{β} ty2⎤ ∗ typed_place ge P l β ty2 T) ⊢ typed_place ge P l β ty1 T.
   Proof.

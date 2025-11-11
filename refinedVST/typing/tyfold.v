@@ -34,8 +34,8 @@ Section tyfold.
     RType (tyfold_type tys base).
 
   Local Typeclasses Transparent own_constrained persistent_own_constraint.
-  Lemma simplify_hyp_place_tyfold_optional l β ls cty tys b T:
-    (l ◁ₗ{β} (maybe2 cons tys) @ optionalO cty (λ '(ty, tys), tyexists (λ l2, tyexists (λ ls2,
+  Lemma simplify_hyp_place_tyfold_optional l β ls tys b T:
+    (l ◁ₗ{β} (maybe2 cons tys) @ optionalO (λ '(ty, tys), tyexists (λ l2, tyexists (λ ls2,
        constrained (
        own_constrained (tyown_constraint l2 (ls2 @ tyfold tys b)) (ty (place l2))) (⌜ls = l2::ls2⌝)))) b -∗ T)
     ⊢ simplify_hyp (l◁ₗ{β} ls @ tyfold tys b) T.

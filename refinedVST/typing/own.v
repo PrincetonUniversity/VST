@@ -921,7 +921,7 @@ Section optionable.
 
   Lemma subsume_optionalO_place_val_null B A (ty : B → A → type) l β b cty ty' T:
     (l ◁ₗ{β} ty' -∗ ∃ y x, <affine> ⌜b y = Some x⌝ ∗ l ◁ᵥₐₗ|cty| ty y x ∗ T y)
-      ⊢ subsume (l ◁ₗ{β} ty') (λ y, l ◁ᵥₐₗ|cty| (b y) @ optionalO cty (ty y) null) T.
+      ⊢ subsume (l ◁ₗ{β} ty') (λ y, l ◁ᵥₐₗ|cty| (b y) @ optionalO (ty y) null) T.
   Proof.
     iIntros "Hsub Hl". iDestruct ("Hsub" with "Hl") as (?? Heq) "[? ?]".
     iExists _. iFrame. rewrite Heq. unfold optionalO; simpl_type. done.
@@ -958,8 +958,8 @@ Section optionable.
   Qed.
 
   Lemma type_cast_optionalO_own_ptr ge f A (b : option A) e ot β ty T: is_tptr (typeof e) = true →
-      typed_val_expr ge f e (λ v ty0, ⎡v ◁ᵥₐₗ|typeof e| ty0⎤ -∗ ⎡v ◁ᵥₐₗ|typeof e| b @ optionalO (typeof e) (λ x, &frac{β} (ty x)) null⎤ ∗
-      T v (b @ optionalO (tptr ot) (λ x, &frac{β} (ty x)) null))
+      typed_val_expr ge f e (λ v ty0, ⎡v ◁ᵥₐₗ|typeof e| ty0⎤ -∗ ⎡v ◁ᵥₐₗ|typeof e| b @ optionalO (λ x, &frac{β} (ty x)) null⎤ ∗
+      T v (b @ optionalO (λ x, &frac{β} (ty x)) null))
     ⊢ typed_val_expr ge f (Ecast e (tptr ot)) T.
   Proof.
     intros; iIntros "He %Φ HΦ".
@@ -1004,9 +1004,9 @@ Section optional_null.
   Definition type_place_optional_null_inst := [instance type_place_optional_null].
   Global Existing Instance type_place_optional_null_inst | 100.
 
-  Lemma type_place_optionalO_null ge A K l β1 b ot (ty : A → _) T:
+  Lemma type_place_optionalO_null ge A K l β1 b (ty : A → _) T:
     <affine> ⌜is_Some b⌝ ∗ (∀ x, <affine> ⌜b = Some x⌝ -∗ typed_place ge K l β1 (ty x) T)
-    ⊢ typed_place ge K l β1 (b @ optionalO ot ty null) T.
+    ⊢ typed_place ge K l β1 (b @ optionalO ty null) T.
   Proof.
     iDestruct 1 as ([? ->]) "Hwp".
     iIntros (Φ) "Hx". by iApply "Hwp".

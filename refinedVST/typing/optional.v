@@ -289,42 +289,42 @@ Notation "'optional' != ... : P" := (TraceOptionalNe P) (at level 100, only prin
 Section optionalO.
   Context `{!typeG OK_ty Σ} {cs : compspecs} (ge: genv).
     (* Separate definition such that we can make it typeclasses opaque later. *)
-  Program Definition optionalO_type {A : Type} (cty : Ctypes.type) (ty : A → type) (optty : type) (b : option A) : type := {|
+  Program Definition optionalO_type {A : Type} (ty : A → type) (optty : type) (b : option A) : type := {|
       ty_has_op_type ot mt := ((∀ x, (ty x).(ty_has_op_type) ot mt) ∧ optty.(ty_has_op_type) ot mt)%type;
       ty_own β l := (if b is Some x return _ then l◁ₗ{β}(ty x) else l◁ₗ{β}optty)%I;
       ty_own_val cty v := (if b is Some x return _ then v ◁ᵥ|cty| (ty x) else v ◁ᵥ|cty| optty)%I
   |}.
   Next Obligation.
-    iIntros (A ty ??????). destruct b; by apply ty_share.
+    iIntros (A ty ?????). destruct b; by apply ty_share.
   Qed.
   Next Obligation.
-    iIntros (A ty ??????(?&?)) "Hv".
+    iIntros (A ty ?????(?&?)) "Hv".
     destruct b; iDestruct (ty_aligned with "Hv") as %Ha => //.
   Qed.
   Next Obligation.
-    iIntros (A ty ??????(?&?)) "Hv".
+    iIntros (A ty ?????(?&?)) "Hv".
     destruct b; iDestruct (ty_size_eq with "Hv") as %Ha => //.
   Qed.
   Next Obligation.
-    iIntros (A ty optty?[]???[??]) "Hl"; rewrite /with_refinement/ty_own/=; iDestruct (ty_deref with "Hl") as (?) "[? ?]"; eauto with iFrame.
+    iIntros (A ty optty[]???[??]) "Hl"; rewrite /with_refinement/ty_own/=; iDestruct (ty_deref with "Hl") as (?) "[? ?]"; eauto with iFrame.
   Qed.
   Next Obligation.
-    iIntros (A ty optty?[]????[??]?) "Hl Hv"; iApply (ty_ref with "[] Hl Hv") => //.
+    iIntros (A ty optty[]????[??]?) "Hl Hv"; iApply (ty_ref with "[] Hl Hv") => //.
   Qed.
 (*   Next Obligation.
     iIntros (A ty optty [x|] v ot mt st [??]) "Hl".
     all: by iDestruct (ty_memcast_compat with "Hl") as "Hl".
   Qed. *)
 
-  Global Instance optionalO_type_le A cty:
-    Proper (pointwise_relation A (⊑) ==> (⊑) ==> (eq) ==> (⊑)) (optionalO_type cty).
+  Global Instance optionalO_type_le A:
+    Proper (pointwise_relation A (⊑) ==> (⊑) ==> (eq) ==> (⊑)) (optionalO_type).
   Proof. solve_type_proper. Qed.
-  Global Instance optionalO_type_proper A cty:
-    Proper (pointwise_relation A (≡) ==> (≡) ==> (eq) ==> (≡)) (optionalO_type cty).
+  Global Instance optionalO_type_proper A:
+    Proper (pointwise_relation A (≡) ==> (≡) ==> (eq) ==> (≡)) (optionalO_type).
   Proof. solve_type_proper. Qed.
 
-  Definition optionalO {A : Type} cty (ty : A → type) (optty : type) : rtype _ :=
-    RType (optionalO_type cty ty optty).
+  Definition optionalO {A : Type} (ty : A → type) (optty : type) : rtype _ :=
+    RType (optionalO_type ty optty).
 
 (*   Global Instance optionalO_loc_in_bounds A (ty : A → type) e ot β n `{!∀ x, LocInBounds (ty x) β n} `{!LocInBounds ot β n}:
     LocInBounds (e @ optionalO ty ot) β n.
@@ -334,47 +334,47 @@ Section optionalO.
   Qed. *)
 
   (* TODO: should be allow different opttys? *)
-  Global Instance simple_subsume_place_optionalO A cty (ty1 : A → _) ty2 optty b
+  Global Instance simple_subsume_place_optionalO A (ty1 : A → _) ty2 optty b
     `{!Affine P} `{!∀ x, SimpleSubsumePlace (ty1 x) (ty2 x) P}:
-    SimpleSubsumePlace (b @ optionalO cty ty1 optty) (b @ optionalO cty ty2 optty) P.
+    SimpleSubsumePlace (b @ optionalO ty1 optty) (b @ optionalO ty2 optty) P.
   Proof.
     iIntros (l β) "HP Hl". destruct b. 2: by iFrame.
     unfold optionalO; simpl_type. iApply (@simple_subsume_place with "HP Hl").
   Qed.
 
   (* TODO: Should we have more instances like this? E.g. for the goal? *)
-  Lemma simpl_hyp_optionalO_Some A cty (ty : A → type) optty l β x T:
-    (l ◁ₗ{β} ty x -∗ T) ⊢ simplify_hyp (l ◁ₗ{β} Some x @ optionalO cty ty optty) T.
+  Lemma simpl_hyp_optionalO_Some A (ty : A → type) optty l β x T:
+    (l ◁ₗ{β} ty x -∗ T) ⊢ simplify_hyp (l ◁ₗ{β} Some x @ optionalO ty optty) T.
   Proof. iIntros "HT Hl". by iApply "HT". Qed.
   Definition simpl_hyp_optionalO_Some_inst := [instance simpl_hyp_optionalO_Some with 0%N].
   Global Existing Instance simpl_hyp_optionalO_Some_inst.
-  Lemma simpl_hyp_optionalO_None A cty (ty : A → type) optty l β T:
-    (l ◁ₗ{β} optty -∗ T) ⊢ simplify_hyp (l ◁ₗ{β} None @ optionalO cty ty optty) T.
+  Lemma simpl_hyp_optionalO_None A (ty : A → type) optty l β T:
+    (l ◁ₗ{β} optty -∗ T) ⊢ simplify_hyp (l ◁ₗ{β} None @ optionalO ty optty) T.
   Proof. iIntros "HT Hl". by iApply "HT". Qed.
   Definition simpl_hyp_optionalO_None_inst := [instance simpl_hyp_optionalO_None with 0%N].
   Global Existing Instance simpl_hyp_optionalO_None_inst.
   Lemma simpl_hyp_optionalO_Some_val A cty (ty : A → type) optty v x T:
-    (v ◁ᵥ|cty| ty x -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| Some x @ optionalO cty ty optty) T.
+    (v ◁ᵥ|cty| ty x -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| Some x @ optionalO ty optty) T.
   Proof. iIntros "HT Hl". by iApply "HT". Qed.
   Definition simpl_hyp_optionalO_Some_val_inst := [instance simpl_hyp_optionalO_Some_val with 0%N].
   Global Existing Instance simpl_hyp_optionalO_Some_val_inst.
   Lemma simpl_hyp_optionalO_None_val A cty (ty : A → type) optty v T:
-    (v ◁ᵥ|cty| optty -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| None @ optionalO cty ty optty) T.
+    (v ◁ᵥ|cty| optty -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| None @ optionalO ty optty) T.
   Proof. iIntros "HT Hl". by iApply "HT". Qed.
   Definition simpl_hyp_optionalO_None_val_inst := [instance simpl_hyp_optionalO_None_val with 0%N].
   Global Existing Instance simpl_hyp_optionalO_None_val_inst.
 
-  Lemma subsume_optionalO_optty B A cty (ty : B → A → type) optty l β b T:
+  Lemma subsume_optionalO_optty B A (ty : B → A → type) optty l β b T:
     (∃ x, <affine> ⌜b x = None⌝ ∗ T x)
-    ⊢ subsume (l ◁ₗ{β} optty) (λ x : B, l ◁ₗ{β} (b x) @ optionalO cty (ty x) optty) T.
+    ⊢ subsume (l ◁ₗ{β} optty) (λ x : B, l ◁ₗ{β} (b x) @ optionalO (ty x) optty) T.
   Proof. iIntros "[% [%Heq ?]] Hl". iExists _. iFrame. by rewrite Heq. Qed.
   Definition subsume_optionalO_optty_inst := [instance subsume_optionalO_optty].
   Global Existing Instance subsume_optionalO_optty_inst.
 
-  Lemma subsume_optionalO_ty B A cty (ty : B → A → type) optty l β b ty'
+  Lemma subsume_optionalO_ty B A (ty : B → A → type) optty l β b ty'
     `{!∀ x y, OptionableAgree (ty y x) ty'} T:
     (l ◁ₗ{β} ty' -∗ ∃ y x, <affine> ⌜b y = Some x⌝ ∗ l ◁ₗ{β} ty y x ∗ T y)
-    ⊢ subsume (l ◁ₗ{β} ty') (λ y : B, l ◁ₗ{β} (b y) @ optionalO cty (ty y) (optty y)) T.
+    ⊢ subsume (l ◁ₗ{β} ty') (λ y : B, l ◁ₗ{β} (b y) @ optionalO (ty y) (optty y)) T.
   Proof.
     iIntros "Hsub Hl". iDestruct ("Hsub" with "Hl") as (?? Heq) "[??]".
     iExists _. iFrame. by rewrite Heq.
@@ -383,7 +383,7 @@ Section optionalO.
   Global Existing Instance subsume_optionalO_ty_inst.
 
   Lemma subsume_optionalO_optty_val B A cty (ty : B → A → type) optty v b T:
-    (∃ x, <affine> ⌜b x = None⌝ ∗ T x) ⊢ subsume (v ◁ᵥ|cty| optty) (λ x : B, v ◁ᵥ|cty| (b x) @ optionalO cty (ty x) optty) T.
+    (∃ x, <affine> ⌜b x = None⌝ ∗ T x) ⊢ subsume (v ◁ᵥ|cty| optty) (λ x : B, v ◁ᵥ|cty| (b x) @ optionalO (ty x) optty) T.
   Proof. iIntros "[% [%Heq ?]] Hl". iExists _. iFrame. by rewrite Heq. Qed.
   Definition subsume_optionalO_optty_val_inst := [instance subsume_optionalO_optty_val].
   Global Existing Instance subsume_optionalO_optty_val_inst.
@@ -391,7 +391,7 @@ Section optionalO.
   Lemma subsume_optionalO_ty_val B A cty (ty : B → A → type) optty v b ty'
     `{!∀ y x, OptionableAgree (ty y x) ty'} T:
     (v ◁ᵥ|cty| ty' -∗ ∃ y x, <affine> ⌜b y = Some x⌝ ∗ v ◁ᵥ|cty| ty y x ∗ T y)
-      ⊢ subsume (v ◁ᵥ|cty| ty') (λ y : B, v ◁ᵥ|cty| (b y) @ optionalO cty (ty y) (optty y)) T.
+      ⊢ subsume (v ◁ᵥ|cty| ty') (λ y : B, v ◁ᵥ|cty| (b y) @ optionalO (ty y) (optty y)) T.
   Proof.
     iIntros "Hsub Hl". iDestruct ("Hsub" with "Hl") as (?? Heq) "[??]".
     iExists _. iFrame. by rewrite Heq.
@@ -401,7 +401,7 @@ Section optionalO.
 
   Lemma subsume_optional_optionalO_val B cty ty optty b v T:
     (∃ x, T x) ⊢
-      subsume (v ◁ᵥ|cty| b @ optional ty optty) (λ x : B, v ◁ᵥ|cty| optionalO cty (λ _ : (), ty) optty) T.
+      subsume (v ◁ᵥ|cty| b @ optional ty optty) (λ x : B, v ◁ᵥ|cty| optionalO (λ _ : (), ty) optty) T.
   Proof.
     rewrite /optional; simpl_type.
     rewrite /ty_own_val_at /ty_own_val /=.
@@ -421,7 +421,7 @@ Section optionalO.
     case_destruct b (λ b _,
         li_trace (TraceOptionalO, b) (∀ v, ⎡if b is Some x then v1 ◁ᵥₐₗ|cty| ty x else v1 ◁ᵥₐₗ|cty| optty⎤ -∗
          T v ((if b is Some x then false else true) @ boolean tint)))
-      ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|cty| b @ optionalO cty ty optty⎤ v2 ⎡v2 ◁ᵥₐₗ|cty| optty⎤ Oeq ot1 ot2 tint T.
+      ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|cty| b @ optionalO ty optty⎤ v2 ⎡v2 ◁ᵥₐₗ|cty| optty⎤ Oeq ot1 ot2 tint T.
   Proof.
     unfold li_trace. iIntros "HT Hv1 Hv2". iIntros (Φ) "HΦ".
     destruct b.
@@ -458,7 +458,7 @@ Section optionalO.
     ⎡opt_pre (ty (option.default inhabitant b)) v1 v2⎤ ∧
     case_destruct b (λ b _,
       li_trace (TraceOptionalO, b) (∀ v, ⎡if b is Some x then v1 ◁ᵥₐₗ|cty| ty x else v1 ◁ᵥₐₗ|cty| optty⎤ -∗ T v ((if b is Some x then true else false) @ boolean tint)))
-    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|cty| b @ optionalO cty ty optty⎤ v2 ⎡v2 ◁ᵥₐₗ|cty| optty⎤ Cop.One ot1 ot2 tint T.
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|cty| b @ optionalO ty optty⎤ v2 ⎡v2 ◁ᵥₐₗ|cty| optty⎤ Cop.One ot1 ot2 tint T.
   Proof.
     unfold li_trace. iIntros "HT Hv1 Hv2". iIntros (Φ) "HΦ".
     destruct b.
