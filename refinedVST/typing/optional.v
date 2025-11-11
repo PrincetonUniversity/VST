@@ -490,26 +490,34 @@ Section optionalO.
   Definition type_neq_optionalO_inst := [instance type_neq_optionalO].
   Global Existing Instance type_neq_optionalO_inst.
 
-  (* FIX ME: We don't have typed_read_end *)
-(*
-  Lemma read_optionalO_case A E l b (ty : A → type) optty ly mc a (T : val → type → _):
+  Lemma read_optionalO_case A E l b (ty : A → type) optty ly a T:
     case_destruct b (λ b _, li_trace (TraceOptionalO, b)
-     (typed_read_end a E l Own (if b is Some x then ty x else optty) ly mc T))
-    ⊢ typed_read_end a E l Own (b @ optionalO ty optty) ly mc T.
+     (typed_read_end a E l Own (if b is Some x then ty x else optty) ly T))
+    ⊢ typed_read_end a E l Own (b @ optionalO ty optty) ly T.
   Proof. iDestruct 1 as (_) "?". by destruct b. Qed.
   (* This should be tried very late *)
   Definition read_optionalO_case_inst := [instance read_optionalO_case].
   Global Existing Instance read_optionalO_case_inst | 1001.
-*)
-  (* Global Program Instance optionalO_copyable A cty (ty : A → type) optty x `{!∀ x, Copyable cty (ty x)} `{!Copyable cty optty} : Copyable cty (x @ optionalO cty ty optty).
-  Next Obligation. Admitted.
+
+  Global Program Instance optionalO_copyable A cty (ty : A → type) optty x `{!∀ x, Copyable cty (ty x)} `{!Copyable cty optty} : Copyable cty (x @ optionalO ty optty).
+  Next Obligation.
+    destruct x; unfold optionalO; simpl_type; intros; apply _.
+  Qed.
+  Next Obligation.
+    destruct x; unfold optionalO; simpl_type; intros; apply _.
+  Qed.
   Next Obligation.
     iIntros (A ? ty optty x ? ? E l ?). unfold optionalO; simpl_type. destruct x.
     all: iIntros "Hl".
-    all: iMod (copy_shr_acc with "Hl") as (? Hl ? ?) "[?[??]]" => //; try apply: Hty.
-    all: iModIntro; iExists _; iSplit => //=.
-    all: iExists _, _; iFrame.
-  Qed. *)
+    all: iMod (copy_shr_acc with "Hl") as (Hl ? ? ?) "[?[??]]" => //; try apply: Hty; iSplitR => //.
+    all: iModIntro; iExists _, _; by iFrame.
+  Qed.
+
+  Global Instance optionalO_defined A cty (ty : A → type) optty x `{!∀ x, DefinedTy cty (ty x)} `{!DefinedTy cty optty} : DefinedTy cty (x @ optionalO ty optty).
+  Proof.
+    iIntros (?) "Hv".
+    destruct x; unfold optionalO; simpl_type; iPoseProof (defined_ty with "Hv") as "$".
+  Qed.
 End optionalO.
 Global Typeclasses Opaque optionalO_type optionalO.
 Notation "optionalO< ty , optty >" := (optionalO ty optty)

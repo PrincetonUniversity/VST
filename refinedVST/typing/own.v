@@ -259,7 +259,29 @@ Section own.
       by iApply ("HΦ" with "[$]").
   Qed.
 
-  Lemma type_cast_ptr_ptr f e ot β ty T:
+  Lemma type_cast_ptr_ptr f e ot T:
+    is_tptr (typeof e) = true →
+    typed_val_expr ge f e (λ v ty0, ⎡v ◁ᵥₐₗ|typeof e| ty0⎤ -∗
+      <affine> ⌜is_pointer_or_null v⌝ ∗ T v (value (tptr ot) v))
+    ⊢ typed_val_expr ge f (Ecast e (tptr ot)) T.
+  Proof.
+    intros; iIntros "He %Φ HΦ".
+    iApply wp_cast0.
+    iApply "He".
+    iIntros (v ?) "own_v HT".
+    iDestruct ("HT" with "own_v") as "(% & HT)".
+    iExists v; subst; iSplit.
+    { iPureIntro; intros; destruct (typeof e); try done; destruct v; done. }
+    iApply ("HΦ" with "[] HT").
+    unfold value; simpl_type.
+    iPureIntro; split3; try done.
+    split; last done.
+    rewrite value_fits_eq /=.
+    intros ?; simpl.
+    rewrite andb_false_r //.
+  Qed.
+
+  (*Lemma type_cast_ptr_ptr f e ot β ty T:
     is_tptr (typeof e) = true →
     typed_val_expr ge f e (λ v ty0, ⎡v ◁ᵥₐₗ|typeof e| ty0⎤ -∗ ∃ l, <affine> ⌜v = adr2val l⌝ ∗
       ⎡l ◁ₗ{β} ty⎤ ∗ T v (l @ frac_ptr β ty))
@@ -274,7 +296,7 @@ Section own.
     { iPureIntro; intros; destruct (typeof e); done. }
     iDestruct "HT" as "(Hp & HT)".
     iApply ("HΦ" with "[Hp] HT"). by iFrame.
-  Qed.
+  Qed.*)
 
   Lemma type_if_ptr_own (l : address) β ty t T1 T2:
     (l ◁ₗ{β} ty -∗ (*(loc_in_bounds l 0 ∗ True) ∧*) valid_val l ∧ T1)

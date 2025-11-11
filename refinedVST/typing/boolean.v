@@ -187,29 +187,35 @@ Section generic_boolean.
   Qed.
 
   Lemma simplify_goal_strict_bool it v b T:
-    (<affine> ⌜is_int_type it = true⌝ ∗ <affine> ⌜type_is_volatile it = false⌝ ∗ <affine> ⌜v = valinject it (i2v (bool_to_Z b) it)⌝ ∗ T)
+    (<affine> ⌜is_int_type it = true⌝ ∗ <affine> ⌜type_is_volatile it = false⌝ ∗
+     <affine> ⌜∃ n, val_to_Z (repinject it v) it = Some n ∧ if decide (n = 0) then b = false else n = 1 ∧ b = true⌝ ∗ T)
       ⊢ simplify_goal (v ◁ᵥ|it| b @ generic_boolean StrictBool it) T.
-  Proof.  iIntros "(%Hit & % & %Hv & $)"; subst.
+  Proof.  iIntros "(%Hit & % & (% & %Hv & %Hb) & $)".
           iPureIntro; split; first done.
           pose proof (in_range_bool b _ Hit).
+          assert (n = bool_to_Z b) as ->.
+          { destruct (decide (n = 0)); last destruct Hb; subst; done. }
           exists (bool_to_Z b); split3; try done.
-          - destruct it; try done; rewrite /has_layout_val value_fits_by_value //.
-            split; last done; intros ?; rewrite repinject_valinject //; by apply in_range_i2v.
-          - rewrite -(i2v_to_Z _ it) //; by destruct it.
+          destruct it; try done; rewrite /has_layout_val value_fits_by_value //.
+          apply val_to_Z_inv in Hv as ->.
+          split; last done; intros ?; by apply in_range_i2v.
   Qed.
   Definition simplify_goal_strict_bool_inst := [instance simplify_goal_strict_bool with 0%N].
   Global Existing Instance simplify_goal_strict_bool_inst.
 
   Lemma simplify_goal_strict_bool' it v b (T : assert):
-    (<affine> ⌜is_int_type it = true⌝ ∗ <affine> ⌜type_is_volatile it = false⌝ ∗ <affine> ⌜v = valinject it (i2v (bool_to_Z b) it)⌝ ∗ T)
+    (<affine> ⌜is_int_type it = true⌝ ∗ <affine> ⌜type_is_volatile it = false⌝ ∗
+     <affine> ⌜∃ n, val_to_Z (repinject it v) it = Some n ∧ if decide (n = 0) then b = false else n = 1 ∧ b = true⌝ ∗ T)
       ⊢ simplify_goal ⎡v ◁ᵥ|it| b @ generic_boolean StrictBool it⎤ T.
-  Proof.  iIntros "(%Hit & % & %Hv & $)"; subst.
+  Proof.  iIntros "(%Hit & % & (% & %Hv & %Hb) & $)".
           iPureIntro; split; first done.
           pose proof (in_range_bool b _ Hit).
+          assert (n = bool_to_Z b) as ->.
+          { destruct (decide (n = 0)); last destruct Hb; subst; done. }
           exists (bool_to_Z b); split3; try done.
-          - destruct it; try done; rewrite /has_layout_val value_fits_by_value //.
-            split; last done; intros ?; rewrite repinject_valinject //; by apply in_range_i2v.
-          - rewrite -(i2v_to_Z _ it) //; by destruct it.
+          destruct it; try done; rewrite /has_layout_val value_fits_by_value //.
+          apply val_to_Z_inv in Hv as ->.
+          split; last done; intros ?; by apply in_range_i2v.
   Qed.
   Definition simplify_goal_strict_bool'_inst := [instance simplify_goal_strict_bool' with 0%N].
   Global Existing Instance simplify_goal_strict_bool'_inst.
