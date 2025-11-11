@@ -18,8 +18,34 @@ Ltac sidecond_hook := idtac.
 Ltac unsolved_sidecond_hook := idtac.
 
 (** * Registering extensions *)
-(** We use autorewrite for the moment. *)
-Ltac normalize_hook ::= normalize_autorewrite.
+#[export] Hint Rewrite Ptrofs.repr_signed : lithium_rewrite.
+#[export] Hint Rewrite Ptrofs.repr_unsigned : lithium_rewrite.
+#[export] Hint Rewrite Int.repr_signed : lithium_rewrite.
+#[export] Hint Rewrite Int.repr_unsigned : lithium_rewrite.
+#[export] Hint Rewrite Ptrofs.signed_repr using rep_lia : lithium_rewrite.
+#[export] Hint Rewrite Ptrofs.unsigned_repr using rep_lia : lithium_rewrite.
+#[export] Hint Rewrite Int.signed_repr using rep_lia : lithium_rewrite.
+#[export] Hint Rewrite Int.unsigned_repr using rep_lia : lithium_rewrite.
+#[export] Hint Rewrite Z.shiftr_div_pow2 using lia : lithium_rewrite.
+
+Create HintDb lithium_unfold.
+#[export] Hint Unfold bitsize_intsize : lithium_unfold.
+
+Ltac solver_step := 
+          (first
+            [ done
+            | (progress intros)
+            | split
+            | progress simpl
+            | rep_lia
+            | progress autounfold with lithium_unfold
+            | progress autorewrite with lithium_rewrite
+            ]
+          ).
+
+(* combines the original solver `autorewrite with lithium_rewrite; exact: eq_refl` with more automation. *)
+Ltac normalize_hook ::= solve [repeat solver_step].
+
 (* Goal ∀ l i (x : Z), *)
 (*     0 < length (<[i:=x]> $ <[i:=x]> (<[length (<[i:=x]>l) :=x]> l ++ <[length (<[i:=x]>l) :=x]> l)). *)
 (*   move => ???. normalize_goal. *)

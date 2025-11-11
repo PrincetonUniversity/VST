@@ -200,27 +200,29 @@ Section int.
     - by rewrite Int64.repr_unsigned.
   Qed.
 
-  Lemma simplify_int it v n T:
-    (<affine> ⌜v = valinject it (i2v n it)⌝ -∗ T)
-      ⊢ simplify_hyp (v ◁ᵥ|it| n @ int it) T.
-  Proof.  iIntros "HT (_ & % & %)".
-          iApply "HT"; iPureIntro.
-          destruct it; try done; destruct v; try done; unfold repinject, valinject in *;
-            by apply val_to_Z_inv.
+  Definition if_def v k :=
+    match v with | Vundef => True%type | _ => k end.
+
+   Lemma simplify_int it v n (T : assert):
+    (<affine> ⌜v = valinject it (i2v n it)⌝ -∗
+     <affine> ⌜if_def (i2v n it) (n ∈ it) ⌝ -∗ T)
+      ⊢ simplify_hyp ⎡v ◁ᵥ|it| n @ int it⎤ T.
+  Proof.
+    rewrite /simplify_hyp /ty_own_val_at /ty_own_val /=.
+    iIntros "HT (_ & %H & %Hn)".
+    destruct H as [? ?].
+    iApply "HT"; iPureIntro.
+    - destruct it; try done; unfold tc_val' in H;
+      by apply val_to_Z_inv.
+    - rewrite -(val_to_Z_inv _ _ _ Hn).
+      destruct ((repinject it v)) eqn:Hv; try done; simpl; eapply val_to_Z_in_range; eauto;
+      destruct it; try done.
+      simpl in Hv.
+      rewrite value_fits_eq /= H0 Hv /tc_val' in H.
+      apply H. done.
   Qed.
   Definition simplify_int_inst := [instance simplify_int with 0%N].
   Global Existing Instance simplify_int_inst.
-
-  Lemma simplify_int' it v n (T : assert):
-    (<affine> ⌜v = valinject it (i2v n it)⌝ -∗ T)
-      ⊢ simplify_hyp ⎡v ◁ᵥ|it| n @ int it⎤ T.
-  Proof.  iIntros "HT (_ & % & %)".
-          iApply "HT"; iPureIntro.
-          destruct it; try done; destruct v; try done; unfold repinject, valinject in *;
-            by apply val_to_Z_inv.
-  Qed.
-  Definition simplify_int'_inst := [instance simplify_int' with 0%N].
-  Global Existing Instance simplify_int'_inst.
 
   Lemma simplify_goal_int_n it v n T:
     (<affine> ⌜type_is_volatile it = false⌝ ∗ <affine> ⌜v = valinject it (i2v n it)⌝ ∗ <affine> ⌜n ∈ it⌝ ∗ T)
