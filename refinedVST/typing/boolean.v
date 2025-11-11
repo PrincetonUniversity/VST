@@ -28,7 +28,7 @@ Definition is_bool_ot (ot : op_type) (it : int_type) (stn : bool_strictness) : P
   end.*)
 
 Section is_bool_ot.
-  Context `{!typeG OK_ty Σ} `{cs :compspecs} (ge : Genv.t Clight.fundef Ctypes.type).
+  Context `{!typeG OK_ty Σ} `{cs :compspecs}.
 
   Lemma represents_boolean_eq stn n b :
     represents_boolean stn n b → bool_decide (n ≠ 0) = b.
@@ -149,6 +149,71 @@ Notation builtin_boolean := (generic_boolean StrictBool u8).
 Section generic_boolean.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
+  Lemma val_to_Z_inv v t n: val_to_Z v t = Some n → v = i2v n t.
+  Proof.
+    destruct v => //; destruct t => //; destruct s => //=; inversion 1.
+    - by rewrite Int.repr_signed.
+    - by rewrite Int.repr_unsigned.
+    - by rewrite Int64.repr_signed.
+    - by rewrite Int64.repr_unsigned.
+  Qed.
+
+  Lemma simplify_strict_bool it v b T:
+    (<affine> ⌜v = valinject it (i2v (bool_to_Z b) it)⌝ -∗ T)
+      ⊢ simplify_hyp (v ◁ᵥ|it| b @ generic_boolean StrictBool it) T.
+  Proof.  iIntros "HT (_ & % & % & % & ->)".
+          iApply "HT"; iPureIntro.
+          destruct it; try done; destruct v; try done; unfold repinject, valinject in *;
+            by apply val_to_Z_inv.
+  Qed.
+  Definition simplify_strict_bool_inst := [instance simplify_strict_bool with 0%N].
+  Global Existing Instance simplify_strict_bool_inst.
+
+  Lemma simplify_strict_bool' it v b (T : assert):
+    (<affine> ⌜v = valinject it (i2v (bool_to_Z b) it)⌝ -∗ T)
+      ⊢ simplify_hyp ⎡v ◁ᵥ|it| b @ generic_boolean StrictBool it⎤ T.
+  Proof.  iIntros "HT (_ & % & % & % & ->)".
+          iApply "HT"; iPureIntro.
+          destruct it; try done; destruct v; try done; unfold repinject, valinject in *;
+            by apply val_to_Z_inv.
+  Qed.
+  Definition simplify_strict_bool'_inst := [instance simplify_strict_bool' with 0%N].
+  Global Existing Instance simplify_strict_bool'_inst.
+
+  Lemma in_range_bool b it: is_int_type it = true → in_range (bool_to_Z b) it.
+  Proof.
+    destruct it; try done; simpl.
+    destruct i, s, b; done.
+  Qed.
+
+  Lemma simplify_goal_strict_bool it v b T:
+    (<affine> ⌜is_int_type it = true⌝ ∗ <affine> ⌜type_is_volatile it = false⌝ ∗ <affine> ⌜v = valinject it (i2v (bool_to_Z b) it)⌝ ∗ T)
+      ⊢ simplify_goal (v ◁ᵥ|it| b @ generic_boolean StrictBool it) T.
+  Proof.  iIntros "(%Hit & % & %Hv & $)"; subst.
+          iPureIntro; split; first done.
+          pose proof (in_range_bool b _ Hit).
+          exists (bool_to_Z b); split3; try done.
+          - destruct it; try done; rewrite /has_layout_val value_fits_by_value //.
+            split; last done; intros ?; rewrite repinject_valinject //; by apply in_range_i2v.
+          - rewrite -(i2v_to_Z _ it) //; by destruct it.
+  Qed.
+  Definition simplify_goal_strict_bool_inst := [instance simplify_goal_strict_bool with 0%N].
+  Global Existing Instance simplify_goal_strict_bool_inst.
+
+  Lemma simplify_goal_strict_bool' it v b (T : assert):
+    (<affine> ⌜is_int_type it = true⌝ ∗ <affine> ⌜type_is_volatile it = false⌝ ∗ <affine> ⌜v = valinject it (i2v (bool_to_Z b) it)⌝ ∗ T)
+      ⊢ simplify_goal ⎡v ◁ᵥ|it| b @ generic_boolean StrictBool it⎤ T.
+  Proof.  iIntros "(%Hit & % & %Hv & $)"; subst.
+          iPureIntro; split; first done.
+          pose proof (in_range_bool b _ Hit).
+          exists (bool_to_Z b); split3; try done.
+          - destruct it; try done; rewrite /has_layout_val value_fits_by_value //.
+            split; last done; intros ?; rewrite repinject_valinject //; by apply in_range_i2v.
+          - rewrite -(i2v_to_Z _ it) //; by destruct it.
+  Qed.
+  Definition simplify_goal_strict_bool'_inst := [instance simplify_goal_strict_bool' with 0%N].
+  Global Existing Instance simplify_goal_strict_bool'_inst.
+  
   Inductive trace_if_bool :=
   | TraceIfBool (b : bool).
 
@@ -196,7 +261,6 @@ End generic_boolean.
 
 Section boolean.
   Context `{!typeG OK_ty Σ} `{cs :compspecs} (ge : Genv.t Clight.fundef Ctypes.type).
-
 
   Lemma type_relop_boolean b1 b2 op b it v1 v2
     (Hop : match op with

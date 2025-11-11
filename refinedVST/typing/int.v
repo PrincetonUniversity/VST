@@ -191,15 +191,6 @@ Section int.
     destruct it; try done; destruct v; try done.
   Qed.
 
-  Lemma val_to_Z_inv v t n: val_to_Z v t = Some n → v = i2v n t.
-  Proof.
-    destruct v => //; destruct t => //; destruct s => //=; inversion 1.
-    - by rewrite Int.repr_signed.
-    - by rewrite Int.repr_unsigned.
-    - by rewrite Int64.repr_signed.
-    - by rewrite Int64.repr_unsigned.
-  Qed.
-
   Lemma simplify_int it v n T:
     (<affine> ⌜v = valinject it (i2v n it)⌝ -∗ T)
       ⊢ simplify_hyp (v ◁ᵥ|it| n @ int it) T.
