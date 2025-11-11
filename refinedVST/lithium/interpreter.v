@@ -489,23 +489,20 @@ End coq_tactics.
 
 Ltac liSideCond :=
   try liEnsureSepHead;
-  lazymatch goal with
-
-  
+  lazymatch goal with  
   | |- envs_entails ?Δ (bi_sep (⌜?P⌝) ?Q) =>
   (* We use done instead of fast_done here because solving more
      sideconditions here is a bigger performance win than the overhead
-     of done. *)
-      notypeclasses refine (tac_sep_pure _ _ _ _ _); [ first [ done | shelve_sidecond ] | ]
+     of done. *)notypeclasses refine (tac_sep_pure _ _ _ _ _); [ first [ done | normalize_hook | shelve_sidecond] | ]
   | |- envs_entails ?Δ (bi_sep (<affine> ⌜?P⌝) ?Q) =>
-      notypeclasses refine (tac_sep_affine_pure _ _ _ _ _); [ first [ done | shelve_sidecond ] | ]
+    notypeclasses refine (tac_sep_affine_pure _ _ _ _ _); [ first [ done | normalize_hook | shelve_sidecond] | ]
   | |- envs_entails ?Δ (∃ₗ x, bi_sep (⌜@?P x⌝) _) =>
     (* TODO: Can we get something like the old shelve_hint? *)
     (* TODO: figure out best order here *)
     match P with
     | _ => progress (notypeclasses refine (tac_normalize_goal_and_liex _ _ _ _ _ _);
                       (* cbv beta is important to correctly detect progress *)
-                      [intros ?; normalize_hook|cbv beta])
+                      [intros ?; normalize_hook |cbv beta])
     | _ => liExInst
     | (λ _, _ ∧ _)%type => notypeclasses refine (tac_sep_pure_and _ _ _ _ _)
     | (λ _, ∃ _, _)%type => notypeclasses refine (tac_sep_pure_exist _ _ _ _)
@@ -517,7 +514,7 @@ Ltac liSideCond :=
       match P with
       | _ => progress (notypeclasses refine (tac_normalize_goal_and_liex_affine _ _ _ _ _ _);
                        (* cbv beta is important to correctly detect progress *)
-                       [intros ?; normalize_hook|cbv beta])
+                       [intros ?; normalize_hook | cbv beta])
       | _ => liExInst
       | (λ _, _ ∧ _)%type => notypeclasses refine (tac_sep_affine_pure_and _ _ _ _ _)
       | (λ _, ∃ _, _)%type => notypeclasses refine (tac_sep_affine_pure_exist _ _ _ _)
@@ -1283,7 +1280,7 @@ Ltac push_in_embed_for_head :=
     | embed ?H => push_in_embed (embed H)
     | bi_wand ?H _ => push_in_embed_inside_term H
     | bi_sep ?H _ => push_in_embed_inside_term H
-    | bi_exist ?H => idtac H; progress push_in_embed_setoid
+    | bi_exist ?H => progress push_in_embed_setoid
     (* | ?un_op ?H => idtac "unop" un_op; push_in_embed H
     | ?bin_op ?H _ => idtac "binop" bin_op; push_in_embed H *)
     end end.

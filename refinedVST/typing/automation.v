@@ -18,8 +18,68 @@ Ltac sidecond_hook := idtac.
 Ltac unsolved_sidecond_hook := idtac.
 
 (** * Registering extensions *)
-(** We use autorewrite for the moment. *)
-Ltac normalize_hook ::= normalize_autorewrite.
+
+
+(* TODO these should be part of CCris, not specific to RefinedCC. *)
+Create HintDb ccris_rewrite.
+#[export] Hint Rewrite Ptrofs.repr_signed : ccris_rewrite.
+#[export] Hint Rewrite Ptrofs.repr_unsigned : ccris_rewrite.
+#[export] Hint Rewrite Int.repr_signed : ccris_rewrite.
+#[export] Hint Rewrite Int.repr_unsigned : ccris_rewrite.
+#[export] Hint Rewrite Ptrofs.signed_repr using rep_lia : ccris_rewrite.
+#[export] Hint Rewrite Ptrofs.unsigned_repr using rep_lia : ccris_rewrite.
+#[export] Hint Rewrite Int.signed_repr using rep_lia : ccris_rewrite.
+#[export] Hint Rewrite Int.unsigned_repr using rep_lia : ccris_rewrite.
+#[export] Hint Rewrite Z.shiftr_div_pow2 using rep_lia : ccris_rewrite.
+#[export] Hint Rewrite Z.shiftl_mul_pow2 using rep_lia : ccris_rewrite.
+#[export] Hint Rewrite Z.pow_1_r using rep_lia : ccris_rewrite.
+
+Create HintDb refinedcc_unfold.
+#[export] Hint Unfold bitsize_intsize : refinedcc_unfold.
+
+Ltac solver_reduce_step := 
+  first
+    [ done
+    | (progress intros)
+    | split
+    | progress simpl
+    | rep_lia
+    | progress autounfold with refinedcc_unfold
+    | progress autorewrite with ccris_rewrite lithium_rewrite
+    ].
+
+(* solver for Prop. also used in TCSolve.
+  solver_step can make the goal into a typeclass, but it is crucial that
+  TCSolve only calls solver_reduce_step so that a typeclass obligatoin only
+  becomes "smaller".
+  TODO is can_solve related to this? *)
+Ltac solver_step :=
+  first
+    [ solver_reduce_step
+    | match goal with
+      | |- ?P = ?Q => apply (TCEq_eq P Q); apply _
+      end
+  ].
+
+(* Typeclasses for proving equality of CCris values. *)
+Class TCSolve (P : Prop) : Prop := tc_rep_lia_proof: P.
+#[export] Hint Extern 10 (TCSolve ?P) => (change P; solve [repeat solver_reduce_step]) : typeclass_instances.
+
+#[export] Instance TCDone_TCEq (z1 z2 : Z):
+  TCDone (z1 = z2) -> TCEq (Int.repr z1) (Int.repr z2) | 1.
+Proof. by intros ->. Qed.
+
+#[export] Instance int_repr_inj_inst (z1 z2 : Z):
+  TCSolve (z1 = z2) -> TCEq (Int.repr z1) (Int.repr z2) | 10.
+Proof. by intros ->. Qed.
+
+#[export] Instance vint_inj_inst i1 i2:
+  TCEq i1 i2 -> TCEq (Vint i1) (Vint i2) | 0.
+Proof. by intros ->. Qed.
+
+(* combines the original solver `autorewrite with lithium_rewrite; exact: eq_refl` with more automation. *)
+Ltac normalize_hook ::= solve [repeat solver_step].
+
 (* Goal ∀ l i (x : Z), *)
 (*     0 < length (<[i:=x]> $ <[i:=x]> (<[length (<[i:=x]>l) :=x]> l ++ <[length (<[i:=x]>l) :=x]> l)). *)
 (*   move => ???. normalize_goal. *)

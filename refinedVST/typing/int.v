@@ -191,32 +191,31 @@ Section int.
     destruct it; try done; destruct v; try done.
   Qed.
 
-  Lemma simplify_int it v n T:
-    (<affine> ⌜v = valinject it (i2v n it)⌝ -∗ T)
-      ⊢ simplify_hyp (v ◁ᵥ|it| n @ int it) T.
-  Proof.  iIntros "HT (_ & % & %)".
-          iApply "HT"; iPureIntro.
-          destruct it; try done; destruct v; try done; unfold repinject, valinject in *;
-            by apply val_to_Z_inv.
+  Lemma simplify_int it v n (T : assert):
+    (<affine> ⌜v = valinject it (i2v n it)⌝ -∗
+     <affine> ⌜n ∈ it⌝ -∗ T)
+      ⊢ simplify_hyp ⎡v ◁ᵥ|it| n @ int it⎤ T.
+  Proof.
+    rewrite /simplify_hyp /ty_own_val_at /ty_own_val /=.
+    iIntros "HT (_ & %H & %Hn)".
+    destruct H as [? ?].
+    iApply "HT"; iPureIntro.
+    - destruct it; try done; unfold tc_val' in H;
+      by apply val_to_Z_inv.
+    - rewrite -(val_to_Z_inv _ _ _ Hn).
+      destruct ((repinject it v)) eqn:Hv; try done; simpl; eapply val_to_Z_in_range; eauto;
+      destruct it; try done.
+      simpl in Hv.
+      rewrite value_fits_eq /= H0 Hv /tc_val' in H.
+      apply H. done.
   Qed.
   Definition simplify_int_inst := [instance simplify_int with 0%N].
   Global Existing Instance simplify_int_inst.
 
-  Lemma simplify_int' it v n (T : assert):
-    (<affine> ⌜v = valinject it (i2v n it)⌝ -∗ T)
-      ⊢ simplify_hyp ⎡v ◁ᵥ|it| n @ int it⎤ T.
-  Proof.  iIntros "HT (_ & % & %)".
-          iApply "HT"; iPureIntro.
-          destruct it; try done; destruct v; try done; unfold repinject, valinject in *;
-            by apply val_to_Z_inv.
-  Qed.
-  Definition simplify_int'_inst := [instance simplify_int' with 0%N].
-  Global Existing Instance simplify_int'_inst.
-
-  Lemma simplify_goal_int_n it v n T:
-    (<affine> ⌜type_is_volatile it = false⌝ ∗ <affine> ⌜v = valinject it (i2v n it)⌝ ∗ <affine> ⌜n ∈ it⌝ ∗ T)
-      ⊢ simplify_goal (v ◁ᵥ|it| n @ int it) T.
-  Proof.  iIntros "(% & %Hv & %Hn & $)"; subst.
+  Lemma simplify_goal_int_n it v n T `{Hv: !TCEq v (valinject it (i2v n it))}:
+  (<affine> ⌜type_is_volatile it = false⌝ ∗ <affine> ⌜n ∈ it⌝ ∗ T)
+    ⊢ simplify_goal (v ◁ᵥ|it| n @ int it) T.
+  Proof.  iIntros "(% & %Hn & $)"; subst. inv Hv.
           iPureIntro; split3; auto.
           - destruct it; try done; rewrite /has_layout_val value_fits_by_value //.
             split; last done; intros ?; by apply in_range_i2v.
@@ -225,10 +224,10 @@ Section int.
   Definition simplify_goal_int_n_inst := [instance simplify_goal_int_n with 0%N].
   Global Existing Instance simplify_goal_int_n_inst.
 
-  Lemma simplify_goal_int_n' it v n (T : assert):
-    (<affine> ⌜type_is_volatile it = false⌝ ∗ <affine> ⌜v = valinject it (i2v n it)⌝ ∗ <affine> ⌜n ∈ it⌝ ∗ T)
+  Lemma simplify_goal_int_n' it v n (T : assert) `{Hv: !TCEq v (valinject it (i2v n it))}:
+    (<affine> ⌜type_is_volatile it = false⌝ ∗ <affine> ⌜n ∈ it⌝ ∗ T)
       ⊢ simplify_goal ⎡v ◁ᵥ|it| n @ int it⎤ T.
-  Proof.  iIntros "(% & %Hv & %Hn & $)"; subst.
+  Proof.  iIntros "(% & %Hn & $)"; subst. inv Hv.
           iPureIntro; split3; auto.
           - destruct it; try done; rewrite /has_layout_val value_fits_by_value //.
             split; last done; intros ?; by apply in_range_i2v.
