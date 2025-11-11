@@ -102,7 +102,7 @@ Section generic_boolean.
 
   Global Program Instance generic_boolean_copyable b stn it : Copyable it (b @ generic_boolean stn it).
   Next Obligation.
-    iIntros (??????) "(%v&%n&%&%&%&%&Hl)".
+    iIntros (???????) "(%v&%n&%&%&%&%&Hl)".
     simpl in *; subst.
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[% Hl]" => //.
     iSplitR; first done. iExists q, (valinject it v); iFrame.

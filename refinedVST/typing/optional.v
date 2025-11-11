@@ -269,7 +269,7 @@ Section optional.
 
   Global Program Instance optional_copyable b cty ty optty `{!Copyable cty ty} `{!Copyable cty optty} : Copyable cty (b @ optional ty optty).
   Next Obligation.
-    iIntros (b cty ty optty ? ? E l ?) "[[% Hl]|[% Hl]]".
+    iIntros (b cty ty optty ? ? E l ? [??]) "[[% Hl]|[% Hl]]".
     all: iMod (copy_shr_acc with "Hl") as (?? ?) "[?[?[? H]]]" => //.
     all: iModIntro; iSplit => //; rewrite /=?opt_alt_sz => //; iExists _, _; iFrame.
     - iSplit; first by iLeft; iFrame.
@@ -507,7 +507,7 @@ Section optionalO.
     destruct x; unfold optionalO; simpl_type; intros; apply _.
   Qed.
   Next Obligation.
-    iIntros (A ? ty optty x ? ? E l ?). unfold optionalO; simpl_type. destruct x.
+    iIntros (A ? ty optty x ? ? E l ? [Hty ?]). unfold optionalO; simpl_type. destruct x.
     all: iIntros "Hl".
     all: iMod (copy_shr_acc with "Hl") as (Hl ? ? ?) "[?[??]]" => //; try apply: Hty; iSplitR => //.
     all: iModIntro; iExists _, _; by iFrame.

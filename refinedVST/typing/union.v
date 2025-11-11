@@ -162,7 +162,7 @@ Section union.
     rewrite /ty_own_val_at /ty_own_val /=. apply _. Qed.
   Next Obligation. move => *. unfold tunion_tag; simpl_type. apply _. Qed.
   Next Obligation.
-    rewrite /ty_own/ty_own_val/= => ?????/=.
+    rewrite /ty_own/ty_own_val/= => ??????/=.
     iIntros "Hl". iMod (copy_shr_acc _ _ with "Hl") as (???) "Hc" => //.
     iSplitR => //. iExists _, _. by iFrame.
   Qed.

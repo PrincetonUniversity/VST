@@ -507,7 +507,7 @@ Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} (cty:Ctypes.type) (ty : type)
   copy_own_val_affine v : Affine (ty.(ty_own_val) cty v);
   copy_own_affine l : Affine (ty.(ty_own) Shr l); (* should always be true? *)
   copy_shr_acc E l :
-    mtE ⊆ E →
+    mtE ⊆ E → ty.(ty_has_op_type) cty MCCopy →
     ty.(ty_own) Shr l ={E}=∗ <affine> ⌜l `has_layout_loc` cty⌝ ∗
        ∃ q' vl, <affine> ⌜readable_share q'⌝ ∗ l ↦{q'}|cty| vl ∗ ty.(ty_own_val) cty vl ∗ (l ↦{q'}|cty| vl ={E}=∗ ty.(ty_own) Shr l)
 }.

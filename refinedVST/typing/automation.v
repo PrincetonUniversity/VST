@@ -428,6 +428,7 @@ in the number of blocks! *)
   
 Tactic Notation "start_function" constr(fnname) "(" simple_intropattern(x) ")" :=
   intros;
+  iStartProof; repeat iIntros "#?"; iStopProof;
   apply prove_typed_function; [apply _..|];
   intros x;
   split; [simpl; by [repeat constructor; try econstructor] || fail "in" fnname "argument types don't match layout of arguments" |];

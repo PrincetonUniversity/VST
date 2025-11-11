@@ -309,18 +309,18 @@ Section int.
   have to reprove this everytime? *)
   Global Program Instance int_copyable x it : Copyable it (x @ int it).
   Next Obligation.
-    iIntros (?????) "(%v&%Hv&%&%Hl&Hl)".
+    iIntros (??????) "(%v&%Hv&%Hn&%Hl&Hl)".
     simpl in *; subst.
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[% [% Hl]]" => //.
     iSplitR => //. iExists q, (valinject it v). iFrame. iModIntro.
     destruct Hv.
-    apply val_to_Z_by_value in H0 as ?.
+    apply val_to_Z_by_value in Hn as ?.
     rewrite /ty_own_val /ty_own /= repinject_valinject //.
     repeat iSplit => //.
     iIntros "↦".
     iExists _.
     iMod (heap_mapsto_own_state_from_mt with "↦") as "Hl'"; try done.
-    iFrame. done.
+    by iFrame.
   Qed.
 
    Global Instance int_timeless l z it:

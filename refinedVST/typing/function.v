@@ -154,8 +154,8 @@ Section function.
 
   Program Definition function_ptr_type (fp : A → fn_params) (f : address) : type := {|
     ty_has_op_type ot mt := (∃ fn, fntbl_entry f fn /\ ot = tptr (type_of_function fn))%type;
-    ty_own β l := (∃ fn, <affine> ⌜l `has_layout_loc` tptr (type_of_function fn)⌝ ∗ l ↦[β]|tptr (type_of_function fn)| adr2val f ∗ <affine> ⌜fntbl_entry f fn⌝ ∗ ▷ typed_function fn fp)%I;
-    ty_own_val cty v := (∃ fn, <affine> ⌜cty = tptr (type_of_function fn) /\ repinject cty v = adr2val f⌝ ∗ <affine> ⌜fntbl_entry f fn⌝ ∗ ▷ typed_function fn fp)%I;
+    ty_own β l := (∃ fn, <affine> ⌜l `has_layout_loc` tptr (type_of_function fn)⌝ ∗ l ↦[β]|tptr (type_of_function fn)| adr2val f ∗ <affine> ⌜fntbl_entry f fn⌝ ∗ <affine> ▷ typed_function fn fp)%I;
+    ty_own_val cty v := (∃ fn, <affine> ⌜cty = tptr (type_of_function fn) /\ repinject cty v = adr2val f⌝ ∗ <affine> ⌜fntbl_entry f fn⌝ ∗ <affine> ▷ typed_function fn fp)%I;
   |}.
   Next Obligation. iDestruct 1 as (fn) "[? [H [? ?]]]". iExists _. iFrame. by iApply (heap_mapsto_own_state_share with "H"). Qed.
   Next Obligation. iIntros (fp f ot mt l (? & ? & ->)). iDestruct 1 as (??) "(?&%&?)". eapply fntbl_entry_inj in H; eauto; subst; done. Qed.
@@ -172,15 +172,22 @@ Section function.
   Definition function_ptr (fp : A → fn_params) : rtype _ :=
     RType (function_ptr_type fp).
 
-(*   Global Program Instance copyable_function_ptr p fp : Copyable (p @ function_ptr fp).
+  Global Program Instance copyable_function_ptr cty p fp : Copyable cty (p @ function_ptr fp).
   Next Obligation.
-    (* might not be true because of ▷ *)
-  Admitted.
-  Next Obligation.
-    iIntros (p fp E ly l ? (? & ->)). iDestruct 1 as (fn Hl) "(Hl&?&?)".
-    iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //.
-    erewrite singleton.mapsto_tptr. iFrame. iModIntro. unfold has_layout_loc. rewrite singleton.field_compatible_tptr. do 2 iSplit => //. by iIntros "_".
-  Qed. *)
+    iIntros (cty p fp E l ? (? & He & ->)). iDestruct 1 as (fn Hl) "(Hl&%He2&#?)".
+    eapply fntbl_entry_inj in He as <-; last done.
+    iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "(_ & % & Hl)" => //.
+     iFrame; iFrame "#". iModIntro. unfold has_layout_loc. do 3 iSplit => //.
+     iIntros "?"; iExists _; iSplitR => //.
+     iMod (inv_alloc with "[-]") as "$"; first by iFrame.
+     iModIntro. by iSplit.
+  Qed.
+
+  Global Instance function_ptr_defined cty p fp : DefinedTy cty (p @ function_ptr fp).
+  Proof.
+    iIntros (?) "(% & (_ & %) & ?)".
+    iPureIntro; intros ->; by destruct cty.
+  Qed.
 
   Opaque simple_mapsto.memory_block.
 
