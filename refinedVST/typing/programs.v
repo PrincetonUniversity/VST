@@ -1902,15 +1902,24 @@ Section typing.
     by iApply wp_const_single; iApply ("HΦ" with "[$]").
   Qed.
 
+  Lemma type_sizeof ge f ty t T:
+    typed_value t (Vptrofs (Ptrofs.repr (sizeof ty))) (T (Vptrofs (Ptrofs.repr (sizeof ty))))
+    ⊢ typed_val_expr ge f (Esizeof ty t) T.
+  Proof.
+    iIntros "HP" (Φ) "HΦ".
+    iDestruct "HP" as (?) "[Hv HT]".
+    by iApply wp_sizeof; iApply ("HΦ" with "[$]").
+  Qed.
 
-  (* (typed_place basically typed_val_expr and that it can convert to address) 
-      typed_place_expr e (λ ..., typed_read_end ) ⊢ typed_read e  // modified type_read_simple
-      ? ⊢ typed_place_expr (binop  _ ptr_expr ofs_expr (tptr _)) // stuck, don't know which rule
-                                                                   to use: is ptr_expr an array ptr or
-                                                                   something else? while type_place_array
-                                                                   can use `l` and its type as search inputs
+  Lemma type_alignof ge f ty t T:
+    typed_value t (Vptrofs (Ptrofs.repr (alignof ty))) (T (Vptrofs (Ptrofs.repr (alignof ty))))
+    ⊢ typed_val_expr ge f (Ealignof ty t) T.
+  Proof.
+    iIntros "HP" (Φ) "HΦ".
+    iDestruct "HP" as (?) "[Hv HT]".
+    by iApply wp_alignof; iApply ("HΦ" with "[$]").
+  Qed.
 
-     *)
   Lemma type_bin_op ge f o e1 e2 ot T:
     typed_val_expr ge f e1 (λ v1 ty1,
       typed_val_expr ge f e2 (λ v2 ty2,

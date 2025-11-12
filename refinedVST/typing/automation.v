@@ -336,6 +336,8 @@ Ltac liRExpr :=
     | Evar _ _ => first [notypeclasses refine (tac_fast_apply (type_read_lvalue _ _ _ _ _ _) _);[done|done|] |
                          notypeclasses refine (tac_fast_apply (type_gvar_expr _ _ _ _ _ _ _ _ _ _) _);[done|simpl; congruence|done|] |
                          notypeclasses refine (tac_fast_apply (type_lvar_expr _ _ _ _ _ _ _ _) _);[done|] ]
+    | Esizeof _ _ => notypeclasses refine (tac_fast_apply (type_sizeof _ _ _ _ _) _)
+    | Ealignof _ _ => notypeclasses refine (tac_fast_apply (type_alignof _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
   | |- envs_entails ?Δ (typed_lvalue _ _ ?β ?e ?T) =>
