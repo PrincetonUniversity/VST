@@ -321,19 +321,112 @@ Section own.
   Definition type_assert_ptr_own_inst := [instance type_assert_ptr_own].
   Global Existing Instance type_assert_ptr_own_inst.
 
-(*  Lemma type_cast_int_ptr n v it T:
-    (⌜n ∈ it⌝ -∗ ∀ oid, T (val_of_loc (oid, n)) ((oid, n) @ frac_ptr Own (place (oid, n))))
-    ⊢ typed_un_op v (v ◁ᵥ n @ int it) (CastOp PtrOp) (IntOp it) T.
+  Definition is_cast_case_pointer cty:=
+    match cty with
+    | Tint _ _ _ => if Archi.ptr64 then false else true
+    | Tlong _ _ => if Archi.ptr64 then true else false
+    | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _  
+      => true
+    | _ => false
+    end.
+  
+  Lemma is_cast_case_pointer_correct cty_from cty':
+    is_cast_case_pointer cty_from <->
+    classify_cast cty_from (tptr cty')  = cast_case_pointer.
+  Proof. intros; destruct cty_from, cty'; done. Qed.
+
+  Definition cast_int_ptr v cty :=
+    match v, cty with
+    | Vint _, Tint _ _ _ => if Archi.ptr64 then None else Some $ Vint Int.zero
+    | Vlong _, Tlong _ _ => if Archi.ptr64 then Some v else Some $ Vlong Int64.zero
+    | Vptr _ _, Tlong _ _ => 
+      (* don't support Vlong and Vptr for now *)
+      Some v 
+    | _, _ => None
+   end.
+  
+  Lemma cast_int_ptr_sem_cast v v' ty ty2 m:
+    cast_int_ptr v ty = Some v'->
+    Cop.sem_cast v ty (tptr ty2) m = Some v'.
   Proof.
-    unfold int; simpl_type.
-    iIntros "HT" (Hn Φ) "HΦ".
-    iDestruct ("HT" with "[%]") as "HT".
-    { by apply: val_to_Z_in_range. }
-    iApply wp_cast_int_ptr_weak => //.
-    iIntros (i') "!>". by iApply ("HΦ" with "[] HT").
+    intros. destruct v, ty; done.
   Qed.
-  Definition type_cast_int_ptr_inst := [instance type_cast_int_ptr].
-  Global Existing Instance type_cast_int_ptr_inst | 50. *)
+
+  (* Vlong casted to tptr is still Vlong. *)
+  Remark Vlong_cast m:
+    Cop.sem_cast (Vlong Int64.one) tlong (tptr tvoid) m = Some (Vlong Int64.one).
+  Proof. rewrite /sem_cast /=. change Archi.ptr64 with true; done. Qed.
+
+  Lemma type_cast_int_ptr_cast_case_pointer f e ot T
+   `{!TCDone $ is_cast_case_pointer (typeof e) = true} :
+       typed_val_expr ge f e (λ v ty0,
+       ∃ v', <affine> ⌜Some v' = cast_int_ptr v (typeof e)⌝ ∗
+      (⎡v ◁ᵥₐₗ|typeof e| ty0⎤ -∗
+      <affine> ⌜is_pointer_or_null v'⌝ ∗ T v' (value (tptr ot) v')))
+    ⊢ typed_val_expr ge f (Ecast e (tptr ot)) T.
+  Proof.
+    intros; iIntros "He %Φ HΦ".
+    iApply wp_cast0.
+    iApply "He".
+    iIntros (v ?) "own_v (%v' & % & HT)".
+    iDestruct ("HT" with "own_v") as "(% & HT)".
+    iExists v'; subst; iSplit.
+    { iPureIntro; intros. apply cast_int_ptr_sem_cast. done. }
+    iApply ("HΦ" with "[] HT").
+    unfold value; simpl_type.
+    iPureIntro; split3; try done.
+    split; last done.
+    rewrite value_fits_eq /=.
+    intros ?; simpl.
+    rewrite andb_false_r //.
+  Qed.
+  Definition type_cast_int_ptr_cast_case_pointer_inst := [instance type_cast_int_ptr_cast_case_pointer].
+  (* FIXME  Global Existing Instance type_cast_int_ptr_cast_case_pointer_inst | 50. *)
+
+  Definition is_cast_case_i2l cty:=
+  match cty with
+  | Tint _ _ _ => if Archi.ptr64 then true else false
+  | _ => false
+  end.
+
+  Definition cast_int_i2l v cty :=
+    match v, cty with
+    | Vint n, Tint _ si _ => Some(Vlong (cast_int_long si n))
+    | _, _ => None
+    end.
+
+  Lemma cast_int_i2l_sem_cast v v' ty ty2 m:
+    cast_int_i2l v ty = Some v'->
+    Cop.sem_cast v ty (tptr ty2) m = Some v'.
+  Proof.
+    intros. destruct v, ty; done.
+  Qed.
+  
+  Lemma type_cast_int_ptr_cast_case_i2l f e ot T
+   `{!TCDone $ is_cast_case_i2l (typeof e) = true} :
+       typed_val_expr ge f e (λ v ty0,
+       ∃ v', <affine> ⌜Some v' = cast_int_i2l v (typeof e)⌝ ∗
+      (⎡v ◁ᵥₐₗ|typeof e| ty0⎤ -∗
+      <affine> ⌜is_pointer_or_null v'⌝ ∗ T v' (value (tptr ot) v')))
+    ⊢ typed_val_expr ge f (Ecast e (tptr ot)) T.
+      Proof.
+    intros; iIntros "He %Φ HΦ".
+    iApply wp_cast0.
+    iApply "He".
+    iIntros (v ?) "own_v (%v' & % & HT)".
+    iDestruct ("HT" with "own_v") as "(% & HT)".
+    iExists v'; subst; iSplit.
+    { iPureIntro; intros. apply cast_int_i2l_sem_cast. done. }
+    iApply ("HΦ" with "[] HT").
+    unfold value; simpl_type.
+    iPureIntro; split3; try done.
+    split; last done.
+    rewrite value_fits_eq /=.
+    intros ?; simpl.
+    rewrite andb_false_r //.
+  Qed.
+  Definition type_cast_int_ptr_cast_case_i2l_inst := [instance type_cast_int_ptr_cast_case_i2l].
+  (* FIXME Global Existing Instance type_cast_int_ptr_cast_case_pointer_inst | 50. *)
 
 (*  Lemma type_copy_aid v a it l β ty T:
     (l ◁ₗ{β} ty -∗
