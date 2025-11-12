@@ -230,6 +230,7 @@ Section generic_boolean.
   Proof.
     unfold case_destruct, li_trace. iIntros "[% Hs] (%n&%&%&%Hval_to_Z&%Hb)".
     apply val_to_Z_by_value in Hval_to_Z as Hit.
+    rewrite /val_type Hit in H Hval_to_Z.
     rewrite repinject_valinject // in Hval_to_Z.
     apply represents_boolean_eq in Hb as <-.
     destruct it, v; try discriminate; eauto.
@@ -244,6 +245,7 @@ Section generic_boolean.
   Proof.
     unfold case_destruct, li_trace. iIntros "[% Hs] (%n&%&%&%Hval_to_Z&%Hb)".
     apply val_to_Z_by_value in Hval_to_Z as Hit.
+    rewrite /val_type Hit in H Hval_to_Z.
     rewrite repinject_valinject // in Hval_to_Z.
     apply represents_boolean_eq in Hb as <-.
     destruct it, v; try discriminate; eauto.

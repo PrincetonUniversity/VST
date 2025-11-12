@@ -275,6 +275,8 @@ Section judgements.
               rho = construct_rho (filter_genv ge) ve te ->
               Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)⌝.*)
 
+  (* For function- and aggregate-typed values, repinject returns Vundef, and we
+     don't really want to assign types to their reptypes anyway. *)
   Definition typed_val_expr f (e : expr) (T : val → type → assert) : assert :=
     (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥₐₗ|typeof e| ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_expr ge ⊤ f e Φ).
   Global Arguments typed_val_expr _ _%_I.
@@ -297,7 +299,7 @@ Section judgements.
 
   (* `op (v1:t) (v2:t)` evaluates to (v:cty) *)
   Definition typed_val_binop op t1 v1 t2 v2 cty (T : val → type → assert) : assert :=
-    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥₐₗ|cty| ty⎤  -∗ T v ty -∗ Φ v) -∗ wp_binop ge ⊤ op t1 v1 t2 v2 Φ).
+    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥₐₗ|cty| ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_binop ge ⊤ op t1 v1 t2 v2 Φ).
   Global Arguments typed_val_binop _ _ _ _ _ _ _%_I.
 
   Definition typed_bin_op (v1 : val) (P1 : assert) (v2 : val) (P2 : assert) (o : Cop.binary_operation) (t1 t2 t: Ctypes.type) (T : val → type → assert) : assert :=
@@ -362,9 +364,9 @@ Section judgements.
     let E := if atomic then ∅ else ⊤ in
     (∀ (Φ: address->assert),
         (∀ (l:address), (⎡v ◁ᵥₐₗ|ot| ty⎤ ={⊤, E}=∗
-                <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
-                 ⎡ l ↦_|ot| ⎤ ∗
-                ▷(⎡ l ↦|ot| (valinject ot v) ⎤ ={E, ⊤}=∗ T))
+                <affine> ⌜(valinject (val_type ot) v) `has_layout_val` val_type ot⌝ ∗
+                 ⎡ l ↦_|val_type ot| ⎤ ∗
+                ▷(⎡ l ↦|val_type ot| (valinject (val_type ot) v) ⎤ ={E, ⊤}=∗ T))
               -∗ Φ l) -∗
        wp_lvalue ge ⊤ f e Φ)%I.
 
@@ -438,9 +440,9 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
     let E' := if atomic then ∅ else E in
     (⎡l2 ◁ₗ{β2} ty2⎤ -∗ 
     (⎡v1 ◁ᵥₐₗ|ot| ty1⎤ ={E, E'}=∗
-       <affine> ⌜(valinject ot v1) `has_layout_val` ot⌝ ∗
-      ⎡ l2↦_|ot| ⎤ ∗ 
-      ▷ (⎡ l2 ↦|ot| (valinject ot v1) ⎤ ={E', E}=∗ ∃ ty3, ⎡l2 ◁ₗ{β2} ty3⎤ ∗ T ty3)))%I.
+       <affine> ⌜(valinject (val_type ot) v1) `has_layout_val` val_type ot⌝ ∗
+      ⎡ l2↦_|val_type ot| ⎤ ∗ 
+      ▷ (⎡ l2 ↦|val_type ot| (valinject (val_type ot) v1) ⎤ ={E', E}=∗ ∃ ty3, ⎡l2 ◁ₗ{β2} ty3⎤ ∗ T ty3)))%I.
   Class TypedWriteEnd (atomic : bool) (E : coPset) (ot : Ctypes.type) (v1 : val) (ty1 : type) (l2 : address) (β2 : own_state) (ty2 : type) : Type :=
     typed_write_end_proof T : iProp_to_Prop (typed_write_end atomic E ot v1 ty1 l2 β2 ty2 T).
 
@@ -1357,7 +1359,7 @@ Section typing.
   Definition simple_subsume_place_to_subsume_inst := [instance simple_subsume_place_to_subsume].
   Global Existing Instance simple_subsume_place_to_subsume_inst.
 
-  Lemma simple_subsume_val_to_subsume_inject A cty v ty1 ty2 P `{!∀ x, SimpleSubsumeVal cty ty1 (ty2 x) (P x)} T:
+  Lemma simple_subsume_val_to_subsume_inject A cty v ty1 ty2 P `{!∀ x, SimpleSubsumeVal (val_type cty) ty1 (ty2 x) (P x)} T:
     (∃ x, P x ∗ T x) ⊢ subsume (v ◁ᵥₐₗ|cty| ty1) (λ x : A, v ◁ᵥₐₗ|cty| ty2 x) T.
   Proof. iIntros "[% [HP ?]] Hv". iExists _. iFrame. iApply (@simple_subsume_val with "HP Hv"). Qed.
   Definition simple_subsume_val_to_subsume_inject_inst := [instance simple_subsume_val_to_subsume_inject].
@@ -1376,7 +1378,7 @@ Section typing.
   Definition simple_subsume_place_to_subsume'_inst := [instance simple_subsume_place_to_subsume'].
   Global Existing Instance simple_subsume_place_to_subsume'_inst.
 
-  Lemma simple_subsume_val_to_subsume_inject' A cty v ty1 ty2 P `{!∀ x, SimpleSubsumeVal cty ty1 (ty2 x) (P x)} (T : A → assert):
+  Lemma simple_subsume_val_to_subsume_inject' A cty v ty1 ty2 P `{!∀ x, SimpleSubsumeVal (val_type cty) ty1 (ty2 x) (P x)} (T : A → assert):
     (∃ x, ⎡P x⎤ ∗ T x) ⊢ subsume ⎡v ◁ᵥₐₗ|cty| ty1⎤ (λ x : A, ⎡v ◁ᵥₐₗ|cty| ty2 x⎤) T.
   Proof. iIntros "[% [HP ?]] Hv". iExists _. iFrame. iApply (@simple_subsume_val with "HP Hv"). Qed.
   Definition simple_subsume_val_to_subsume_inject'_inst := [instance simple_subsume_val_to_subsume_inject'].
@@ -1632,7 +1634,7 @@ Section typing.
     rewrite -wp_store0.
     iIntros "[% H]". iApply "H".
     iIntros (v ty) "H (% & % & ty_write)".
-    simpl.
+    rewrite /val_type H /=.
     iDestruct (ty_size_eq _ with "H") as "%"; first done.
     apply has_layout_val_tc_val'2 in H1; last done.
     iSplit; [iPureIntro; done|].
@@ -1640,6 +1642,7 @@ Section typing.
     { intros; iIntros "A"; iApply "A". }
     iApply "ty_write".
     iIntros ((b, o)) "upd".
+    rewrite /val_type H /=.
     iMod ("upd" with "H") as "(%Hot & Hl & upd)"; iModIntro.
     destruct Hot.
     iExists Tsh.
@@ -1945,6 +1948,55 @@ Section typing.
     iApply ("HΦ" with "[$]"). done.
   Qed.
 
+  Lemma type_var_global ge f _x b β ty c_ty (T: address -> own_state -> type -> assert) :
+    ~In _x (map fst (fn_vars f)) →
+    ⎡gvar _x b⎤ ∗
+    (⎡gvar _x b⎤ -∗
+      ⎡ (b, Ptrofs.zero) ◁ₗ{β} ty ⎤ ∗
+      T (b, Ptrofs.zero) β ty)
+    ⊢ typed_lvalue ge f β (Evar _x c_ty) T.
+  Proof.
+    intros; iIntros "(Hgvar & HT)" (Φ) "HΦ".
+    iApply (wp_var_global _ _ _); first done.
+    iFrame.
+    iIntros "Hlvar"; iDestruct ("HT" with "Hlvar") as "[own_l HT]".
+    iApply ("HΦ" with "[$]"). done.
+  Qed.
+
+  Lemma type_var_global0 ge f _x b β ty c_ty (T: address -> own_state -> type -> assert) :
+    ~In _x (map fst (fn_vars f)) → Genv.find_symbol ge _x = Some b →
+      ⎡ (b, Ptrofs.zero) ◁ₗ{β} ty ⎤ ∗
+      T (b, Ptrofs.zero) β ty
+    ⊢ typed_lvalue ge f β (Evar _x c_ty) T.
+  Proof.
+    intros; iIntros "(Hgvar & HT)" (Φ) "HΦ".
+    iApply (wp_var_global0 _ _ _); [done..|].
+    iApply ("HΦ" with "[$]"). done.
+  Qed.
+
+  Lemma type_lvar_expr ge f _x c_ty b ty T:
+    match access_mode c_ty with By_reference | By_copy => True | _ => False end →
+    env.lvar _x c_ty b ∗
+      (env.lvar _x c_ty b -∗ ⎡adr2val (b, Ptrofs.zero) ◁ᵥₐₗ|c_ty| ty⎤ ∗ T (adr2val (b, Ptrofs.zero)) ty)
+    ⊢ typed_val_expr ge f (Evar _x c_ty) T.
+  Proof.
+    intros; iIntros "(Hlvar & HT)" (Φ) "HΦ".
+    rewrite -wp_expr_ptr // -wp_var_local; iFrame.
+    iIntros "Hlvar"; iDestruct ("HT" with "Hlvar") as "(Hl & HT)".
+    by iApply ("HΦ" with "Hl").
+  Qed.
+    
+  Lemma type_gvar_expr ge f _x c_ty b ty T:
+    match access_mode c_ty with By_reference | By_copy => True | _ => False end →
+    ~In _x (map fst (fn_vars f)) → Genv.find_symbol ge _x = Some b →
+    ⎡adr2val (b, Ptrofs.zero) ◁ᵥₐₗ|c_ty| ty⎤ ∗ T (adr2val (b, Ptrofs.zero)) ty
+    ⊢ typed_val_expr ge f (Evar _x c_ty) T.
+  Proof.
+    intros; iIntros "(Hgvar & HT)" (Φ) "HΦ".
+    rewrite -wp_expr_ptr // -wp_var_global0 //; iFrame.
+    by iApply ("HΦ" with "Hgvar").
+  Qed.
+
   Lemma type_call_syn Espec ge f T i ef es ctys retty cc:
     typed_stmt Espec ge (Scall i ef es) f T :-
       exhale <affine> ⌜classify_fun (typeof ef) = fun_case_f ctys retty cc /\ length es = length ctys⌝;
@@ -2192,12 +2244,12 @@ Section typing.
       iDestruct (ty_deref with "Hl") as (v) "[Hl #Hv]"; [done|].
       iDestruct (ty_size_eq with "Hv") as %?; [done|].
       iExists _, (repinject cty v), _.
-      rewrite !valinject_repinject /ty_own_val_at //.
+      rewrite /val_type H !valinject_repinject /ty_own_val_at //.
       iFrame "∗Hv". do 2 iSplitR => //=.
       iSplit; first by (rewrite /Tsh; iPureIntro; apply readable_share_top).
       iSplit.
       { iDestruct (defined_ty with "[Hv]") as %?; last done.
-        rewrite /ty_own_val_at valinject_repinject //. }
+        rewrite /val_type H /ty_own_val_at valinject_repinject //. }
       iDestruct ("HT" $! (repinject cty v)) as "T".
       iIntros "Hl #own_v". iFrame.
       iDestruct (ty_ref with "[//] Hl own_v") as "$"; [done|].
@@ -2207,9 +2259,9 @@ Section typing.
       iDestruct (ty_size_eq with "Hv") as "#%"; [done|].
       iApply fupd_mask_intro; [destruct a; solve_ndisj|]. iIntros "Hclose".
       iExists _, (repinject cty v), _.
-      rewrite !valinject_repinject /ty_own_val_at //.
+      rewrite /val_type H !valinject_repinject /ty_own_val_at //.
       iDestruct (defined_ty (repinject cty v) with "[Hv]") as %?.
-      { rewrite /ty_own_val_at valinject_repinject //. }
+      { rewrite /val_type H /ty_own_val_at valinject_repinject //. }
       iFrame.
       iDestruct ("HT" $! (repinject cty v)) as "HT".
       do 4 iSplitR => //.
@@ -2284,11 +2336,11 @@ Section typing.
 
   Lemma type_write_own_copy a E ty l2 ty2 v ot (T:type->assert):
     typed_write_end a E ot v ty l2 Own ty2 T where
-    `{!Copyable ot ty}
-    `{!TCDone (ty2.(ty_has_op_type) ot MCNone)} :-
-      exhale <affine> ⌜ty.(ty_has_op_type) ot MCNone⌝;
+    `{!Copyable (val_type ot) ty}
+    `{!TCDone (ty2.(ty_has_op_type) (val_type ot) MCNone)} :-
+      exhale <affine> ⌜ty.(ty_has_op_type) (val_type ot) MCNone⌝;
       inhale ⎡v ◁ᵥₐₗ|ot| ty⎤;
-      inhale ∃ v', ⎡v' ◁ᵥ|ot| ty2⎤;
+      inhale ∃ v', ⎡v' ◁ᵥ|val_type ot| ty2⎤;
       return T ty.
   Proof.
     unfold typed_write_end, TCDone => ??. iDestruct 1 as (?) "HT".
@@ -2313,9 +2365,9 @@ Section typing.
   (* Note that there is also [type_write_own] in singleton.v which applies if one can prove MCId. *)
   Lemma type_write_own_move a E ty l2 ty2 v ot T:
     typed_write_end a E ot v ty l2 Own ty2 T where
-    `{!TCDone (ty2.(ty_has_op_type) ot MCNone)} :-
-      exhale <affine> ⌜ty.(ty_has_op_type) ot MCNone⌝;
-      ∀ v', inhale ⎡v' ◁ᵥ|ot| ty2⎤; return T ty.
+    `{!TCDone (ty2.(ty_has_op_type) (val_type ot) MCNone)} :-
+      exhale <affine> ⌜ty.(ty_has_op_type) (val_type ot) MCNone⌝;
+      ∀ v', inhale ⎡v' ◁ᵥ|val_type ot| ty2⎤; return T ty.
   Proof.
     unfold TCDone, typed_write_end => ?. iDestruct 1 as (?) "HT". iIntros "Hl Hv".
     iDestruct (ty_aligned with "Hl") as %?; [done|].

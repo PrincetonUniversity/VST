@@ -599,7 +599,9 @@ Notation "l ◁ₗ ty" := (ty_own ty Own l) (at level 15) : bi_scope.
 Definition ty_own_val_at `{!typeG OK_ty Σ} {cs : compspecs} (cty : Ctypes.type) :=
   λ ty v, ty.(ty_own_val) cty v.
 Notation "v ◁ᵥ| cty | ty" := (ty_own_val_at cty ty v) (at level 15) : bi_scope.
-Notation "v ◁ᵥₐₗ| cty | ty" := ((valinject cty v) ◁ᵥ|cty| ty) (at level 15) : bi_scope.
+(* we can own a pointer at a reference type *)
+Definition val_type cty := if type_is_by_value cty then cty else tptr cty.
+Notation "v ◁ᵥₐₗ| cty | ty" := (valinject (val_type cty) v ◁ᵥ| val_type cty | ty) (at level 15) : bi_scope.
 
 Declare Scope printing_sugar.
 Notation "'frac' { β } l ∶ ty" := (ty_own ty β l) (at level 100, only printing) : printing_sugar.

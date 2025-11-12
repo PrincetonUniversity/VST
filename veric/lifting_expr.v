@@ -1304,6 +1304,22 @@ Proof.
   by constructor.
 Qed.
 
+(* Since we're carrying the ge around anyway, we can do this instead. *)
+Lemma wp_var_global0 : forall E f _x c_ty b (P:address->assert),
+  ~In _x (map fst (fn_vars f)) → Genv.find_symbol ge _x = Some b →
+  P (b, Ptrofs.zero) ⊢ wp_lvalue E f (Evar _x c_ty) P.
+Proof.
+  split => n; rewrite /wp_lvalue; monPred.unseal.
+  iIntros "HP !>" (??? <-). iIntros "Hm" (? <-) "Hr !>".
+  iExists _, _; iFrame. rewrite monPred_at_affinely; iPureIntro; simpl.
+  intros ??? <- (Hge & ? & ?) Hmatch.
+  apply eval_Evar_global; auto.
+  rewrite /match_venv in Hmatch.
+  specialize (Hmatch _x); rewrite make_env_spec in Hmatch.
+  destruct (_ !! _) as [(?, ?)|]; auto.
+  contradiction H; rewrite in_map_iff; eexists; split; eauto; done.
+Qed.
+
 Lemma ge_of_env : forall ρ n, ge_of (env_to_environ ρ n) = gmap_to_fun ρ.1.
 Proof.
   intros; rewrite /env_to_environ.

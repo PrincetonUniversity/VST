@@ -81,10 +81,10 @@ Section wand_val.
 
   Program Definition wand_val_ex P (cty: Ctypes.type) (ty : A → type) : type := {|
     ty_has_op_type ot mt := (ot = cty ∧ type_is_by_value cty = true)%type; 
-    ty_own β l := ∃ (v : val), <affine> ⌜l `has_layout_loc` cty⌝ ∗ <affine>⌜(valinject cty v) `has_layout_val` cty⌝ ∗
-                                   l ↦[β]|cty| (valinject cty v) ∗
+    ty_own β l := ∃ v, <affine> ⌜l `has_layout_loc` cty⌝ ∗ <affine>⌜v `has_layout_val` cty⌝ ∗
+                                   l ↦[β]|cty| v ∗
         match β return _ with
-        | Own => ∀ x, P x -∗ v ◁ᵥₐₗ|cty| (ty x)
+        | Own => ∀ x, P x -∗ v ◁ᵥ|cty| (ty x)
         | Shr => True
         end;
     ty_own_val cty v :=  <affine> ⌜v `has_layout_val` cty⌝ ∗
@@ -111,11 +111,9 @@ Section wand_val.
     iIntros (???????(-> & ?)?) "Hl".
     iIntros "(% & HP)".
     rewrite /heap_mapsto_own_state.
-    iExists (repinject _ v_rep).
+    iExists v_rep.
     do 2 (iSplit; try done).
-    { iPureIntro.
-      rewrite valinject_repinject; auto. }
-    { rewrite valinject_repinject; auto. by iFrame. }
+    iFrame.
   Qed.
   
   (*
@@ -158,7 +156,7 @@ Section wand_val.
     simplify_goal (v ◁ᵥₐₗ|cty| wand_val_ex P cty ty) T :-
     and:
   | drop_spatial; ∀ x, inhale P x; exhale v ◁ᵥₐₗ|cty| ty x; done
-| exhale (<affine> ⌜(valinject cty v) `has_layout_val` cty⌝); return T.
+  | exhale (<affine> ⌜(valinject (val_type cty) v) `has_layout_val` (val_type cty)⌝); return T.
   Proof.
     iIntros "[#Hwand [% $]]". iSplit; [done|].
     iIntros (?) "?". iDestruct ("Hwand" with "[$]") as "[H1 H2]". iFrame "H1".

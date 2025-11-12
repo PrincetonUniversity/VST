@@ -32,10 +32,10 @@ Section value.
     valinject cty v1 = valinject cty v2 → v1 = v2.
   Proof. by destruct cty. Qed.
 
-  Global Instance value_defined ot v `{!TCDone (type_is_by_value ot = true)} `{!TCDone (v ≠ Vundef)}: DefinedTy ot (value ot v).
+  Global Instance value_defined ot v `{!TCDone (type_is_by_value (val_type ot) = true)} `{!TCDone (v ≠ Vundef)}: DefinedTy ot (value ot v).
   Proof.
     iIntros (? (_ & ? & _)).
-    apply valinject_inj in H as ->; done.
+    by apply valinject_inj in H as ->.
   Qed.
 
   Lemma value_simplify ot v p T:
@@ -52,16 +52,16 @@ Section value.
   Definition value_simplify'_inst := [instance value_simplify' with 0%N].
   Global Existing Instance value_simplify'_inst.
 
-  Lemma value_simplify_goal v ot p T:
-    (<affine> ⌜valinject ot v = valinject ot p⌝ ∗ <affine>⌜(valinject ot v) `has_layout_val` ot⌝ ∗ T)
-    ⊢ simplify_goal (v ◁ᵥₐₗ|ot| value ot p) T.
+  Lemma value_simplify_goal ot v p T:
+    (<affine> ⌜v = valinject ot p⌝ ∗ <affine> ⌜v `has_layout_val` ot⌝ ∗ T)
+    ⊢ simplify_goal (v ◁ᵥ|ot| value ot p) T.
   Proof. iIntros "(% & % & $)". done. Qed.
   Definition value_simplify_goal_inst := [instance value_simplify_goal with 0%N].
   Global Existing Instance value_simplify_goal_inst.
 
-  Lemma value_simplify_goal' v ot p (T : assert):
-    (<affine> ⌜valinject ot v = valinject ot p⌝ ∗ <affine>⌜(valinject ot v) `has_layout_val` ot⌝ ∗ T)
-    ⊢ simplify_goal ⎡v ◁ᵥₐₗ|ot| value ot p⎤ T.
+  Lemma value_simplify_goal' ot v p (T : assert):
+    (<affine> ⌜v = valinject ot p⌝ ∗ <affine> ⌜v `has_layout_val` ot⌝ ∗ T)
+    ⊢ simplify_goal ⎡v ◁ᵥ|ot| value ot p⎤ T.
   Proof. iIntros "(% & % & $)". done. Qed.
   Definition value_simplify_goal'_inst := [instance value_simplify_goal' with 0%N].
   Global Existing Instance value_simplify_goal'_inst.
@@ -75,9 +75,9 @@ Section value.
 (*     iDestruct (ty_memcast_compat_id with "Hty") as %?; [done|]. *)
     iDestruct ("HT" with "Hty") as (? ->) "?". iExists _. by iFrame.
   Qed. *)
-  Lemma value_subsume_goal A v v' cty ty T:
-    (<affine> ⌜(valinject cty v) `has_layout_val` cty⌝ ∗ (v ◁ᵥₐₗ|cty| ty -∗ ∃ x, <affine> ⌜v = v' x⌝ ∗ T x))
-    ⊢ subsume (v ◁ᵥₐₗ|cty| ty) (λ x : A, v ◁ᵥₐₗ|cty| value cty (v' x)) T.
+  Lemma value_subsume_goal A cty v v' ty T:
+    (<affine> ⌜v `has_layout_val` cty⌝ ∗ (v ◁ᵥ|cty| ty -∗ ∃ x, <affine> ⌜v = valinject cty (v' x)⌝ ∗ T x))
+    ⊢ subsume (v ◁ᵥ|cty| ty) (λ x : A, v ◁ᵥ|cty| value cty (v' x)) T.
   Proof.
     iIntros "[% HT] Hty". (* iDestruct (ty_size_eq with "Hty") as %Hly; [done|]. *)
 (*     iDestruct (ty_memcast_compat_id with "Hty") as %?; [done|]. *)
@@ -86,9 +86,9 @@ Section value.
   Definition value_subsume_goal_inst := [instance value_subsume_goal].
   Global Existing Instance value_subsume_goal_inst.
 
-  Lemma value_subsume_goal' A v v' cty ty (T : A → assert):
-    (<affine> ⌜(valinject cty v) `has_layout_val` cty⌝ ∗ (⎡v ◁ᵥₐₗ|cty| ty⎤ -∗ ∃ x, <affine> ⌜v = v' x⌝ ∗ T x))
-    ⊢ subsume ⎡v ◁ᵥₐₗ|cty| ty⎤ (λ x : A, ⎡v ◁ᵥₐₗ|cty| value cty (v' x)⎤) T.
+  Lemma value_subsume_goal' A cty v v' ty (T : A → assert):
+    (<affine> ⌜v `has_layout_val` cty⌝ ∗ (⎡v ◁ᵥ|cty| ty⎤ -∗ ∃ x, <affine> ⌜v = valinject cty (v' x)⌝ ∗ T x))
+    ⊢ subsume ⎡v ◁ᵥ|cty| ty⎤ (λ x : A, ⎡v ◁ᵥ|cty| value cty (v' x)⎤) T.
   Proof.
     iIntros "[% HT] Hty". (* iDestruct (ty_size_eq with "Hty") as %Hly; [done|]. *)
 (*     iDestruct (ty_memcast_compat_id with "Hty") as %?; [done|]. *)
@@ -153,8 +153,8 @@ Lemma type_read_move l ty ot a E `{!TCDone (ty.(ty_has_op_type) ot MCId)} `{!Def
     iDestruct (ty_size_eq with "Hv") as %?; [done|].
     (* iDestruct (ty_memcast_compat_id with "Hv") as %Hid; [done|]. *)
     iDestruct (defined_ty (repinject ot v) with "[Hv]") as %?.
-    { rewrite /ty_own_val_at valinject_repinject //. }
-    iExists _, (repinject ot v), _. rewrite valinject_repinject //.
+    { rewrite /val_type TCDone1 valinject_repinject //. }
+    iExists _, (repinject ot v), _. rewrite /val_type TCDone1 valinject_repinject //.
     iFrame. do 3 iSplit => //=.
     { iPureIntro. apply readable_share_top. }
     iSplit => //.
@@ -172,9 +172,9 @@ Lemma type_read_move l ty ot a E `{!TCDone (ty.(ty_has_op_type) ot MCId)} `{!Def
   that the length is the same and the alignment is lower. Adapt when necessary. *)
   Lemma type_write_own a ty E l2 ty2 ot v T:
     typed_write_end a E ot v ty l2 Own ty2 T where
-    `{!TCDone (ty.(ty_has_op_type) ot MCId ∧
-               ty2.(ty_has_op_type) ot MCNone)} :-
-      ∀ v', inhale ⎡v ◁ᵥₐₗ|ot| ty⎤; inhale ⎡v' ◁ᵥ|ot| ty2⎤; return T (value ot v).
+    `{!TCDone (ty.(ty_has_op_type) (val_type ot) MCId ∧
+               ty2.(ty_has_op_type) (val_type ot) MCNone)} :-
+      ∀ v', inhale ⎡v ◁ᵥₐₗ|ot| ty⎤; inhale ⎡v' ◁ᵥ|val_type ot| ty2⎤; return T (value (val_type ot) v).
   Proof.
     unfold TCDone, typed_write_end => -[??]. iIntros "HT Hl Hv".
     iDestruct (ty_aligned with "Hl") as %?; [done|].

@@ -694,7 +694,7 @@ Section null.
 
   Global Program Instance null_copyable cty : Copyable (tptr cty) (null).
   Next Obligation.
-    iIntros (? E l ?) "(% & Hl)".
+    iIntros (? E l ??) "(% & Hl)".
     rewrite /has_layout_loc field_compatible_tptr; iSplitR => //.
     iInv "Hl" as ">(% & % & Hl)" "Hclose".
     exploit slice.split_readable_share; first done; intros (s & ? & ? & ? & ?).

@@ -279,12 +279,12 @@ Section int.
   Qed.
 
   Lemma ty_own_val_int_in_range v n it :
-    v ◁ᵥₐₗ|it| n @ int it -∗ ⌜n ∈ it⌝.
+    v ◁ᵥₐₗ|it| n @ int (val_type it) -∗ ⌜n ∈ val_type it⌝.
   Proof.
     intros.
-    iIntros "(% & % & %)".
+    iIntros "(_ & % & %)".
     iPureIntro. eapply val_to_Z_in_range; try done.
-    rewrite -> repinject_valinject in H1 |- *; [|by destruct it..].
+    rewrite -> repinject_valinject in H0 |- *; [|by destruct it..].
     apply has_layout_val_tc_val'2; last done.
     eapply val_to_Z_by_value; done.
   Qed.
@@ -370,7 +370,7 @@ Section programs.
     iIntros "[%Hn [% HT]]".
     apply elem_of_by_value in Hn as Hbyv.
     iExists _. iFrame. iPureIntro.
-    rewrite repinject_valinject //.
+    rewrite /val_type Hbyv repinject_valinject //.
     split3; [done | | by apply i2v_to_Z].
     apply tc_val_has_layout_val2; auto.
     intros ?; by apply in_range_i2v.
@@ -440,8 +440,8 @@ Section programs.
     | Cop.Oge => Some (bool_decide (n1 >= n2))
     | _ => None
     end = Some b →
-    (<affine> ⌜n1 ∈ it⌝ -∗ <affine> ⌜n2 ∈ it⌝ -∗ T (i2v (bool_to_Z b) tint) (b @ boolean tint))
-    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it| n1 @ int it⎤ v2 ⎡v2 ◁ᵥₐₗ|it| n2 @ int it⎤ op it it tint T.
+    (<affine> ⌜n1 ∈ val_type it⌝ -∗ <affine> ⌜n2 ∈ val_type it⌝ -∗ T (i2v (bool_to_Z b) tint) (b @ boolean tint))
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it| n1 @ int (val_type it)⎤ v2 ⎡v2 ◁ᵥₐₗ|it| n2 @ int (val_type it)⎤ op it it tint T.
   Proof.
     iIntros "%Hop HT (%H1 & [%H %Hv1]) (%H2 & [%H0 %Hv2]) %Φ HΦ".
     apply has_layout_val_volatile_false in H as Hit.
@@ -866,7 +866,7 @@ Section programs.
           destruct s; inv Hv1; done.
     - iApply ("HΦ" with "[] HT").
       iPureIntro.
-      rewrite repinject_valinject //.
+      rewrite /val_type Hit2 repinject_valinject //.
       split3; [done| | by apply i2v_to_Z].
       apply tc_val_has_layout_val2; auto.
       intros ?; by apply in_range_i2v.
@@ -942,8 +942,8 @@ Section programs.
   Global Existing Instance type_switch_int_inst. *)
 
   Lemma type_neg_int n it v T:
-    (<affine> ⌜n ∈ it⌝ -∗ <affine> ⌜is_signed it⌝ ∗ <affine> ⌜n ≠ min_int it⌝ ∗ T (i2v (-n) it) ((-n) @ int it))
-    ⊢ typed_un_op v ⎡v ◁ᵥₐₗ|it| n @ int it⎤%I Oneg it it T.
+    (<affine> ⌜n ∈ val_type it⌝ -∗ <affine> ⌜is_signed (val_type it)⌝ ∗ <affine> ⌜n ≠ min_int (val_type it)⌝ ∗ T (i2v (-n) (val_type it)) ((-n) @ int (val_type it)))
+    ⊢ typed_un_op v ⎡v ◁ᵥₐₗ|it| n @ int (val_type it)⎤%I Oneg it it T.
   Proof.
     iIntros "HT (%_ & [%H %Hv]) %Φ HΦ".
     apply has_layout_val_volatile_false in H as Hit.
@@ -954,7 +954,7 @@ Section programs.
     iDestruct ("HT" with "[//]") as (Hs Hn) "HT".
     rewrite /wp_unop.
     iIntros "!>" (?) "$ !>".
-    iExists (i2v (- n) it); iSplit.
+    iExists (i2v (- n) (val_type it)); iSplit.
     - iStopProof; split => rho; monPred.unseal.
       apply bi.pure_intro.
       destruct it; try done; destruct s; try done; simpl in *.
@@ -969,8 +969,8 @@ Section programs.
     - iDestruct ("HΦ" $! _ _) as "HΦ".
       iApply "HΦ"; last done.
       iPureIntro.
-      assert (in_range (- n) it).
-      { hnf in Hin; destruct it; try done.
+      assert (in_range (- n) (val_type it)).
+      { hnf in Hin; destruct (val_type it); try done.
         * destruct i; try done; destruct s; simpl in *; rep_lia.
         * destruct s; simpl in *; rep_lia. }
       rewrite repinject_valinject //.
@@ -989,7 +989,8 @@ Section programs.
     intros Hn Hin ?; iPureIntro.
     exists (i2v n it2).
     pose proof (i2v_to_Z _ _ Hin) as Hn2.
-    pose proof (val_to_Z_by_value _ _ _ Hn2).
+    pose proof (val_to_Z_by_value _ _ _ Hn2) as Hit2.
+    rewrite /val_type Hit2.
     split3; try done; last split.
     - rewrite /sem_cast.
       destruct (Cop.classify_cast it1 it2) eqn: Hclass;
@@ -1075,7 +1076,8 @@ Section programs.
     iIntros "He %Φ HΦ"; iApply "He".
     iIntros (??) "own_v HT".
     iDestruct ("HT" with "own_v") as (?? Hn ?) "HT".
-    pose proof (val_to_Z_by_value _ _ _ Hn).
+    pose proof (val_to_Z_by_value _ _ _ Hn) as He.
+    rewrite /val_type He.
     assert (tc_val (typeof e) v) as Htc.
     { apply val_to_Z_inv in Hn as ->.
       by apply in_range_i2v. }
@@ -1201,22 +1203,20 @@ Section programs.
   Definition subsume_int_boolean_place_inst := [instance subsume_int_boolean_place].
   Global Existing Instance subsume_int_boolean_place_inst.
 
-  Lemma subsume_int_boolean_val A v n b it T:
+  Lemma subsume_int_boolean_val A it v n b T:
     (∃ x, <affine> ⌜n = bool_to_Z (b x)⌝ ∗ T x)
-    ⊢ subsume ( v ◁ᵥₐₗ|it| n @ int it) (λ x : A, v ◁ᵥₐₗ|it| (b x) @ boolean it) T.
+    ⊢ subsume (v ◁ᵥ|it| n @ int it) (λ x : A, v ◁ᵥ|it| (b x) @ boolean it) T.
   Proof.
     iIntros "[%x [-> ?]] (%&%&%)". iExists _. iFrame. unfold boolean; simpl_type.
     eapply val_to_Z_by_value in H1 as Htc.
-    rewrite repinject_valinject // in H1.
-    rewrite /ty_own_val_at /ty_own_val /=.
     iSplit => //.
-    iExists (bool_to_Z (b x)). iSplit => //. iSplit => //. rewrite repinject_valinject //. Qed.
+    iExists (bool_to_Z (b x)); done. Qed.
   Definition subsume_int_boolean_val_inst := [instance subsume_int_boolean_val].
   Global Existing Instance subsume_int_boolean_val_inst.
 
   Lemma type_binop_boolean_int ge it1 it2 it3 it4 it5 v1 b1 v2 n2 op T:
-    typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it1| (bool_to_Z b1) @ int it1⎤ v2 ⎡v2 ◁ᵥₐₗ|it2| n2 @ int it2⎤ op it3 it4 it5 T
-    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it1| b1 @ boolean it1⎤ v2 ⎡v2 ◁ᵥₐₗ|it2| n2 @ int it2⎤ op it3 it4 it5 T.
+    typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it1| (bool_to_Z b1) @ int (val_type it1)⎤ v2 ⎡v2 ◁ᵥₐₗ|it2| n2 @ int (val_type it2)⎤ op it3 it4 it5 T
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it1| b1 @ boolean (val_type it1)⎤ v2 ⎡v2 ◁ᵥₐₗ|it2| n2 @ int (val_type it2)⎤ op it3 it4 it5 T.
   Proof.
     iIntros "HT H1 H2". iApply ("HT" with "[H1] H2"). unfold boolean; simpl_type.
     rewrite /ty_own_val_at /ty_own_val /=.
@@ -1227,8 +1227,8 @@ Section programs.
   Global Existing Instance type_binop_boolean_int_inst.
 
   Lemma type_binop_int_boolean ge it1 it2 it3 it4 it5 v1 b1 v2 n2 op T:
-    typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it2| n2 @ int it2⎤ v2 ⎡v2 ◁ᵥₐₗ|it1| (bool_to_Z b1) @ int it1⎤ op it3 it4 it5 T
-    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it2| n2 @ int it2⎤ v2 ⎡v2 ◁ᵥₐₗ|it1| b1 @ boolean it1⎤ op it3 it4 it5 T.
+    typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it2| n2 @ int (val_type it2)⎤ v2 ⎡v2 ◁ᵥₐₗ|it1| (bool_to_Z b1) @ int (val_type it1)⎤ op it3 it4 it5 T
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it2| n2 @ int (val_type it2)⎤ v2 ⎡v2 ◁ᵥₐₗ|it1| b1 @ boolean (val_type it1)⎤ op it3 it4 it5 T.
   Proof.
     iIntros "HT H1 H2". iApply ("HT" with "H1 [H2]"). unfold boolean; simpl_type.
     rewrite /ty_own_val_at /ty_own_val /=.
@@ -1357,7 +1357,9 @@ Section tests.
     iApply type_arithop_int_int => //. iIntros (??). iSplit. {
       iPureIntro. (*unfold int_arithop_sidecond, elem_of, int_elem_of_it, min_int, max_int in *; lia.*) rewrite Z.add_0_r //.
     }
-    iApply type_const_size_t. iApply type_val_int. iSplit => //. iSplit => //.
-    iApply type_relop_int_int => //.
+    iApply type_const_size_t. iApply type_val_int. iSplit => //. iSplit => //=.
+    replace size_t with (val_type size_t) at 3 7.
+    1: iApply type_relop_int_int => //.
+    all: rewrite /val_type /Econst_size_t /=; unfold size_t in *; destruct Archi.ptr64; simpl; try done.
   Abort.
 End tests.

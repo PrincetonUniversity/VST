@@ -140,21 +140,18 @@ Ltac liExtensible_to_i2p_hook P bind cont ::=
       cont uconstr:(((_ : TypedBinOp _ _ _ _ _ _ _ _ _) _))
   | typed_un_op ?v ?ty ?o ?ot1 ?ot ?T =>
       cont uconstr:(((_ : TypedUnOp _ _ _ _ _) _))
-  (*
-  | typed_call ?v ?P ?vl ?tys ?T =>
-      cont uconstr:(((_ : TypedCall _ _ _ _) _))
-  | typed_copy_alloc_id ?v1 ?ty1 ?v2 ?ty2 ?ot ?T =>
+  | typed_call _ _ _ _ _ _ _ _ _ _ _ =>
+      cont uconstr:(((_ : TypedCall _ _ _ _ _ _ _ _ _ _) _))
+  (*| typed_copy_alloc_id ?v1 ?ty1 ?v2 ?ty2 ?ot ?T =>
       cont uconstr:(((_ : TypedCopyAllocId _ _ _ _ _) _))  *)
   | typed_place ?genv_t ?P ?l1 ?β1 ?ty1 ?T =>
       cont uconstr:(((_ : TypedPlace _ _ _ _ _) _))
   | typed_if ?ot ?v ?P ?F ?T1 ?T2 =>
       cont uconstr:(((_ : TypedIf _ _ _ _) _ _))
-  (*
-  | typed_switch ?v ?ty ?it ?m ?ss ?def ?fn ?ls ?fr ?Q =>
-      cont uconstr:(((_ : TypedSwitch _ _ _) _ _ _ _ _ _ _))
-  | typed_assert ?ot ?v ?ty ?s ?fn ?ls ?fr ?Q =>
-      cont uconstr:(((_ : TypedAssert _ _ _) _ _ _ _ _))
-      *)
+  | typed_switch _ _ _ _ _ _ _ _ =>
+      cont uconstr:(((_ : TypedSwitch _ _ _ _ _) _ _ _ _ _ _ _))
+  | typed_assert _ _ _ _ _ _ _ _ =>
+      cont uconstr:(((_ : TypedAssert _ _ _ _ _) _ _ _ _ _))
   | typed_read_end ?a ?E ?l ?β ?ty ?ly ?T =>
       cont uconstr:(((_ : TypedReadEnd _ _ _ _ _ _) _))
   | typed_write_end ?a ?E ?ot ?v1 ?ty1 ?l2 ?β2 ?ty2 ?T =>
@@ -266,7 +263,7 @@ Ltac liRStmt :=
         end
       | Sannot _ => notypeclasses refine (tac_fast_apply (type_annot_stmt _ _ _ _ _) _)
       | Sskip => notypeclasses refine (tac_fast_apply (type_skips _ _ _ _) _)
-      | Scall _ _ _ => notypeclasses refine (tac_fast_apply (type_call_fnptr _ _ _ _ _ _ _ _ _ _) _); [done|]
+      | Scall _ _ _ => notypeclasses refine (tac_fast_apply (type_call_syn _ _ _ _ _ _ _ _ _ _) _)
       | Sifthenelse _ _ _ => notypeclasses refine (tac_fast_apply (type_if _ _ _ _ _ _ _) _)
       (* need to use hints *)
       | Swhile ?id _ _ =>
@@ -325,7 +322,8 @@ Ltac liRExpr :=
   | |- envs_entails ?Δ (typed_val_expr _ _ ?e ?T) =>
     lazymatch e with
     | Ecast _ (tptr _) => notypeclasses refine (tac_fast_apply (type_cast_ptr_ptr _ _ _ _ _ _) _);[done|]
-    | Ecast _ _ => first [notypeclasses refine (tac_fast_apply (type_cast_int_same _ _ _ _) _) | notypeclasses refine (tac_fast_apply (type_cast_int _ _ _ _ _) _)]
+    | Ecast _ _ => first [notypeclasses refine (tac_fast_apply (type_cast_int_same _ _ _ _) _) |
+                          notypeclasses refine (tac_fast_apply (type_cast_int _ _ _ _ _) _)]
     | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _ _ _) _)
     | Econst_float _ _ => notypeclasses refine (tac_fast_apply (type_const_float _ _ _ _ _) _)
     | Econst_single _ _ => notypeclasses refine (tac_fast_apply (type_const_single _ _ _ _ _) _)
@@ -335,11 +333,15 @@ Ltac liRExpr :=
     | Ederef _ _ => notypeclasses refine (tac_fast_apply (type_read_lvalue _ _ _ _ _ _) _);[done|done|]
     | Efield _ _ _ => notypeclasses refine (tac_fast_apply (type_read_lvalue _ _ _ _ _ _) _);[done|done|]
     | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _) _)
+    | Evar _ _ => first [notypeclasses refine (tac_fast_apply (type_read_lvalue _ _ _ _ _ _) _);[done|done|] |
+                         notypeclasses refine (tac_fast_apply (type_gvar_expr _ _ _ _ _ _ _ _ _ _) _);[done|simpl; congruence|done|] |
+                         notypeclasses refine (tac_fast_apply (type_lvar_expr _ _ _ _ _ _ _ _) _);[done|] ]
     | _ => fail "do_expr: unknown expr" e
     end
   | |- envs_entails ?Δ (typed_lvalue _ _ ?β ?e ?T) =>
     lazymatch e with
-    | Evar _ _ => notypeclasses refine (tac_fast_apply (type_var_local _ _ _ _ _ _ _ _) _)
+    | Evar _ _ => first [notypeclasses refine (tac_fast_apply (type_var_global _ _ _ _ _ _ _ _ _) _); first by simpl; congruence |
+                         notypeclasses refine (tac_fast_apply (type_var_local _ _ _ _ _ _ _ _) _)]
     | _ => fail "do_expr: unknown expr" e
     end
   end.
@@ -516,18 +518,6 @@ Section additional_instances.
   Definition find_in_context_type_val_P_id_inst :=
     [instance find_in_context_type_val_P_id with FICSyntactic].
   Global Existing Instance find_in_context_type_val_P_id_inst | 1.
-
-  Lemma simple_subsume_val_to_subsume_embed_inject (A:Type) (v : val) cty (ty1 : type) (ty2 : A → type) (P:A->mpred)
-    `{!∀ (x:A), SimpleSubsumeVal cty ty1 (ty2 x) (P x)} (T: A-> assert) :
-    (∃ x, (@embed mpred assert _ $ P x) ∗ T x) ⊢@{assert} subsume (⎡v ◁ᵥₐₗ|cty| ty1⎤) (λ x : A, ⎡v ◁ᵥₐₗ|cty| ty2 x⎤) T.
-  Proof.
-    iIntros "H".
-    iDestruct "H" as (x) "[HP HT]".
-    unfold subsume. iIntros. iExists x. iFrame.
-    iApply (@simple_subsume_val with "[$HP] [$]").
-  Qed.
-  Definition simple_subsume_val_to_subsume_embed_inject_inst := [instance simple_subsume_val_to_subsume_embed_inject].
-  Global Existing Instance simple_subsume_val_to_subsume_embed_inject_inst.
 
   Lemma simple_subsume_val_to_subsume_embed (A:Type) cty (v : reptype cty)  (ty1 : type) (ty2 : A → type) (P:A->mpred)
     `{!∀ (x:A), SimpleSubsumeVal cty ty1 (ty2 x) (P x)} (T: A-> assert) :

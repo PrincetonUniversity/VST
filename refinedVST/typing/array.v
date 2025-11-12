@@ -614,7 +614,7 @@ Section array.
   Lemma type_place_array ge l β v tyv tys cty1 cty2 ofs_cty K T:
     <affine> ⌜cty1 = tint⌝ ∗
     (⎡v ◁ᵥₐₗ|ofs_cty| tyv⎤ -∗ 
-      ∃ i, <affine> ⌜cty1 = cty2⌝ ∗ ⎡v ◁ᵥₐₗ|ofs_cty| i @ int ofs_cty⎤ ∗
+      ∃ i, <affine> ⌜cty1 = cty2⌝ ∗ ⎡v ◁ᵥₐₗ|ofs_cty| i @ int (val_type ofs_cty)⎤ ∗
       <affine> ⌜0 ≤ i⌝ ∗ <affine> ⌜i < length tys⌝ ∗
      ∀ ty, <affine> ⌜tys !! Z.to_nat i = Some ty⌝ -∗
       typed_place ge K (l arr_ofs{cty2}ₗ i) β ty (λ l2 β2 ty2 typ,
@@ -721,7 +721,7 @@ Section array.
     <affine> ⌜0 ≤ i ≤ length tys⌝ ∗
     (⎡l ◁ₗ{β} array elm_cty tys⎤ -∗ T (adr2val $ l arr_ofs{elm_cty}ₗ i)
                                      ((l arr_ofs{elm_cty}ₗ i) @ &own (array_ptr elm_cty l i $ length tys)))
-    ⊢ typed_bin_op genv_t l ⎡l ◁ₗ{β} array elm_cty tys⎤ v ⎡v ◁ᵥₐₗ|ofs_cty| i @ int ofs_cty⎤ Oadd (tptr elm_cty) ofs_cty (tptr elm_cty) T.
+    ⊢ typed_bin_op genv_t l ⎡l ◁ₗ{β} array elm_cty tys⎤ v ⎡v ◁ᵥₐₗ|ofs_cty| i @ int (val_type ofs_cty)⎤ Oadd (tptr elm_cty) ofs_cty (tptr elm_cty) T.
   Proof.
     iIntros "( % & % & HT) (% & Hl) Hv" (Φ) "HΦ".
     iDestruct (ty_own_val_int_in_range with "Hv") as "%".
