@@ -725,8 +725,8 @@ INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST
 INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(INSTALL_FILES_SRC))
 INSTALL_FILES=$(sort $(INSTALL_FILES_SRC) $(INSTALL_FILES_VO))
 
-# util/calc_install_files_refinedcc takes the directory name as the only argument
-RC_INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) ZLIST=$(ZLIST) BITSIZE=$(BITSIZE) ARCH=$(ARCH) IGNORECOQVERSION=$(IGNORECOQVERSION) IGNORECOMPCERTVERSION=$(IGNORECOMPCERTVERSION) MAKE=$(MAKE) util/calc_install_files_refinedcc veric/make_compspecs.v refinedVST)
+# util/calc_install_files_refinedcc takes a list of make targets and returns the source file dependencies 
+RC_INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) ZLIST=$(ZLIST) BITSIZE=$(BITSIZE) ARCH=$(ARCH) IGNORECOQVERSION=$(IGNORECOQVERSION) IGNORECOMPCERTVERSION=$(IGNORECOMPCERTVERSION) MAKE=$(MAKE) util/calc_install_files_refinedcc veric/make_compspecs.vo refinedVST)
 RC_INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(RC_INSTALL_FILES_SRC))
 RC_INSTALL_FILES=$(sort $(RC_INSTALL_FILES_SRC) $(RC_INSTALL_FILES_VO))
 
