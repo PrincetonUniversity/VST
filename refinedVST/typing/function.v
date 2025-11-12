@@ -214,8 +214,7 @@ Section function.
 
   Transparent simple_mapsto.memory_block.
 
-  Lemma type_call_fnptr l i v vl ctys retty cc tys fp T :
-    length vl = length ctys →
+  Lemma type_call_fnptr l i v vl ctys `{!TCEq (length vl) (length ctys)} retty cc tys fp T :
     (⎡([∗ list] v;'(cty,ty)∈vl; zip ctys tys, v ◁ᵥₐₗ|cty| ty)⎤ -∗ ∃ x,
       ⎡([∗ list] v;'(cty,ty)∈vl; zip ctys (fp x).(fp_atys), v ◁ᵥₐₗ|cty| ty)⎤ ∗
       ⎡(fp x).(fp_Pa)⎤ ∗ ∀ v x',
@@ -224,7 +223,8 @@ Section function.
       T_normal T))
     ⊢ typed_call Espec ge i v ⎡v ◁ᵥₐₗ|tptr (Tfunction ctys retty cc)| l @ function_ptr fp⎤ vl ctys retty cc tys T.
   Proof.
-    iIntros (Hlen) "HT (%fn&(%&%)&%He&Hfn)".
+    inversion TCEq0 as [Hlen].
+    iIntros "HT (%fn&(%&%)&%He&Hfn)".
     simpl in *; subst.
     inv H.
     rewrite /type_of_params map_length in Hlen.
@@ -267,7 +267,7 @@ Section function.
       * by iApply "Hpost".
   Qed.
   Definition type_call_fnptr_inst := [instance type_call_fnptr].
-(*  Global Existing Instance type_call_fnptr_inst. *)
+  Global Existing Instance type_call_fnptr_inst.
 
   Lemma subsume_fnptr_val_ex B v cty l1 l2 (fnty1 : A → fn_params) fnty2 `{!∀ x, ContainsEx (fnty2 x)} T:
     (∃ x, <affine> ⌜l1 = l2 x⌝ ∗ <affine> ⌜fnty1 = fnty2 x⌝ ∗ T x)

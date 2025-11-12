@@ -319,8 +319,7 @@ Section own.
     rewrite /bool_val /= andb_false_r //.
   Qed.
   Definition type_assert_ptr_own_inst := [instance type_assert_ptr_own].
-  (*Global Existing Instance type_assert_ptr_own_inst. not sure why this doesn't work *)
-  Global Instance type_assert_ptr_own_inst' Espec (l: address) β ty t : TypedAssert Espec ge (tptr t) l ⎡l ◁ₗ{β} ty⎤ := type_assert_ptr_own_inst Espec l β ty t.
+  Global Existing Instance type_assert_ptr_own_inst.
 
 (*  Lemma type_cast_int_ptr n v it T:
     (⌜n ∈ it⌝ -∗ ∀ oid, T (val_of_loc (oid, n)) ((oid, n) @ frac_ptr Own (place (oid, n))))
