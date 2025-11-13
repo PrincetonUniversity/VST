@@ -1205,8 +1205,8 @@ Ltac push_in_embed_setoid :=
     try setoid_rewrite embed_and;
     try setoid_rewrite embed_or;
     try setoid_rewrite embed_impl;
-    try setoid_rewrite embed_iff;
-    try setoid_rewrite embed_sep; *)
+    try setoid_rewrite embed_iff; *)
+    try setoid_rewrite embed_sep; 
     try setoid_rewrite embed_pure;
     try setoid_rewrite embed_emp;
     try setoid_rewrite embed_affinely;
