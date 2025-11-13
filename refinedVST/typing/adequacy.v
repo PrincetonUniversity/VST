@@ -109,8 +109,9 @@ Lemma typed_fptr_triple : forall `{!VSTGS OK_ty Σ} {cs : compspecs} {A} Espec g
 Proof.
   rewrite /ty_own_val_at /ty_own_val /= /ty_own_val /=.
   intros.
-  iIntros "(%x & % & (% & %) & %Hfn & H)"; simpl in *; subst; simpl in *; subst.
+  iIntros "(%x & % & (%Hty & %Hx) & %Hfn & H)".
+  rewrite Hty /= in Hx; subst.
   destruct x, Hfn as (? & ? & ? & ? & ? & ? & ? & ? & ?); subst; simpl.
   iExists _; iSplit; first by iPureIntro; apply Genv.find_funct_ptr_iff.
-  rewrite -bi.later_forall embed_later; by iPoseProof (typed_function_triple with "H") as "H".
+  rewrite -bi.later_forall embed_affinely embed_later; by iPoseProof (typed_function_triple with "H") as "H".
 Qed.

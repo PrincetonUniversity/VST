@@ -36,7 +36,7 @@ Proof.
   intros.
   iIntros "(a & b)"; iPoseProof (own_valid_2 with "a b") as "H".
   rewrite frac_auth_agreeI; if_tac; try done.
-  by iApply internal_eq_sym.
+  rewrite internal_eq_sym //.
 Qed.
 
 Lemma public_update : forall g (a b a' : A), ✓ a' ->
@@ -167,8 +167,8 @@ Proof.
   if_tac; apply _.
 Qed.
 
-Lemma sync_rollback : forall {B} a Eo Ei (b : A -> B -> mpred) (Q : B -> mpred) R R' g sh (x0 : A)
-  (Ha : forall x, R ∗ a x ⊢ (|==> ∃ x1, public_half g x1 ∗ ((if decide (sh = 1%Qp) then x0 ≡ x1 else ∃ x, x1 ≡ x0 ⋅ x) -∗ (public_half g x1 -∗ |==> R' ∗ a x))%I)),
+Lemma sync_rollback : forall {A0 B} a Eo Ei (b : A0 -> B -> mpred) (Q : B -> mpred) R R' g sh (x0 : A)
+  (Ha : forall x, R ∗ a x ⊢ (|==> ∃ x1, public_half g x1 ∗ (<affine> (if decide (sh = 1%Qp) then x0 ≡ x1 else ∃ x, x1 ≡ x0 ⋅ x) -∗ (public_half g x1 -∗ |==> R' ∗ a x))%I)),
   (atomic_shift a Eo Ei b Q ∗ my_half g sh x0 ∗ R ⊢ |={Eo}=> atomic_shift a Eo Ei b Q ∗ my_half g sh x0 ∗ R')%I.
 Proof.
   intros; apply atomic_rollback_fupd.
@@ -178,8 +178,8 @@ Proof.
   rewrite bi.sep_comm; iApply ("a'" with "sub"); auto.
 Qed.
 
-Lemma sync_commit_gen : forall {B} a Eo Ei (b : A -> B -> mpred) Q R R' g sh (x0 : A)
-  (Ha : forall x, R ∗ a x ⊢ (|==> ∃ x1, public_half g x1 ∗ ((if decide (sh = 1%Qp) then x0 ≡ x1 else ∃ x, x1 ≡ x0 ⋅ x) -∗
+Lemma sync_commit_gen : forall {A0 B} a Eo Ei (b : A0 -> B -> mpred) Q R R' g sh (x0 : A)
+  (Ha : forall x, R ∗ a x ⊢ (|==> ∃ x1, public_half g x1 ∗ (<affine> (if decide (sh = 1%Qp) then x0 ≡ x1 else ∃ x, x1 ≡ x0 ⋅ x) -∗
     |==> (∃ x0' x1' : A, ⌜local_update(A := A) (x1, x0) (x1', x0')⌝ ∧ (my_half g sh x0' ∗ public_half g x1' -∗ |==> (∃ y, b x y ∗ R' y))))%I)%I),
   (atomic_shift a Eo Ei b Q ∗ my_half g sh x0 ∗ R ⊢ |={Eo}=> ∃ y, Q y ∗ R' y)%I.
 Proof.
@@ -193,8 +193,8 @@ Proof.
   iApply ("H" with "[$my $public]").
 Qed.
 
-Lemma sync_commit_same : forall {B} a Eo Ei (b : A -> B -> mpred) Q R R' g sh (x0 : A)
-  (Ha : forall x, R ∗ a x ⊢ (|==> ∃ x1, public_half g x1 ∗ ((if decide (sh = 1%Qp) then x0 ≡ x1 else ∃ x, x1 ≡ x0 ⋅ x) -∗
+Lemma sync_commit_same : forall {A0 B} a Eo Ei (b : A0 -> B -> mpred) Q R R' g sh (x0 : A)
+  (Ha : forall x, R ∗ a x ⊢ (|==> ∃ x1, public_half g x1 ∗ (<affine> (if decide (sh = 1%Qp) then x0 ≡ x1 else ∃ x, x1 ≡ x0 ⋅ x) -∗
     |==> (my_half g sh x0 ∗ public_half g x1 -∗ |==> (∃ y, b x y ∗ R' y)))%I)%I),
   (atomic_shift a Eo Ei b Q ∗ my_half g sh x0 ∗ R ⊢ |={Eo}=> ∃ y, Q y ∗ R' y)%I.
 Proof.
@@ -207,8 +207,8 @@ Proof.
   iApply "H"; iFrame.
 Qed.
 
-Lemma sync_commit_gen1 : forall {B} a Eo Ei (b : A -> B -> mpred) Q R R' g sh (x0 : A)
-  (Ha : forall x, R ∗ a x ⊢ (|==> ∃ x1, public_half g x1 ∗ ((if decide (sh = 1%Qp) then x0 ≡ x1 else ∃ x, x1 ≡ x0 ⋅ x) -∗
+Lemma sync_commit_gen1 : forall {A0 B} a Eo Ei (b : A0 -> B -> mpred) Q R R' g sh (x0 : A)
+  (Ha : forall x, R ∗ a x ⊢ (|==> ∃ x1, public_half g x1 ∗ (<affine> (if decide (sh = 1%Qp) then x0 ≡ x1 else ∃ x, x1 ≡ x0 ⋅ x) -∗
     |==> (∃ x0' x1' : A, ⌜local_update(A := A) (x1, x0) (x1', x0')⌝ ∧ (my_half g sh x0' ∗ public_half g x1' -∗ |==> (∃ y, b x y) ∗ R')))%I)%I),
   (atomic_shift a Eo Ei b (fun _ => Q) ∗ my_half g sh x0 ∗ R ⊢ |={Eo}=> Q ∗ R')%I.
 Proof.
@@ -223,8 +223,8 @@ Proof.
     rewrite -bi.sep_exist_r; iApply ("H" with "[$my $public]").
 Qed.
 
-Lemma sync_commit_same1 : forall {B} a Eo Ei (b : A -> B -> mpred) Q R R' g sh (x0 : A)
-  (Ha : forall x, R ∗ a x ⊢ (|==> ∃ x1, public_half g x1 ∗ ((if decide (sh = 1%Qp) then x0 ≡ x1 else ∃ x, x1 ≡ x0 ⋅ x) -∗
+Lemma sync_commit_same1 : forall {A0 B} a Eo Ei (b : A0 -> B -> mpred) Q R R' g sh (x0 : A)
+  (Ha : forall x, R ∗ a x ⊢ (|==> ∃ x1, public_half g x1 ∗ (<affine> (if decide (sh = 1%Qp) then x0 ≡ x1 else ∃ x, x1 ≡ x0 ⋅ x) -∗
     |==> (my_half g sh x0 ∗ public_half g x1 -∗ |==> (∃ y, b x y ∗ R')))%I)%I),
   (atomic_shift a Eo Ei b (fun _ => Q) ∗ my_half g sh x0 ∗ R ⊢ |={Eo}=> Q ∗ R')%I.
 Proof.
@@ -277,9 +277,9 @@ Proof.
 Qed.
 
 (* sync_commit for holding two locks simultaneously *)
-Lemma two_sync_commit : forall {B} a Eo Ei (b : A -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : A)
+Lemma two_sync_commit : forall {A0 B} a Eo Ei (b : A0 -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : A)
   (Ha : forall x, R ∗ a x ⊢ (|==> ∃ y1 y2, public_half g1 y1 ∗ public_half g2 y2 ∗
-    ((if decide (sh1 = 1%Qp) then x1 ≡ y1 else ∃ x, y1 ≡ x1 ⋅ x) -∗ (if decide (sh2 = 1%Qp) then x2 ≡ y2 else ∃ x, y2 ≡ x2 ⋅ x) -∗
+    (<affine> (if decide (sh1 = 1%Qp) then x1 ≡ y1 else ∃ x, y1 ≡ x1 ⋅ x) -∗ (if decide (sh2 = 1%Qp) then x2 ≡ y2 else ∃ x, y2 ≡ x2 ⋅ x) -∗
     |==> (∃ x1' x2' y1' y2' : A, ⌜local_update(A := A) (y1, x1) (y1', x1') /\ local_update(A := A) (y2, x2) (y2', x2')⌝ ∧
       (my_half g1 sh1 x1' ∗ public_half g1 y1' ∗ my_half g2 sh2 x2' ∗ public_half g2 y2' -∗ |==> (∃ y, b x y ∗ R' y))))%I)%I),
   (atomic_shift a Eo Ei b Q ∗ my_half g1 sh1 x1 ∗ my_half g2 sh2 x2 ∗ R ⊢ |={Eo}=> ∃ y, Q y ∗ R' y)%I.
@@ -296,9 +296,9 @@ Proof.
   iApply "H"; iFrame.
 Qed.
 
-Lemma two_sync_commit1 : forall {B} a Eo Ei (b : A -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : A)
+Lemma two_sync_commit1 : forall {A0 B} a Eo Ei (b : A0 -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : A)
   (Ha : forall x, R ∗ a x ⊢ (|==> ∃ y1 y2, public_half g1 y1 ∗ public_half g2 y2 ∗
-    ((if decide (sh1 = 1%Qp) then x1 ≡ y1 else ∃ x, y1 ≡ x1 ⋅ x) -∗ (if decide (sh2 = 1%Qp) then x2 ≡ y2 else ∃ x, y2 ≡ x2 ⋅ x) -∗
+    (<affine> (if decide (sh1 = 1%Qp) then x1 ≡ y1 else ∃ x, y1 ≡ x1 ⋅ x) -∗ (if decide (sh2 = 1%Qp) then x2 ≡ y2 else ∃ x, y2 ≡ x2 ⋅ x) -∗
     |==> (∃ x1' x2' y1' y2' : A, ⌜local_update(A := A) (y1, x1) (y1', x1') /\ local_update(A := A) (y2, x2) (y2', x2')⌝ ∧
       (my_half g1 sh1 x1' ∗ public_half g1 y1' ∗ my_half g2 sh2 x2' ∗ public_half g2 y2' -∗ |==> ((∃ y, b x y) ∗ R'))))%I)),
   (atomic_shift a Eo Ei b (fun _ => Q) ∗ my_half g1 sh1 x1 ∗ my_half g2 sh2 x2 ∗ R ⊢ |={Eo}=> Q ∗ R')%I.
