@@ -211,9 +211,9 @@ Qed.
 
 Program Definition atomic_spec_post' `{!heapGS Σ} {T} W
   (L : dtfr W -n> _ -d> leibnizO _) (R : dtfr W -n> _ -d> _) :
-  (prodO (@dtfr Σ W) (T -d> mpred)) -n> environ -d> mpred :=
+  (prodO (@dtfr Σ W) (T -d> mpred)) -n> option val -d> mpred :=
     λne '(w, Q),
-      ∃ v : T, PROP () (LOCALx (L w v) (SEPx (Q v :: R w v))).
+      ∃ v : T, PROP () (RETURNx (L w v) (SEPx (Q v :: R w v))).
 Next Obligation.
 Proof.
   intros.
@@ -226,13 +226,13 @@ Qed.
 
 Program Definition atomic_spec_post0 `{!heapGS Σ} W
   (L : dtfr W -n> leibnizO _) (R : dtfr W -n> _) :
-  (prodO (@dtfr Σ W) mpred) -n> environ -d> mpred :=
+  (prodO (@dtfr Σ W) mpred) -n> option val -d> mpred :=
     λne '(w, Q),
-      PROP () (LOCALx (L w) (SEPx (Q :: R w))).
+      PROP () (RETURNx (L w) (SEPx (Q :: R w))).
 Next Obligation.
 Proof.
   intros.
-  intros (w1, ?) (w2, ?) (Hw & ?)? ; simpl in *.
+  intros (w1, ?) (w2, ?) (Hw & ?) ?; simpl in *.
   do 3 f_equiv.
   { apply (leibniz_equiv(H := equivL)). rewrite Hw //. }
   rewrite H Hw //.
@@ -242,7 +242,7 @@ Qed.
    W is the TypeTree of the witness for the rest of the function. *)
 Program Definition atomic_spec `{!heapGS Σ} {A T} {t : Inhabitant T} W args (tz : type)
   (la : dtfr W -n> list.listO (leibnizO val)) (P : dtfr W -n> mpred) (G : dtfr W -n> leibnizO (list globals))
-  (Qp : T -> dtfr W -n> mpred) (a : dtfr W -n> _) (lb : dtfr W -n> T -d> leibnizO (list localdef))
+  (Qp : T -> dtfr W -n> mpred) (a : dtfr W -n> _) (lb : dtfr W -n> T -d> leibnizO (option val))
         (b : dtfr W -n> _) (E : dtfr W -n> leibnizO coPset)
    (*(HP : super_non_expansive' P) (HQp : forall v:T, super_non_expansive' (Qp v))
   (Ha : super_non_expansive_a(A := A) a) (Hla: forall n ts x, la ts x = la ts (functors.MixVariantFunctor.fmap _ (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x))
@@ -255,7 +255,7 @@ Program Definition atomic_spec `{!heapGS Σ} {A T} {t : Inhabitant T} W args (tz
     (PARAMSx (la w) (GLOBALSx (G w) (
     (SEP (atomic_shift(A := A) (a w) (⊤ ∖ E w) ∅ (b w) Q; P w))%assert5))))
   (λne '(w, Q), ∃ v : T,
-    PROP () (LOCALx (lb w v)
+    PROP () (RETURNx (lb w v)
     (SEP (Q v; Qp v w))%assert5)).
 Next Obligation.
 Proof.
@@ -319,7 +319,7 @@ Definition rev_curry {A B} (f : tuple_type A -> B) : tuple_type_rev A -> B
   := fun v => f (tcurry_rev _ v).
 
 (* There must be a way to simplify this. *)
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x : A 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x : A 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'RETURN' ( LQ ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type W T) (λne _, ⊤)
    (atomic_spec_pre'(A := A)(T := T) W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -330,11 +330,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x : A 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u 
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x r => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
    (atomic_spec_post'(T := T) W
-      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons LQx%assert3 .. (cons LQy%assert3 nil) ..))) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => Some LQ)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := _ -d> listO mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons SPx%assert3 .. (cons SPy%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0, r at level 0, T at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'RETURN' ( LQ ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type W T) (λne _, ⊤)
    (atomic_spec_pre'(T := T) W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -345,25 +345,26 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , ..
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x r => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
    (atomic_spec_post' W
-      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons LQx%assert3 .. (cons LQy%assert3 nil) ..))) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => Some LQ)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := _ -d> listO mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons SPx%assert3 .. (cons SPy%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0, r at level 0, T at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type W T) (λne _, ⊤)
    (atomic_spec_pre'(T := T) W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Lx%type .. (cons Ly%type nil) ..))) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Gx .. (cons Gy nil) ..))) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons S1x%I .. (cons S1y%I nil) ..))) ..))))
-      (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x => S2)) ..))))       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
+      (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x => S2)) ..))))
+      (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x r => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
    (atomic_spec_post' W
-      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := _ -d> listO mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0, r at level 0, T at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' ( LQ ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -374,11 +375,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , ..
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons LQx%assert3 .. (cons LQy%assert3 nil) ..))) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => Some LQ)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert3 .. (cons SPy%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -389,11 +390,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , ..
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' () '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' () '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
@@ -404,11 +405,11 @@ Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] '
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) (_ : unit) _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' () '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' () '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
@@ -419,11 +420,11 @@ Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] '
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) (_ : unit) _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))))
   (at level 200, x1 closed binder, xn closed binder, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'RETURN' ( LQ ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type W T) (λne _, ⊤)
    (atomic_spec_pre'(T := T) W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -434,11 +435,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PRO
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x r => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post' W
-      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons LQx%assert3 .. (cons LQy%assert3 nil) ..))) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => Some LQ)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := _ -d> listO mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons SPx%assert3 .. (cons SPy%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0, r at level 0, T at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type W T) (λne _, ⊤)
    (atomic_spec_pre'(T := T) W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -449,11 +450,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PRO
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x r => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post' W
-      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := _ -d> listO mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0, r at level 0, T at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' ( LQ ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -464,11 +465,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PRO
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons LQx%assert3 .. (cons LQy%assert3 nil) ..))) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => Some LQ)) ..))))
       (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert3 .. (cons SPy%assert3 nil) ..))) ..)))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -479,11 +480,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PRO
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'RETURN' ( LQ ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type W T) (λne _, ⊤)
    (atomic_spec_pre'(T := T) W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -494,11 +495,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , ..
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x r => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post' W
-      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons LQx%assert3 .. (cons LQy%assert3 nil) ..))) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => Some LQ)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := _ -d> listO mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons SPx%assert3 .. (cons SPy%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0, r at level 0, T at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type W T) (λne _, ⊤)
    (atomic_spec_pre'(T := T) W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -509,11 +510,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , ..
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x r => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post' W
-      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := _ -d> listO mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0, r at level 0, T at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' ( LQ ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -524,25 +525,25 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , ..
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons LQx%assert3 .. (cons LQy%assert3 nil) ..))) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => Some LQ)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert3 .. (cons SPy%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
-      (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Gx .. (cons Gy nil) ..))) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons S1x%I .. (cons S1y%I nil) ..))) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x => S2)) ..))))       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'RETURN' ( LQ ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type W T) (λne _, ⊤)
    (atomic_spec_pre' (T := T) W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -553,11 +554,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PRO
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x r => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post' W
-      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons LQx%assert3 .. (cons LQy%assert3 nil) ..))) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => Some LQ)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := _ -d> listO mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons SPx%assert3 .. (cons SPy%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0, r at level 0, T at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' () 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' () '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' () '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' () 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' () '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'RETURN' ( LQ ) 'SEP' () '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type W T) (λne _, ⊤)
    (atomic_spec_pre' (T := T) W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
@@ -568,11 +569,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PRO
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x r => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post' W
-      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons LQx%assert3 .. (cons LQy%assert3 nil) ..))) ..))))
-      (OfeMor(ofe_mor_ne := _)(B := _ -d> list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => nil)) ..))))))
+      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => Some LQ)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := _ -d> list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => None)) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0, r at level 0, T at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] '∃' r : T , 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type W T) (λne _, ⊤)
    (atomic_spec_pre' (T := T) W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -583,11 +584,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PRO
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x r => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post' W
-      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := _ -d> leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := _ -d> listO mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0, r at level 0, T at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' ( LQ ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -598,11 +599,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PRO
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons LQx%assert3 .. (cons LQy%assert3 nil) ..))) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => Some LQ)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert3 .. (cons SPy%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -613,11 +614,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PRO
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' () 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' () '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' () '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' () 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' () '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' ( LQ ) 'SEP' () '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
@@ -628,11 +629,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PRO
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons LQx%assert3 .. (cons LQy%assert3 nil) ..))) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => Some LQ)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' () 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' () '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' () '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' () 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' () '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' () '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
@@ -643,11 +644,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ ] 'PRO
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
@@ -658,11 +659,11 @@ Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] '
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) _ _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
@@ -672,11 +673,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , ..
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x => S2)) ..))))       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' () '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' () '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' () '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' () '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
@@ -687,11 +688,11 @@ Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] '
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) _ _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))))
   (at level 200, x1 closed binder, xn closed binder, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' () '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' () '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' () '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' () '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
@@ -702,11 +703,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , ..
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' () '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' () '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
@@ -717,11 +718,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , ..
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
@@ -732,11 +733,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , ..
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..)) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
@@ -747,11 +748,11 @@ Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] '
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) (_ : unit) _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..)) ..))))))
   (at level 200, x1 closed binder, xn closed binder, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => cons Px%type .. (cons Py%type nil) ..)) ..))))
@@ -762,11 +763,11 @@ Notation "'ATOMIC' 'TYPE' W 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] '
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) (_ : unit) _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..)) ..))))))
   (at level 200, x1 closed binder, xn closed binder, E at level 0, S2 at level 0).
 
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'RETURN' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W) (λne _, ⊤)
    (atomic_spec_pre0 W
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..))))
@@ -777,7 +778,7 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' E 'WITH' x1 , .. , xn 'PRE'  [ u , ..
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => E)) ..))))
       (OfeMor(ofe_mor_ne := _) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%I .. (cons SQy%I nil) ..))) ..)))))
   (atomic_spec_post0 W
-      (OfeMor(ofe_mor_ne := _)(B := leibnizO (list localdef)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..))))
+      (OfeMor(ofe_mor_ne := _)(B := leibnizO (option val)) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => None)) ..))))
       (OfeMor(ofe_mor_ne := _)(B := list mpred) (rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..)) ..))))))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, E at level 0, S2 at level 0).
 
@@ -793,12 +794,12 @@ Ltac match_postcondition ::=
 unfold atomic_spec_post', atomic_spec_post0, rev_curry, tcurry, tcurry_rev, tcurry_rev';
 fix_up_simplified_postcondition;
 cbv beta iota zeta; unfold_post;
-constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at assert_of ofe_mor_car];
+constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at postassert_of assert_of ofe_mor_car];
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite monPred_at_exist;
 tryif apply bi.exist_proper
  then (intros ?vret;
-          generalize rho; rewrite -local_assert; apply PROP_LOCAL_SEP_ext';
+          generalize rho; rewrite -local_assert; apply PROP_RETURN_SEP_ext';
           [reflexivity | | reflexivity];
           (reflexivity || fail "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
@@ -833,6 +834,7 @@ Ltac destruct_args t i :=
   | (fun x => _, ?t') => destruct_args t' i; (destruct i as [i x] || rename i into x)
   end.
 
+Print start_function1.
 Ltac start_function1 ::=
  leaf_function;
    lazymatch goal with
@@ -854,12 +856,12 @@ Ltac start_function1 ::=
             | s:=(_, WITH _ : globals PRE [ ] main_pre _ _ _ POST [tint] _):_
               |- _ => idtac
             | s:=?spec':_ |- _ => check_canonical_funspec spec'
-            end; change (semax_body V G F s); subst s)
+            end; change (semax_body V G F s); subst s; unfold mk_funspec')
    end;
    (let gv := fresh "gv" in
     match goal with
     | |- semax_body _ _ _ (_, mk_funspec _ _ _ _ ?Pre _) =>
-          split3; [ check_parameter_types' | check_return_type |  ];
+           split; [apply f_equal_prod; [check_parameter_types' | check_return_type] | ];
            match Pre with
            | atomic_spec_pre' _ _ _ _ _ (OfeMor(ofe_mor_ne := _) (rev_curry ?t)) _ _ =>
                let i := fresh in let x := read_names t in intros Espec i; destruct i as [i Q]; destruct_args x i; unfold atomic_spec_pre', atomic_spec_post', ofe_mor_car, rev_curry, tcurry; cbn [tcurry_rev tcurry_rev']; cbn match (* added line *)
@@ -873,7 +875,7 @@ Ltac start_function1 ::=
            | λne i, _ => intros Espec i
            end
     | |- semax_body _ _ _ (pair _ (NDmk_funspec _ _ _ ?Pre _)) =>
-          split3; [check_parameter_types' | check_return_type | ];
+          split; [apply f_equal_prod; [check_parameter_types' | check_return_type] | ];
            match Pre with
            | (convertPre _ _ (fun i => _)) =>  intros Espec (*DependedTypeList*) i
            | (fun x => match _ with (a,b) => _ end) => intros Espec (*DependedTypeList*) [a b]
@@ -882,7 +884,7 @@ Ltac start_function1 ::=
     end; simpl fn_body; simpl fn_params; simpl fn_return;
      cbv[dtfr dependent_type_functor_rec constOF idOF prodOF discrete_funOF ofe_morOF
         sigTOF listOF oFunctor_car ofe_car] in *; cbv[ofe_mor_car];
-     rewrite_old_main_pre; rewrite ?argsassert_of_at ?assert_of_at;
+     rewrite_old_main_pre; rewrite ?argsassert_of_at ?assert_of_at ?postassert_of_at;
      repeat
       match goal with
       | |- semax _ _ (match ?p with
@@ -924,7 +926,7 @@ Ltac start_function1 ::=
               | (a, b) => _
               end => destruct p as [a b]
             end
-      end; rewrite ?argsassert_of_at ?assert_of_at;
+      end; rewrite ?argsassert_of_at ?postassert_of_at ?assert_of_at;
      rewrite ?difference_empty_L; (* added line *)
      try start_func_convert_precondition).
 
