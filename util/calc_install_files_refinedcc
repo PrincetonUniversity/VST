@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-#  The $1 argument of this script should be the desired make target
 
 MAKE=${MAKE:-make}
-${MAKE} depend >& /dev/null
-${MAKE} CLIGHTGEN="CLIGHTGEN" -Bn $1 2>/dev/null | \
+
+if [ "$#" -eq 0 ]; then
+	echo "Usage: $0 <a list of make-targets>..." >&2
+	exit 0
+fi
+
+# run make -Bn for all provided targets ("$@" preserves separate args)
+${MAKE} CLIGHTGEN="CLIGHTGEN" -Bn "$@" 2>/dev/null | \
  awk '/^echo COQC /{print $NF}/^CLIGHTGEN/{print $NF}'
