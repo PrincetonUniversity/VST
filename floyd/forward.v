@@ -4370,6 +4370,14 @@ Fixpoint computeQ (ids:list ident) (vals:list val) : option (list localdef) :=
   | _, _ => None
   end.
 
+Ltac apply_computeQ := 
+try reflexivity;
+match goal with |- computeQ (map fst ?A) ?B = _ =>
+  let al := constr:(Zlength A) in let al := eval compute in al in
+  let bl := constr:(Zlength B) in let bl := eval compute in bl in
+  fail 1 "Your PARAM list has" bl "values but the function takes" al "parameters"
+end.
+
 Lemma compute_close_precondition_entails1: 
   forall ids P gv vals Q R,
   compute_list_norepet ids = true ->
@@ -4484,7 +4492,6 @@ Ltac start_function1 :=
  let DependedTypeList := fresh "DependedTypeList" in
  unfold NDmk_funspec; 
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
-
    split3; [check_parameter_types' | check_return_type | ];
     match Pre with
    | (fun _ => convertPre _ _ (fun i => _)) =>  intros Espec DependedTypeList i
@@ -4495,7 +4502,14 @@ Ltac start_function1 :=
  end;
  try match goal with |- semax _ (fun rho => ?A rho * ?B rho) _ _ =>
      change (fun rho => ?A rho * ?B rho) with (A * B)
-  end;
+  end;  
+lazymatch goal with |- semax _ _ _ (frame_ret_assert (function_body_ret_assert ?t ?X) _) =>
+   lazymatch X with context [temp ret_temp _] =>
+       tryif unify t Tvoid then fail "Your void-returning function should have an empty RETURN() in its funspec"
+       else idtac
+  | _ => idtac
+  end
+end;
  simpl functors.MixVariantFunctor._functor in *;
  simpl rmaps.dependent_type_functor_rec;
  clear DependedTypeList;
@@ -4522,8 +4536,28 @@ Ltac start_function1 :=
 
 Ltac expand_main_pre := expand_main_pre_old.
 
+(*  The following destructs any let-definitions immediately after PRE or POST *)
+Ltac destruct_it B :=
+ match B with 
+ | ?C _ => destruct_it C
+ | let '(x,y) := ?A in _ => destruct A as [x y]
+ | match ?A with _ => _ end =>
+     match type of A with
+     | @sigT _ (fun x => _) => destruct A as [x A] 
+     end
+ end.
+
+Ltac destruct_PRE_POST_lets := (* see issue #839 *)
+repeat lazymatch goal with 
+| |- semax _ (sepcon (close_precondition _ ?B) _) _ _ => destruct_it B
+| |- semax _ _ _ (frame_ret_assert (function_body_ret_assert _ ?B) _) => destruct_it B
+end;
+repeat change (fst (?A,?B)) with A in *;
+repeat change (snd (?A,?B)) with B in *.
+
 Ltac start_function2 :=
-  first [ erewrite compute_close_precondition_eq; [ | reflexivity | reflexivity]
+  destruct_PRE_POST_lets;
+  first [ erewrite compute_close_precondition_eq; [ | reflexivity | apply_computeQ ]
         | rewrite close_precondition_main ].
 
 Ltac start_function3 :=

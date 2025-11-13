@@ -22,6 +22,7 @@ Context {cs: compspecs}.
 
 Definition dec_type := sigT (fun P: Z -> Prop => forall z: Z, {P z} + {~ P z}).
 
+(*
 Lemma Zdivide_dec : forall a b : Z, {(a | b)} + {~ (a | b)}.
 Proof.
 intros.
@@ -35,11 +36,11 @@ apply Z.divide_0_l in H0. contradiction.
 simpl in H.
 destruct (Z.eqb_spec (b mod a) 0).
 left.
-Search (_ mod _ = 0) (_ | _).
 apply Z.mod_divide; auto.
 right; intro.
 apply Z.mod_divide in H0; auto.
 Qed.
+*)
 
 Definition dec_by_value (ch: memory_chunk): dec_type :=
   existT (fun P: Z -> Prop => forall z: Z, {P z} + {~ P z}) 
