@@ -78,6 +78,14 @@ Class SimplifyGoal {PROP : bi} (P : PROP) (n : option N) : Type :=
 Global Hint Mode SimplifyHyp + + - : typeclass_instances.
 Global Hint Mode SimplifyGoal + ! - : typeclass_instances.
 
+(* prevent being converted to a simplify_hyp instance *)
+Definition do_not_simplify_def {prop:bi} (P:prop) : prop := P.
+Definition do_not_simplify_aux : seal (@do_not_simplify_def). Proof . by eexists. Qed. 
+Definition do_not_simplify {prop:bi} (P:prop) := do_not_simplify_aux.(unseal) prop P.
+Definition do_not_simplify_eq {prop:bi} P : @do_not_simplify prop P = P.
+  rewrite /do_not_simplify do_not_simplify_aux.(seal_eq) //. Defined.
+Notation "'⟦' P '⟧'" := (do_not_simplify P) (at level 100) : bi_scope.
+
 (** * Subsumption *)
 Definition subsume {PROP : bi} {A} (P1 : PROP) (P2 T : A → PROP) : PROP :=
   P1 -∗ ∃ x, P2 x ∗ T x.

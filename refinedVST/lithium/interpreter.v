@@ -1021,6 +1021,10 @@ Ltac liWand :=
       | bi_intuitionistically (bi_pure _) => notypeclasses refine (tac_wand_pers_pure _ _ _ _)
       | match ?x with _ => _ end => fail "should not have match in wand"
       | _ => wand_intro P
+      end;
+      (* after a hyp has been possibly introduced to the hypothesis context, can unseal the do_not_simplify wrapper. *)
+      match goal with
+      | |- context [environments.envs_entails ?Δ _] => rewrite ?[in Δ]do_not_simplify_eq
       end
   end.
 
