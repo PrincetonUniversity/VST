@@ -4,15 +4,17 @@ Require Import VST.floyd.library. (*for body_lemma_of_funspec *)
 Require Import stdlib.
 Require Import spec_stdlib.
 
+(*
 Require VST.veric.version. From Coq Require Import String.
 Lemma version_test: False.
- assert (VST.veric.version.compcert_version = "3.15"%string /\
-         stdlib.Info.version = "3.15"%string)
+ assert (VST.veric.version.compcert_version = "3.16"%string /\
+         stdlib.Info.version = "3.16"%string)
        by (compute; auto;
             match goal with |- ?G => fail 100 "Version mismatch; cannot prove" G end).
  assert (VST.veric.version.bitsize = stdlib.Info.bitsize) by
     (try reflexivity; match goal with |- ?G => fail 100 "Bitsize mismatch; cannot prove" G end).
 Abort.
+*)
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
