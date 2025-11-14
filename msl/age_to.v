@@ -8,7 +8,7 @@ Require Import VST.msl.predicates_hered.
 Require Import VST.msl.sepalg.
 Require Import VST.msl.age_sepalg.
 Require Import VST.msl.sepalg_generators.
-Require Import Lia.
+From Stdlib Require Import Lia.
 
 (* Apply [age1] n times (meaningful when [n <= level x] *)
 

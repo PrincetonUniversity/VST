@@ -26,7 +26,7 @@ some operators.
 Global Set Warnings "-notation-overridden,-parsing".
 
 Require Import compcert.export.Clightdefs.
-From Coq Require Import String List ZArith.
+From Stdlib Require Import String List ZArith.
 From compcert Require Import Integers Floats Maps Errors AST Ctypes Cop Clight.
 
 Declare Scope None_scope.

@@ -324,7 +324,7 @@ Module SpinLocks.
                 Some evj).
       { rewrite <- nth_error_app2.
         rewrite <- app_assoc. assumption.
-        rewrite app_length. simpl. ssromega.
+        rewrite length_app. simpl. ssromega.
       }
       eapply multi_step_inv with (ev := evj) in Hexec'; eauto.
       destruct Hexec' as (Uj' & Uj'' & tpj'' & mj'' & trj'' & pre_j & post_j &
@@ -350,13 +350,13 @@ Module SpinLocks.
         }
         destruct H as [trj''' H].
         subst.
-        do 2 rewrite app_length in Hsizej.
+        do 2 rewrite length_app in Hsizej.
         simpl in Hsizej.
         eapply (Hfreelock (length (tr'' ++ [:: external tidi (mklock a)]) + u)).
         apply/andP. split.
-        rewrite app_length. simpl.
+        rewrite length_app. simpl.
         ssromega.
-        rewrite app_length.
+        rewrite length_app.
         simpl.
         (** u is smaller than length of trj''*)
         assert (Hu: (u < length trj'')%coq_nat)
@@ -1322,13 +1322,13 @@ Module SpinLocks.
               split. simpl.
               - apply/andP.
                 split.
-                + rewrite! app_length.
+                + rewrite! length_app.
                   clear - Horder. simpl.
                   move/andP:Horder => [Hle ?].
-                  rewrite app_length in Hle.
+                  rewrite length_app in Hle.
                   now ssromega.
                 + clear - Hj_not_in_tr.
-                  erewrite! app_length in *.
+                  erewrite! length_app in *.
                   simpl in *.
                   ssromega.
               - split.
@@ -1354,12 +1354,12 @@ Module SpinLocks.
                 by (repeat rewrite <- app_assoc; reflexivity).
               apply app_inv_head in Heq. subst.
               eapply (Hmaximal (length (tr0 ++ pre_k ++ [:: evk] ++ post_k ++ tr_pre_u)%list) evu).
-              - rewrite! app_length.
+              - rewrite! length_app.
                 apply/andP.
                 split.
                 + simpl. ssromega.
                 + clear - Hj_not_in_tr.
-                  rewrite! app_length in Hj_not_in_tr.
+                  rewrite! length_app in Hj_not_in_tr.
                   simpl in *.
                   ssromega.
               - rewrite! app_assoc.
@@ -1406,12 +1406,12 @@ Module SpinLocks.
                 by (repeat rewrite <- app_assoc; reflexivity).
               apply app_inv_head in Heq. subst.
               eapply (Hmaximal (length (tr0 ++ pre_k ++ [:: evk] ++ post_k ++ tr_pre_u)%list) evu).
-              - rewrite! app_length.
+              - rewrite! length_app.
                 apply/andP.
                 split.
                 + simpl. ssromega.
                 + clear - Hj_not_in_tr.
-                  rewrite! app_length in Hj_not_in_tr.
+                  rewrite! length_app in Hj_not_in_tr.
                   simpl in *.
                   ssromega.
               - rewrite! app_assoc.
@@ -1497,11 +1497,11 @@ Module SpinLocks.
                 repeat split; auto.
                 + clear - Horder.
                   erewrite! app_assoc.
-                  erewrite! app_length in *.
+                  erewrite! length_app in *.
                   now ssromega.
                 + clear - Hj_not_in_tr Hev.
                   erewrite! app_assoc in *.
-                  erewrite! app_length in *.
+                  erewrite! length_app in *.
                   erewrite <- Nat.le_ngt in Hj_not_in_tr.
                   pose proof ((nth_error_Some tr''0 v).1 ltac:(intros Hcontra; congruence)).
                   simpl in *.
@@ -1560,11 +1560,11 @@ Module SpinLocks.
                 repeat split; auto.
                 * clear - Horder.
                   erewrite! app_assoc.
-                  erewrite! app_length in *.
+                  erewrite! length_app in *.
                   now ssromega.
                 * clear - Hj_not_in_tr Hv.
                   erewrite! app_assoc in *.
-                  erewrite! app_length in *.
+                  erewrite! length_app in *.
                   erewrite <- Nat.le_ngt in Hj_not_in_tr.
                   pose proof ((nth_error_Some tr_pre_fl v).1 ltac:(intros Hcontra; congruence)).
                   simpl in *.
@@ -1629,13 +1629,13 @@ Module SpinLocks.
                 repeat split; auto.
                 + clear - Horder Hev Hj_not_in_tr.
                   erewrite! app_assoc in *.
-                  erewrite! app_length in *.
+                  erewrite! length_app in *.
                   erewrite <- Nat.le_ngt in Hj_not_in_tr.
                   pose proof ((nth_error_Some tr'' v).1 ltac:(intros Hcontra; congruence)).
                   simpl in *. now ssromega.
                 + clear - Hj_not_in_tr Hev.
                   erewrite! app_assoc in *.
-                  erewrite! app_length in *.
+                  erewrite! length_app in *.
                   erewrite <- Nat.le_ngt in Hj_not_in_tr.
                   pose proof ((nth_error_Some tr'' v).1 ltac:(intros Hcontra; congruence)).
                   simpl in *.
@@ -1692,14 +1692,14 @@ Module SpinLocks.
                 * clear - Horder Hj_not_in_tr Hv.
                   rewrite cats0 in Horder.
                   erewrite! app_assoc in *.
-                  erewrite! app_length in *.
+                  erewrite! length_app in *.
                   erewrite <- Nat.le_ngt in Hj_not_in_tr.
                   pose proof ((nth_error_Some tr_pre_fl v).1 ltac:(intros Hcontra; congruence)).
                   simpl in *.
                   now ssromega.
                 * clear - Hj_not_in_tr Hv.
                   erewrite! app_assoc in *.
-                  erewrite! app_length in *.
+                  erewrite! length_app in *.
                   erewrite <- Nat.le_ngt in Hj_not_in_tr.
                   pose proof ((nth_error_Some tr_pre_fl v).1 ltac:(intros Hcontra; congruence)).
                   simpl in *.
@@ -1775,7 +1775,7 @@ Module SpinLocks.
                 repeat split.
                 + clear - Hj_not_in_tr Horder.
                   erewrite! app_assoc in *.
-                  erewrite! app_length in *.
+                  erewrite! length_app in *.
                   simpl.
                   apply/andP.
                   split.
@@ -1821,7 +1821,7 @@ Module SpinLocks.
                                           (length ((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_pre_v)%list)
                                           evk evv).
                 simpl in Hsynchronized.
-                destruct (Hsynchronized ltac:(clear; erewrite! app_length in *; ssromega)
+                destruct (Hsynchronized ltac:(clear; erewrite! length_app in *; ssromega)
                                                ltac:(clear; do 4 rewrite <- app_assoc;
                                                      rewrite <- addn0;
                                                      rewrite <- nth_error_app; reflexivity)
@@ -1837,12 +1837,12 @@ Module SpinLocks.
                   repeat split; auto.
                   * clear - Horderra Horderra' Horder.
                     rewrite! app_assoc_reverse in Horderra'.
-                    erewrite! app_length in *.
+                    erewrite! length_app in *.
                     apply/andP.
                     split; now ssromega.
                   * clear - Horderra Horderra' Horder Hj_not_in_tr.
                     rewrite! app_assoc_reverse in Horderra'.
-                    erewrite! app_length in *.
+                    erewrite! length_app in *.
                     ssromega.
                   * eapply nth_error_app_inv;
                       eassumption.
@@ -1854,7 +1854,7 @@ Module SpinLocks.
                   repeat split; auto.
                   * clear - Horders Horder Hj_not_in_tr.
                     erewrite! app_assoc_reverse in *.
-                    erewrite! app_length in *.
+                    erewrite! length_app in *.
                     ssromega.
                   * eapply nth_error_app_inv;
                     now eauto.
@@ -1891,7 +1891,7 @@ Module SpinLocks.
                                           (length ((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_pre_v)%list)
                                           evk evv).
                 simpl in Hsynchronized.
-                destruct (Hsynchronized ltac:(clear; erewrite! app_length in *; ssromega)
+                destruct (Hsynchronized ltac:(clear; erewrite! length_app in *; ssromega)
                                                ltac:(clear; do 4 rewrite <- app_assoc;
                                                      rewrite <- addn0;
                                                      rewrite <- nth_error_app; reflexivity)
@@ -1907,12 +1907,12 @@ Module SpinLocks.
                   repeat split; auto.
                   * clear - Horderra Horderra' Horder.
                     rewrite! app_assoc_reverse in Horderra'.
-                    erewrite! app_length in *.
+                    erewrite! length_app in *.
                     apply/andP.
                     split; now ssromega.
                   * clear - Horderra Horderra' Horder Hj_not_in_tr.
                     rewrite! app_assoc_reverse in Horderra'.
-                    erewrite! app_length in *.
+                    erewrite! length_app in *.
                     ssromega.
                   * eapply nth_error_app_inv;
                     eassumption.
@@ -1924,7 +1924,7 @@ Module SpinLocks.
                   repeat split; auto.
                   * clear - Horders Horder Hj_not_in_tr.
                     erewrite! app_assoc_reverse in *.
-                    erewrite! app_length in *.
+                    erewrite! length_app in *.
                     ssromega.
                   * eapply nth_error_app_inv;
                     now eauto.
@@ -1970,7 +1970,7 @@ Module SpinLocks.
                   repeat split.
                   * clear - Hu Hj_not_in_tr Horder.
                     erewrite! app_assoc in *.
-                    erewrite! app_length in *.
+                    erewrite! length_app in *.
                     simpl in *.
                     apply/andP.
                     move/andP:Horder=>[? ?].
@@ -1980,7 +1980,7 @@ Module SpinLocks.
                     now ssromega.
                   * clear - Hj_not_in_tr.
                     erewrite! app_assoc in *;
-                      erewrite! app_length in *.
+                      erewrite! length_app in *.
                     erewrite <- Nat.le_ngt in Hj_not_in_tr.
                     simpl in *. now ssromega.
                   * do 3 rewrite <- app_assoc.
@@ -2029,7 +2029,7 @@ Module SpinLocks.
                   repeat split.
                   * clear - Hu Hj_not_in_tr Horder.
                     erewrite! app_assoc in *.
-                    erewrite! app_length in *.
+                    erewrite! length_app in *.
                     simpl in *.
                     apply/andP.
                     move/andP:Horder=>[? ?].
@@ -2039,7 +2039,7 @@ Module SpinLocks.
                     now ssromega.
                   * clear - Hj_not_in_tr.
                     erewrite! app_assoc in *;
-                      erewrite! app_length in *.
+                      erewrite! length_app in *.
                     erewrite <- Nat.le_ngt in Hj_not_in_tr.
                     simpl in *. now ssromega.
                   * rewrite! app_assoc.
@@ -2072,7 +2072,7 @@ Module SpinLocks.
           repeat split.
           + clear - Hj_not_in_tr Horder.
             erewrite! app_assoc in *.
-            erewrite! app_length in *.
+            erewrite! length_app in *.
             simpl.
             apply/andP.
             split.

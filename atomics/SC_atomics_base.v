@@ -1,6 +1,6 @@
 (* SC atomics without importing Iris *)
 
-Require Import Ensembles.
+From Stdlib Require Import Ensembles.
 Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.concurrency.ghosts.

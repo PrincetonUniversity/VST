@@ -387,7 +387,7 @@ Module MemoryLemmas.
         rewrite List.app_nth2.
         rewrite NPeano.Nat.sub_diag. reflexivity.
         omega.
-      + rewrite List.app_length in H.
+      + rewrite List.length_app in H.
         simpl in H.
         rewrite NPeano.Nat.add_1_r in H.
         simpl in H.

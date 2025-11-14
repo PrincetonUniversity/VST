@@ -146,7 +146,7 @@ rewrite andb_true_iff in H.
 destruct H as [H H0].
 apply Z.leb_le in H0.
 unfold SpecFloat.canonical_mantissa in H.
-apply Zeq_bool_eq in H.
+apply Z.eqb_eq in H.
 unfold FLT.FLT_exp in H.
 rewrite Digits.Zpos_digits2_pos in H.
 pose proof (Z.max_lub_l (Digits.Zdigits Zaux.radix2 (Z.pos m) + e - prec)
@@ -220,7 +220,7 @@ destruct e0 as [H' ?H].
 assert (-149 <= e). {
  clear - H'.
  unfold SpecFloat.canonical_mantissa in H'.
-apply Zeq_bool_eq in H'.
+apply Z.eqb_eq in H'.
 unfold FLT.FLT_exp in H'.
 rewrite Digits.Zpos_digits2_pos in H'.
 pose proof (Z.max_lub_r (Digits.Zdigits Zaux.radix2 (Z.pos m) + e - 24)

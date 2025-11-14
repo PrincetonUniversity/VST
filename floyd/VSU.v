@@ -693,6 +693,7 @@ Present only in" V ":" r "
 end.
 
 Ltac solve_SF_internal P :=
+   (tryif (let a := constr:(@P) in idtac) then idtac else fail "Lemma" P "does not exist");
   apply SF_internal_sound; eapply _SF_internal;
    [  reflexivity 
    | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity

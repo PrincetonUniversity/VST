@@ -1,10 +1,7 @@
-Require Import RelationClasses.
-Require Import ZArith Znumtheory.
-Require Import Coq.Lists.List.
-Require Import Lia.
+From Stdlib Require Import RelationClasses ZArith Znumtheory Lists.List Lia.
 Import ListNotations.
-Require Import Coq.Logic.FunctionalExtensionality.
-Require Import Coq.Logic.PropExtensionality.
+Require Import Stdlib.Logic.FunctionalExtensionality.
+Require Import Stdlib.Logic.PropExtensionality.
 Require Export VST.zlist.sublist.
 Import SublistInternalLib.
 Require Export VST.zlist.Zlength_solver.
@@ -1025,7 +1022,7 @@ Proof.
   intros. rewrite Forall_Znth. reflexivity.
 Qed.
 
-Require Import Coq.Sorting.Sorted.
+Require Import Stdlib.Sorting.Sorted.
 
 Section Sorted.
 Variable A : Type.

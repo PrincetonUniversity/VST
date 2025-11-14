@@ -1,6 +1,6 @@
-Require Import List.
-Require Import ZArith.
-Require Import Psatz.
+From Stdlib Require Import List.
+From Stdlib Require Import ZArith.
+From Stdlib Require Import Psatz.
 Require Import ITree.ITree.
 Require Import ITree.Interp.Traces.
 Require Import compcert.lib.Maps.
@@ -15,6 +15,7 @@ Require Import VST.progs64.io_os_specs.
 Require Import VST.zlist.sublist.
 Require Import VST.progs64.os_combine.
 Import ExtLib.Structures.Monad.
+From Stdlib Require Import FinFun.
 
 Opaque eq_dec.eq_dec.
 
@@ -565,8 +566,6 @@ Section Invariants.
     intros Hin; apply in_combine_l in Hin; easy.
   Qed.
 
-Require Import FinFun.
-
   Lemma mkRecvEvents_NoDup : forall logIdx cs,
     NoDup (mkRecvEvents logIdx cs).
   Proof.
@@ -579,7 +578,7 @@ Require Import FinFun.
     Zlength (enumerate xs) = Zlength xs.
   Proof.
     unfold enumerate; intros.
-    rewrite Zlength_combine, !Zlength_correct, seq_length; lia.
+    rewrite Zlength_combine, !Zlength_correct, length_seq; lia.
   Qed.
 
   Lemma seq_nth_app : forall len start n pre post,
@@ -589,7 +588,7 @@ Require Import FinFun.
     intros * Heq.
     enough (n = nth (length pre) (seq start len) O); subst.
     { rewrite Heq, app_nth2, Nat.sub_diag, seq_nth; auto; cbn.
-      rewrite <- (seq_length len start), Heq, app_length; cbn; lia.
+      rewrite <- (length_seq len start), Heq, length_app; cbn; lia.
     }
     rewrite Heq, app_nth2, Nat.sub_diag; auto.
   Qed.
@@ -601,9 +600,9 @@ Require Import FinFun.
     unfold enumerate; intros * Heq.
     apply (f_equal (map fst)) in Heq.
     rewrite combine_fst, map_app in Heq; cbn in Heq.
-    apply seq_nth_app in Heq; subst; cbn; auto using map_length.
+    apply seq_nth_app in Heq; subst; cbn; auto using length_map.
     rewrite <- Nat2Z.id, <- Zlength_length; rewrite <- Zlength_correct.
-    - rewrite !Zlength_correct, seq_length; auto.
+    - rewrite !Zlength_correct, length_seq; auto.
     - apply Zlength_nonneg.
   Qed.
 
@@ -629,7 +628,7 @@ Require Import FinFun.
       destruct ev; cbn; f_equal; auto.
     }
     rewrite Henum in Heq.
-    apply enumerate_length in Heq; subst; auto using map_length.
+    apply enumerate_length in Heq; subst; auto using length_map.
   Qed.
 
   Corollary mkRecvEvents_ordered : forall cs logIdx strIdx c strIdx' c' pre mid post,
@@ -640,7 +639,7 @@ Require Import FinFun.
     pose proof Heq as Heq'.
     rewrite app_comm_cons, app_assoc in Heq'.
     apply mkRecvEvents_strIdx in Heq; apply mkRecvEvents_strIdx in Heq'; subst.
-    rewrite app_length; cbn; lia.
+    rewrite length_app; cbn; lia.
   Qed.
 
   Lemma mkRecvEvents_cons : forall cs c logIdx,
@@ -1447,10 +1446,10 @@ Require Import FinFun.
     apply common_prefix_correct in Heq; apply common_prefix_correct in Heq'.
     destruct Heq, Heq'; subst.
     unfold strip_common_prefix in *.
-    rewrite !app_length, leb_correct in * by lia.
+    rewrite !length_app, leb_correct in * by lia.
     rewrite <- app_assoc.
     rewrite common_prefix_app, skipn_app1, skipn_exact_length in *;
-      rewrite ?app_length; auto; cbn in *.
+      rewrite ?length_app; auto; cbn in *.
     rewrite trace_of_ostrace_app.
     rewrite Htr; destruct Htr' as [(? & ->) | ?]; subst; auto.
   Qed.
@@ -1465,10 +1464,10 @@ Require Import FinFun.
     apply common_prefix_correct in Heq; apply common_prefix_correct in Heq'.
     destruct Heq, Heq'; subst.
     unfold strip_common_prefix in *.
-    rewrite !app_length, leb_correct in * by lia.
+    rewrite !length_app, leb_correct in * by lia.
     rewrite <- app_assoc.
     rewrite common_prefix_app, skipn_app1, skipn_exact_length in *;
-      rewrite ?app_length; auto; cbn in *.
+      rewrite ?length_app; auto; cbn in *.
     rewrite trace_of_ostrace_app.
     rewrite Htr'; destruct Htr as [(? & ->) | (? & ->)]; subst; auto; constructor.
   Qed.
@@ -1491,10 +1490,10 @@ Require Import FinFun.
     apply common_prefix_correct in Heq; apply common_prefix_correct in Heq'.
     destruct Heq, Heq'; subst.
     unfold strip_common_prefix in *.
-    rewrite !app_length, leb_correct in * by lia.
+    rewrite !length_app, leb_correct in * by lia.
     rewrite <- app_assoc.
     rewrite common_prefix_app, skipn_app1, skipn_exact_length in *;
-      rewrite ?app_length; auto; cbn in *.
+      rewrite ?length_app; auto; cbn in *.
     rewrite trace_of_ostrace_app.
     pose proof (Z.mod_pos_bound c 256 ltac:(lia)).
     rewrite Htr; destruct Htr' as [(? & ->) | ?]; subst; auto.
@@ -1510,10 +1509,10 @@ Require Import FinFun.
     apply common_prefix_correct in Heq; apply common_prefix_correct in Heq'.
     destruct Heq, Heq'; subst.
     unfold strip_common_prefix in *.
-    rewrite !app_length, leb_correct in * by lia.
+    rewrite !length_app, leb_correct in * by lia.
     rewrite <- app_assoc.
     rewrite common_prefix_app, skipn_app1, skipn_exact_length in *;
-      rewrite ?app_length; auto; cbn in *.
+      rewrite ?length_app; auto; cbn in *.
     rewrite trace_of_ostrace_app.
     pose proof (Z.mod_pos_bound c 256 ltac:(lia)).
     rewrite Htr'; destruct Htr as [(? & ->) | (? & ->)]; subst; auto.
@@ -1526,11 +1525,11 @@ Require Import FinFun.
     unfold cons_intr_aux, nil_trace_case; intros * Hspec; destruct_spec Hspec.
     - prename (Coqlib.zeq _ _ = _) into Htmp; clear Htmp.
       destruct st; cbn in *; subst; cbn in *.
-      rewrite common_prefix_app, app_length, leb_correct by lia.
+      rewrite common_prefix_app, length_app, leb_correct by lia.
       rewrite skipn_app1, skipn_exact_length; cbn; auto using mkRecvEvents_not_visible.
     - prename (Coqlib.zeq _ _ = _) into Htmp; clear Htmp.
       destruct st; cbn in *; subst; cbn in *.
-      rewrite common_prefix_app, app_length, leb_correct by lia.
+      rewrite common_prefix_app, length_app, leb_correct by lia.
       rewrite skipn_app1, skipn_exact_length; cbn; auto using mkRecvEvents_not_visible.
   Qed.
 
@@ -1570,9 +1569,9 @@ Require Import FinFun.
       destruct Heq; subst; red.
       rewrite <- Htr; unfold strip_common_prefix.
       rewrite common_prefix_app, <- app_assoc, common_prefix_app.
-      rewrite !app_length, !leb_correct by (cbn; lia).
+      rewrite !length_app, !leb_correct by (cbn; lia).
       rewrite skipn_app1, skipn_exact_length; auto.
-      rewrite (app_assoc io_log), <- app_length.
+      rewrite (app_assoc io_log), <- length_app.
       rewrite skipn_app1, skipn_exact_length; cbn; auto.
     - prename cons_intr_aux into Hspec'.
       eapply cons_intr_aux_trace_case in Hspec'.
@@ -1587,9 +1586,9 @@ Require Import FinFun.
       destruct Heq; subst; red.
       rewrite <- Htr; unfold strip_common_prefix.
       rewrite common_prefix_app, <- app_assoc, common_prefix_app.
-      rewrite !app_length, !leb_correct by (cbn; lia).
+      rewrite !length_app, !leb_correct by (cbn; lia).
       rewrite skipn_app1, skipn_exact_length; auto.
-      rewrite (app_assoc io_log), <- app_length.
+      rewrite (app_assoc io_log), <- length_app.
       rewrite skipn_app1, skipn_exact_length; cbn; auto.
   Qed.
 
@@ -1643,12 +1642,12 @@ Require Import FinFun.
     - prename (Coqlib.zeq _ _ = _) into Htmp; clear Htmp.
       destruct st; cbn in *; subst; red.
       unfold strip_common_prefix.
-      rewrite !app_length, leb_correct by lia.
+      rewrite !length_app, leb_correct by lia.
       rewrite common_prefix_app, skipn_app1, skipn_exact_length; auto.
     - prename (Coqlib.zeq _ _ = _) into Htmp; clear Htmp.
       destruct st; cbn in *; subst; red.
       unfold strip_common_prefix.
-      rewrite !app_length, leb_correct by lia.
+      rewrite !length_app, leb_correct by lia.
       rewrite common_prefix_app, skipn_app1, skipn_exact_length; auto.
   Qed.
 
@@ -1662,7 +1661,7 @@ Require Import FinFun.
     prename (cons_buf _ = _) into Hcons.
     destruct st; cbn in *; unfold getc_trace_case.
     unfold strip_common_prefix.
-    rewrite common_prefix_app, app_length, leb_correct by lia.
+    rewrite common_prefix_app, length_app, leb_correct by lia.
     rewrite skipn_app1, skipn_exact_length; cbn; auto.
     Coqlib.inv Hvalid; cbn in *.
     rewrite vt_trace_console0 in Hcons.

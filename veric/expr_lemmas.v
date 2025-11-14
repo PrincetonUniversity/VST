@@ -1098,7 +1098,7 @@ Proof.
   - destruct f; auto.
   - destruct (get_var_type Delta i); auto. simpl in *.
     destruct t0; auto. 
-    destruct (eqb_type t t0 && (Zeq_bool z z0 && eqb_attr a a0)); auto.
+    destruct (eqb_type t t0 && (Z.eqb z z0 && eqb_attr a a0)); auto.
   - destruct (get_var_type Delta i); auto. simpl in *.
     destruct t0; auto.
     destruct ((eqb_list eqb_type l l0 && eqb_type t t0 && eqb_calling_convention c c0)); auto.

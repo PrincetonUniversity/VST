@@ -5,7 +5,7 @@
 
 Require Import VST.msl.base.
 Require Import VST.msl.ageable.
-Require Import Coq.Logic.Eqdep_dec.
+Require Import Stdlib.Logic.Eqdep_dec.
 Require Import VST.msl.functors.
 
 Import CovariantFunctor.

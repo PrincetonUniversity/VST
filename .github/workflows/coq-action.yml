@@ -21,19 +21,12 @@ jobs:
         # except for the "make_target" field and make_target related excludes
         coq_version:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
-          - '8.19'
-          - '8.20'
           - 'dev'
         bit_size:
           - 32
           - 64
         make_target:
           - vst
-        exclude:   
-          - coq_version: 8.19
-            bit_size: 32
-          - coq_version: dev
-            bit_size: 32
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,6 +46,7 @@ jobs:
               opam install -y ${{ matrix.coq_version == 'dev' && 'coq-flocq' || matrix.bit_size == 32 && 'coq-compcert-32.3.13.1' || 'coq-compcert.3.13.1' }}
               # Required by test2
               opam install -y coq-ext-lib
+              opam install -y coq-paco
             endGroup
           # See https://github.com/coq-community/docker-coq-action/tree/v1#permissions
           before_script: |
@@ -88,8 +82,6 @@ jobs:
       fail-fast: false
       matrix:
         coq_version:
-          - '8.19'
-          - '8.20'
           - 'dev' 
         make_target:
           - assumptions.txt
@@ -102,10 +94,6 @@ jobs:
           - 32
           - 64
         exclude:
-          - coq_version: 8.19
-            bit_size: 32
-          - coq_version: dev
-            bit_size: 32
           - bit_size: 64
             make_target: test3
           - bit_size: 32

@@ -1091,7 +1091,7 @@ Proof.
 intros.
 pose proof (size_chunk_pos s).
 eapply field_compatible_byvalue; eauto;
-try (apply Zmod_divide; [ try lia | auto ]).
+try (apply Z.mod_divide; [ try lia | auto ]).
 pose proof (align_chunk_pos s); lia.
 apply Z.leb_le; auto.
 apply Z.leb_le; auto.
@@ -1112,7 +1112,7 @@ eapply field_compatible_byvalue'; eauto.
 apply Z.leb_le.
 rewrite Z.add_0_l.
 pose proof (size_chunk_pos s).
-apply Zmod_divide in H2; [ | lia].
+apply Z.mod_divide in H2; [ | lia].
 destruct H2.
 pose proof (size_chunk_pos b).
 assert (0 < x) by lia.

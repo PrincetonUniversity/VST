@@ -7,10 +7,10 @@ Require Import VST.msl.simple_CCC.
 Require Import VST.msl.seplog.
 Require Import VST.msl.log_normalize.
 Require Import VST.zlist.sublist.
-Require Import Coq.Lists.List.
-Require Import Coq.ZArith.ZArith.
-Require Import Coq.Sorting.Permutation.
-Require Export Coq.Classes.Morphisms.
+Require Import Stdlib.Lists.List.
+Require Import Stdlib.ZArith.ZArith.
+Require Import Stdlib.Sorting.Permutation.
+Require Export Stdlib.Classes.Morphisms.
 
 Lemma In_Permutation_cons: forall {A : Type} (l : list A) (x : A),
   In x l ->

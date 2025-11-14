@@ -6,7 +6,7 @@ Require Import VST.zlist.sublist.
 Require Import VST.concurrency.lock_specs.
 Require Import VST.atomics.verif_lock.
 Require Import mailbox.atomic_exchange.
-Require Import Lia.
+From Stdlib Require Import Lia.
 
 (* standard VST prelude *)
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.

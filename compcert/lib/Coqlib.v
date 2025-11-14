@@ -18,12 +18,7 @@
     used throughout the development.  It complements the Coq standard
     library. *)
 
-Require Export String.
-Require Export ZArith.
-Require Export Znumtheory.
-Require Export List.
-Require Export Bool.
-Require Export Lia.
+From Coq Require Export String ZArith Znumtheory List Bool Lia.
 
 (** * Useful tactics *)
 
@@ -366,6 +361,16 @@ Proof.
   replace (two_p x) with (2 * two_p (x - 1)).
   generalize (two_p_strict _ H0). lia.
   rewrite <- two_p_S. decEq. lia. lia.
+Qed.
+
+Lemma two_p_is_exp_2:
+  forall x y, 0 <= x <= y -> two_p (y - x) = two_p y / two_p x.
+Proof.
+  intros. replace y with (y - x + x) by lia.
+  rewrite two_p_is_exp by lia.
+  rewrite Z_div_mult_full.
+  replace (y - x + x) with y by lia. reflexivity.
+  exploit (two_p_gt_ZERO x); lia.
 Qed.
 
 (** Properties of [Zmin] and [Zmax] *)
@@ -1328,7 +1333,7 @@ End DECIDABLE_PREDICATE.
 
 (** * Well-founded orderings *)
 
-Require Import Relations.
+From Coq Require Import Relations.
 
 (** A non-dependent version of lexicographic ordering. *)
 

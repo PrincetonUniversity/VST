@@ -117,7 +117,7 @@ Proof. destruct R; reflexivity. Qed.
 #[export] Hint Rewrite RA_normal_loop2_ret_assert : ret_assert.
 
 Lemma liftTrue: forall rho, `True rho.
-Proof. intro. unfold_lift; apply Coq.Init.Logic.I. Qed.
+Proof. intro. unfold_lift; apply Logic.I. Qed.
 #[export] Hint Resolve liftTrue : core.
 
 Lemma overridePost_normal:
@@ -241,7 +241,7 @@ Proof.
  intros.
  red.
  destruct (tc_eval_gvar_zero _ _ _ _ H H0 H1) as [b ?].
- rewrite H2.  destruct (eqb_type _ _); apply Coq.Init.Logic.I.
+ rewrite H2.  destruct (eqb_type _ _); apply Logic.I.
 Qed.
 
 Lemma local_lift2_and: forall P Q, local (`and P Q) =

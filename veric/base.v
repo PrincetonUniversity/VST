@@ -1,5 +1,4 @@
-Require Export Coq.Arith.EqNat.
-Require Export Coq.Relations.Relations.
+From Stdlib Require Export Arith.EqNat Relations.Relations.
 
 Require Export compcert.lib.Axioms.
 Require Export compcert.lib.Coqlib.
