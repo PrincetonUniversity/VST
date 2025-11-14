@@ -51,8 +51,8 @@ jobs:
           install: |
             startGroup "Install dependencies"
               opam install -y coq-stdlib
-              opam install -y ${{ matrix.coq_version == 'dev' && 'coq-flocq' }} || exit_code=$?
-              opam install -y ${{ matrix.coq_version != 'dev' && matrix.bit_size == 64 && 'coq-compcert.3.16' }} || exit_code=$?
+              opam install -y ${{ matrix.coq_version != '9.0' && 'coq-flocq' }} || exit_code=$?
+              opam install -y ${{ matrix.coq_version == '9.0' && matrix.bit_size == 64 && 'coq-compcert.3.16' }} || exit_code=$?
               # Required by test2
               opam install -y coq-ext-lib
               opam install -y coq-paco
@@ -65,7 +65,7 @@ jobs:
           script: |
             startGroup "Build & Install"
 
-              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.bit_size==64 && 'platform' || 'bundled' }} IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
+              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.bit_size==64 && matrix.coq_version == '9.0' && 'platform' || 'bundled' }} IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
             endGroup
           after_script: |
             startGroup 'Copy Opam coq/user-contrib and coq-variant'
