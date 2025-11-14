@@ -834,7 +834,7 @@ VST.config:
 
 # Note: doc files are installed into the coq destination folder.
 # This is not ideal but otherwise it gets tricky to handle variants
-install: VST.config
+install: VST.config vst
 	install -d "$(INSTALLDIR)"
 	for d in $(sort $(dir $(INSTALL_FILES) $(EXTRA_INSTALL_FILES))); do install -d "$(INSTALLDIR)/$$d"; done
 	for f in $(INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
