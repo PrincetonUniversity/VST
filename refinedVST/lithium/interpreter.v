@@ -1195,6 +1195,36 @@ Ltac push_in_embed_hard :=
 From iris.bi Require Import monpred.
 Local Open Scope bi_scope.
 
+Section coq_tactics.
+  Lemma tac_exist_embed_sep1 {A:Type} {prop1 prop2:bi} `{!BiEmbed prop1 prop2}
+    (Δ:environments.envs prop2) (P Q : A -> prop1):
+      environments.envs_entails Δ (∃ x, ⎡P x⎤ ∗ ⎡Q x⎤) ->
+      environments.envs_entails Δ (∃ x, ⎡P x ∗ Q x⎤).
+  Proof. apply tac_fast_apply. apply bi.exist_mono => ?.
+    rewrite embed_sep //. Qed.
+
+  Lemma tac_exist_embed_sep2 {A:Type} {prop1 prop2:bi} `{!BiEmbed prop1 prop2}
+    (Δ:environments.envs prop2) (P Q : A -> prop1) R:
+    environments.envs_entails Δ (∃ x, ⎡P x⎤ ∗ ⎡Q x⎤ ∗ R x) ->
+    environments.envs_entails Δ (∃ x, ⎡P x ∗ Q x⎤ ∗ R x).
+  Proof. apply tac_fast_apply. apply bi.exist_mono => ?.
+    rewrite embed_sep bi.sep_assoc //. Qed.
+
+  Lemma tac_exist_embed_exist1 {A B:Type} {prop1 prop2:bi} `{!BiEmbed prop1 prop2}
+    (Δ:environments.envs prop2) (P : A -> B -> prop1):
+    environments.envs_entails Δ (∃ x, ∃ y, ⎡P x y⎤) ->
+    environments.envs_entails Δ (∃ x, ⎡∃ y, P x y⎤).
+  Proof. apply tac_fast_apply. apply bi.exist_mono => ?.
+    rewrite embed_exist //. Qed.
+
+  Lemma tac_exist_embed_exist2 {A B:Type} {prop1 prop2:bi} `{!BiEmbed prop1 prop2}
+    (Δ:environments.envs prop2) (P : A -> B -> prop1) Q:
+    environments.envs_entails Δ (∃ x, (∃ y, ⎡P x y⎤) ∗ Q x) ->
+    environments.envs_entails Δ (∃ x, ⎡∃ y, P x y⎤ ∗ Q x).
+  Proof. apply tac_fast_apply. apply bi.exist_mono => ?.
+    rewrite embed_exist //. Qed.
+End coq_tactics.
+
       (* FIXME this tactic is for rewriting under binders i.e. bi_exist.
          rewrite is too aggresive; would be nice if we can pattern match under binder setoid_rewrite [lem] **)
 Ltac push_in_embed_setoid :=
@@ -1205,11 +1235,15 @@ Ltac push_in_embed_setoid :=
     try setoid_rewrite embed_and;
     try setoid_rewrite embed_or;
     try setoid_rewrite embed_impl;
-    try setoid_rewrite embed_iff; *)
-    try setoid_rewrite embed_sep; 
+    try setoid_rewrite embed_iff; *) 
     try setoid_rewrite embed_pure;
     try setoid_rewrite embed_emp;
     try setoid_rewrite embed_affinely;
+    (* the `BiEmbed mpred assert` instance exists and does not need typeclass resolution *)
+    try notypeclasses refine (tac_exist_embed_sep1 _ _ _ _);
+    try notypeclasses refine (tac_exist_embed_sep2 _ _ _ _ _);
+    try notypeclasses refine (tac_exist_embed_exist1 _ _ _);
+    try notypeclasses refine (tac_exist_embed_exist2 _ _ _ _);
     (* try setoid_rewrite embed_persistently;
     try setoid_rewrite embed_absorbingly;
     try setoid_rewrite embed_embed;
@@ -1295,12 +1329,15 @@ Ltac push_in_monPred :=
     rewrite ?[in P]monPred_at_sep ?[in P]monPred_at_affinely ?[in P]monPred_at_embed
   end.
 
+Ltac liNormalize :=
+  repeat first
+    [ push_in_embed_for_head
+    | push_in_monPred ].
+
 (** ** [liStep] *)
 Ltac liStep :=
-  first [
-    push_in_embed_for_head
-    | push_in_monPred
-    | liExtensible
+  first 
+    [ liExtensible
     | liSep
     | liAnd
     | liWand
@@ -1320,20 +1357,18 @@ Ltac liStep :=
     | liUnfoldLetGoal
     ].
 
+Ltac liStep' := liNormalize; liStep.
 (* push_in_embed_for_head test *)
 Goal forall `{!BiEmbed prop1 prop2} (A B E: prop1) C D,
   (⎡ A -∗ B ⎤ ⊢ ⎡ ∀ x:nat, C x -∗ D x -∗ E ⎤)%I.
 iIntros.
-liStep.
-liStep.
-liStep.
 
 (* liWand seems to require this tactic to put a copy of the envs into Coq context*)
 liEnsureInvariant.
-liStep.
-liStep.
+liStep'.
+liStep'.
 liEnsureInvariant.
-liStep.
+liStep'.
 lazymatch goal with
   | |- envs_entails _ (⎡E⎤) => idtac
 end.

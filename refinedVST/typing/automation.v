@@ -386,17 +386,19 @@ Arguments ty_own_var_uninit /.
   
 (* This does everything *)
 Ltac liRStep :=
- liEnsureInvariant;
- try liRIntroduceLetInGoal;
- first [
-   liRPopLocationInfo
- | liRStmt
- (* | liRIntroduceTypedStmt *)
- | liRExpr
- | liRJudgement
- | liObj
- | liStep
-]; liSimpl.
+  liEnsureInvariant;
+  try liRIntroduceLetInGoal;
+  first
+    [ progress liNormalize
+    | liRPopLocationInfo
+    | liRStmt
+    (* | liRIntroduceTypedStmt *)
+    | liRExpr
+    | liRJudgement
+    | liObj
+    | liStep
+    ];
+  liSimpl.
 
 Tactic Notation "liRStepUntil" open_constr(id) :=
   repeat lazymatch goal with
