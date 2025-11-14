@@ -12,7 +12,7 @@ Program Definition fn_params_pre' {A} fn params fp : @dtfr Σ (ConstType A) -n> 
   PROP () (PARAMSx (params x) (GLOBALSx [] (SEPx [([∗ list] v;'(cty, t) ∈ params x;zip (map snd (fn_params fn)) (fp_atys (fp x)), v ◁ᵥₐₗ| cty | t) ∗ fp_Pa (fp x)]))).
 
 Program Definition fn_params_post' {A} fn fp : @dtfr Σ (ConstType A) -n> option val -d> mpred := λne x,
-  ∃ v, PROP () (RETURNx v (SEPx [∃ y, opt_ty_own_val (fn_return fn) ((fp x).(fp_fr) y).(fr_rty) v ∗ ((fp x).(fp_fr) y).(fr_R)])).
+  ∃ v, PROP () (RETURN (v) (SEPx [∃ y, v ◁ᵥₐₗ|fn_return fn| ((fp x).(fp_fr) y).(fr_rty) ∗ ((fp x).(fp_fr) y).(fr_R)])).
 
 Program Definition fn_params_post_void {A} (fn : function) fp : @dtfr Σ (ConstType A) -n> option val -d> mpred := λne x,
   PROP () RETURN () (SEPx [∃ y, emp ∗ ((fp x).(fp_fr) y).(fr_R)]).
