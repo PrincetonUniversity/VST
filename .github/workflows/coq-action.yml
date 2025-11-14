@@ -21,12 +21,19 @@ jobs:
         # except for the "make_target" field and make_target related excludes
         coq_version:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
+          - '9.0'
+          - '9.1'
           - 'dev'
         bit_size:
           - 32
           - 64
         make_target:
           - vst
+        exclude:
+          - coq_version: 9.0
+            bit_size: 32
+          - coq_version: dev
+            bit_size: 32
     steps:
       - uses: actions/checkout@v4
         with:
