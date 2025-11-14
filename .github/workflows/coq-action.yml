@@ -51,7 +51,7 @@ jobs:
           install: |
             startGroup "Install dependencies"
               opam install -y coq-stdlib
-              opam install -y ${{ matrix.coq_version != '9.0' && 'coq-flocq' }} || exit_code=$?
+              opam install -y coq-flocq
               opam install -y ${{ matrix.coq_version == '9.0' && matrix.bit_size == 64 && 'coq-compcert.3.16' }} || exit_code=$?
               # Required by test2
               opam install -y coq-ext-lib
