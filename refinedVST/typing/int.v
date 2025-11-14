@@ -193,9 +193,11 @@ Section int.
 
   Lemma simplify_int it v n (T : assert):
     (<affine> ⌜v = valinject it (i2v n it)⌝ -∗
-     <affine> ⌜n ∈ it⌝ -∗ T)
+     <affine> ⌜n ∈ it⌝ -∗
+     ⟦⎡v ◁ᵥ|it| n @ int it⎤⟧ -∗ T)
       ⊢ simplify_hyp ⎡v ◁ᵥ|it| n @ int it⎤ T.
   Proof.
+    rewrite do_not_simplify_eq.
     rewrite /simplify_hyp /ty_own_val_at /ty_own_val /=.
     iIntros "HT (_ & %H & %Hn)".
     destruct H as [Hv ?].
@@ -204,6 +206,7 @@ Section int.
       by apply val_to_Z_inv.
     - eapply val_to_Z_in_range; first done.
       rewrite value_fits_by_value // in Hv; by eapply val_to_Z_by_value.
+    - done.
   Qed.
   Definition simplify_int_inst := [instance simplify_int with 0%N].
   Global Existing Instance simplify_int_inst.
