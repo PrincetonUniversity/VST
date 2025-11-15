@@ -684,7 +684,7 @@ Section struct.
     destruct (list_find _ _) eqn: Hfind; inversion 1; subst.
     by apply list_find_Some' in Hfind as (-> & <- & _).
   Qed.
-  
+
   Lemma type_place_struct ge K β1 tys i n l T :
     (∃ j ty1, <affine> ⌜field_index_of (get_co i).(co_members) n = Some j⌝ ∗
     <affine> ⌜tys !! j = Some ty1⌝ ∗
@@ -976,5 +976,96 @@ Check value_fits_eq.
   Definition subsume_uninit_struct_inst := [instance subsume_uninit_struct].
   Global Existing Instance subsume_uninit_struct_inst.*)
 
+  (* Could we build this out of something more primitive? *)
+  Program Definition first_field (i : ident) (ty : type) : type := {|
+    ty_has_op_type ot mc := (∃ m, co_members (get_co i) !! O = Some m ∧ ot = type_member m ∧ ty_has_op_type ty ot mc)%type;
+    ty_own β l := ∃ m, <affine> ⌜co_members (get_co i) !! O = Some m⌝ ∗
+      <affine> ⌜l `has_layout_loc` type_member m⌝ ∗
+      l ◁ₗ{β} ty;
+    ty_own_val cty v :=
+      ∃ m, <affine> ⌜co_members (get_co i) !! O = Some m⌝ ∗ ∃ (Hcty : cty = type_member m),
+         <affine> ⌜v `has_layout_val` cty⌝ ∗
+         (rew Hcty in v) ◁ᵥ|type_member m| ty;
+  |}%I.
+  Next Obligation. iIntros (?????) "(% & $ & $ & Hl)". by iApply ty_share. Qed.
+  Next Obligation. iIntros (????? (? & H1 & -> & ?)) "(% & %H2 & % & _)". rewrite H1 in H2; inv H2; done. Qed.
+  Next Obligation. iIntros (????? (? & H1 & -> & ?)) "(% & %H2 & % & % & _)". rewrite H1 in H2; inv H2; done. Qed.
+  Next Obligation.
+    iIntros (????? (? & H1 & -> & ?)) "(% & %H2 & % & Hl)".
+    iDestruct (ty_deref with "Hl") as (?) "($ & Hv)"; first done.
+    rewrite H1 in H2; inv H2.
+    iFrame "%"; iExists eq_refl; simpl.
+    iDestruct (ty_size_eq with "Hv") as %?; first done.
+    by iFrame.
+  Qed.
+  Next Obligation.
+    iIntros (?????? (? & H1 & -> & ?) ?) "Hl (% & %H2 & % & % & ?)". rewrite H1 in H2; inv H2.
+    destruct Hcty; iFrame "%".
+    iApply (ty_ref with "[//] Hl"); done.
+  Qed.
+
+  Global Instance first_field_le : Proper ((=) ==> (⊑) ==> (⊑)) first_field.
+  Proof.
+    move => ? i -> ty1 ty2 Hty.
+    constructor.
+    - move => β l; rewrite/ty_own/=.
+      do 5 f_equiv; done.
+    - move => cty v. rewrite/ty_own_val/=.
+      do 7 f_equiv; done.
+  Qed.
+  Global Instance first_field_proper : Proper ((=) ==> (≡) ==> (≡)) first_field.
+  Proof. solve_type_proper. Qed.
+
+  Global Instance first_field_affine i cty v ty `{!forall v, Affine (v ◁ᵥ|cty| ty)}: Affine (v ◁ᵥ|cty| first_field i ty).
+  Proof.
+    rewrite /first_field; simpl_type.
+    apply bi.exist_affine; intros.
+    apply bi.sep_affine; first apply _.
+    apply bi.exist_affine; intros ->; apply _.
+  Qed.
+
+  Lemma type_place_first_field ge K β1 ty i n l T :
+    <affine> ⌜complete_legal_cosu_type (Tstruct i noattr) = true⌝ ∗ <affine> ⌜∃ m, co_members (get_co i) !! O = Some m ∧ name_member m = n⌝ ∗
+      typed_place ge K (l at{i}ₗ n) β1 ty (λ l2 β ty2 typ, T l2 β ty2 (λ t, first_field i (typ t)))
+    ⊢ typed_place ge (GetMemberPCtx i n :: K) l β1 (first_field i ty) T.
+  Proof.
+    iDestruct 1 as "(% & (% & %Hm & <-) & HP)".
+    iIntros (Φ) "Hl HΦ" => /=.
+    rewrite /GetMemberLoc.
+    unfold get_co in *; destruct (cenv_cs !! i)%maps eqn: Hi; last done.
+    pose proof (proj1 (elem_of_list_In _ _) (elem_of_list_lookup_2 _ _ _ Hm)).
+    assert (in_members (name_member m) (co_members c)) as Hin.
+    { apply in_map_iff; eauto. }
+    assert (plain_members (co_members c) = true) as Hplain.
+    { apply nested_pred_lemmas.complete_Tstruct_plain in H.
+      rewrite /get_co Hi // in H. }
+    iModIntro; iExists _, _; iSplit.
+    { iPureIntro; split; first done; apply plain_members_field_offset; auto. }
+    assert ((l.1, Ptrofs.add l.2 (Ptrofs.repr (field_offset cenv_cs (name_member m) (co_members c)))) = l) as Hl.
+    { pose proof (plain_members_field_offset _ Hplain _ _ Hin) as Heq.
+      destruct (co_members c); inv Hm; rewrite /Ctypes.field_offset /= peq_true in Heq.
+      rewrite /layout_field in Heq; simpl in *.
+      destruct m; last done; injection Heq as Heq.
+      rewrite -Heq align_0.
+      2: { rewrite /bitalignof. pose proof (Ctypes.alignof_pos t); lia. }
+      rewrite Zdiv_0_l Ptrofs.add_zero.
+      by destruct l. }
+    rewrite Hl.
+    iAssert ⌜l `has_layout_loc` type_member m⌝%I as %?.
+    { iDestruct "Hl" as (? Hm' ?) "_".
+      rewrite /get_co Hi Hm in Hm'; inv Hm'; done. }
+    iApply ("HP" with "[Hl]").
+    { rewrite /first_field; simpl_type.
+      iDestruct "Hl" as "(% & _ & _ & $)". }
+    iIntros (l' ty2 β2 typ R) "Hl' Hc HT".
+    iApply ("HΦ" with "Hl' [-HT] HT").
+    iIntros (ty') "Hty". iMod ("Hc" with "Hty") as "[Hty $]". iModIntro.
+    rewrite /first_field; simpl_type; iFrame.
+    iExists m; rewrite /get_co Hi //.
+  Qed.
+  Definition type_place_first_field_inst := [instance type_place_first_field].
+  Global Existing Instance type_place_first_field_inst | 10.
+
 End struct.
 Global Typeclasses Opaque struct.
+Global Typeclasses Opaque first_field.
