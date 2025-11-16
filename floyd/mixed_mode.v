@@ -45,6 +45,38 @@ Proof.
     rewrite {1}data_at_isptr; iDestruct "H" as (?) "$"; eauto.
 Qed.
 
+Lemma fold_own_type cty l t : l ◁ₗ t ⊣⊢ l ◁ᵥ|tptr cty| l @ &own t.
+Proof.
+  rewrite /frac_ptr; simpl_type.
+  rewrite bi.pure_True // bi.affinely_True_emp emp_sep //.
+Qed.
+
+Lemma unfold_own_own_type cty l t : l ◁ₗ &own t ⊣⊢ ∃ l' : lifting_expr.address, data_at Tsh (tptr cty) l' l ∗ l' ◁ₗ t.
+Proof.
+  intros.
+  rewrite /ty_of_rty; simpl_type.
+  do 2 f_equiv.
+  rewrite /frac_ptr; simpl_type.
+  rewrite /data_at /field_at /at_offset /= Ptrofs.add_zero.
+  rewrite /heap_mapsto_own_state (mapsto_tptr _ _ _ cty) (field_compatible_tptr _ cty).
+  iSplit.
+  - iIntros "(% & $ & $)"; auto.
+  - iIntros"((% & $) & $)"; auto.
+Qed.
+
+Lemma unfold_bool_type a b : a ◁ᵥ|tint| b @ boolean.generic_boolean boolean.StrictBool tint ⊣⊢ <affine> ⌜a = Val.of_bool b⌝.
+Proof.
+  intros; rewrite /boolean.generic_boolean; simpl_type.
+  rewrite val_of_bool_eq.
+  iSplit.
+  - iIntros "(_ & % & _ & %Hk & ->)".
+    destruct a; inv Hk.
+    rewrite Int.repr_signed //.
+  - iIntros (->); iPureIntro.
+    split; first done; eexists; split3; try done.
+    rewrite Int.signed_repr //; by destruct b.
+Qed.
+
 Lemma unfold_int_type a k : repable_signed k → a ◁ᵥ|tint| k @ int.int tint ⊣⊢ <affine> ⌜a = Vint (Int.repr k)⌝.
 Proof.
   intros; rewrite /int.int; simpl_type.
