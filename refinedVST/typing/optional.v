@@ -21,7 +21,7 @@ Class OptionableAgree `{!typeG OK_ty Σ} {cs : compspecs} (ty1 ty2 : type) : Pro
   optionable_dist : True.
 
 Section optional.
-  Context `{!typeG OK_ty Σ} {cs : compspecs} (ge : genv).
+  Context `{!typeG OK_ty Σ} {cs : compspecs} (ge : Genv.t Clight.fundef Ctypes.type).
 
   Global Program Instance optionable_ty_of_rty A (r : rtype A) `{!Inhabited A} optty ot1 ot2
     `{!∀ x, Optionable cty (x @ r) optty ot1 ot2}: Optionable cty r optty ot1 ot2 := {|

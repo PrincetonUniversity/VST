@@ -26,7 +26,7 @@ Global Instance subG_lockG {Σ} : subG lockΣ Σ → lockG Σ.
 Proof. solve_inG. Qed.
 
 Section type.
-  Context `{!lockG Σ} `{!typeG OK_ty Σ} {cs : compspecs} (ge : genv).
+  Context `{!lockG Σ} `{!typeG OK_ty Σ} {cs : compspecs} (ge : Genv.t Clight.fundef Ctypes.type).
 
   Definition lock_token (γ : lock_id) (l : list string) : mpred :=
     ∃ s : gset string, ⌜l ≡ₚ elements s⌝ ∧ own (inG0 := lock_inG) γ (●{dfrac.DfracOwn 1} (GSet s) : gset_disjUR_authR).
