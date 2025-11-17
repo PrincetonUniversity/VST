@@ -128,6 +128,7 @@ jobs:
           coq_version: ${{ matrix.coq_version }}
           install: |
             startGroup "Copy downloaded Opam coq/user-contrib and coq-variant"
+              opam install -y coq
               cp -R -v user-contrib/* "$(opam var lib)"/coq/user-contrib
               mkdir -p "$(opam var lib)"/coq-variant
               cp -R -v coq-variant/* "$(opam var lib)"/coq-variant
