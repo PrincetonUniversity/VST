@@ -55,7 +55,8 @@ jobs:
               opam install -y ${{ matrix.coq_version == '9.0' && matrix.bit_size == 64 && 'coq-compcert.3.16' }} || exit_code=$?
               # Required by test2
               opam install -y coq-ext-lib
-              opam install -y ${{ matrix.coq_version == '9.0' && 'coq-paco' }} || exit_code=$?
+	      # can simplify next line once the coq-paco opam package is available for rocq 9.1 
+              opam install -y ${{ matrix.coq_version != '9.1' && 'coq-paco' }} || exit_code=$?
             endGroup
           # See https://github.com/coq-community/docker-coq-action/tree/v1#permissions
           before_script: |
@@ -105,7 +106,9 @@ jobs:
           - 64
         exclude:
           - coq_version: 9.1
-            bit_size: 32
+            bit_size: 32  # can unexclude this once coq-paco installs
+          - coq_version: 9.1
+            make_target: test2
           - coq_version: dev
             bit_size: 32
           - bit_size: 64
