@@ -77,3 +77,15 @@ refinedcc check prog.c
 ```
 
 The usage is the same as in RefinedC; for details, refer to the [RefinedC repository](https://github.com/PrincetonUniversity/VST/blob/92867829a0ac2a8b9ecfdd1b75cc3bffe085f4f5/RefinedVST.md).
+
+## Known differences with RefinedC
+
+The names of C types are CompCert names. For instance:
+| RefinedC name | RefinedCC name |
+| ------------- | -------------- |
+| `i32` | `tint` |
+| `u32` | `tuint` |
+| `i64` | `tlong` |
+| `u64` | `tulong` |
+| `i8` | `tchar` |
+| `u8` | `tuchar` |
