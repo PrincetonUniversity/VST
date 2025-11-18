@@ -946,26 +946,30 @@ Section coq_tactics.
     iDestruct (i2p_proof with "HP Hl") as "$".
   Qed.
 
-  Lemma tac_do_intro i n' (P : prop) n Γs Γp T :
+  Lemma tac_do_intro i n' (P P': prop) n Γs Γp T :
+    P=P' →
     env_lookup i Γs = None →
     env_lookup i Γp = None →
-    envs_entails (Envs Γp (Esnoc Γs i P) n') T →
+    envs_entails (Envs Γp (Esnoc Γs i P') n') T →
     envs_entails (Envs Γp Γs n) (P -∗ T).
   Proof.
+    intros <-.
     rewrite envs_entails_unseal => Hs Hp HP. iIntros "Henv Hl".
     rewrite (envs_app_sound (Envs Γp Γs n) (Envs Γp (Esnoc Γs i P) n) false (Esnoc Enil i P)) //; simplify_option_eq => //.
     iApply HP. iApply "Henv". iFrame.
   Qed.
 
-  Lemma tac_do_intro_intuit i n' (P P' : prop) T n Γs Γp (Hpers : IntroPersistent P P') :
+  Lemma tac_do_intro_intuit i n' (P P' P'' : prop) T n Γs Γp (Hpers : IntroPersistent P' P'') :
+    P=P' →
     env_lookup i Γs = None →
     env_lookup i Γp = None →
-    envs_entails (Envs (Esnoc Γp i P') Γs n') T →
+    envs_entails (Envs (Esnoc Γp i P'') Γs n') T →
     envs_entails (Envs Γp Γs n) (<affine> P -∗ T).
   Proof.
+    intros <-.
     rewrite envs_entails_unseal => Hs Hp HP. iIntros "Henv HP".
-    iDestruct (@ip_persistent _ _ _ Hpers with "HP") as "#HP'".
-    rewrite (envs_app_sound (Envs Γp Γs n) (Envs (Esnoc Γp i P') Γs n) true (Esnoc Enil i P')) //; simplify_option_eq => //.
+    iDestruct (@ip_persistent _ _ _ Hpers with "HP") as "#HP''".
+    rewrite (envs_app_sound (Envs Γp Γs n) (Envs (Esnoc Γp i P'') Γs n) true (Esnoc Enil i P'')) //; simplify_option_eq => //.
     iApply HP. iApply "Henv".
     iModIntro. by iSplit.
   Qed.
@@ -992,6 +996,8 @@ Section coq_tactics.
   Proof. apply tac_fast_apply. iIntros "HP %". by iApply "HP". Qed.
 End coq_tactics.
 
+Ltac wand_simpl_hook := idtac.
+
 Ltac liWand :=
   let wand_intro P :=
     first [
@@ -1002,11 +1008,11 @@ Ltac liWand :=
       let n := lazymatch goal with | [ H := Envs _ _ ?n |- _ ] => n end in
       let H := constr:(IAnon n) in
       let n' := eval vm_compute in (Pos.succ n) in
-      simple notypeclasses refine (tac_do_intro_intuit H n' P P' _ _ _ _ ip _ _ _); [li_pm_reflexivity..|]
+      simple notypeclasses refine (tac_do_intro_intuit H n' P _ _ _ _ _ _ ip _ _ _); [shelve|wand_simpl_hook;li_pm_reflexivity|..]; [li_pm_reflexivity..|]
     | let n := lazymatch goal with | [ H := Envs _ _ ?n |- _ ] => n end in
       let H := constr:(IAnon n) in
       let n' := eval vm_compute in (Pos.succ n) in
-      simple notypeclasses refine (tac_do_intro H n' P _ _ _ _ _ _ _); [li_pm_reflexivity..|]
+      simple notypeclasses refine (tac_do_intro H n' P _ _ _ _ _ _ _ _ _); [shelve|wand_simpl_hook;li_pm_reflexivity|..]; [li_pm_reflexivity..|]
     ] in
   lazymatch goal with
   | |- envs_entails ?Δ (bi_wand ?P ?T) =>

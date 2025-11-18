@@ -41,6 +41,8 @@ Ltac solver_reduce_step :=
   ]
 .
 
+Ltac wand_simpl_hook ::= repeat solver_reduce_step.
+
 (* solver for Prop. also used in TCSolve. *)
 (* FIXME should be repeat solver_reduce_step? *)
 Ltac solver :=
