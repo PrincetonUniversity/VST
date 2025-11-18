@@ -43,14 +43,12 @@ Ltac solver_reduce_step :=
 
 Ltac wand_simpl_hook ::= repeat solver_reduce_step.
 
-(* solver for Prop. also used in TCSolve. *)
+(* solver for Prop. also used in TCSolve.
+   reduces the goal, and then try to solve it; does not fail if not solved. *)
 (* FIXME should be repeat solver_reduce_step? *)
 Ltac solver :=
-  repeat first
-    [ solver_reduce_step
-    | done
-    | rep_lia
-  ].
+  repeat solver_reduce_step;
+  try (done || rep_lia).
 
 (* for solving goals like (Vint $ Int.repr 2*x = Vint $ Int.repr x*2),
   solver can make the goal into TCEq, which may find TCSolve;
@@ -59,7 +57,7 @@ Ltac solver :=
   TODO is can_solve related to this?*)
 Ltac solver_with_TCEq :=
   first
-    [solver
+    [ solve [solver]
     | match goal with
       | |- ?P = ?Q => apply (TCEq_eq P Q); apply _
       end
@@ -85,7 +83,7 @@ Ltac solver_with_TCEq :=
 
 (* Typeclasses for proving equality of CCris values. *)
 Class TCSolve (P : Prop) : Prop := tc_rep_lia_proof: P.
-#[export] Hint Extern 10 (TCSolve ?P) => (change P; solve solver) : typeclass_instances.
+#[export] Hint Extern 10 (TCSolve ?P) => (change P; solver) : typeclass_instances.
 
 #[export] Instance TCDone_TCEq (z1 z2 : Z):
   TCDone (z1 = z2) -> TCEq (Int.repr z1) (Int.repr z2) | 1.
