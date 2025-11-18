@@ -9,6 +9,8 @@ From VST.typing Require Import programs function singleton array struct union by
 From VST.typing Require Import ClightSugar.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Set Default Proof Using "Type".
+From Ltac2 Require Import Ltac2.
+Set Default Proof Mode "Classic".
 
 (** * Defining extensions *)
 (** The [sidecond_hook] and [unsolved_sidecond_hook] hooks that get
@@ -18,7 +20,10 @@ Ltac sidecond_hook := idtac.
 Ltac unsolved_sidecond_hook := idtac.
 
 (** * Registering extensions *)
-
+Ltac2 Set lock_terms_hook as old_hook :=
+  fun _ =>
+  try_rewrite_locks [ty_own_val_at, ty_own_val, ty_own];
+  old_hook ().
 
 (* TODO these should be part of CCris, not specific to RefinedCC. *)
 Create HintDb ccris_rewrite.
@@ -37,21 +42,22 @@ Ltac solver_reduce_step :=
 .
 
 (* solver for Prop. also used in TCSolve. *)
-Ltac solver_step :=
-  first
+(* FIXME should be repeat solver_reduce_step? *)
+Ltac solver :=
+  repeat first
     [ solver_reduce_step
     | done
     | rep_lia
   ].
 
 (* for solving goals like (Vint $ Int.repr 2*x = Vint $ Int.repr x*2),
-  solver_step can make the goal into TCEq, which may find TCSolve;
-  but it is crucial that TCSolve only calls solver_step and does not make
+  solver can make the goal into TCEq, which may find TCSolve;
+  but it is crucial that TCSolve only calls solver and does not make
   it into a TCEq again.
   TODO is can_solve related to this?*)
-Ltac solver_step_with_TCEq :=
+Ltac solver_with_TCEq :=
   first
-    [solver_step
+    [solver
     | match goal with
       | |- ?P = ?Q => apply (TCEq_eq P Q); apply _
       end
@@ -62,22 +68,22 @@ Ltac solver_step_with_TCEq :=
 #[export] Hint Rewrite Ptrofs.repr_unsigned : ccris_rewrite.
 #[export] Hint Rewrite Int.repr_signed : ccris_rewrite.
 #[export] Hint Rewrite Int.repr_unsigned : ccris_rewrite.
-#[export] Hint Rewrite Ptrofs.signed_repr using solver_step : ccris_rewrite.
-(* we need solver_step because, e.g. applying `Ptrofs.unsigned_repr`
+#[export] Hint Rewrite Ptrofs.signed_repr using solver : ccris_rewrite.
+(* we need solver because, e.g. applying `Ptrofs.unsigned_repr`
   to `Int.unsigned (Int.repr (Int.unsigned (Int.repr x) * 2)` generates
   a side condition `0 ≤ Int.unsigned (Int.repr x) * 2 ≤ Int.max_unsigned`
   which is not solvable by just lia.
   *)
-#[export] Hint Rewrite Ptrofs.unsigned_repr using solver_step : ccris_rewrite.
-#[export] Hint Rewrite Int.signed_repr using solver_step : ccris_rewrite.
-#[export] Hint Rewrite Int.unsigned_repr using solver_step : ccris_rewrite.
-#[export] Hint Rewrite Z.shiftr_div_pow2 using solver_step : ccris_rewrite.
-#[export] Hint Rewrite Z.shiftl_mul_pow2 using solver_step : ccris_rewrite.
-#[export] Hint Rewrite Z.pow_1_r using solver_step : ccris_rewrite.
+#[export] Hint Rewrite Ptrofs.unsigned_repr using solver : ccris_rewrite.
+#[export] Hint Rewrite Int.signed_repr using solver : ccris_rewrite.
+#[export] Hint Rewrite Int.unsigned_repr using solver : ccris_rewrite.
+#[export] Hint Rewrite Z.shiftr_div_pow2 using solver : ccris_rewrite.
+#[export] Hint Rewrite Z.shiftl_mul_pow2 using solver : ccris_rewrite.
+#[export] Hint Rewrite Z.pow_1_r using solver : ccris_rewrite.
 
 (* Typeclasses for proving equality of CCris values. *)
 Class TCSolve (P : Prop) : Prop := tc_rep_lia_proof: P.
-#[export] Hint Extern 10 (TCSolve ?P) => (change P; solve [repeat solver_step]) : typeclass_instances.
+#[export] Hint Extern 10 (TCSolve ?P) => (change P; solve solver) : typeclass_instances.
 
 #[export] Instance TCDone_TCEq (z1 z2 : Z):
   TCDone (z1 = z2) -> TCEq (Int.repr z1) (Int.repr z2) | 1.
@@ -92,7 +98,7 @@ Proof. by intros ->. Qed.
 Proof. by intros ->. Qed.
 
 (* combines the original solver `autorewrite with lithium_rewrite; exact: eq_refl` with more automation. *)
-Ltac normalize_hook ::= solve [repeat solver_step_with_TCEq].
+Ltac normalize_hook ::= solve [repeat solver_with_TCEq].
 
 (* Goal ∀ l i (x : Z), *)
 (*     0 < length (<[i:=x]> $ <[i:=x]> (<[length (<[i:=x]>l) :=x]> l ++ <[length (<[i:=x]>l) :=x]> l)). *)

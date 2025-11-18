@@ -3,7 +3,8 @@ From lithium Require Import base hooks normalize.
 From VST.lithium Require Import solvers definitions simpl_classes proof_state syntax.
 From VST.lithium Require Import simpl_instances. (* required for tests *)
 Set Default Proof Using "Type".
-
+From Ltac2 Require Import Ltac2.
+Set Default Proof Mode "Classic".
 (** This file contains the main Lithium interpreter. *)
 
 (** * General proof state management tactics  *)
@@ -1266,46 +1267,44 @@ Ltac push_in_embed_setoid :=
     idtac
     .
 
-(* push_in_embed_hard test *)
-(* if head symbol of R is `embed _`, push the embed in.
-    do some ad hoc stuff with monPred_in as well *)
+(* push embed deeper in a term R *)
 Ltac push_in_embed R :=
-  lazymatch R with
-  | ⎡ ?R' ⎤ =>
-    lazymatch R' with
-    | bi_wand ?P ?Q => rewrite [R] (embed_wand P Q)
-    | bi_wand_iff ?P ?Q => rewrite [R] (embed_wand_iff P Q)
-    | bi_forall ?P => rewrite [R] (embed_forall _ P)
-    | bi_exist ?P => rewrite [R] (embed_exist _ P)
-    | bi_and ?P ?Q => rewrite [R] (embed_and P Q)
-    | bi_or ?P ?Q => rewrite [R] (embed_or P Q)
-    | bi_impl ?P ?Q => rewrite [R] (embed_impl P Q)
-    | bi_iff ?P ?Q => rewrite [R] (embed_iff P Q) 
-    | bi_sep ?P ?Q => rewrite [R] (embed_sep P Q)
-    | bi_pure ?P => rewrite [R] (embed_pure P)
-    | bi_emp => rewrite [R] (embed_emp)
-    | <affine> ?P => rewrite [R] (embed_affinely P)
-    | <pers> ?P => rewrite [R] (embed_persistently P)
-    | <absorb> ?P => rewrite [R] (embed_absorbingly P)
-    | ⎡ ?P ⎤ => rewrite - [R] (embed_embed P)
-    | |==> ?P => rewrite [R] (embed_bupd P)
-    | |={?E1,?E2}=> ?P => rewrite [R] (embed_fupd E1 E2 P)
-    | □ ?P => rewrite [R] (embed_intuitionistically P)
-    | ◇ ?P => rewrite [R] (embed_except_0 P)
-    | ▷ ?P => rewrite [R] (embed_later P)
-    | ▷^ ?n ?P => rewrite [R] (embed_laterN n P)
-    | ■ ?P => rewrite [R] (embed_plainly P)
-    | ■? ?p ?P => rewrite [R] (embed_plainly_if p P)
-    | <affine>? ?b ?P => rewrite [R] (embed_affinely_if P)
-    | <pers>? ?b ?P => rewrite [R] (embed_persistently_if P)
-    | <absorb>? ?b ?P => rewrite [R] (embed_absorbingly_if P)
-    | □? ?b ?P => rewrite [R] (embed_intuitionistically_if P)
-    | ?x ≡ ?y => rewrite [R] (embed_internal_eq x y)
-    (* not sure how to deal with other forms in `bi_embed $ monPred_at ...`, add them when in need *)
-    | monPred_at (?P ∗ ?Q ) _ => rewrite [R'] (monPred_at_sep _ P Q)
-    | monPred_at (<affine> ?P) _ => rewrite [R'] (monPred_at_affinely _ P)
-    end
-  end.
+  rewrite
+    ?[in R]embed_affinely
+    ?[in R]embed_persistently
+    ?[in R]embed_absorbingly
+    -?[in R]embed_embed
+    ?[in R]embed_bupd
+    ?[in R]embed_fupd
+    ?[in R]embed_intuitionistically
+    ?[in R]embed_except_0
+    ?[in R]embed_later
+    ?[in R]embed_laterN
+    ?[in R]embed_plainly
+    ?[in R]embed_plainly_if
+    ?[in R]embed_affinely_if
+    ?[in R]embed_persistently_if
+    ?[in R]embed_persistently_if
+    ?[in R]embed_absorbingly_if
+    ?[in R]embed_intuitionistically_if
+
+    ?[in R]monPred_at_sep
+    ?[in R]monPred_at_affinely
+    (* should push into modalities before rewrite for other connectives 
+       to avoid breaking up the modalities *)
+    ?[in R]embed_wand
+    ?[in R]embed_wand_iff
+    ?[in R]embed_forall
+    ?[in R]embed_exist
+    ?[in R]embed_and
+    ?[in R]embed_or
+    ?[in R]embed_impl
+    ?[in R]embed_iff
+    ?[in R]embed_sep
+    ?[in R]embed_pure
+    ?[in R]embed_emp
+    ?[in R]embed_internal_eq
+  .
 
 (* TODO make sure rewrites happen in exactly the subterm R (like [R in (envs_entails _ (bi_wand R _))])
    instead of any place matching R *)
@@ -1315,24 +1314,48 @@ Ltac push_in_embed_for_head :=
   lazymatch goal with
   | |- envs_entails ?Δ ?P =>
     lazymatch P with
-    | embed ?H => push_in_embed (embed H)
     | bi_wand ?H _ => push_in_embed_inside_term H
     | bi_sep ?H _ => push_in_embed_inside_term H
     | bi_exist ?H => progress push_in_embed_setoid
-    (* | ?un_op ?H => idtac "unop" un_op; push_in_embed H
-    | ?bin_op ?H _ => idtac "binop" bin_op; push_in_embed H *)
-    end end.
+    | bi_impl ?H => push_in_embed_inside_term H
+    | _ => push_in_embed_inside_term P
+    end
+  end.
 
 Ltac push_in_monPred :=
   progress lazymatch goal with
   | |- envs_entails ?Δ ?P =>
-    rewrite ?[in P]monPred_at_sep ?[in P]monPred_at_affinely ?[in P]monPred_at_embed
+    rewrite 
+      ?[in P]monPred_at_sep
+      ?[in P]monPred_at_affinely
+      ?[in P]monPred_at_embed
   end.
 
+(* used to protect terms from rewrite *)
+
+Ltac2 rec try_rewrite_locks_patterns_list ps :=
+  match ps with
+  | [] => ()
+  | t :: ps' =>
+      ltac1:(t |- try rewrite [t]lock) (Ltac1.of_constr(t));
+      try_rewrite_locks_patterns_list ps'
+  end.
+
+(* ps is a list of open_constrs, separated by "," *)
+Ltac2 Notation "try_rewrite_locks" "[" ps(list1(open_constr, ",")) "]" :=
+  try_rewrite_locks_patterns_list ps.
+
+Ltac2 mutable lock_terms_hook () :=
+  (* Example: try_rewrite_locks [ term1, term2, .. ]. *)
+  ().
+
 Ltac liNormalize :=
+  ltac2:(lock_terms_hook ());
   repeat first
     [ push_in_embed_for_head
-    | push_in_monPred ].
+    | push_in_monPred ];
+  rewrite -?lock
+  .
 
 (** ** [liStep] *)
 Ltac liStep :=
