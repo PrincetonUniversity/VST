@@ -21,7 +21,7 @@ Class OptionableAgree `{!typeG OK_ty Σ} {cs : compspecs} (ty1 ty2 : type) : Pro
   optionable_dist : True.
 
 Section optional.
-  Context `{!typeG OK_ty Σ} {cs : compspecs} (ge : genv).
+  Context `{!typeG OK_ty Σ} {cs : compspecs} (ge : Genv.t Clight.fundef Ctypes.type).
 
   Global Program Instance optionable_ty_of_rty A (r : rtype A) `{!Inhabited A} optty ot1 ot2
     `{!∀ x, Optionable cty (x @ r) optty ot1 ot2}: Optionable cty r optty ot1 ot2 := {|
@@ -165,7 +165,9 @@ Section optional.
   | TraceOptionalEq (P : Prop)
   | TraceOptionalNe (P : Prop).
   
-  Lemma type_eq_optional_refined v1 v2 (cty : Ctypes.type) (ty optty : type) (ot1 ot2 : Ctypes.type)
+  Lemma type_eq_optional_refined v1 v2 (cty : Ctypes.type) v1' v2' (ty optty : type) (ot1 ot2 : Ctypes.type)
+    `{!TCEq (valinject (val_type cty) v1) v1'}
+    `{!TCEq (valinject (val_type cty) v2) v2'}
     `{!Optionable cty ty optty ot1 ot2}
     `{!Affine (v2 ◁ᵥₐₗ|cty| optty)} b (T : _ → _ → assert)
     (* We'll throw away any ownership associated with v2 (e.g. through an ownership type), so it needs to be affine.
@@ -174,8 +176,9 @@ Section optional.
     case_if b
       (li_trace (TraceOptionalEq b) (⎡v1 ◁ᵥₐₗ|cty| ty⎤ -∗ T (i2v (bool_to_Z false) tint) (false @ boolean tint)))
       (li_trace (TraceOptionalEq (¬ b)) (⎡v1 ◁ᵥₐₗ|cty| optty⎤ -∗ T (i2v (bool_to_Z true) tint) (true @ boolean tint)))
-      ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|cty| b @ (optional ty optty)⎤ v2 ⎡v2 ◁ᵥₐₗ|cty| optty⎤ Oeq ot1 ot2 tint  T.
+      ⊢ typed_bin_op ge v1 ⎡v1' ◁ᵥ|val_type cty| b @ (optional ty optty)⎤ v2 ⎡v2' ◁ᵥ|val_type cty| optty⎤ Oeq ot1 ot2 tint T.
   Proof.
+    rewrite -TCEq0 -TCEq1.
     iIntros "HT Hv1 Hv2" (Φ) "HΦ".
     iDestruct "Hv1" as "[[% Hv1]|[% Hv1]]".
     - iIntros "!>" (?) "Hctx !>".
