@@ -276,7 +276,7 @@ Section struct.
             (data_at_rec Tsh (field_type (name_member it) mems) v)
             (field_offset cenv_cs (name_member it) mems))) v (adr2val l) ∗
     <affine> ⌜aggregate_pred.aggregate_pred.struct_Prop (co_members (get_co i))
-       (λ it : member, value_fits (field_type (name_member it) mems)) v ∧ false = false⌝ ∗
+       (λ it : member, value_fits (field_type (name_member it) mems)) v⌝ ∗
     <affine> ⌜length (co_members (get_co i)) = length tys⌝ ∗
       aggregate_pred.struct_pred (co_members (get_co i))
         (λ (m : member) (v : reptype (field_type (name_member m) mems)) (_ : val),
@@ -299,7 +299,7 @@ Section struct.
       rewrite /heap_withspacer /heap_spacer /mapsto_memory_block.withspacer /mapsto_memory_block.spacer /mapsto_memory_block.at_offset /offset_val /=.
       iDestruct "Htys" as "(Hty & Hspacer)".
       iDestruct (ty_deref with "Hty") as (v) "(Hv & Hty)"; first done.
-      iDestruct (ty_size_eq with "Hty") as %(? & _); first done.
+      iDestruct (ty_size_eq with "Hty") as %?; first done.
       iExists v; iFrame.
       iSplit.
       + if_tac; iFrame.
@@ -309,8 +309,8 @@ Section struct.
     - rewrite -/aggregate_pred.aggregate_pred.struct_pred struct_pred_cons2.
       iDestruct "Htys" as "((Hty & Hspacer) & Htys)".
       iDestruct (ty_deref with "Hty") as (v) "(Hv & Hty)"; first done.
-      iDestruct ("IH" with "[//] [//] [//] Htys") as "(%vs & Hvs & (%Hvs & _) & %Hlen & Htys)"; iClear "IH".
-      iDestruct (ty_size_eq with "Hty") as %(? & _); first done.
+      iDestruct ("IH" with "[//] [//] [//] Htys") as "(%vs & Hvs & %Hvs & %Hlen & Htys)"; iClear "IH".
+      iDestruct (ty_size_eq with "Hty") as %?; first done.
       iExists (v, vs); rewrite !struct_pred_cons2.
       rewrite -heap_withspacer_eq; iFrame.
       iSplit.
@@ -818,7 +818,6 @@ Check value_fits_eq.
 
   (* this is our padded *)
   Lemma withspacer_uninit_memory_block ly sz o l:
-    type_is_volatile ly = false →
     (l.1, Ptrofs.add l.2 (Ptrofs.repr o)) `has_layout_loc` ly →
     0 ≤ o →
     sizeof ly ≤ sz < Ptrofs.modulus →
@@ -853,7 +852,7 @@ Check value_fits_eq.
     { rewrite /heap_mapsto_own_state /mapsto /adr2val; setoid_rewrite <- (Ptrofs.repr_unsigned l.2).
       iSplit.
       - iIntros "(% & % & H)"; iApply (data_at_rec_data_at_rec_ with "H"); try done; try apply Hl.
-      - iIntros "$"; iPureIntro; split; last done; apply default_value_fits. }
+      - iIntros "$"; iPureIntro; apply default_value_fits. }
     rewrite mapsto_struct.
     pose proof (get_co_members_no_replicate i) as Hnorep.
     apply aggregate_pred.struct_pred_ext; first done; intros f ?? Hin.
@@ -862,7 +861,6 @@ Check value_fits_eq.
     erewrite proj_struct_lookup; try done.
     2: rewrite !list_lookup_fmap Hi /= name_member_get //.
     rewrite uninit_memory_block.
-    2: admit. (* volatile *)
     assert (complete_legal_cosu_type (Tstruct i a) = true) as Hcomplete by apply Hl.
     apply (field_compatible_app_inv' [StructField f]), field_compatible_nested_field in Hl; last done.
     rewrite app_nil_r /nested_field_type /nested_field_offset /= in Hl.
@@ -888,7 +886,7 @@ Check value_fits_eq.
       rewrite Z.add_0_l Ptrofs.add_unsigned Ptrofs.unsigned_repr // in Hsz.
     - destruct Hl as (_ & _ & _ & Ha & _).
       rewrite /align_compatible_dec.align_compatible Z.add_0_l Ptrofs.add_unsigned Ptrofs.unsigned_repr // in Ha.
-  Admitted.
+  Qed.
 
   (*Lemma uninit_struct_impl l β i a :
     (l ◁ₗ{β} uninit (Tstruct i a)) ⊢ (l ◁ₗ{β} struct i (uninit <$> (map (λ m, field_type (name_member m) (co_members (get_co i))) (get_co i).(co_members)))).

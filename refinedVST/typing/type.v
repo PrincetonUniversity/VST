@@ -129,36 +129,104 @@ Coercion adr2val : address >-> val.
 Definition val2adr (v: val) : option address := 
   match v with Vptr b ofs => Some (b, ofs) | _ => None end.
 
+(* fix handling of volatile types for has_layout_val *)
+Definition value_fits {cs: compspecs}: forall t, reptype t -> Prop :=
+  type_induction.type_func (fun t => reptype t -> Prop)
+    (fun t v =>
+       if type_is_volatile t then repinject t v = Vundef else tc_val' t (repinject t v))
+    (fun t n a P v => Zlength (unfold_reptype v) =  Z.max 0 n /\ Forall P (unfold_reptype v))
+    (fun id a P v => aggregate_pred.struct_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v))
+    (fun id a P v => aggregate_pred.union_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v)).
+
+Lemma value_fits_eq {cs: compspecs}:
+  forall t v,
+  value_fits t v =
+  match t as t0 return (reptype t0 -> Prop)  with
+  | Tarray t' n a => fun v0 : reptype (Tarray t' n a) =>
+    (fun v1 : list (reptype t') =>
+     Zlength v1 = Z.max 0 n /\ Forall (value_fits t') v1)
+      (unfold_reptype v0)
+  | Tstruct i a =>
+    fun v0 : reptype (Tstruct i a) =>
+     aggregate_pred.struct_Prop (co_members (get_co i))
+       (fun it : member =>
+        value_fits (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
+  | Tunion i a =>
+    fun v0 : reptype (Tunion i a) =>
+     aggregate_pred.union_Prop (co_members (get_co i))
+       (fun it : member =>
+        value_fits (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
+  | t0 => fun v0: reptype t0 =>
+             (if type_is_volatile t0
+              then repinject t v = Vundef
+              else tc_val' t0 (repinject t0 v0))
+  end v.
+Proof.
+intros.
+unfold value_fits.
+rewrite type_induction.type_func_eq.
+destruct t; auto.
+- apply aggregate_pred.struct_value_fits_aux_spec.
+- apply aggregate_pred.union_value_fits_aux_spec.
+Qed.
+
+Lemma default_value_fits {cs: compspecs} t: value_fits t (default_val t).
+Proof.
+  intros.
+  type_induction.type_induction t; try destruct f; rewrite value_fits_eq;
+  try solve [simpl; try (simple_if_tac; auto); apply tc_val'_Vundef];
+  rewrite default_val_eq unfold_fold_reptype.
+  + (* Tarray *)
+    split.
+    - unfold Zrepeat; rewrite Zlength_repeat' Z2Nat_id'; auto.
+    - apply Forall_repeat; auto.
+  + (* Tstruct *)
+    cbv zeta in IH.
+    apply aggregate_pred.struct_Prop_compact_prod_gen.
+    - apply get_co_members_no_replicate.
+    - rewrite List.Forall_forall in IH.
+      intros; apply IH.
+      apply in_get_member; auto.
+  + (* Tunion *)
+    cbv zeta in IH.
+    apply aggregate_pred.union_Prop_compact_sum_gen.
+    - apply get_co_members_no_replicate.
+    - rewrite List.Forall_forall in IH.
+      intros; apply IH.
+      apply in_get_member; auto.
+Qed.
+
 Local Open Scope Z.
 Section CompatRefinedC.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   (* refinedC only checks if `v` fits in the size of cty *)
   (* this is implied by the current mapsto (i.e. data_at_rec_value_fits) *)
-  (* we need to either lift the volatile requirement or propagate it to the type's components *)
   Definition has_layout_val (cty:Ctypes.type) (v:reptype cty) : Prop :=
-    value_fits cty v ∧ type_is_volatile cty = false.
+    value_fits cty v.
 
   Arguments has_layout_val : simpl never.
 
   Global Typeclasses Opaque has_layout_val.
 
-  Lemma has_layout_val_volatile_false cty v :
-    has_layout_val cty v → type_is_volatile cty = false.
-  Proof. move => [? ?] //. Qed.
-
   Lemma has_layout_val_value_def cty v :
     has_layout_val cty v → value_fits cty v.
-  Proof. move => [? ?] //. Qed.
+  Proof. move => ? //. Qed.
+
+  Lemma has_layout_val_by_value cty v_rep :
+    type_is_by_value cty = true →
+    has_layout_val cty v_rep =
+    if type_is_volatile cty then repinject cty v_rep = Vundef else tc_val' cty (repinject cty v_rep).
+  Proof. by destruct cty. Qed.
 
   Lemma has_layout_val_tc_val' cty v_rep :
     type_is_by_value cty = true →
     has_layout_val cty v_rep →
     tc_val' cty (repinject cty v_rep).
   Proof.
-    move => ? [Hv Hvol].
-    rewrite value_fits_eq in Hv.
-    destruct cty; try done; simpl in *; rewrite Hvol // in Hv.
+    move => ? Hv.
+    rewrite /has_layout_val value_fits_eq in Hv.
+    destruct cty; try done; simpl in *; destruct (type_is_volatile _); subst; try done; by apply tc_val'_Vundef.
   Qed.
 
   Lemma has_layout_val_tc_val'2 cty v :
@@ -172,19 +240,19 @@ Section CompatRefinedC.
 
   Lemma tc_val_has_layout_val cty v :
     type_is_by_value cty = true →
-    type_is_volatile cty = false →
-    tc_val' cty (repinject cty v) → has_layout_val cty v.
+    (if type_is_volatile cty then repinject cty v = Vundef else tc_val' cty (repinject cty v)) →
+    has_layout_val cty v.
   Proof.
-    intros ? Hvol ?; split; last done.
-    rewrite value_fits_eq; destruct cty; try done; rewrite /= Hvol //.
+    intros ??.
+    rewrite /has_layout_val value_fits_eq; destruct cty; try done.
   Qed.
 
   Lemma tc_val_has_layout_val2 cty v :
     type_is_by_value cty = true →
-    type_is_volatile cty = false →
-    tc_val' cty v → has_layout_val cty (valinject cty v).
+    (if type_is_volatile cty then v = Vundef else tc_val' cty v) →
+    has_layout_val cty (valinject cty v).
   Proof.
-    intros; apply tc_val_has_layout_val; auto.
+    intros ??; apply tc_val_has_layout_val; auto.
     by rewrite repinject_valinject.
   Qed.
 
@@ -194,11 +262,6 @@ Section CompatRefinedC.
   Arguments has_layout_loc : simpl never.
   Global Typeclasses Opaque has_layout_loc.
 
-  (* mapsto field_at seems mostly equivalent? *)
-
-  (* Note: data_at_rec is built with mapsto_memory_block.mapsto, which interprets Vundef
-     as "any value" rather than undefined. Possibly we should write this out of the
-     core logic. *)
   Definition mapsto (l : address) (q : Share.t) (cty : Ctypes.type) v : mpred :=
     data_at_rec q cty v l.
 

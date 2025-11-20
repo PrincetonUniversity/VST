@@ -212,16 +212,16 @@ Section uninit.
     - iDestruct 1 as (v ??) "Hl". iExists v; by iFrame.
   Qed.
 
-  Lemma uninit_memory_block ly l: type_is_volatile ly = false → l ◁ₗ uninit ly ⊣⊢ <affine> ⌜l `has_layout_loc` ly⌝ ∗ memory_block Tsh (sizeof ly) l.
+  Lemma uninit_memory_block ly l: l ◁ₗ uninit ly ⊣⊢ <affine> ⌜l `has_layout_loc` ly⌝ ∗ memory_block Tsh (sizeof ly) l.
   Proof.
-    intros; iSplit.
+    iSplit.
     - iIntros "(% & % & % & H)".
       iSplit => //.
       iApply data_at_memory_block.
       rewrite /data_at /field_at /mapsto_memory_block.at_offset /nested_field_offset /= Ptrofs.add_zero /heap_mapsto_own_state /mapsto; by iFrame.
     - iIntros "(%Hl & ?)".
       rewrite /uninit /ty_own /= /heap_mapsto_own_state /mapsto /adr2val -(Ptrofs.repr_unsigned l.2) -memory_block_data_at_rec_default_val; first iFrame.
-      + iPureIntro; split3; try done.
+      + iPureIntro; split; try done.
         apply default_value_fits.
       + apply Hl.
       + destruct Hl as (_ & _ & ? & _); simpl in *; rep_lia.

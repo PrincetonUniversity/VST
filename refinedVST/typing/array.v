@@ -57,9 +57,9 @@ Section array.
     0 <= s2 ->
     s3 = s1 + s2 ->
     v = v1 ++ v2 ->
-    value_fits (tarray cty $ s1) v1 ->
-    value_fits (tarray cty $ s2) v2 ->
-    value_fits (tarray cty $ s3) v.
+    data_at_rec_lemmas.value_fits (tarray cty $ s1) v1 ->
+    data_at_rec_lemmas.value_fits (tarray cty $ s2) v2 ->
+    data_at_rec_lemmas.value_fits (tarray cty $ s3) v.
   Proof.
     intros ?? -> -> [hd1 hd2] [ts1 ts2].
     split.
@@ -71,7 +71,7 @@ Section array.
       split; done.
   Qed.
 
-  Lemma array_split l l_1 (s s1 s2:Z) cty v v_hd v_tl :
+  Lemma array_split l l_1 (s s1 s2:Z) cty (v v_hd v_tl : reptype (tarray cty s)):
     v = v_hd ++ v_tl ->
     1 <= s1 ->
     s1 = Zlength v_hd ->
@@ -83,7 +83,7 @@ Section array.
     l_1 ↦|tarray cty s2| v_tl.
   Proof.
     intros Hv ? Hs1 Hs2 Hs Hl.
-    apply (pure_equiv _  _ (value_fits (tarray cty s) (v_hd++v_tl))).
+    apply (pure_equiv _  _ (data_at_rec_lemmas.value_fits (tarray cty s) (v_hd++v_tl))).
     { rewrite Hv.
       apply data_at_rec_value_fits. }
     { iDestruct 1 as "(↦hd & ↦tl)".
@@ -158,7 +158,7 @@ Section array.
       destruct v_fits2 as [v_fits2 _].
       rewrite /unfold_reptype !Z.max_r /= in v_fits1 v_fits2; [|rep_lia..].
       iExists (v1 ++ v2).
-      rewrite /heap_mapsto_own_state (array_split _ _ _ _ _ _ (v1++v2) v1 v2); try done; try rep_lia.
+      rewrite /heap_mapsto_own_state (array_split _ _ (s1 + s2) _ _ _ (v1++v2) v1 v2); try done; try rep_lia.
       iFrame.
     Qed.
 
@@ -326,15 +326,12 @@ Section array.
     iPoseProof (data_at_rec_value_fits with "↦tl") as "%v_tl_fits".
     destruct v_tl_fits as [v_tl_fits _]; rewrite /unfold_reptype Z.max_r /= in v_tl_fits; [|lia].
     iAssert (l ↦|tarray cty (S (length tys))|([v_hd] ++ v_rep)) with "[↦hd ↦tl]" as "↦".
-    {
-      rewrite (array_split l (l_1 _) _ 1 (length tys) _ _ [v_hd] v_rep); try done; try rep_lia.
-      - by iFrame.
-    }
+    { rewrite (array_split l (l_1 _) (S (length tys)) 1 (length tys) _ _ [v_hd] v_rep); try done; try rep_lia.
+      by iFrame. }
     iAssert ⌜(v_hd :: v_rep) `has_layout_val` tarray cty (S (length tys))⌝ as %?.
-    { iDestruct (ty_size_eq with "Hty") as %(? & ?); first done.
+    { iDestruct (ty_size_eq with "Hty") as %?; first done.
       iPureIntro.
-      destruct v_rep_layout as ((? & ?) & ?).
-      split; last done.
+      destruct v_rep_layout as (? & ?).
       split.
       { rewrite /unfold_reptype /=. list_solve. }
       constructor; auto. }
@@ -357,8 +354,6 @@ Section array.
     pose (l_1' _) as l_1; subst l_1'; simpl in l_1.
     apply (has_layout_loc_array_tl _ l_1) in Hl as Hl_tl;[|done].
     destruct v as [|v_hd v_tl]; [done|].
-    destruct Hv as [Hv ?].
-    rewrite value_fits_eq /= in Hv.
     destruct Hv as [Hv Hvs].
     rewrite /unfold_reptype /= Zlength_cons Zpos_P_of_succ_nat /Z.succ Z.add_cancel_r in Hv.
     rewrite (array_split l l_1 _ 1 (length tys) _ _ [v_hd] v_tl); try done; try rep_lia.
@@ -366,7 +361,7 @@ Section array.
     iDestruct "tys" as "[tys_hd tys_tl]".
     inv Hvs.
     iDestruct ("IH" $! _ _ l_1 v_tl with "[//] [%] [//] ↦tl tys_tl") as "ty_own_tl"; try iClear "IH".
-    { split; auto. rewrite value_fits_eq /=; split; auto. rewrite /unfold_reptype /=; lia. }
+    { split; auto. rewrite /unfold_reptype /=; lia. }
     Unshelve. 3: done.
     rewrite singleton_array_eq.
     apply has_layout_loc_array_hd in Hl; [|lia].
@@ -631,8 +626,9 @@ Section array.
     iDestruct "HP" as (? Hlen) "HP".
     have [|ty ?]:= lookup_lt_is_Some_2 tys (Z.to_nat i). 1: lia.
     iApply (wp_binop_sc _ _ _ _ _ _ _ (adr2val (l arr_ofs{tint}ₗ i))).
-    { destruct H1 as (H1 & Hvol).
-      rewrite /= /lifting_expr.sem_add. destruct ofs_cty; try done; simpl in *; hnf in H1; rewrite Hvol in H1;
+    { rewrite /= /lifting_expr.sem_add.
+      apply has_layout_val_tc_val'2 in H1; last done.
+      destruct ofs_cty; try done; simpl in *;
         destruct v; try destruct s; inv H2; specialize (H1 ltac:(discriminate)); simpl in H1.
       - destruct i0; rewrite /= /adr2val /Ptrofs.of_ints ptrofs_mul_repr //.
       - destruct i0; rewrite /= /adr2val /Ptrofs.of_ints ptrofs_mul_repr //= /nested_field_offset /= Z.add_0_l; inv Hrange.

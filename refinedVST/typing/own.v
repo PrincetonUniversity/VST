@@ -29,9 +29,8 @@ Section own.
     rewrite /repinject /has_layout_val /= in H1; subst.
     iPureIntro.
     destruct ot; try done.
-    inv H. 
-    split; [|done].
-    rewrite /value_fits => ? /=.
+    inv H.
+    rewrite has_layout_val_by_value // => ? /=.
     simple_if_tac; done.
   Qed.
   Next Obligation.
@@ -275,8 +274,7 @@ Section own.
     iApply ("HΦ" with "[] HT").
     unfold value; simpl_type.
     iPureIntro; split3; try done.
-    split; last done.
-    rewrite value_fits_eq /=.
+    rewrite has_layout_val_by_value //=.
     intros ?; simpl.
     rewrite andb_false_r //.
   Qed.
@@ -518,10 +516,8 @@ Section ptr.
     iIntros (???????).
     rewrite /repinject /= in H; subst.
     iPureIntro.
-    rewrite /has_layout_val.
     destruct cty; try done. inv H.
-    split; try done.
-    rewrite /value_fits /=.
+    rewrite has_layout_val_by_value //=.
     rewrite /tc_val' /=.
     intros. 
     destruct v_rep; try done.
@@ -529,7 +525,7 @@ Section ptr.
   Qed.
   Next Obligation.
     iIntros (??????) "(% & Hl)".
-    rewrite / heap_mapsto_own_state.
+    rewrite /heap_mapsto_own_state.
     destruct cty; try done; inv H.
     erewrite (mapsto_tptr _ _ tvoid cty).
     iExists _. iFrame.
@@ -564,8 +560,7 @@ Section ptr.
     repeat iSplit => //.
     { rewrite /has_layout_loc in H |- *. by rewrite field_compatible_tptr. }
     { rewrite /has_layout_loc in H |- *. iPureIntro.
-      split; auto.
-      rewrite /value_fits /tc_val' /=.
+      rewrite has_layout_val_by_value //= /tc_val' /=.
       destruct t; try done.
     }
   Qed.
@@ -641,7 +636,6 @@ Section null.
     simpl in H0. rewrite H0.
     iPureIntro. 
     hnf.
-    split; auto.
     intros ?; apply Clight_mapsto_memory_block.tc_val_pointer_nullval.
   Qed.
   Next Obligation.
@@ -805,8 +799,7 @@ Section null.
     iApply ("HΦ" with "[] HT").
     rewrite /int.int; simpl_type; iPureIntro.
     split3; auto.
-    - split; auto.
-      rewrite value_fits_eq //.
+    - rewrite has_layout_val_by_value //.
     - destruct s; done.
   Qed.
 
@@ -963,8 +956,7 @@ Section null.
       iApply ("HΦ" with "[] HT").
       unfold value; simpl_type.
       iPureIntro; split3; try done.
-      split; last done.
-      rewrite value_fits_eq /=.
+      rewrite has_layout_val_by_value //=.
       intros ?; simpl.
       rewrite andb_false_r //.
   Qed.

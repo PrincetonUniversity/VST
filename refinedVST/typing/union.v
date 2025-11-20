@@ -71,7 +71,6 @@ Section union.
       rewrite /mapsto_memory_block.at_offset; extensionality p.
       destruct p; try done.
       rewrite isptr_offset_val_zero //.
-    - admit. (* volatile *)
     - apply (field_compatible_app_inv' [UnionField n]), field_compatible_nested_field in H; last done.
       rewrite app_nil_r /nested_field_type /nested_field_offset /= in H.
       apply compute_in_members_true_iff in Hin; rewrite Hin Hly // in H.
@@ -87,7 +86,7 @@ Section union.
       replace (match (cenv_cs !! ul)%maps with | Some co => co_sizeof co | None => 0 end) with (co_sizeof (get_co ul)) in Hsz;
         last by rewrite /get_co; destruct (cenv_cs !! ul)%maps.
       lia.
-  Admitted.
+  Qed.
   Definition type_place_uninit_union_inst := [instance type_place_uninit_union].
   Global Existing Instance type_place_uninit_union_inst.
 
@@ -318,7 +317,7 @@ Section union.
     rewrite /has_layout_val /type_is_volatile. setoid_rewrite value_fits_eq; simpl.
     setoid_rewrite mapsto_union.
     iExists (fold_reptype(t := Tunion _ _) (inject_ti_field ti x v)).
-    iDestruct (ty_size_eq with "Hv") as %(? & _); first done.
+    iDestruct (ty_size_eq with "Hv") as %?; first done.
     rewrite unfold_fold_reptype inject_field_union_pred -heap_withspacer_eq; iFrame.
     iPureIntro.
     split; first by rewrite /aggregate_pred.aggregate_pred.union_Prop inject_field_union_Prop.

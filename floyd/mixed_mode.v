@@ -88,7 +88,7 @@ Proof.
     rewrite /= Int.signed_repr //.
 Qed.
 
-Lemma unfold_value_type cty a v : type_is_volatile cty = false → value_fits cty (valinject cty v) →
+Lemma unfold_value_type cty a v : type.value_fits cty (valinject cty v) →
   a ◁ᵥ|cty| value cty v ⊣⊢ <affine> ⌜a = valinject cty v⌝.
 Proof.
   intros; rewrite /value; simpl_type.
@@ -100,7 +100,7 @@ Lemma unfold_value_ptr_type cty a v : is_pointer_or_null v →
   a ◁ᵥ|tptr cty| value (tptr cty) v ⊣⊢ <affine> ⌜a = v⌝.
 Proof.
   intros; apply (unfold_value_type (tptr cty)); try done.
-  rewrite value_fits_eq /=.
+  rewrite type.value_fits_eq /=.
   intros _; simpl.
   rewrite andb_false_r //.
 Qed.

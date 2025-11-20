@@ -79,8 +79,7 @@ Definition fn_params_post `{!VSTGS OK_ty Σ} {cs : compspecs} {A} fn fp (x : @dt
 
 Lemma typed_function_triple : forall `{!VSTGS OK_ty Σ} {cs : compspecs} {A} Espec ge f fp
     (Hcomplete : Forall (λ it, composite_compute.complete_legal_cosu_type it.2 = true) (fn_vars f))
-    (Halign : Forall (λ it, align_mem.LegalAlignasFacts.LegalAlignasDefs.is_aligned cenv_cs ha_env_cs la_env_cs it.2 0 = true) (fn_vars f))
-    (Hvolatile : Forall (λ it, type_is_volatile it.2 = false) (fn_vars f)),
+    (Halign : Forall (λ it, align_mem.LegalAlignasFacts.LegalAlignasDefs.is_aligned cenv_cs ha_env_cs la_env_cs it.2 0 = true) (fn_vars f)),
   ⎡typed_function Espec ge f fp⎤ ⊢ ∀ x : dtfr A, fun_triple Espec (Build_genv ge cenv_cs) (fn_params_pre f fp x) f (fn_params_post f fp x).
 Proof.
   rewrite /fun_triple /fn_params_pre /=; intros.
@@ -111,7 +110,7 @@ Proof.
   intros.
   iIntros "(%x & % & (%Hty & %Hx) & %Hfn & H)".
   rewrite Hty /= in Hx; subst.
-  destruct x, Hfn as (? & ? & ? & ? & ? & ? & ? & ? & ?); subst; simpl.
+  destruct x, Hfn as (? & ? & ? & ? & ? & ? & ? & ?); subst; simpl.
   iExists _; iSplit; first by iPureIntro; apply Genv.find_funct_ptr_iff.
   rewrite -bi.later_forall embed_affinely embed_later; by iPoseProof (typed_function_triple with "H") as "H".
 Qed.

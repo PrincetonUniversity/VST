@@ -200,12 +200,12 @@ Section int.
     rewrite do_not_simplify_eq.
     rewrite /simplify_hyp /ty_own_val_at /ty_own_val /=.
     iIntros "HT (_ & %H & %Hn)".
-    destruct H as [Hv ?].
     iApply "HT"; iPureIntro.
     - destruct it; try done; unfold tc_val' in H;
       by apply val_to_Z_inv.
     - eapply val_to_Z_in_range; first done.
-      rewrite value_fits_by_value // in Hv; by eapply val_to_Z_by_value.
+      apply has_layout_val_tc_val'; try done.
+      by destruct it.
     - done.
   Qed.
   Definition simplify_int_inst := [instance simplify_int with 0%N].
@@ -215,10 +215,10 @@ Section int.
   Lemma simplify_goal_int_n it v n T:
   (<affine> ⌜type_is_volatile it = false⌝ ∗ <affine> ⌜v = valinject it (i2v n it)⌝ ∗ <affine> ⌜n ∈ it⌝ ∗ T)
     ⊢ simplify_goal (v ◁ᵥ|it| n @ int it) T.
-  Proof.  iIntros "(% & -> & %Hn & $)"; subst.
+  Proof.  iIntros "(%H & -> & %Hn & $)"; subst.
           iPureIntro; split3; auto.
-          - destruct it; try done; rewrite /has_layout_val value_fits_by_value //.
-            split; last done; intros ?; by apply in_range_i2v.
+          - destruct it; try done; rewrite /has_layout_val value_fits_eq //= H //.
+            intros ?; by apply (in_range_i2v n (Tint _ _ _)).
           - rewrite -(i2v_to_Z _ it) //; by destruct it.
   Qed.
   Definition simplify_goal_int_n_inst := [instance simplify_goal_int_n with 0%N].
@@ -227,10 +227,10 @@ Section int.
   Lemma simplify_goal_int_n' it v n (T : assert):
     (<affine> ⌜type_is_volatile it = false⌝ ∗ <affine> ⌜v = valinject it (i2v n it)⌝ ∗ <affine> ⌜n ∈ it⌝ ∗ T)
       ⊢ simplify_goal ⎡v ◁ᵥ|it| n @ int it⎤ T.
-  Proof.  iIntros "(% & -> & %Hn & $)"; subst.
+  Proof.  iIntros "(%H & -> & %Hn & $)"; subst.
           iPureIntro; split3; auto.
-          - destruct it; try done; rewrite /has_layout_val value_fits_by_value //.
-            split; last done; intros ?; by apply in_range_i2v.
+          - destruct it; try done; rewrite /has_layout_val value_fits_eq //= H //.
+            intros ?; by apply (in_range_i2v n (Tint _ _ _)).
           - rewrite -(i2v_to_Z _ it) //; by destruct it.
   Qed.
   Definition simplify_goal_int_n'_inst := [instance simplify_goal_int_n' with 0%N].
@@ -242,8 +242,8 @@ Section int.
   Proof.  iIntros "(%H & %n & %Hv & %Hn & $)".
           iExists n.
           iPureIntro; split3; auto.
-          destruct it; try done; destruct v; try done; rewrite /has_layout_val value_fits_by_value //.
-          split; last done; intros ?.
+          apply tc_val_has_layout_val; first by destruct it.
+          rewrite H; intros ?.
           apply val_to_Z_inv in Hv as ->.
           by apply in_range_i2v.
   Qed.
@@ -256,8 +256,8 @@ Section int.
   Proof.  iIntros "(%H & %n & %Hv & %Hn & $)".
           iExists n.
           iPureIntro; split3; auto.
-          destruct it; try done; destruct v; try done; rewrite /has_layout_val value_fits_by_value //.
-          split; last done; intros ?.
+          apply tc_val_has_layout_val; first by destruct it.
+          rewrite H; intros ?.
           apply val_to_Z_inv in Hv as ->.
           by apply in_range_i2v.
   Qed.
@@ -275,10 +275,12 @@ Section int.
     v ≠ Vundef ->
     type_is_by_value it = true ->
     (valinject it v) `has_layout_val` it ->
-    tc_val it v.
+    type_is_volatile it = false ∧ tc_val it v.
   Proof.
     intros.
-    eapply has_layout_val_tc_val'2 in H1; eauto.
+    rewrite has_layout_val_by_value // repinject_valinject // in H1.
+    destruct (type_is_volatile it); first done.
+    split; first done; by apply H1.
   Qed.
 
   Lemma ty_own_val_int_in_range v n it :
@@ -288,7 +290,7 @@ Section int.
     iIntros "(_ & % & %)".
     iPureIntro. eapply val_to_Z_in_range; try done.
     rewrite -> repinject_valinject in H0 |- *; [|by destruct it..].
-    apply has_layout_val_tc_val'2; last done.
+    apply has_layout_val_tc_val'2; try done.
     eapply val_to_Z_by_value; done.
   Qed.
 
@@ -316,7 +318,6 @@ Section int.
     simpl in *; subst.
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[% [% Hl]]" => //.
     iSplitR => //. iExists q, (valinject it v). iFrame. iModIntro.
-    destruct Hv.
     apply val_to_Z_by_value in Hn as ?.
     rewrite /ty_own_val /ty_own /= repinject_valinject //.
     repeat iSplit => //.
@@ -376,7 +377,7 @@ Section programs.
     rewrite /val_type Hbyv repinject_valinject //.
     split3; [done | | by apply i2v_to_Z].
     apply tc_val_has_layout_val2; auto.
-    intros ?; by apply in_range_i2v.
+    rewrite H; intros ?; by apply in_range_i2v.
   Qed.
   Definition type_val_int_inst := [instance type_val_int].
   Global Existing Instance type_val_int_inst.
@@ -447,11 +448,10 @@ Section programs.
     ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it| n1 @ int (val_type it)⎤ v2 ⎡v2 ◁ᵥₐₗ|it| n2 @ int (val_type it)⎤ op it it tint T.
   Proof.
     iIntros "%Hop HT (%H1 & [%H %Hv1]) (%H2 & [%H0 %Hv2]) %Φ HΦ".
-    apply has_layout_val_volatile_false in H as Hit.
     apply val_to_Z_by_value in Hv1 as Hit2.
     rewrite !repinject_valinject // in Hv1, Hv2.
-    eapply has_layout_val_tc_val in H; eauto.
-    eapply has_layout_val_tc_val in H0; eauto.
+    eapply has_layout_val_tc_val in H as [Hvol ?]; eauto.
+    eapply has_layout_val_tc_val in H0 as [_ ?]; eauto.
     iDestruct ("HT" with "[] []" ) as "HT".
     1-2: iPureIntro; by apply: val_to_Z_in_range; first done; apply tc_val_tc_val'.
     rewrite /wp_binop.
@@ -619,11 +619,10 @@ Section programs.
     ⊢ typed_bin_op ge v1 ⎡v1_rep ◁ᵥ|it| n1 @ int it⎤ v2 ⎡v2_rep ◁ᵥ|it| n2 @ int it⎤ op it it it T.
   Proof.
     iIntros (-> ->) "HT (H1 & [%Hv_layout1 %Hv1]) (H & [%Hv_layout2 %Hv2]) %Φ HΦ".
-    apply has_layout_val_volatile_false in Hv_layout1 as Hit.
     apply val_to_Z_by_value in Hv1 as Hit2.
     rewrite !repinject_valinject // in Hv1, Hv2.
-    eapply has_layout_val_tc_val in Hv_layout1 as H; eauto.
-    eapply has_layout_val_tc_val in Hv_layout2 as H0; eauto.
+    eapply has_layout_val_tc_val in Hv_layout1 as [Hvol H]; eauto.
+    eapply has_layout_val_tc_val in Hv_layout2 as [_ H0]; eauto.
     iDestruct ("HT" with "[] []" ) as ((Hin & Hsc)) "HT".
     1-2: iPureIntro; by apply: val_to_Z_in_range; first done; apply tc_val_tc_val'.
     rewrite /wp_binop.
@@ -872,7 +871,7 @@ Section programs.
       rewrite /val_type Hit2 repinject_valinject //.
       split3; [done| | by apply i2v_to_Z].
       apply tc_val_has_layout_val2; auto.
-      intros ?; by apply in_range_i2v.
+      rewrite Hvol; intros ?; by apply in_range_i2v.
   Qed.
   Definition type_add_int_int_inst ge n1 n2 := [instance type_arithop_int_int ge n1 n2 (n1 + n2) Oadd].
   Global Existing Instance type_add_int_int_inst.
@@ -949,10 +948,9 @@ Section programs.
     ⊢ typed_un_op v ⎡v ◁ᵥₐₗ|it| n @ int (val_type it)⎤%I Oneg it it T.
   Proof.
     iIntros "HT (%_ & [%H %Hv]) %Φ HΦ".
-    apply has_layout_val_volatile_false in H as Hit.
     apply val_to_Z_by_value in Hv as Hit2.
     rewrite repinject_valinject // in Hv.
-    eapply has_layout_val_tc_val in H as Htc; eauto.
+    eapply has_layout_val_tc_val in H as [Hit Htc]; eauto.
     pose proof (val_to_Z_in_range _ _ _ Hv (tc_val_tc_val' _ _ Htc)) as Hin.
     iDestruct ("HT" with "[//]") as (Hs Hn) "HT".
     rewrite /wp_unop.
@@ -979,7 +977,7 @@ Section programs.
       rewrite repinject_valinject //.
       split3; [done| | by apply i2v_to_Z].
       apply tc_val_has_layout_val2; auto.
-      intros ?; by apply in_range_i2v.
+      rewrite Hit; intros ?; by apply in_range_i2v.
   Qed.
   Definition type_neg_int_inst := [instance type_neg_int].
   Global Existing Instance type_neg_int_inst.
@@ -989,7 +987,7 @@ Section programs.
   Lemma cast_int_type it1 it2 v n: val_to_Z v it1 = Some n → n ∈ it2 → is_bool_type it2 = false → type_is_volatile it2 = false →
     ⊢ ∃ v', <affine> ⌜sem_cast it1 it2 v = Some v'⌝ ∧ v' ◁ᵥₐₗ| it2 | n @ int it2.
   Proof.
-    intros Hn Hin ?; iPureIntro.
+    intros Hn Hin ? Hvol; iPureIntro.
     exists (i2v n it2).
     pose proof (i2v_to_Z _ _ Hin) as Hn2.
     pose proof (val_to_Z_by_value _ _ _ Hn2) as Hit2.
@@ -1032,9 +1030,8 @@ Section programs.
           rewrite /Int64.modulus /Int.modulus !two_power_nat_equiv.
           replace (2 ^ Int64.wordsize) with ((2 ^ Int.wordsize) * (2 ^ Int.wordsize)) by rep_lia.
           rewrite Z_mod_mult; apply Zbits.eqmod_refl.
-    - rewrite /has_layout_val value_fits_by_value // repinject_valinject //.
-      split; last done; intros ?.
-      by apply in_range_i2v.
+    - rewrite has_layout_val_by_value // Hvol repinject_valinject //.
+      intros ?; by apply in_range_i2v.
     - rewrite repinject_valinject //.
   Qed.
 
@@ -1086,8 +1083,7 @@ Section programs.
       by apply in_range_i2v. }
     iApply ("HΦ" with "[] [$HT]").
     - iPureIntro; split3; auto.
-      + split; last done.
-        rewrite value_fits_by_value // repinject_valinject //.
+      + rewrite has_layout_val_by_value // H repinject_valinject //.
         by intros ?.
       + rewrite repinject_valinject //.
     - iPureIntro; destruct v, (typeof e); try done; constructor.

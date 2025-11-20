@@ -144,8 +144,7 @@ Section function.
            ∧ var_sizes_ok cenv_cs (fn_vars fn)
              (* extra conditions to guarantee has_layout *)
              ∧ Forall (λ it, composite_compute.complete_legal_cosu_type it.2 = true) (fn_vars fn)
-             ∧ Forall (λ it, align_mem.LegalAlignasFacts.LegalAlignasDefs.is_aligned cenv_cs ha_env_cs la_env_cs it.2 0 = true) (fn_vars fn)
-             ∧ Forall (λ it, type_is_volatile it.2 = false) (fn_vars fn)).
+             ∧ Forall (λ it, align_mem.LegalAlignasFacts.LegalAlignasDefs.is_aligned cenv_cs ha_env_cs la_env_cs it.2 0 = true) (fn_vars fn)).
 
   Lemma fntbl_entry_inj : forall f fn1 fn2, fntbl_entry f fn1 → fntbl_entry f fn2 → fn1 = fn2.
   Proof.
@@ -159,8 +158,7 @@ Section function.
   |}.
   Next Obligation. iDestruct 1 as (fn) "[? [H [? ?]]]". iExists _. iFrame. by iApply (heap_mapsto_own_state_share with "H"). Qed.
   Next Obligation. iIntros (fp f ot mt l (? & ? & ->)). iDestruct 1 as (??) "(?&%&?)". eapply fntbl_entry_inj in H; eauto; subst; done. Qed.
-  Next Obligation. iIntros (fp f ot mt v (? & ? & ->)). iDestruct 1 as (? (? & Hv)) "?". simpl in Hv; subst. iPureIntro; hnf; split; auto.
-    done. Qed.
+  Next Obligation. iIntros (fp f ot mt v (? & ? & ->)). iDestruct 1 as (? (? & Hv)) "?". simpl in Hv; subst. iPureIntro; hnf; split; auto. Qed.
   Next Obligation. iIntros (fp f ot mt v (fn & Htbl & ->)). iDestruct 1 as (??) "(?&%&?)". eapply fntbl_entry_inj in Htbl; eauto; subst. iFrame; eauto. Qed.
   Next Obligation. iIntros (fp f ot mt v ? (? & Htbl & ->) ?) "?". iDestruct 1 as (? (Heq & ?)) "?". simpl in *; subst.
     rewrite Heq in H; rewrite (mapsto_tptr _ _ _ (type_of_function fn)); by iFrame. Qed.
@@ -193,15 +191,14 @@ Section function.
 
   Lemma stackframe_of_typed : forall f lv
     (Hcomplete : Forall (λ it, composite_compute.complete_legal_cosu_type it.2 = true) (fn_vars f))
-    (Halign : Forall (λ it, align_mem.LegalAlignasFacts.LegalAlignasDefs.is_aligned cenv_cs ha_env_cs la_env_cs it.2 0 = true) (fn_vars f))
-    (Hvolatile : Forall (λ it, type_is_volatile it.2 = false) (fn_vars f)),
+    (Halign : Forall (λ it, align_mem.LegalAlignasFacts.LegalAlignasDefs.is_aligned cenv_cs ha_env_cs la_env_cs it.2 0 = true) (fn_vars f)),
     stackframe_of0' cenv_cs f lv ⊢ typed_stackframe f lv.
   Proof.
     intros; rewrite /stackframe_of0' /typed_stackframe.
     iIntros "(H & $)".
     iApply (big_sepL_mono with "H"); intros ?? H%elem_of_list_lookup_2.
-    rewrite !Forall_forall in Hcomplete Halign Hvolatile.
-    specialize (Hcomplete _ H); specialize (Halign _ H); specialize (Hvolatile _ H).
+    rewrite !Forall_forall in Hcomplete Halign.
+    specialize (Hcomplete _ H); specialize (Halign _ H).
     rewrite /var_block0 /typed_var_block.
     iIntros "(% & % & $ & H)"; iSplit; first done.
     rewrite simple_mapsto.memory_block_weaken uninit_memory_block //; iFrame.
@@ -241,7 +238,7 @@ Section function.
     pose proof (Forall2_length Hl) as Hlena.
     rewrite Hlena -Hlen.
     iSpecialize ("Hfn" $! _ (Vector.of_list vl) with "[Hvl $HPa Hstack]").
-    { destruct l, He as (_ & _ & _ & _ & _ & _ & ? & ? & ?).
+    { destruct l, He as (_ & _ & _ & _ & _ & _ & ? & ?).
       rewrite vec_to_list_to_vec stackframe_of_typed //; iFrame. }
     iApply (monPred_in_entails with "[-]"); first apply wp_strong_mono.
     rewrite monPred_at_sep; iFrame "Hfn"; monPred.unseal.
@@ -413,7 +410,7 @@ Section inline_function.
                    rewrite singleton.has_layout_loc_tptr.
                    by iDestruct 1 as "(% & ?)". Qed.
   Next Obligation. iIntros (fn f ot mt l ?). destruct H as (t & ->).
-                   simpl; iDestruct 1 as "(-> & _)". iPureIntro; split; auto; intros ?; simpl.
+                   simpl; iDestruct 1 as "(-> & _)". iPureIntro; rewrite has_layout_val_by_value //=; intros ?; simpl.
                    rewrite andb_false_r //. Qed.
   Next Obligation. iIntros (fn f ot mt v ?). destruct H as (t & ->).
                    iIntros "(% & (? & ?))".

@@ -1618,12 +1618,11 @@ Section typing.
 
 *)
 
-  (* Ke: possible way to handle cast: dispatch type checking rules to 
-     type_Ecast, and only cover cases where it doesn't need memory.
-     similar to lithium.theories.typing.int, have one rule for each 
-     concrete (t1, t2) in (Ecast t1 t2) *)
+  (* Technically we could support writing at a volatile type in the logic,
+     but we couldn't read it, so it's not that useful. *)
   Lemma type_assign Espec ge f e1 e2 T:
     <affine> ⌜type_is_by_value (typeof e1) = true⌝ ∗
+    <affine> ⌜type_is_volatile (typeof e1) = false⌝ ∗
     typed_val_expr ge f (Ecast e2 (typeof e1)) (λ v ty,
       ∃ m, <affine> ⌜ty_has_op_type ty (typeof e1) m⌝ ∗
       typed_write ge f false e1 (typeof e1) v ty (T_normal T))
@@ -1632,11 +1631,11 @@ Section typing.
     intros.
     unfold typed_stmt.
     rewrite -wp_store0.
-    iIntros "[% H]". iApply "H".
+    iIntros "(% & % & H)". iApply "H".
     iIntros (v ty) "H (% & % & ty_write)".
     rewrite /val_type H /=.
-    iDestruct (ty_size_eq _ with "H") as "%"; first done.
-    apply has_layout_val_tc_val'2 in H1; last done.
+    iDestruct (ty_size_eq _ with "H") as %Htc; first done.
+    apply has_layout_val_tc_val'2 in Htc; [|done..].
     iSplit; [iPureIntro; done|].
     iApply wp_lvalue_mono.
     { intros; iIntros "A"; iApply "A". }
@@ -1644,11 +1643,9 @@ Section typing.
     iIntros ((b, o)) "upd".
     rewrite /val_type H /=.
     iMod ("upd" with "H") as "(%Hot & Hl & upd)"; iModIntro.
-    destruct Hot.
     iExists Tsh.
     iSplit; [auto|].
     iDestruct "Hl" as (v_rep) "(%Hv & %Hl & ↦)".
-    destruct Hv.
     iSplitR "upd".
     - rewrite /mapsto /adr2val /=.
       rewrite by_value_data_at_rec_nonvolatile // mapsto_mapsto_ //.
@@ -2182,7 +2179,8 @@ Section typing.
     iSplit => //.
     iModIntro.
     iSplit.
-    { destruct Hv as [? ?].
+    { rewrite has_layout_val_by_value // in Hv.
+      destruct (type_is_volatile _) eqn: ?; first by rewrite repinject_valinject in Hv.
       rewrite /mapsto by_value_data_at_rec_nonvolatile // repinject_valinject //=.
       rewrite simple_mapsto.mapsto_eq //; iFrame. }
     iMod ("typed_read" with "[$] [$]") as (ty') "[? ?]".
