@@ -61,3 +61,9 @@ opam  install  coq-vst-lib
 Example clients that demonstrate how to use these VSUs can be found
 in the VSTlib/test directory; see [test/README.md](test/README.md).
 
+## Organization
+
+- `src` directory contains C sources (.c)
+- `include` directory contains C header files (.h)
+- `proof` directory contains correctness proofs and/or axiomatizations of src/*.c
+- `test` directory contains example clients (C sources and client correctness proofs)

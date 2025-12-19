@@ -37,7 +37,7 @@ forward_call.
 forward.
 Qed.
 
-Require Import Reals.
+From Stdlib Require Import Reals.
 
 Import Binary.
 
