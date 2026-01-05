@@ -1,5 +1,5 @@
 -Q proof VSTlib
--Q test VSTlibtest
+-Q test/proof VSTlibtest
 proof/version.v
 proof/math_extern.v
 proof/spec_math.v
@@ -16,9 +16,9 @@ proof/spec_threads.v
 proof/verif_threads.v
 proof/spec_locks.v
 proof/verif_locks.v
-test/incr.v
-test/incr_main.v
-test/verif_incr.v
-test/verif_incr_main.v
-test/testmath.v
-test/verif_testmath.v
+test/proof/incr.v
+test/proof/incr_main.v
+test/proof/verif_incr.v
+test/proof/verif_incr_main.v
+test/proof/testmath.v
+test/proof/verif_testmath.v

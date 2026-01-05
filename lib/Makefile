@@ -31,8 +31,8 @@ clean:
 	rm -f CoqMakefile CoqMakefile.conf
 	rm -f proof/{*.vo,*.vos,*.vok,*.glob} 
 	rm -f proof/{math_extern.v,malloc_extern.v,SC_atomics_extern.v,threads.v}
-	rm -f test/{*.vo,*.vos,*.vok,*.glob} 
-	rm -f test/{incr.v,incr_main.v,testmath.v}
+	rm -f test/proof/{*.vo,*.vos,*.vok,*.glob} 
+	rm -f test/proof/{incr.v,incr_main.v,testmath.v}
 
 # This should be the last rule, to handle any targets not declared above
 %: invoke-coqmakefile
