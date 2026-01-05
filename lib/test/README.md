@@ -21,8 +21,8 @@ In VSTlib/proof there will typically be:
 
 ## The examples
 
-In the test clients, unlike the library modules, we put the .c files and
-the .v files into the same directory.
+In the test clients, we put the .c files into test/src
+and the .v files into test/proof.
 
 One limitation of the current VSU system is that the `main` function
 must always be by itself in a separate .c file.
