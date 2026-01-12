@@ -13,16 +13,13 @@ Compile RefinedC and its dependencies (adapted from the RefinedC readme):
 Install VST builddep (VST project root directory):
 
 ```[bash]
-opam pin add builddep/
-```
-
-```[bash]
 sudo apt-get install libmpfr-dev # Implicit Cerberus dependency.
 opam repo add coq-released "https://coq.inria.fr/opam/released"
 opam repo add iris-dev "https://gitlab.mpi-sws.org/iris/opam.git"
 opam update
 opam pin yojson 2.2.2 # 3.0.0 removed a feature that our version of cerberus-lib depends on, have to use older versions (or update cerberus-lib)
 opam pin add -n -y cerberus-lib "git+https://github.com/rems-project/cerberus.git#6e3e8be7a3f75b1f1cb0704dca8ef3945be0e413"
+opam pin add builddep/
 ```
 
 Then clone RefinedC to any directory:
