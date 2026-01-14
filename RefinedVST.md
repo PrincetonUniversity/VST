@@ -29,10 +29,16 @@ git clone https://github.com/UIC-verif-group/refinedC refinedc
 opam pin ./refinedc -y
 ```
 
-Now we use the VST makefile to compile any refinedVST Coq file:
+Now we use the VST makefile to compile and install the refinedVST files:
 
 ```[bash]
 make refinedVST
+make install_rc
+```
+This should install, for example, refinedVST/typing/typing.vo in the switch:
+```[bash]
+$ ls ${OPAM_SWITCH_PREFIX}/lib/coq/user-contrib/VST/typing/
+... automation.vo ... typing.vo ...
 ```
 
 ### Install the Frontend
@@ -41,23 +47,6 @@ It parses annotations and emits the spec & proof files similar to RefinedC, but 
 
 Clone the frontend from
 [compcert-mod](https://github.com/UIC-verif-group/compcert-mod/tree/modular) to any location, and follow the build instruction there.
-
-### Install Backend Files
-Requires VST builddep (opam pin add builddep). Note that coq-vst-ora (included in builddep) must be installed in the opam switch. To check this:
-```[bash]
-$ opam info -f installed-version coq-vst-ora
-1.0
-```
-
-Then install RefinedCC backend files to switch:
-```[bash]
-$ make install_rc
-```
-This should install, for example, refinedVST/typing/typing.vo in the switch:
-```[bash]
-$ ls ${OPAM_SWITCH_PREFIX}/lib/coq/user-contrib/VST/typing/
-... automation.vo ... typing.vo ...
-```
 
 ### Check a file with RefinedCC
 Once both frontend and backend of RefinedCC are installed, we can use the frontend binary `refinedcc` to check an annotated program. 
