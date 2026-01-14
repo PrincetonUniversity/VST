@@ -75,3 +75,4 @@ The names of C types are CompCert names. For instance:
 | `u64` | `tulong` |
 | `i8` | `tchar` |
 | `u8` | `tuchar` |
+| `loc` | `address` |
