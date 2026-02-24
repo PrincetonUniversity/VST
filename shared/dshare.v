@@ -273,9 +273,12 @@ Set Warnings "redundant-canonical-projection".
       rewrite dfrac_op_own_discarded //.
   Qed.
 
+  Definition dfrac_uora_mixin : UoraMixin dfrac.
+  Proof. done. Qed.
+
 Set Warnings "-redundant-canonical-projection".
   Canonical Structure dfracR := discreteOra dfrac dfrac_ora_mixin.
-  Canonical Structure dfracUR := Uora dfrac dfrac_ucmra_mixin.
+  Canonical Structure dfracUR := Uora dfrac dfrac_ucmra_mixin dfrac_uora_mixin.
 Set Warnings "redundant-canonical-projection".
 
   Global Instance dfrac_discarded_oracore_id : OraCoreId DfracDiscarded.

@@ -848,8 +848,11 @@ Proof.
       * destruct shy, Hv; done.
 Qed.
 
+Definition shared_uora_mixin : UoraMixin shared.
+Proof. done. Qed.
+
 Canonical Structure sharedR : ora := Ora shared shared_ora_mixin.
-Canonical Structure sharedUR : uora := Uora shared shared_ucmra_mixin.
+Canonical Structure sharedUR : uora := Uora shared shared_ucmra_mixin shared_uora_mixin.
 
 Global Instance shared_total : OraTotal sharedR.
 Proof. hnf; eauto. Qed.

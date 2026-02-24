@@ -1021,15 +1021,6 @@ Proof.
 Qed.
 
 (* Timeless *)
-(* up? *)
-Lemma big_sepL_timeless' {A} (f : nat -> A -> mpred) l `(∀ k v, Timeless (f k v)) : l ≠ [] -> Timeless ([∗ list] k↦v ∈ l, f k v).
-Proof.
-  generalize dependent f; induction l; first done; simpl; intros.
-  destruct l.
-  - rewrite /= right_id //.
-  - apply bi.sep_timeless; first done.
-    by apply IHl.
-Qed.
 
 Global Instance mapsto_val_timeless l dq v : Timeless (l ↦{dq} VAL v).
 Proof.
@@ -1045,18 +1036,6 @@ Proof.
   apply _.
 Qed.
 
-Global Instance address_mapsto_timeless ch v sh l : Timeless (address_mapsto ch v sh l).
-Proof.
-  rewrite /address_mapsto.
-  apply bi.exist_timeless; intros.
-  rewrite /Timeless.
-  rewrite bi.later_and; iIntros "(>(% & % & %) & H)".
-  iSplit; first done.
-  iApply (timeless with "H").
-  apply big_sepL_timeless'; first apply _.
-  destruct (size_chunk_nat_pos ch); destruct x; try done; simpl in *; lia.
-Qed.
-
 Global Instance mapsto_timeless sh t v1 v2 : Timeless (mapsto sh t v1 v2).
 Proof.
   rewrite /mapsto.
@@ -1070,24 +1049,16 @@ Proof.
   intros; if_tac; try apply _.
   apply bi.exist_timeless; intros; apply bi.and_timeless; try apply _.
   apply mapsto_timeless; done.
-  { destruct (Z.to_nat _) eqn: Hn; try done.
-    pose proof (size_chunk_pos m); lia. }
 Qed.
 
-Lemma memory_block'_timeless sh n b o : (n > 0)%nat -> Timeless (memory_block' sh n b o).
+Global Instance memory_block'_timeless sh n b o : Timeless (memory_block' sh n b o).
 Proof.
-  revert o; induction n; simpl; first lia; intros.
-  destruct (gt_dec n O).
-  - apply bi.sep_timeless; [apply _ | eauto].
-  - replace n with O by lia; rewrite bi.sep_emp; apply _.
+  revert o; induction n; apply _.
 Qed.
 
-Lemma memory_block_timeless sh z p : z > 0 -> Timeless (memory_block sh z p).
+Global Instance memory_block_timeless sh z p : Timeless (memory_block sh z p).
 Proof.
-  intros.
-  destruct p; simpl; try apply _.
-  apply bi.and_timeless; first apply _.
-  apply memory_block'_timeless; lia.
+  destruct p; apply _.
 Qed.
 
 End mpred.

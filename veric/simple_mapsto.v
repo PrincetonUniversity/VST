@@ -551,46 +551,28 @@ Proof.
 Qed.
 
 (* Timeless *)
-Lemma nonlock_permission_bytes_timeless sh l n : n > 0 -> Timeless (nonlock_permission_bytes sh l n).
+Global Instance nonlock_permission_bytes_timeless sh l n : Timeless (nonlock_permission_bytes sh l n).
 Proof.
   intros; rewrite /nonlock_permission_bytes.
   apply big_sepL_timeless'.
   intros; if_tac; try apply _.
   apply bi.exist_timeless; intros; apply bi.and_timeless; try apply _.
   apply gen_heap.mapsto_timeless; done.
-  { destruct (Z.to_nat _) eqn: Hn; try done; lia. }
 Qed.
 
 Global Instance mapsto_timeless sh t v1 v2 : Timeless (mapsto sh t v1 v2).
 Proof.
   rewrite /mapsto.
-  destruct (access_mode t); try apply _.
-  destruct (type_is_volatile t); try apply _.
-  destruct v1; try apply _.
-  if_tac; try apply _.
-  apply bi.and_timeless; first apply _.
-  apply nonlock_permission_bytes_timeless, size_chunk_pos.
+  apply _.
 Qed.
 
-Lemma memory_block'_timeless sh n b o : (n > 0)%nat -> Timeless (memory_block' sh n b o).
+Global Instance memory_block'_timeless sh n b o : Timeless (memory_block' sh n b o).
 Proof.
-  revert o; induction n; simpl; first lia; intros.
-  destruct (gt_dec n O).
-  - apply bi.sep_timeless; [|eauto].
-    if_tac; first apply _.
-    by apply nonlock_permission_bytes_timeless.
-  - replace n with O by lia; rewrite bi.sep_emp.
-    if_tac; first apply _.
-    by apply nonlock_permission_bytes_timeless.
+  revert o; induction n; apply _.
 Qed.
 
-Lemma memory_block_timeless sh z p : z > 0 -> Timeless (memory_block sh z p).
-Proof.
-  intros.
-  destruct p; simpl; try apply _.
-  apply bi.and_timeless; first apply _.
-  apply memory_block'_timeless; lia.
-Qed.
+Global Instance memory_block_timeless sh z p : Timeless (memory_block sh z p).
+Proof. destruct p; apply _. Qed.
 
 (* valid_pointer *)
 Lemma mapsto_valid_pointer1: forall {cs: compspecs} sh t p v i,

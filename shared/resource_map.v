@@ -5,12 +5,12 @@ ownership of the entire heap, and a "points-to-like" proposition for (mutable,
 fractional, or persistent read-only) ownership of individual elements. *)
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Export auth csum gmap.
-Set Warnings "-notation-overridden,-hiding-delimiting-key".
+Set Warnings "-custom-entry-overridden,-notation-overridden,-hiding-delimiting-key".
 From iris_ora.algebra Require Export osum gmap view auth.
 From iris_ora.logic Require Export logic own algebra.
 From VST.shared Require Export share_alg.
 From VST.shared Require Import shared.
-Set Warnings "notation-overridden,hiding-delimiting-key".
+Set Warnings "custom-entry-overridden,notation-overridden,hiding-delimiting-key".
 From iris.prelude Require Import options.
 
 Section shared.

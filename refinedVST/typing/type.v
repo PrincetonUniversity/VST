@@ -116,12 +116,6 @@ We will need an additional parameter
 
  *)
 
-(* NOTE should fix the one in field_at.v *)
-Instance data_at_rec_timeless {Σ : gFunctors} {heapGS0 : heapGS Σ} {cs : compspecs} q cty v l:
-    Timeless (data_at_rec q cty v l).
-Proof.
-Admitted.
-
 Definition adr2val (l : address) := Vptr l.1 l.2.
 Coercion adr2val : address >-> val.
 

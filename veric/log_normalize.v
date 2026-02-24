@@ -5,7 +5,9 @@ Require Import Coq.Lists.List.
 Require Import Coq.micromega.Lia.
 Require Import iris.bi.monpred.
 Require Import iris.proofmode.proofmode.
+Set Warnings "-notation-overridden,-hiding-delimiting-key".
 From iris_ora.logic Require Import oupred.
+Set Warnings "notation-overridden,hiding-delimiting-key".
 Require Import VST.msl.Extensionality.
 
 Local Open Scope bi_scope.
