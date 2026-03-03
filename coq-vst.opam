@@ -33,7 +33,7 @@ run-test: [
 ]
 depends: [
   "ocaml"
-  "coq" {>= "8.19" & < "9.1~"}
+  "coq" {>= "8.19" & < "9.2~"}
   "coq-core" { >= "9.0" }
   "coq-stdlib" { >= "9.0" }
   "coq-compcert" {>= "3.15" & < "3.17~"}
