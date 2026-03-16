@@ -41,6 +41,7 @@ Ltac liUnfoldLetGoal :=
   | |- envs_entails _ ?P => do_unfold P
   end.
 
+(* is this failing for drop_spatial? *)
 Ltac liUnfoldSyntax :=
   lazymatch goal with
   | |- envs_entails _ (li.all _) => liFromSyntax
@@ -1065,24 +1066,33 @@ Ltac liAnd :=
     notypeclasses refine (tac_big_andM_empty _ _)
   end.
 
-(* TODO Ke: is not valid anymore because logic is linear? maybe to a weaker version where spatial context is empty? *)
 (** ** [liPersistent] *)
 Section coq_tactics.
   Context {prop : bi}.
 
-  Lemma tac_persistent Δ (P : prop) : env_spatial_is_nil Δ = true →
-    envs_entails Δ P → envs_entails Δ (□ P).
+  Lemma env_spatial_affine_intuitionistically (Δ : envs prop) `{!TCForall Affine (env_to_list (env_spatial Δ))} :
+    of_envs Δ ⊢ □ of_envs (envs_clear_spatial Δ).
   Proof.
-    rewrite envs_entails_unseal => ? HP.
-    rewrite env_spatial_is_nil_intuitionistically //.
-    by f_equiv.
+    intros. rewrite envs_clear_spatial_sound.
+    rewrite (affine (big_opL _ _ _)) bi.sep_emp.
+    rewrite !of_envs_eq; destruct Δ as [? ?]; simplify_eq/=.
+    rewrite /bi_intuitionistically !bi.persistently_and.
+    rewrite bi.persistently_pure bi.persistent_persistently -bi.persistently_emp_2.
+    apply bi.and_intro; last done. rewrite !bi.and_elim_r. done.
+  Qed.
+
+  Lemma tac_persistent Δ (P : prop) `{!TCForall Affine (env_to_list (env_spatial Δ))} :
+    envs_entails (envs_clear_spatial Δ) P → envs_entails Δ (□ P).
+  Proof.
+    rewrite envs_entails_unseal => HP.
+    rewrite env_spatial_affine_intuitionistically HP //.
   Qed. 
 End coq_tactics.
 
 Ltac liPersistent :=
   lazymatch goal with
   | |- envs_entails ?Δ (bi_intuitionistically ?P) =>
-      notypeclasses refine (tac_persistent _ _ _); [reflexivity | li_pm_reduce]
+      notypeclasses refine (tac_persistent _ _ _); li_pm_reduce
   end.
 
 (** ** [liCase] *)
