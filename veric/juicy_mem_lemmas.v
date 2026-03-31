@@ -390,7 +390,7 @@ Proof.
     iExists lx; iFrame; done.
 Qed.
 
-Lemma big_opL_seq_index : forall {M : ofe} (o : M -> M -> M) `{Monoid _ o} n (f : nat -> nat -> M), (([^o list] k↦v ∈ seq 0 n, f k v) ≡ [^o list] v ∈ seq 0 n, f v v)%stdpp.
+Lemma big_opL_seq_index : forall {M : ofe} (o : M -> M -> M) `{!Monoid o} n (f : nat -> nat -> M), (([^o list] k↦v ∈ seq 0 n, f k v) ≡ [^o list] v ∈ seq 0 n, f v v)%stdpp.
 Proof.
   intros.
   apply big_opL_proper.

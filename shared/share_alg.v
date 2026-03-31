@@ -36,7 +36,7 @@ Inductive share_car `{ShareType} :=
 
 Section share.
 
-  Context `{ST : ShareType}.
+  Context {SI : sidx} `{ST : ShareType}.
 
   Lemma share_op_top' a b : share_op a share_top = Some b -> b = share_top /\ a = share_bot.
   Proof.

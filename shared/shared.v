@@ -11,7 +11,7 @@ From iris.prelude Require Import options.
 
 Section shared.
 
-Context `{ST : ShareType}.
+Context {SI : sidx} `{ST : ShareType}.
 
 Definition readable_share' (s : shareO) := match s with Share sh => share_readable sh | _ => False end.
 
@@ -50,9 +50,9 @@ Local Instance shared_equiv : Equiv shared := λ x y,
 Definition shared_ofe_mixin : OfeMixin shared.
 Proof.
   split.
-  - destruct x, y; intuition; try split; try pose proof (H 0) as H'; try destruct H; try destruct H'; try done.
+  - destruct x, y; intuition; try split; try pose proof (H 0ᵢ) as H'; try destruct H; try destruct H'; try done.
     + intros n; specialize (H n); destruct H; done.
-    + apply O.
+    + apply 0ᵢ.
   - intros n; split; rewrite /dist /shared_dist.
     + intros x; destruct x; done.
     + intros [|] [|]; try done.
@@ -62,7 +62,7 @@ Proof.
       * by intros ->.
   - intros ?? [|] [|]; try done.
     intros [??]; split; first done.
-    eapply dist_lt; eauto.
+    eapply dist_le; eauto.
 Qed.
 Canonical Structure sharedO := Ofe shared shared_ofe_mixin.
 
@@ -390,7 +390,7 @@ Proof. intros [|] ?; done. Qed.
 
 Lemma dfrac_error_discarded : forall x, dfrac_error (DfracDiscarded ⋅ x) = dfrac_error x.
 Proof.
-  destruct x; simpl; rewrite left_id //.
+  destruct x; simpl; rewrite (left_id _ _ (LeftId:=ucmra_unit_left_id)) //.
 Qed.
 
 Lemma share_op_None : forall (s : shareO), s ⋅ ShareBot = ShareBot.
@@ -401,9 +401,9 @@ Qed.
 Local Instance shared_unit_left_id : LeftId equiv (ε : shared) op.
 Proof.
   intros [|]; rewrite /op /=.
-  - rewrite right_id.
+  - rewrite (right_id _ _ (RightId:=ucmra_unit_right_id)).
     destruct (readable_dfrac_dec _); done.
-  - hnf; rewrite left_id //.
+  - hnf; rewrite (left_id _ _ (LeftId:=ucmra_unit_left_id)) //.
 Qed.
 
 Definition shared_cmra_mixin : CmraMixin shared.
@@ -428,9 +428,9 @@ Proof.
   - intros [|]; intuition.
     + by destruct H.
     + split; apply cmra_valid_validN, H.
-    + apply (H 0).
-  - intros ? [|]; try done.
-    intros [??]; split; last apply cmra_validN_S; done.
+    + apply (H 0ᵢ).
+  - intros ?? [|]; try done.
+    intros [??]; split; last eapply cmra_validN_le; done.
   - intros ???.
     pose proof (shared_op_alt x (y ⋅ z)) as Hop1.
     pose proof (shared_op_alt (x ⋅ y) z) as Hop2.
@@ -467,7 +467,7 @@ Proof.
       destruct shyz; last by rewrite share_op_None in H; destruct H.
       destruct Hop3 as (? & ? & ? & ? & -> & -> & [=] & ?); simpl in *; subst.
       rewrite /op /shared_op_instance; hnf.
-      apply (@cmra_assoc shareR).
+      apply (@cmra_assoc _ shareR).
   - intros ??.
     pose proof (shared_op_alt x y) as Hop1.
     pose proof (shared_op_alt y x) as Hop2.
@@ -479,11 +479,11 @@ Proof.
       by inversion Hv; subst.
     + destruct (dfrac_error _) eqn: Herr; first by rewrite Hop1 Hop2.
       destruct Hop1 as (? & ? & ? & ? & -> & -> & -> & ?), Hop2 as (? & ? & ? & ? & [=] & [=] & -> & ?); subst.
-      hnf; by rewrite (@cmra_comm shareR).
+      hnf; by rewrite (@cmra_comm _ shareR).
   - intros [|].
     + rewrite /op /shared_op_instance /core /pcore /shared_pcore_instance /=.
       destruct dq.
-      * rewrite /ε /shared_unit_instance right_id.
+      * rewrite /ε /shared_unit_instance (right_id _ _ (RightId:=ucmra_unit_right_id)).
         destruct (readable_dfrac_dec _); done.
       * rewrite comm dfrac_op_both_discarded.
         destruct (readable_dfrac_dec _); try done.
@@ -507,7 +507,7 @@ Proof.
         { destruct z as [[|]|]; done. }
         exists (YES DfracDiscarded I v0).
         unshelve rewrite YES_op /=; last split; rewrite ?dfrac_op_both_discarded //.
-        rewrite -agree_included H -Some_included_total -Hval; eexists; done.
+        rewrite H -agree_included -Some_included_total -Hval; eexists; done.
       * destruct (dfrac_error _) eqn: Herr; last by destruct Hop as (? & ? & ? & ? & ? & ?).
         rewrite Hop in H; destruct y; inversion H; subst.
         exists err; done.
@@ -682,13 +682,13 @@ Proof.
   rewrite dfrac_of_op' val_of_op'; simpl.
   destruct (dfrac_error _) eqn: Herr; [left | right].
   - by apply dfrac_error_fail.
-  - rewrite !left_id //.
+  - rewrite !(left_id _ _ (LeftId:=ucmra_unit_left_id)) //.
 Qed.
 
 Lemma readable_dfrac_order : forall dq dq', dq ≼ₒ dq' -> readable_dfrac dq -> readable_dfrac dq'.
 Proof.
   intros ?? [-> | <-]; try done.
-  destruct dq as [[|]|[|]]; try done; simpl; rewrite right_id //.
+  destruct dq as [[|]|[|]]; try done; simpl; rewrite (right_id _ _ (RightId:=ucmra_unit_right_id)) //.
 Qed.
 
 Lemma dfrac_error_order : forall dq dq', dq ≼ₒ dq' -> dfrac_error dq = dfrac_error dq'.
@@ -697,7 +697,7 @@ Proof.
   rewrite (comm _ dq) dfrac_error_discarded //.
 Qed.
 
-Lemma shared_orderN_op : ∀ (n : nat) (x x' y : shared), x ≼ₒ{n} x' → x ⋅ y ≼ₒ{n} x' ⋅ y.
+Lemma shared_orderN_op : ∀ (n : SI) (x x' y : shared), x ≼ₒ{n} x' → x ⋅ y ≼ₒ{n} x' ⋅ y.
 Proof.
   intros.
   destruct H as [H | [??]].
@@ -758,12 +758,12 @@ Proof.
     rewrite /core /=; destruct x, y; try done; simpl in *.
     + right; destruct Hd as [<- | <-], dq; rewrite ?dfrac_op_own_discarded ?dfrac_op_both_discarded // /=.
       split.
-      * right; rewrite left_id //.
+      * right; rewrite (left_id _ _ (LeftId:=ucmra_unit_left_id)) //.
       * apply agree_increasing.
     + right; destruct Hd as [<- | <-]; try done.
       rewrite dfrac_op_own_discarded.
       destruct sh; split; try done.
-      right; rewrite left_id //.
+      right; rewrite (left_id _ _ (LeftId:=ucmra_unit_left_id)) //.
     + destruct Hd as [[=] | ?]; subst; try done.
       destruct sh0; [right | left]; done.
   - intros ???? Hvalid [? | [Hd Hv]].
@@ -801,9 +801,9 @@ Proof.
     + eexists; split; first right; done.
   - intros ??? [Hd Hv]%shared_dist_implies.
     right; split; [hnf; auto | by apply ora_dist_orderN].
-  - intros ??? [H | [? ?%ora_orderN_S]].
+  - intros ???? [H | [? ?]].
     + destruct y; inversion H; subst; by left.
-    + by right.
+    + intros. eapply ora_orderN_le in H0; eauto. by right.
   - intros ???? Hord [H | [Hd Hv]].
     { destruct z; inversion H; subst; by left. }
     destruct Hord as [Hy | [??]].
@@ -820,7 +820,7 @@ Proof.
   - split.
     + intros [? | [??]] ?; first by left.
       right; split; last apply ora_order_orderN; done.
-    + intros H; pose proof (H 0) as H0; destruct H0 as [? | [??]]; first by left.
+    + intros H; pose proof (H 0ᵢ) as H0; destruct H0 as [? | [??]]; first by left.
       right; split; try done.
       apply ora_order_orderN; intros n1.
       destruct (H n1) as [? | [??]]; first destruct y; done.
@@ -832,12 +832,12 @@ Proof.
       destruct x; simpl in *.
       * right; destruct dq, cx; inversion Heq; subst; simpl.
         -- destruct (_ ⋅ _); try done.
-           split; first by right; rewrite left_id.
+           split; first by right; rewrite (left_id _ _ (LeftId:=ucmra_unit_left_id)).
            apply agree_increasing.
         -- destruct (dfrac_of y); split; simpl; try done; rewrite -H0 -Hv Some_op_opM Some_order; destruct (val_of y); try done; rewrite /= comm; apply agree_increasing.
       * destruct sh, cx; inversion Heq; subst; simpl.
         -- right; destruct (_ ⋅ _); try done; simpl.
-           split; first by right; rewrite left_id.
+           split; first by right; rewrite (left_id _ _ (LeftId:=ucmra_unit_left_id)).
            apply agree_increasing.
         -- destruct (dfrac_of y); done.
     + destruct (dfrac_error _) eqn: Herr; first by destruct (x ⋅ y); inversion Hop; subst; left.
@@ -887,7 +887,7 @@ Qed.
 
 End shared.
 
-Arguments YES {_ _ _} _ _ _.
-Arguments NO {_ _ _} _ _.
-Arguments dfrac_of {_ _ _} _.
-Arguments val_of {_ _ _} _.
+Arguments YES {_ _ _ _} _ _ _.
+Arguments NO {_ _ _ _} _ _.
+Arguments dfrac_of {_ _ _ _} _.
+Arguments val_of {_ _ _ _} _.
