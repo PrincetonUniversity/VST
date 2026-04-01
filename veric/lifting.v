@@ -2211,6 +2211,12 @@ Qed.
 Definition exit_ret_assert R : assert := ((RA_break R -∗ False) ∧ (RA_continue R -∗ False) ∧
   (∀ v, (RA_normal R ∨ RA_return R v) -∗ ∀ m z, ⎡state_interp m z⎤ -∗ ⌜∃ i, ext_spec_exit OK_spec (Some (Vint i)) z m⌝)).
 
+
+Hint Extern 2 (Increasing _) =>
+match goal with
+| |- @Increasing ?A _ _ _ => apply (@ext_order.incl_increasing _ A)
+end : typeclass_instances.
+
 Lemma guarded_stop : forall E f R,
   f.(fn_vars) = [] →
   exit_ret_assert R ⊢ guarded E f Kstop R.

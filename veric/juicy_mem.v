@@ -1015,7 +1015,7 @@ Section mpred.
     apply shared_valid in Hv as (_ & Hv).
     apply option_included_total in H as [-> | (? & ? & -> & Heq & H)]; auto.
     rewrite Heq /= in Hv |- *.
-    assert (✓{0} x2) by (by apply cmra_valid_validN).
+    assert (✓{0ᵢ} x2) by (by apply cmra_valid_validN).
     right; f_equal; symmetry; apply (elem_of_agree_ne' O); first done.
     symmetry; apply agree_valid_includedN; first done.
     by apply @cmra_included_includedN.

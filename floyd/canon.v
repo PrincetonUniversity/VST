@@ -157,7 +157,7 @@ Proof.
   induction H; simpl; f_equiv; done.
 Qed.
 
-#[global] Instance LOCALx_proper : Proper (equiv(Equiv := list.list_equiv(H := equivL)) ==> equiv ==> equiv) (LOCALx).
+#[global] Instance LOCALx_proper : Proper (equiv(Equiv := list_relations.list_equiv(H := equivL)) ==> equiv ==> equiv) (LOCALx).
 Proof.
   intros ??????.
   rewrite /LOCALx; f_equiv; last done.

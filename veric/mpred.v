@@ -206,7 +206,7 @@ Definition MaskTT A := ArrowType A (ConstType coPset).
 
 Section ofe.
 
-Context `{Cofe PROP1} `{Cofe PROP2}.
+Context `{!Cofe PROP1} `{!Cofe PROP2}.
 
 Inductive funspec_ :=
    mk_funspec (sig : typesig) (cc : calling_convention) (A: TypeTree)
@@ -266,7 +266,7 @@ Proof.
     + intros [] [] [] (-> & -> & -> & ? & ? & ?) (-> & -> & -> & ? & ? & ?); repeat (split; auto).
       exists eq_refl; split3; etrans; eauto.
   - intros ?? [] [] (-> & -> & -> & ? & ? & ?) ?; repeat (split; auto).
-    exists eq_refl; split3; eapply dist_lt; eauto.
+    exists eq_refl; split3; eapply dist_le; eauto.
 Qed.
 Canonical Structure funspecO := Ofe funspec_ funspec_ofe_mixin.
 
@@ -360,13 +360,13 @@ Definition funspecO' := (laterO (funspecO (iPropO Σ) (iPropO Σ))).
 Definition funspecOF' := (laterOF (funspecOF idOF)).
 Definition dtfr A := (oFunctor_car (dependent_type_functor_rec A) (iProp Σ) (iProp Σ)).
 
-Lemma OfeMor_eq : forall {A B : ofe} (f1 f2 : A -> B) {H1 H2}, f1 = f2 -> @OfeMor A B f1 H1 = @OfeMor A B f2 H2.
+Lemma OfeMor_eq : forall {A B : ofe} (f1 f2 : A -> B) {H1 H2}, f1 = f2 -> @OfeMor _ A B f1 H1 = @OfeMor _ A B f2 H2.
 Proof.
   intros; subst.
   f_equal. apply proof_irr.
 Qed.
 
-Lemma funspec_equivI PROP1 `{Cofe PROP1} PROP2 `{Cofe PROP2} (f1 f2 : funspec_ PROP1 PROP2) : (f1 ≡ f2 : iProp Σ) ⊣⊢ ∃ sig cc A E P1 P2 Q1 Q2,
+Lemma funspec_equivI PROP1 `{!Cofe PROP1} PROP2 `{!Cofe PROP2} (f1 f2 : funspec_ PROP1 PROP2) : (f1 ≡ f2 : iProp Σ) ⊣⊢ ∃ sig cc A E P1 P2 Q1 Q2,
   ⌜f1 = mk_funspec sig cc A E P1 Q1 ∧ f2 = mk_funspec sig cc A E P2 Q2⌝ ∧ P1 ≡ P2 ∧ Q1 ≡ Q2.
 Proof.
   ouPred.unseal; split=> n x ?.

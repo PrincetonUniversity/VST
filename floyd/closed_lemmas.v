@@ -126,7 +126,7 @@ Qed.
 Lemma closed_wrt_map_subst:
    forall id e `(Q: list (environ -d> A)),
          Forall (closed_wrt_vars (eq id)) Q ->
-          @equiv _ (list.list_equiv(H:=discrete_fun_equiv)) (map (subst id e) Q) Q.
+          @equiv _ (list_relations.list_equiv(H:=discrete_fun_equiv)) (map (subst id e) Q) Q.
 Proof.
 induction Q; intros.
 simpl; constructor.
@@ -139,7 +139,7 @@ Qed.
 Lemma closed_wrt_map_subst' `{!heapGS Σ}:
    forall id e (Q: list (environ -d> mpred)),
          Forall (closed_wrt_vars (eq id)) Q ->
-          @equiv _ (list.list_equiv(H:=discrete_fun_equiv)) (map (subst id e) Q) Q.
+          @equiv _ (list_relations.list_equiv(H:=discrete_fun_equiv)) (map (subst id e) Q) Q.
 Proof.
 intros.
 apply closed_wrt_map_subst. done.
