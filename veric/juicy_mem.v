@@ -961,7 +961,8 @@ Qed.
 (* FIXME
    Build an rmap that's identical to phi except where m has allocated. *)
 Definition inflate_alloc: rmap.
- refine (proj1_sig (remake_rmap (fun loc =>
+Proof.
+refine (proj1_sig (remake_rmap (fun loc =>
    fmap_option (res_option (phi @ loc))
 
   (* phi = NO *)
@@ -975,7 +976,6 @@ Definition inflate_alloc: rmap.
 
   (* phi = YES *)
   (fun _ => phi @ loc)) (ghost_of phi) (level phi) _ (ghost_of_approx phi))).
-Proof.
 hnf; auto.
 intro.
 case_eq (phi @ l); simpl; intros; auto.
@@ -999,14 +999,15 @@ auto.
 Qed.
 
 (* Build an [rmap] that's identical to [phi] except where [m] has stored. *)
-Definition inflate_store: rmap. refine (
+Definition inflate_store: rmap.
+Proof.
+refine (
 proj1_sig (make_rmap (fun loc =>
   match phi @ loc with
     | YES sh rsh (VAL _) _ => YES sh rsh (VAL (contents_at m loc)) NoneP
     | YES _ _ _ _ => resource_fmap (approx (level phi)) (approx (level phi)) (phi @ loc)
     | _ => phi @ loc
   end) (ghost_of phi) (level phi) _ (ghost_of_approx phi))).
-Proof.
 hnf; auto.
 
 unfold compose.
@@ -1521,12 +1522,13 @@ Variables (jm :juicy_mem) (m': mem)
           (PERM: forall ofs, lo <= ofs < hi ->
                       perm_of_res (m_phi jm @ (b,ofs)) = Some Freeable).
 
-Definition inflate_free: rmap. refine (
+Definition inflate_free: rmap.
+Proof.
+refine (
 proj1_sig (make_rmap (fun loc =>
   if adr_range_dec (b,lo) (hi-lo) loc then NO Share.bot bot_unreadable else m_phi jm @ loc)
     (ghost_of (m_phi jm))
      (level (m_phi jm)) _ (ghost_of_approx (m_phi jm)))).
-Proof.
 unfold compose.
 extensionality l.
 destruct l as (b', ofs').

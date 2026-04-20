@@ -19,8 +19,8 @@ Definition juicyspec : external_specification juicy_mem external_function unit
      (fun rv m z => True).
 
 Definition Espec : OracleKind.
- refine (Build_OracleKind unit (Build_juicy_ext_spec _ juicyspec _ _ _ _ _ _)).
 Proof.
+refine (Build_OracleKind unit (Build_juicy_ext_spec _ juicyspec _ _ _ _ _ _)).
 simpl; intros; contradiction.
 simpl; intros; contradiction.
 simpl; intros; intros ? ? ? ?; contradiction.

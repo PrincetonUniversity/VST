@@ -335,8 +335,8 @@ Proof.
 Qed.
 
 Lemma readable_share_unrel_Rsh: forall sh, readable_share sh <-> nonunit (Share.unrel Share.Rsh sh).
-unfold readable_share in *.
 Proof.
+unfold readable_share in *.
 intros.
 unfold nonempty_share.
 transitivity (nonidentity (Share.unrel Share.Rsh sh)).

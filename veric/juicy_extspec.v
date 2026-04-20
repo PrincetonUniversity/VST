@@ -45,8 +45,8 @@ Definition void_spec T : external_specification juicy_mem external_function T :=
       (fun rv m z => False).
 
 Definition ok_void_spec (T : Type) : OracleKind.
- refine (Build_OracleKind T (Build_juicy_ext_spec _ (void_spec T) _ _ _ _ _ _)).
 Proof.
+  refine (Build_OracleKind T (Build_juicy_ext_spec _ (void_spec T) _ _ _ _ _ _)).
   simpl; intros; contradiction.
   simpl; intros; contradiction.
   simpl; intros; contradiction.

@@ -127,7 +127,6 @@ Qed.
 Lemma pred_eq_e2 {A} `{agA : ageable A} {EO: Ext_ord A}: forall (P Q: pred A)  w,
      ((P <=> Q) w -> (Q >=> P) w).
 Proof.
-Proof.
 intros.
 intros w' ? w'' ? ?.
 eapply H; eauto.

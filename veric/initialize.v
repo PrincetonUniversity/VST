@@ -16,9 +16,9 @@ Import compcert.lib.Maps.
 Import Clight.
 
 Definition only_blocks {S: block -> Prop} (S_dec: forall b, {S b}+{~S b}) (w: rmap) : rmap.
+Proof.
  refine (proj1_sig (make_rmap (fun loc => if S_dec (fst loc) then w @ loc else core (w @ loc))
                               _ (level w) _ (ghost_of_approx w))).
-Proof.
   hnf; auto.
  extensionality loc;  unfold compose.
  if_tac; try apply resource_at_approx.
