@@ -5,6 +5,7 @@ Require Export VST.msl.Extensionality.
 Global Set Asymmetric Patterns.  (* This was in CompCert up to 3.9,
   and has been removed, which was a good idea but now we must have it
   here in VST until we remove it . . . *)
+#[warning="-unknown-option"] Global Set Asymmetric Patterns No Implicits.
 
 (*  These three hints are considered "dangerous"
    because they make proofs noncomputational, which is an issue
