@@ -1294,6 +1294,14 @@ Section typing.
   Definition simplify_v_refine_l_inst := [instance simplify_v_refine_l with 0%N].
   Global Existing Instance simplify_v_refine_l_inst.
 
+  Lemma simplify_temp_refine_l A (ty : rtype A) cty i T:
+    (∀ x, i ◁ₜ|cty| (x @ ty) -∗ T) ⊢ simplify_hyp (i ◁ₜ|cty| ty) T.
+  Proof.
+    iIntros "HT (% & Hx & Hl)". unfold ty_of_rty; simpl_type. iDestruct "Hl" as (x) "Hv". by iApply "HT"; iFrame.
+  Qed.
+  Definition simplify_temp_refine_l_inst := [instance simplify_temp_refine_l with 0%N].
+  Global Existing Instance simplify_temp_refine_l_inst.
+
   (* This is forced since it can create evars in places where we don't
   want them. We might first want to try subtyping without the evar (see e.g. optional ) *)
   Lemma simplify_goal_place_refine_r A (ty : rtype A) l β T:

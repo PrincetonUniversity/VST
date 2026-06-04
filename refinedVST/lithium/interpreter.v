@@ -992,11 +992,11 @@ Section coq_tactics.
     env_lookup i Γs = None →
     env_lookup i Γp = None →
     envs_entails (Envs (Esnoc Γp i P'') Γs n') T →
-    envs_entails (Envs Γp Γs n) (<affine> P -∗ T).
+    envs_entails (Envs Γp Γs n) (P -∗ T).
   Proof.
     intros <-.
     rewrite envs_entails_unseal => Hs Hp HP. iIntros "Henv HP".
-    iDestruct (@ip_persistent _ _ _ Hpers with "HP") as "#HP''".
+    iDestruct (@ip_persistent _ _ _ Hpers with "HP") as "HP''"; iDestruct "HP''" as "#HP''".
     rewrite (envs_app_sound (Envs Γp Γs n) (Envs (Esnoc Γp i P'') Γs n) true (Esnoc Enil i P'')) //; simplify_option_eq => //.
     iApply HP. iApply "Henv".
     iModIntro. by iSplit.
@@ -1036,7 +1036,7 @@ Ltac liWand :=
       let n := lazymatch goal with | [ H := Envs _ _ ?n |- _ ] => n end in
       let H := constr:(IAnon n) in
       let n' := eval vm_compute in (Pos.succ n) in
-      simple notypeclasses refine (tac_do_intro_intuit H n' P _ _ _ _ _ _ ip _ _ _); [shelve|wand_simpl_hook;li_pm_reflexivity|..]; [li_pm_reflexivity..|]
+      simple notypeclasses refine (tac_do_intro_intuit H n' P _ _ _ _ _ _ ip _ _ _ _); [shelve|wand_simpl_hook;li_pm_reflexivity|..]; [li_pm_reflexivity..|]
     | let n := lazymatch goal with | [ H := Envs _ _ ?n |- _ ] => n end in
       let H := constr:(IAnon n) in
       let n' := eval vm_compute in (Pos.succ n) in
