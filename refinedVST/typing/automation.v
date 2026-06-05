@@ -471,7 +471,7 @@ Tactic Notation "start_function2" :=
   try done
   end.*)
 
-Ltac type_function_end := rewrite /typed_stackframe1 /typed_var_block /ty_own_lvar /=; repeat liRStep.
+Ltac type_function_end := rewrite /typed_stackframe1 /typed_var_block /=; repeat liRStep.
 
 (*Tactic Notation "prepare_parameters" "(" ident_list(i) ")" :=
   revert i; repeat liForall.*)

@@ -270,7 +270,7 @@ Section function.
   Lemma type_call_fnptr l i v vl ctys `{!TCEq (length vl) (length ctys)}
     retty cc tys fp T :
     (([∗ list] v;'(cty,ty)∈vl; zip ctys tys, v ◁ᵥₐₗ|cty| ty) -∗ ∃ x,
-      ⇑ ([∗ list] v;'(cty,ty)∈vl; zip ctys (fp x).(fp_atys), v ◁ᵥₐₗ|cty| ty) ∗
+      ([∗ list] v;'(cty,ty)∈vl; zip ctys (fp x).(fp_atys), ⇑ v ◁ᵥₐₗ|cty| ty) ∗
       ⇑ (fp x).(fp_Pa) ∗ ∀ v x',
       ⇑ ((fp x).(fp_fr) x').(fr_R) -∗
       set_temp_opt i v (up1 (opt_ty_own_val retty ((fp x).(fp_fr) x').(fr_rty) v) -∗
@@ -288,6 +288,9 @@ Section function.
       tauto. }
     iIntros "Htys !>"; iDestruct ("HT" with "Htys") as "(%x&Hvl&HPa&Hr)".
     iDestruct ("Hfn" $! x) as "[%Hl #Hfn]".
+    iAssert (⇑ [∗ list] v;'(cty, ty) ∈ vl;zip (type_of_params (Clight.fn_params fn))
+      (fp_atys (fp x)), v ◁ᵥₐₗ| cty | ty) with "[Hvl]" as "Hvl".
+    { rewrite up1_big_sepL2; iApply (big_sepL2_mono with "Hvl"); by intros ?? (?, ?). }
     rewrite /call_assert /internal_call_assert.
     iModIntro.
     iIntros "Hret Hstack !>".

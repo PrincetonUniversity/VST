@@ -23,6 +23,17 @@ Context `{!VSTGS OK_ty Σ}.
   Global Instance inv_affine N P : Affine (inv N P).
   Proof. apply _. Qed.
 
+  Global Instance inv_objective N P `{!Objective P}: Objective (inv N P).
+  Proof.
+    rewrite /Objective /inv; intros.
+    rewrite /stack_level; monPred.unseal.
+    iIntros "(% & _ & I)".
+    iExists _; iSplit.
+    { rewrite monPred_at_affinely //. }
+    iModIntro; iApply invariants.inv_proper; last done.
+    iSplit; by iApply objective_at.
+  Qed.
+  
   Lemma inv_alter N P Q : ⊢ inv N P -∗ □ ▷ (P -∗ Q ∗ (Q -∗ P)) -∗ inv N Q.
   Proof.
     split => n; rewrite /inv /stack_level; monPred.unseal.

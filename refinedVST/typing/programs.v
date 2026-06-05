@@ -1377,6 +1377,24 @@ Section typing.
   Definition subsume_gvar_inst := [instance subsume_gvar].
   Global Existing Instance subsume_gvar_inst.
 
+  (*Lemma subsume_lvar_ty A ty1 ty2 cty i l T:
+    (l, Ptrofs.zero) ◁ₗ ty1 ∗ (∀ l, subsume (l ◁ₗ ty1) (λ x : A, l ◁ₗ ty2 x) T) ⊢
+    subsume (env.lvar i cty l) (λ x : A, i ◁ₗᵥ|cty| ty2 x) T.
+  Proof. iIntros "[Hl H] $". by iApply "H". Qed.
+  Definition subsume_lvar_ty_inst := [instance subsume_lvar_ty].
+  Global Existing Instance subsume_lvar_ty_inst.*)
+
+  Lemma simplify_goal_lvar ty x cty T:
+    (find_in_context (FindLvar cty x) (λ l, (l, Ptrofs.zero) ◁ₗ ty ∗ T)) ⊢ simplify_goal (x◁ₗᵥ|cty|ty) T.
+  Proof. rewrite /find_in_context /=. iDestruct 1 as "(% & $ & $ & $)". Qed.
+  Definition simplify_goal_lvar_inst := [instance simplify_goal_lvar with 0%N].
+  Global Existing Instance simplify_goal_lvar_inst.
+
+  Lemma simplify_goal_up1 P `{!Objective P} T: P ∗ T ⊢ simplify_goal (up1 P) T.
+  Proof. by iIntros "(? & $) !>". Qed.
+  Definition simplify_goal_up1_inst := [instance simplify_goal_up1 with 0%N].
+  Global Existing Instance simplify_goal_up1_inst.
+
   Lemma subsume_place_own_ex A ty1 ty2 l β1 β2 T:
     subsume (l ◁ₗ{β1} ty1) (λ x : A, l ◁ₗ{β2 x} ty2 x) T :-
       inhale (l ◁ₗ{β1} ty1); ∃ x, exhale (<affine> ⌜β2 x = β1⌝); exhale (l ◁ₗ{β2 x} ty2 x); return T x.

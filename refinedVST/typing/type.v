@@ -295,6 +295,9 @@ Definition heap_mapsto_own_state_type `{!typeG OK_ty Σ} {cs : compspecs} (cty :
 Notation "l ↦_[ β ]| cty | " := (heap_mapsto_own_state_type cty l β)
   (at level 20, β at level 50) : bi_scope.
 
+Global Instance heap_mapsto_own_state_objective `{!typeG OK_ty Σ} {cs : compspecs} cty l β v : Objective (l ↦[ β ]| cty | v).
+Proof. destruct β; apply _. Qed.
+
 Example test_notation `{!typeG OK_ty Σ} {cs : compspecs} l β t v : 
    l ↦[β]|t| v ∗ l ↦_[β]|t| ⊢ l ↦_[β]|t| ∗ l↦[β]|t| v.
 Abort.
@@ -647,6 +650,12 @@ Section alloc_alive.
 End alloc_alive.
 
 Global Typeclasses Opaque type_alive.
+
+(* Possibly every type will be objective. *)
+Class ObjectiveTy `{!typeG OK_ty Σ} {cs : compspecs} (ty : type) := {
+  ty_own_objective l β :: Objective (ty_own ty β l);
+  ty_own_val_objective cty v :: Objective (ty_own_val ty cty v);
+}.
 
 Notation "l ◁ₗ{ β } ty" := (ty_own ty β l) (at level 15, format "l  ◁ₗ{ β }  ty") : bi_scope.
 Notation "l ◁ₗ ty" := (ty_own ty Own l) (at level 15) : bi_scope.

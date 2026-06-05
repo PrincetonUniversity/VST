@@ -42,6 +42,9 @@ Section value.
     apply val_type_by_value.
   Qed.
 
+  Global Instance value_objective ot v: ObjectiveTy (value ot v).
+  Proof. constructor; apply _. Qed.
+
   Global Program Instance value_copyable ot v: Copyable (value ot v).
   Next Obligation.
     iIntros (?????? (-> & ?)) "(% & % & Hl)".
@@ -267,7 +270,6 @@ Section at_value.
     iIntros (v ty v' ot mt st ?) "[Hv ?]".
     iDestruct (ty_memcast_compat with "Hv") as "?"; [done|]. destruct mt => //. iFrame.
   Qed. *)
-
 
   Lemma at_value_simplify_hyp_val v v' t ty T:
     (v ◁ᵥₐₗ|t| value (tptr t) v' -∗ v' ◁ᵥₐₗ|t| ty -∗ T)

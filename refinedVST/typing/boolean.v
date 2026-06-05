@@ -123,6 +123,9 @@ Section generic_boolean.
     destruct cty; try done; destruct v; try done.
   Qed.
 
+  Global Instance boolean_objective b stn it: ObjectiveTy (b @ generic_boolean stn it).
+  Proof. constructor; apply _. Qed.
+
   Global Instance alloc_alive_generic_boolean b stn it: AllocAlive (b @ generic_boolean stn it) Own (sizeof it) True.
   Proof.
     constructor. iIntros (l ?) "(%&%&%&%&%&%Hly&Hl)".

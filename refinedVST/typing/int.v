@@ -188,6 +188,9 @@ Section int.
     destruct cty; try done; destruct v; try done.
   Qed.
 
+  Global Instance int_objective it n: ObjectiveTy (n @ int it).
+  Proof. constructor; apply _. Qed.
+
   Lemma simplify_int it v n (T : assert):
     (<affine> ⌜v = valinject it (i2v n it)⌝ -∗
      <affine> ⌜n ∈ it⌝ -∗

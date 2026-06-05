@@ -68,6 +68,9 @@ Section own.
     destruct cty; try done; destruct v; try done.
   Qed.
 
+  Global Instance frac_ptr_objective p β ty `{!ObjectiveTy ty}: ObjectiveTy (p @ frac_ptr β ty).
+  Proof. constructor; apply _. Qed.
+
   Lemma frac_ptr_mono A ty1 ty2 l β β' p p' T:
     (p ◁ₗ{own_state_min β β'} ty1 -∗ ∃ x, <affine> ⌜p = p' x⌝ ∗ p ◁ₗ{own_state_min β β'} (ty2 x) ∗ T x)
     ⊢ subsume (l ◁ₗ{β} p @ frac_ptr β' ty1) (λ x : A, l ◁ₗ{β} (p' x) @ frac_ptr β' (ty2 x)) T.

@@ -134,11 +134,48 @@ Proof. split => n /=; rewrite !monPred_at_intuitionistically //. Qed.
 Lemma down1_intuitionistically P : down1 (□ P) ⊣⊢ □ (down1 P).
 Proof. split => n /=. destruct n; rewrite !monPred_at_intuitionistically ?bi.intuitionistically_False //. Qed.
 
+#[global] Instance up1_monoid_sep_homomorphism: MonoidHomomorphism bi_sep bi_sep equiv up1.
+Proof.
+  split; [split|]; try apply _.
+  - apply up1_sep.
+  - apply up1_emp.
+Qed.
+
+Lemma up1_big_sepL {A} f (l : list A) : up1 ([∗ list] k↦x ∈ l, f k x) ⊣⊢ [∗ list] k↦x ∈ l, up1 (f k x).
+Proof. apply (big_opL_commute _). Qed.
+
+Lemma up1_big_sepL2 {A B} f (l1 : list A) (l2 : list B) : up1 ([∗ list] k↦x;y ∈ l1;l2, f k x y) ⊣⊢ [∗ list] k↦x;y ∈ l1;l2, up1 (f k x y).
+Proof. rewrite !big_sepL2_alt up1_and -up1_objective; f_equiv. apply up1_big_sepL. Qed.
+
 #[global] Instance up1_affine P `{!Affine P} : Affine (up1 P).
 Proof. apply monPred_affine; simpl; apply _. Qed.
 
 #[global] Instance down1_affine P `{!Affine P} : Affine (down1 P).
 Proof. apply monPred_affine; simpl; apply _. Qed.
+
+#[global] Instance up1_mono' : Proper (bi_entails ==> bi_entails) up1.
+Proof. intros ??; apply up1_mono. Qed.
+
+#[global] Instance up1_flip_mono' : Proper (bi_entails --> flip bi_entails) up1.
+Proof. intros ??; apply up1_mono. Qed.
+
+#[global] Instance into_sep_up1 P Q1 Q2: IntoSep P Q1 Q2 → IntoSep (up1 P) (up1 Q1) (up1 Q2).
+Proof. rewrite /IntoSep=> ->. by rewrite up1_sep. Qed.
+
+#[global] Instance from_sep_up1 P Q1 Q2: FromSep P Q1 Q2 → FromSep (up1 P) (up1 Q1) (up1 Q2).
+Proof. rewrite /FromSep=> <-. by rewrite up1_sep. Qed.
+
+#[global] Instance down1_mono' : Proper (bi_entails ==> bi_entails) down1.
+Proof. intros ??; apply down1_mono. Qed.
+
+#[global] Instance down1_flip_mono' : Proper (bi_entails --> flip bi_entails) down1.
+Proof. intros ??; apply down1_mono. Qed.
+
+#[global] Instance into_sep_down1 P Q1 Q2: IntoSep P Q1 Q2 → IntoSep (down1 P) (down1 Q1) (down1 Q2).
+Proof. rewrite /IntoSep=> ->. by rewrite down1_sep. Qed.
+
+#[global] Instance from_sep_down1 P Q1 Q2: FromSep P Q1 Q2 → FromSep (down1 P) (down1 Q1) (down1 Q2).
+Proof. rewrite /FromSep=> <-. by rewrite down1_sep. Qed.
 
 Inductive Lower1 : assert → assert → Prop :=
   | lower1 P Q : (P ⊢ up1 Q) → Lower1 P Q.
