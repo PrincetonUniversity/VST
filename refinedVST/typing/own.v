@@ -171,6 +171,27 @@ Section own.
   Definition simplify_temp_frac_ptr_inst := [instance simplify_temp_frac_ptr with 0%N].
   Global Existing Instance simplify_temp_frac_ptr_inst.
 
+  Lemma simplify_hyp_down_ty_frac_ptr cty v p β ty T:
+    (v ◁ᵥ|cty| (p @ frac_ptr β (down_ty ty)) -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| down_ty (p @ frac_ptr β ty)) T.
+  Proof.
+    iIntros "H Hv"; iApply "H".
+    rewrite /down_ty /frac_ptr; repeat simpl_type.
+    by iDestruct "Hv" as "(% & $)".
+  Qed.
+  Definition simplify_hyp_down_ty_frac_ptr_inst := [instance simplify_hyp_down_ty_frac_ptr with 0%N].
+  Global Existing Instance simplify_hyp_down_ty_frac_ptr_inst.
+
+  Lemma simplify_goal_down_ty_frac_ptr cty v p β ty T:
+    (v ◁ᵥ|cty| (p @ frac_ptr β (down_ty ty)) ∗ T) ⊢ simplify_goal (v ◁ᵥ|cty| down_ty (p @ frac_ptr β ty)) T.
+  Proof.
+    iIntros "(H & $)".
+    rewrite /down_ty /frac_ptr; repeat simpl_type.
+    iDestruct "H" as "(% & H)".
+    iApply (down1_mono with "H"); auto.
+  Qed.
+  Definition simplify_goal_down_ty_frac_ptr_inst := [instance simplify_goal_down_ty_frac_ptr with 0%N].
+  Global Existing Instance simplify_goal_down_ty_frac_ptr_inst.
+
   (*
   TODO: revisit this comment
   Ideally we would like to have this version:
@@ -273,6 +294,18 @@ Section own.
     intros ?; simpl.
     rewrite andb_false_r //.
   Qed.
+
+  Lemma type_place_cast_ptr_ptr K β ty l ot1 ot2 T:
+    typed_place ge K l β ty (λ l2 β2 ty2 typ, T l2 β2 ty2 (λ t, typ t))
+    ⊢ typed_place ge (CastPCtx (tptr ot1) (tptr ot2) :: K) l β ty T.
+  Proof.
+    iIntros "HP" (Φ) "Hl HΦ" => /=.
+    iSplit => //.
+    iExists l; iSplit => //.
+    by iApply ("HP" with "Hl").
+  Qed.
+  Definition type_place_cast_ptr_ptr_inst := [instance type_place_cast_ptr_ptr].
+  Global Existing Instance type_place_cast_ptr_ptr_inst.
 
   (*Lemma type_cast_ptr_ptr f e ot β ty T:
     is_tptr (typeof e) = true →
@@ -1010,7 +1043,11 @@ Section null.
   Qed.
   Definition type_cast_to_ptr_inst := [instance type_cast_to_ptr].
   (*Global Existing Instance type_cast_int_ptr_cast_case_pointer_inst | 50.*)
-    
+
+  (* When v' is a black box this acts as a new type. *)
+  Global Instance maybe_null_copyable ot v': Copyable (if is_null v' then null else value (tptr ot) v').
+  Proof. destruct (is_null v'); apply _. Qed.
+
 End null.
 
 (* up *)

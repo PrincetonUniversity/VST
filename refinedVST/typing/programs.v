@@ -478,6 +478,7 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
     (* for pointer offset, second operand is pointer: `Ebinop _ (tptr _) (tptr _))`  *)
   | BinOpPCtx2 (op : Cop.binary_operation) (cty_v cty_l cty : Ctypes.type) (v : val) (ty : type)
     (* for ptr-to-ptr casts, ot must be PtrOp *)
+  | CastPCtx (cty1 cty2 : Ctypes.type)
   (* | UnOpPCtx (op : Cop.unary_operation) *)
   .
 
@@ -507,6 +508,7 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
       v ◁ᵥₐₗ|cty_v| ty -∗
       wp_binop ge ⊤ op cty_v v cty_l l
         (λ v, ∃ l' : address, <affine> ⌜v = adr2val l'⌝ ∗ Φ l')
+    | CastPCtx cty1 cty2 => ⎡sc_cast l cty1 cty2⎤ ∧ ∃ l' : loc, <affine> ⌜sem_cast cty1 cty2 l = Some (adr2val l')⌝ ∗ Φ l'
     (* | UnOpPCtx op => WP UnOp op PtrOp l {{ v, ∃ l' : loc, ⌜v = val_of_loc l'⌝ ∗ Φ l' }} *)
     end%I.
 
@@ -519,7 +521,7 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
   Proof.
     iIntros "HP HΦ".
     rewrite /place_item_to_wp.
-    move: K => [cty|i m|i m|op cty_l cty_v cty v ty|op cty_v cty_l cty v ty]//=.
+    move: K => [cty|i m|i m|op cty_l cty_v cty v ty|op cty_v cty_l cty v ty|cty1 cty2]//=.
     - iMod "HP" as "(% & % & $ & $ & % & $ & HP)"; iIntros "!> ?"; by iApply "HΦ"; iApply "HP".
     - iMod "HP" as "(% & % & $ & HP)"; by iApply "HΦ".
     - iMod "HP" as "(% & % & $ & HP)"; by iApply "HΦ".
@@ -527,6 +529,8 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
       iIntros (?) "(% & $ & ?)"; by iApply "HΦ".
     - iIntros; iApply wp_binop_strong_mono; iSplitL "HΦ"; last by iApply "HP".
       iIntros (?) "(% & $ & ?)"; by iApply "HΦ".
+    - iSplit; first by rewrite bi.and_elim_l.
+      iDestruct "HP" as "[_ (% & $ & ?)]"; by iApply "HΦ".
   Qed.
 
   Lemma place_to_wp_mono K Φ1 Φ2 l:
@@ -565,7 +569,7 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
       else if is_tptr cty2 then
         T' ← find_place_ctx f e2; Some (λ T, typed_val_expr f e1 (λ v ty, T' (λ K l, T (K ++ (if is_lvalue e2 then [DerefPCtx (typeof e2)] else []) ++ [BinOpPCtx2 op cty1 cty2 cty v ty]) l)))
       else None
-
+    | Ecast e cty => T' ← find_place_ctx f e; Some (λ T, T' (λ K l, T (K ++ (if is_lvalue e then [DerefPCtx (typeof e)] else []) ++ [CastPCtx (typeof e) cty]) l))
     (* | W.UnOp op PtrOp e => T' ← find_place_ctx e; Some (λ T, T' (λ K l, T (K ++ [UnOpPCtx op]) l))
     (* TODO: Is the existential quantifier here a good idea or should this be a fullblown judgment? *)
     | W.UnOp op (IntOp it) e => Some (λ T, typed_val_expr (UnOp op (IntOp it) (W.to_expr e)) (λ v ty, v ◁ᵥ ty -∗ ∃ l, ⌜v = val_of_loc l⌝ ∗ T [] l)%I) *)
@@ -669,6 +673,29 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (T : val �
         iApply wp_expr_strong_mono; iFrame.
         iIntros (?) "(% & -> & H) !>".
         by iApply "H".
+    - rewrite -wp_cast_sc.
+      iDestruct (IH with "HT") as "HT" => //.
+      instantiate (1 := if is_lvalue e then _ else _).
+      rewrite /wp_lvexpr; destruct (is_lvalue e) eqn: Hlv.
+      + iSpecialize ("HT" with "[HΦ']").
+        { iIntros (K l) "Φ'".
+          iDestruct ("HΦ'" with "[$]") as "HΦ".
+          rewrite place_to_wp_app {2}/place_to_wp /= /place_item_to_wp //. }
+        rewrite -wp_expr_mapsto.
+        iApply wp_lvalue_strong_mono; iFrame.
+        iIntros ((?, ?)) ">(% & % & $ & ? & % & -> & H) !>".
+        iExists _; iSplit; first by iFrame.
+        iDestruct ("H" with "[$]") as "H"; iModIntro.
+        iSplit; first by rewrite bi.and_elim_l.
+        by iDestruct "H" as "[_ (% & $ & $)]".
+      + iSpecialize ("HT" with "[HΦ']").
+        { iIntros (K l) "Φ'".
+          iDestruct ("HΦ'" with "[$]") as "HΦ".
+          rewrite place_to_wp_app {2}/place_to_wp /= /place_item_to_wp //. }
+        iApply wp_expr_strong_mono; iFrame.
+        iIntros (?) "(% & -> & H) !>".
+        iSplit; first by rewrite bi.and_elim_l.
+        by iDestruct "H" as "[_ (% & $ & $)]".
     - rewrite -wp_lvalue_field.
       iDestruct (IH with "HT") as "HT" => //.
       iSpecialize ("HT" with "[-]").
@@ -1404,6 +1431,16 @@ Section typing.
   Proof. by iIntros "(? & $) !>". Qed.
   Definition simplify_goal_up1_inst := [instance simplify_goal_up1 with 0%N].
   Global Existing Instance simplify_goal_up1_inst.
+
+  Lemma simplify_hyp_down_ty x cty ty `{!ObjectiveTy ty} T:
+    (x ◁ₜ|cty| ty -∗ T) ⊢ simplify_hyp (x ◁ₜ|cty| down_ty ty) T.
+  Proof.
+    iIntros "H (% & ? & ?)".
+    rewrite /ty_own_val_at /= /ty_own_val /=.
+    rewrite down1_obj_elim; iApply "H"; iFrame.
+  Qed.
+  Definition simplify_hyp_down_ty_inst := [instance simplify_hyp_down_ty with 0%N].
+  Global Existing Instance simplify_hyp_down_ty_inst.
 
   Lemma subsume_place_own_ex A ty1 ty2 l β1 β2 T:
     subsume (l ◁ₗ{β1} ty1) (λ x : A, l ◁ₗ{β2 x} ty2 x) T :-

@@ -10,55 +10,6 @@ From VST.typing Require Import type_options.
 Section function.
   Context `{!typeG OK_ty Σ} {cs : compspecs} {A : Type}.
 
-  Program Definition down_ty (ty : type) : type := {|
-    ty_has_op_type := ty.(ty_has_op_type);
-    ty_own β l := ⇓ l ◁ₗ{β} ty;
-    ty_own_val cty v := ⇓ v ◁ᵥ|cty| ty;
-  |}.
-  Next Obligation.
-    iIntros (????) "H".
-    rewrite ty_share // down1_fupd //.
-  Qed.
-  Next Obligation.
-    iIntros (?????) "H".
-    iPoseProof (down1_mono with "[H]") as "H"; [by iApply ty_aligned | done |].
-    by rewrite down1_obj_elim.
-  Qed.
-  Next Obligation.
-    iIntros (?????) "H".
-    iPoseProof (down1_mono with "[H]") as "H"; [by iApply ty_size_eq | done |].
-    by rewrite down1_obj_elim.
-  Qed.
-  Next Obligation.
-    iIntros (?????) "H".
-    iDestruct (down1_mono with "[H]") as "H"; [by iApply ty_deref | done |].
-    iDestruct "H" as (?) "(? & $)".
-    by rewrite down1_obj_elim.
-  Qed.
-  Next Obligation.
-    iIntros (???????) "Hl Hv".
-    iPoseProof (down1_sep_up1 with "Hv Hl") as "H".
-    rewrite -down1_sep; iApply (down1_mono with "H").
-    rewrite up1_obj_elim; iIntros "[Hv Hl]"; by iApply (ty_ref with "[//] Hl Hv").
-  Qed.
-
-  Global Instance down_ty_Proper: Proper (equiv ==> equiv) down_ty.
-  Proof.
-    constructor.
-    - intros; rewrite /down_ty; simpl_type; by rewrite H.
-    - intros; rewrite /down_ty; simpl_type; by rewrite H.
-  Qed.
-
-  Lemma simplify_hyp_down_ty x cty ty `{!ObjectiveTy ty} T:
-    (x ◁ₜ|cty| ty -∗ T) ⊢ simplify_hyp (x ◁ₜ|cty| down_ty ty) T.
-  Proof.
-    iIntros "H (% & ? & ?)".
-    rewrite /down_ty; simpl_type.
-    rewrite down1_obj_elim; iApply "H"; iFrame.
-  Qed.
-  Definition simplify_hyp_down_ty_inst := [instance simplify_hyp_down_ty with 0%N].
-  Global Existing Instance simplify_hyp_down_ty_inst.
-
   Record fn_ret := FR {
     (* return type (rc::returns) *)
     fr_rty : type;

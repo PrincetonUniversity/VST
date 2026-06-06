@@ -843,6 +843,12 @@ Proof.
   rewrite bi.and_elim_r; eauto with iFrame.
 Qed.
 
+Global Instance sc_cast_absorbing v t1 t2 : Absorbing (sc_cast v t1 t2).
+Proof.
+  rewrite /sc_cast.
+  destruct Cop.classify_cast; apply _.
+Qed.
+
 Definition blocks_match op v1 v2 :=
 match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
   match v1, v2 with

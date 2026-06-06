@@ -688,6 +688,58 @@ End true.
 Global Instance inhabited_type `{!typeG OK_ty Σ} {cs : compspecs} : Inhabited type := populate tytrue. (* tytrue is not opaque because we don't have typing rules for it. *)
 (* Global Typeclasses Opaque tytrue. *)
 
+Require Export VST.veric.env.
+
+(*** Variables *)
+Section vars.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+
+  Definition ty_own_temp cty ty x := ∃ v, temp x v ∗ v ◁ᵥₐₗ|cty| ty.
+  Definition ty_own_lvar cty ty x := ∃ b, lvar x cty b ∗ (b, Ptrofs.zero) ◁ₗ ty.
+  Definition ty_own_gvar ty x := ∃ b, ⎡gvar x b⎤ ∗ (b, Ptrofs.zero) ◁ₗ ty.
+
+End vars.
+
+Notation "x ◁ₜ| cty | ty" := (ty_own_temp cty ty x) (at level 15) : bi_scope.
+Notation "x ◁ₗᵥ| cty | ty" := (ty_own_lvar cty ty x) (at level 15) : bi_scope.
+
+Section down_ty.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  
+  Program Definition down_ty (ty : type) : type := {|
+    ty_has_op_type := ty.(ty_has_op_type);
+    ty_own β l := ⇓ l ◁ₗ{β} ty;
+    ty_own_val cty v := ⇓ v ◁ᵥ|cty| ty;
+  |}.
+  Next Obligation.
+    iIntros (????) "H".
+    rewrite ty_share // down1_fupd //.
+  Qed.
+  Next Obligation.
+    iIntros (?????) "H".
+    iPoseProof (down1_mono with "[H]") as "H"; [by iApply ty_aligned | done |].
+    by rewrite down1_obj_elim.
+  Qed.
+  Next Obligation.
+    iIntros (?????) "H".
+    iPoseProof (down1_mono with "[H]") as "H"; [by iApply ty_size_eq | done |].
+    by rewrite down1_obj_elim.
+  Qed.
+  Next Obligation.
+    iIntros (?????) "H".
+    iDestruct (down1_mono with "[H]") as "H"; [by iApply ty_deref | done |].
+    iDestruct "H" as (?) "(? & $)".
+    by rewrite down1_obj_elim.
+  Qed.
+  Next Obligation.
+    iIntros (???????) "Hl Hv".
+    iPoseProof (down1_sep_up1 with "Hv Hl") as "H".
+    rewrite -down1_sep; iApply (down1_mono with "H").
+    rewrite up1_obj_elim; iIntros "[Hv Hl]"; by iApply (ty_ref with "[//] Hl Hv").
+  Qed.
+
+End down_ty.
+
 (*** refinement types *)
 Record rtype `{!typeG OK_ty Σ} {cs : compspecs} (A : Type) := RType {
   rty : A → type;
@@ -770,21 +822,6 @@ End rmovable.
 Notation "l `at_type` ty" := (with_refinement ty <$> l) (at level 50) : bi_scope.
 (* Must be an Hint Extern instead of an Instance since simple apply is not able to apply the instance. *)
 Global Hint Extern 1 (AssumeInj (=) (=) (with_refinement _)) => exact: I : typeclass_instances.
-
-Require Import VST.veric.env.
-
-(*** Variables *)
-Section vars.
-  Context `{!typeG OK_ty Σ} {cs : compspecs}.
-
-  Definition ty_own_temp cty ty x := ∃ v, temp x v ∗ v ◁ᵥₐₗ|cty| ty.
-  Definition ty_own_lvar cty ty x := ∃ b, lvar x cty b ∗ (b, Ptrofs.zero) ◁ₗ ty.
-  Definition ty_own_gvar ty x := ∃ b, ⎡gvar x b⎤ ∗ (b, Ptrofs.zero) ◁ₗ ty.
-
-End vars.
-
-Notation "x ◁ₜ| cty | ty" := (ty_own_temp cty ty x) (at level 15) : bi_scope.
-Notation "x ◁ₗᵥ| cty | ty" := (ty_own_lvar cty ty x) (at level 15) : bi_scope.
 
 (*** Monotonicity *)
 Section mono.
@@ -893,6 +930,14 @@ Section mono.
     - move => ??. rewrite /ty_own/=. f_equiv => ?. apply Heq.
     - move => ?. rewrite /ty_own_val/= => ?. f_equiv => ?. apply Heq.
   Qed.
+
+  Global Instance down_ty_Proper: Proper (equiv ==> equiv) down_ty.
+  Proof.
+    constructor.
+    - intros; rewrite /ty_own /=; by rewrite H.
+    - intros; rewrite /ty_own_val /=; by rewrite H.
+  Qed.
+
 End mono.
 
 Notation TypeMono T := (Proper (pointwise_relation _ (⊑) ==> pointwise_relation _ (⊑)) T).
