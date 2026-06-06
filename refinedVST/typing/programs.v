@@ -1390,6 +1390,16 @@ Section typing.
   Definition simplify_goal_lvar_inst := [instance simplify_goal_lvar with 0%N].
   Global Existing Instance simplify_goal_lvar_inst.
 
+  Lemma simplify_hyp_up1 P `{!Objective P} T: (P -∗ T) ⊢ simplify_hyp (up1 P) T.
+  Proof. iIntros "H ?". rewrite up1_obj_elim; by iApply "H". Qed.
+  Definition simplify_hyp_up1_inst := [instance simplify_hyp_up1 with 0%N].
+  Global Existing Instance simplify_hyp_up1_inst.
+
+  Lemma simplify_hyp_down1 P `{!Objective P} T: (P -∗ T) ⊢ simplify_hyp (down1 P) T.
+  Proof. iIntros "H ?". rewrite down1_obj_elim; by iApply "H". Qed.
+  Definition simplify_hyp_down1_inst := [instance simplify_hyp_down1 with 0%N].
+  Global Existing Instance simplify_hyp_down1_inst.
+
   Lemma simplify_goal_up1 P `{!Objective P} T: P ∗ T ⊢ simplify_goal (up1 P) T.
   Proof. by iIntros "(? & $) !>". Qed.
   Definition simplify_goal_up1_inst := [instance simplify_goal_up1 with 0%N].

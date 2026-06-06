@@ -156,6 +156,21 @@ Section own.
     [instance simplify_frac_ptr_place_shr_to_own with 50%N].
   Global Existing Instance simplify_frac_ptr_place_shr_to_own_inst.
 
+  Lemma simplify_temp_frac_ptr x (p : address) cty ty β T:
+    (x ◁ₜ|tptr cty| value (tptr cty) p -∗ p ◁ₗ{β} ty -∗ T)
+      ⊢ simplify_hyp (x ◁ₜ|tptr cty| p @ frac_ptr β ty) T.
+  Proof.  iIntros "HT Hl".
+          iDestruct "Hl" as (?) "(Hx & %H & Hl)".
+          iApply ("HT" with "[$Hx] Hl").
+          rewrite repinject_valinject // in H; subst.
+          rewrite /value; iPureIntro; split3; auto.
+          apply tc_val_has_layout_val2 => //=.
+          intros _; simpl.
+          by rewrite andb_false_r.
+  Qed.
+  Definition simplify_temp_frac_ptr_inst := [instance simplify_temp_frac_ptr with 0%N].
+  Global Existing Instance simplify_temp_frac_ptr_inst.
+
   (*
   TODO: revisit this comment
   Ideally we would like to have this version:

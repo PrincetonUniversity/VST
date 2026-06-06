@@ -763,6 +763,8 @@ Section rmovable.
     iIntros "↦". iMod ("H" with "↦") as "Hl".
     rewrite {2}/ty_own /ty_of_rty /=. by iFrame.
   Qed.
+
+  Global Program Instance ty_of_rty_objective A r `{!∀ x : A, ObjectiveTy (x @ r)} : ObjectiveTy r.
 End rmovable.
 
 Notation "l `at_type` ty" := (with_refinement ty <$> l) (at level 50) : bi_scope.

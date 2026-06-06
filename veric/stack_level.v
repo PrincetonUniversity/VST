@@ -96,6 +96,15 @@ Proof.
   by rewrite bi.False_sep.
 Qed.
 
+Lemma up1_emp : up1 emp ⊣⊢ emp.
+Proof. split => n; by monPred.unseal. Qed.
+
+Lemma up1_emp_2 : emp ⊢ up1 emp.
+Proof. by rewrite up1_emp. Qed.
+
+Lemma down1_emp : down1 emp ⊢ emp.
+Proof. split => n; monPred.unseal. destruct n => //. apply bi.False_elim. Qed.
+
 Lemma down1_up1 : forall P, down1 (up1 P) ⊢ P.
 Proof.
   split => n /=.
@@ -107,6 +116,16 @@ Proof.
   split => n; monPred.unseal.
   iIntros "_ %% P %n' -> Q".
   destruct n'; [done | iFrame].
+Qed.
+
+Lemma down1_objective : forall P `{!Objective P}, down1 emp ∗ P ⊣⊢ down1 P.
+Proof.
+  intros; iSplit.
+  - iIntros "(H & P)"; iPoseProof (down1_sep_up1 with "H P") as "H".
+    rewrite -down1_sep; iApply (down1_mono with "H").
+    by rewrite bi.emp_sep up1_obj_elim.
+  - iIntros "P"; iPoseProof (down1_sep_up1 _ emp with "P [//]") as "(P & H)".
+    rewrite down1_obj_elim up1_emp; iFrame.
 Qed.
 
 Lemma up1_and : forall P Q, up1 (P ∧ Q) ⊣⊢ up1 P ∧ up1 Q.
@@ -122,17 +141,29 @@ Proof.
   by rewrite bi.False_and.
 Qed.
 
-Lemma up1_emp : up1 emp ⊣⊢ emp.
-Proof. split => n; by monPred.unseal. Qed.
-
-Lemma up1_emp_2 : emp ⊢ up1 emp.
-Proof. by rewrite up1_emp. Qed.
-
 Lemma up1_intuitionistically P : up1 (□ P) ⊣⊢ □ (up1 P).
 Proof. split => n /=; rewrite !monPred_at_intuitionistically //. Qed.
 
 Lemma down1_intuitionistically P : down1 (□ P) ⊣⊢ □ (down1 P).
 Proof. split => n /=. destruct n; rewrite !monPred_at_intuitionistically ?bi.intuitionistically_False //. Qed.
+
+Lemma up1_exist {A} P : up1 (∃ x : A, P x) ⊣⊢ ∃ x, up1 (P x).
+Proof. split => n; by monPred.unseal. Qed.
+
+Lemma down1_exist {A} P : down1 (∃ x : A, P x) ⊢ ∃ x, down1 (P x).
+Proof. split => n; monPred.unseal. destruct n => //. apply bi.False_elim. Qed.
+
+Lemma up1_fupd E1 E2 P `{!invGS_gen hlc Σ} : up1 (|={E1,E2}=> P) ⊣⊢ |={E1,E2}=> (up1 P).
+Proof. split => n; by monPred.unseal. Qed.
+
+Lemma down1_fupd E1 E2 P `{!invGS_gen hlc Σ} : down1 (|={E1,E2}=> P) ⊢ |={E1,E2}=> (down1 P).
+Proof. split => n; monPred.unseal. destruct n => //. apply bi.False_elim. Qed.
+
+#[global] Instance up1_persistent P {H : Persistent P}: Persistent (up1 P).
+Proof. split => n; monPred.unseal. eapply monPred_at_persistent in H; eauto. Qed.
+
+#[global] Instance down1_persistent P {H : Persistent P}: Persistent (down1 P).
+Proof. split => n; monPred.unseal. destruct n; first apply bi.False_elim. eapply monPred_at_persistent in H; eauto. Qed.
 
 #[global] Instance up1_monoid_sep_homomorphism: MonoidHomomorphism bi_sep bi_sep equiv up1.
 Proof.
@@ -146,6 +177,16 @@ Proof. apply (big_opL_commute _). Qed.
 
 Lemma up1_big_sepL2 {A B} f (l1 : list A) (l2 : list B) : up1 ([∗ list] k↦x;y ∈ l1;l2, f k x y) ⊣⊢ [∗ list] k↦x;y ∈ l1;l2, up1 (f k x y).
 Proof. rewrite !big_sepL2_alt up1_and -up1_objective; f_equiv. apply up1_big_sepL. Qed.
+
+Lemma down1_big_sepL {A} f (l : list A) : down1 ([∗ list] k↦x ∈ l, f k x) ⊢ [∗ list] k↦x ∈ l, down1 (f k x).
+Proof.
+  induction l in f |- *; simpl.
+  - apply down1_emp.
+  - rewrite down1_sep; by f_equiv.
+Qed.
+
+Lemma down1_big_sepL2 {A B} f (l1 : list A) (l2 : list B) : down1 ([∗ list] k↦x;y ∈ l1;l2, f k x y) ⊢ [∗ list] k↦x;y ∈ l1;l2, down1 (f k x y).
+Proof. rewrite !big_sepL2_alt down1_and down1_obj_elim; f_equiv. apply down1_big_sepL. Qed.
 
 #[global] Instance up1_affine P `{!Affine P} : Affine (up1 P).
 Proof. apply monPred_affine; simpl; apply _. Qed.
@@ -165,6 +206,14 @@ Proof. rewrite /IntoSep=> ->. by rewrite up1_sep. Qed.
 #[global] Instance from_sep_up1 P Q1 Q2: FromSep P Q1 Q2 → FromSep (up1 P) (up1 Q1) (up1 Q2).
 Proof. rewrite /FromSep=> <-. by rewrite up1_sep. Qed.
 
+Global Instance from_exist_up1 {A} P Φ :
+  FromExist P Φ → FromExist (up1 P) (λ a : A, up1 (Φ a))%I.
+Proof. rewrite /FromExist=> <-. apply bi.exist_elim=>x. apply up1_mono, bi.exist_intro. Qed.
+
+Global Instance into_exist_up1 {A} P Φ name :
+  IntoExist P Φ name → IntoExist (up1 P) (λ a : A, up1 (Φ a))%I name.
+Proof. rewrite /IntoExist=> HP. by rewrite HP up1_exist. Qed.
+
 #[global] Instance down1_mono' : Proper (bi_entails ==> bi_entails) down1.
 Proof. intros ??; apply down1_mono. Qed.
 
@@ -176,6 +225,14 @@ Proof. rewrite /IntoSep=> ->. by rewrite down1_sep. Qed.
 
 #[global] Instance from_sep_down1 P Q1 Q2: FromSep P Q1 Q2 → FromSep (down1 P) (down1 Q1) (down1 Q2).
 Proof. rewrite /FromSep=> <-. by rewrite down1_sep. Qed.
+
+Global Instance from_exist_down1 {A} P Φ :
+  FromExist P Φ → FromExist (down1 P) (λ a : A, down1 (Φ a))%I.
+Proof. rewrite /FromExist=> <-. apply bi.exist_elim=>x. apply down1_mono, bi.exist_intro. Qed.
+
+Global Instance into_exist_down1 {A} P Φ name :
+  IntoExist P Φ name → IntoExist (down1 P) (λ a : A, down1 (Φ a))%I name.
+Proof. rewrite /IntoExist=> HP. by rewrite HP down1_exist. Qed.
 
 Inductive Lower1 : assert → assert → Prop :=
   | lower1 P Q : (P ⊢ up1 Q) → Lower1 P Q.

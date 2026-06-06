@@ -71,10 +71,10 @@ Ltac adequacy_solve_typed_function lemma unfold_tac :=
 
 (* export to base triples *)
 Definition fn_params_pre `{!VSTGS OK_ty Σ} {cs : compspecs} {A} fn fp (x : @dtfr Σ A) lsa : assert :=
-  ([∗ list] v;'(cty, t) ∈ lsa;zip (map snd (fn_params fn)) (fp_atys (fp x)), v ◁ᵥₐₗ| cty | t) ∗ fp_Pa (fp x).
+  ([∗ list] v;'(cty, t) ∈ lsa;zip (map snd (fn_params fn)) (down_ty <$> fp_atys (fp x)), v ◁ᵥₐₗ| cty | t) ∗ ⇓ fp_Pa (fp x).
 
 Definition fn_params_post `{!VSTGS OK_ty Σ} {cs : compspecs} {A} fn fp (x : @dtfr Σ A) v : assert :=
-  ∃ y, opt_ty_own_val (fn_return fn) ((fp x).(fp_fr) y).(fr_rty) v ∗ ((fp x).(fp_fr) y).(fr_R).
+  (∃ y, opt_ty_own_val (fn_return fn) (down_ty ((fp x).(fp_fr) y).(fr_rty)) v ∗ ((fp x).(fp_fr) y).(fr_R))%I.
 
 Lemma typed_function_triple : forall `{!VSTGS OK_ty Σ} {cs : compspecs} {A} Espec ge f fp
     (Hcomplete : Forall (λ it, composite_compute.complete_legal_cosu_type it.2 = true) (fn_vars f))
@@ -90,7 +90,8 @@ Proof.
     apply Forall2_length in Htys.
     rewrite monPred_objectively_elim.
     iApply "Hf"; iFrame.
-    by iApply (stackframe_of_typed(typeG0 := TypeG _ _ VSTGS0) with "Hstack Hargs"). }
+    iApply (stackframe_of_typed(typeG0 := TypeG _ _ VSTGS0) with "Hstack Hargs") => //.
+    by rewrite length_fmap. }
   rewrite /= /Clight_seplog.bind_ret; iSplit.
   - rewrite /fn_params_post /=.
     iIntros "Hpost !>"; iFrame.
@@ -99,7 +100,8 @@ Proof.
   - do 2 (iSplit; first by iIntros "[]").
     rewrite /fn_params_post /=.
     iIntros (?) "(% & Hret & Hpost)".
-    iDestruct ("Hpost" with "Hret") as "($ & % & ? & ? & ?)".
+    rewrite /stack_token.
+    iDestruct ("Hpost" with "Hret") as "($ & % & $ & $ & ?)".
     rewrite stackframe_of1_typed; by iFrame.
 Qed.
 

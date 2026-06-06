@@ -174,10 +174,11 @@ Lemma type_read_move l ty ot a E `{!TCDone (ty.(ty_has_op_type) ot MCId)} `{!Def
   Global Existing Instance type_write_own_inst | 50.
 
   Lemma type_temp_move x cty ty `{!TCDone (ty.(ty_has_op_type) (val_type cty) MCNone)} T:
-    (∀ v, x ◁ₜ|cty| value (val_type cty) v -∗ T v ty)
+    (∀ v, v ◁ᵥₐₗ|cty| ty -∗ v ◁ᵥₐₗ|cty| ty ∗ (x ◁ₜ|cty| value (val_type cty) v -∗ T v ty))
     ⊢ typed_temp x cty ty T.
   Proof.
     iIntros "HT" (v) "Hx Hv".
+    iDestruct ("HT" with "Hv") as "(Hv & HT)".
     iDestruct (ty_size_eq with "Hv") as %?; first done.
     iFrame.
     iApply "HT"; iFrame.
