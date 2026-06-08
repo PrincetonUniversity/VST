@@ -57,23 +57,36 @@ Lemma deref_locT_ax1 a m loc ofs v bf T (D:deref_locT (typeof a) m loc ofs bf v 
       deref_loc (typeof a) m loc ofs bf v.
 Proof. 
   inv D.
-  + eapply deref_loc_value; eauto. eapply Mem.loadbytes_load; eauto.
+  + eapply deref_loc_value; eauto.
+     simpl. 
+     destruct (zle _ _).
+    2:{
+  admit.  (* TODO: need premise in deref_locT_value: Ptrofs.unsigned ofs + size_chunk chunk <= Ptrofs.modulus *)
+  }
+ eapply Mem.loadbytes_load; eauto.
   + apply deref_loc_reference; trivial.
   + apply deref_loc_copy; trivial.
   + inv H; apply deref_loc_bitfield; constructor; auto.
+     simpl. 
+     destruct (zle _ _).
+    2:{
+  admit.  (* TODO: need premise in deref_locT_bitfield: Ptrofs.unsigned ofs + size_chunk (chunk_for_carrier sz) <= Ptrofs.modulus *)
+  }  
     rewrite <- H7; apply Mem.loadbytes_load; auto.
-Qed.
+Admitted.
 
 Lemma deref_locT_ax2 a m loc ofs bf v (D:deref_loc (typeof a) m loc ofs bf v):
       exists T, deref_locT (typeof a) m loc ofs bf v T.
 Proof. 
   inv D.
-  + exploit Mem.load_valid_access; eauto. intros [_ ALGN].
+  + simpl in H0. destruct (zle _ _) in H0; [ | discriminate].
+    exploit Mem.load_valid_access; eauto. intros [_ ALGN].
     exploit Mem.load_loadbytes; eauto. intros [bytes [LD V]]; subst v.
     eexists; eapply deref_locT_value; eauto. 
   + eexists; apply deref_locT_reference; trivial.
   + eexists; apply deref_locT_copy; trivial.
   + inv H.
+    simpl in H5. destruct (zle _ _) in H5; [ | discriminate]. 
     exploit Mem.load_valid_access; eauto. intros [_ ALGN].
     exploit Mem.load_loadbytes; eauto. intros [bytes [LD V]].
     eexists; apply deref_locT_bitfield; constructor; eauto.
@@ -388,15 +401,19 @@ Lemma assign_locT_ax1 ce ty m b ofs bf v m' T (A:assign_locT ce ty m b ofs bf v 
     assign_loc ce ty m b ofs bf v m'.
 Proof.
   destruct A; [eapply assign_loc_value; eauto | eapply assign_loc_copy; eauto | eapply assign_loc_bitfield; eauto].
-  inv H; econstructor; eauto.
-  rewrite <- H6; apply Mem.loadbytes_load; auto.
-Qed.
+  inv H; econstructor; eauto; simpl; destruct (zle _ _).
+  - rewrite <- H6; apply Mem.loadbytes_load; auto.
+  -   admit.  (* TODO: need premise in store_bitfield: Ptrofs.unsigned ofs + size_chunk (chunk_for_carrier sz) <= Ptrofs.modulus *)  
+  - auto.  
+  - admit.  (* TODO: need premise in store_bitfield: Ptrofs.unsigned ofs + size_chunk (chunk_for_carrier sz) <= Ptrofs.modulus *)  
+Admitted.
 
 Lemma assign_locT_ax2 ce ty m b ofs bf v m' (A:assign_loc ce ty m b ofs bf v m'):
     exists T, assign_locT ce ty m b ofs bf v m' T.
 Proof.
   inv A; [eexists; eapply assign_locT_value; eauto | eexists; eapply assign_locT_copy; eauto|].
   inv H.
+  simpl in H4, H5. destruct (zle _ _) in H4,H5; [ | discriminate].
   exploit Mem.load_valid_access; eauto. intros [_ ALGN].
   eapply Mem.load_loadbytes in H4 as (? & ? & ?).
   eexists; econstructor; econstructor; eauto.
@@ -414,10 +431,12 @@ Lemma assign_locT_elim ce ty m b ofs bf v m1 T (A:assign_locT ce ty m b ofs bf v
     assign_locT ce ty mm b ofs bf v mm1 T.
 Proof.
   inv A; simpl.
-  - exploit Mem.store_valid_access_3; eauto. intros [_ A].
+  - simpl in H0. destruct (zle _ _) in H0; [ | discriminate].
+    exploit Mem.store_valid_access_3; eauto. intros [_ A].
     apply Mem.store_storebytes in H0.
     split. { exists m1; split; trivial. }
     intros. destruct E as [? [? ?]]; subst. econstructor; eauto.
+   simpl. destruct (zle _ _); [ | lia].
     apply Mem.storebytes_store; eassumption.
   - split. { split; [trivial | exists m1; split; trivial]. }
     intros. destruct E as [LD [? [? ?]]]; subst.
@@ -994,9 +1013,11 @@ Lemma assign_locT_sub: forall ce ty m b ofs bf v m' T m1, assign_locT ce ty m b 
   mem_sub m m1 -> exists m1', mem_sub m' m1' /\ assign_locT ce ty m1 b ofs bf v m1' T.
 Proof.
   inversion 1; subst; intros.
-  - exploit Mem.store_valid_access_3; eauto; intros [].
+  - simpl in H1; destruct (zle _ _) in H1; [ | discriminate].
+    exploit Mem.store_valid_access_3; eauto; intros [].
     eapply Mem.store_storebytes, storebytes_sub in H1 as (? & ? & ?); eauto.
     do 2 eexists; eauto; constructor; auto.
+    simpl. destruct (zle _ _); [ | lia].
     apply Mem.storebytes_store; auto.
   - eapply mem_sub_loadbytes in H4; eauto.
     eapply storebytes_sub in H5 as (? & ? & ?); eauto.

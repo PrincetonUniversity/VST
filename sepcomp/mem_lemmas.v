@@ -121,17 +121,15 @@ Proof. intros.
   destruct Inj23. rename mi_perm into perm23. rename mi_align into align23.
   rename mi_memval into memval23.
   split; intros.
-  (*mi_perm*)
+  - (*mi_perm*)
   apply (perm12 _ _ _ _  _ _ H) in H0.
   assert (inject_id b2 = Some (b2, delta)).
   unfold inject_id in *. inv H. trivial.
   apply (perm23 _ _ _ _  _ _ H1) in H0.  inv H. inv H1. rewrite Zplus_0_r in H0.
   assumption.
-  (*mi_align*)
-  apply (align12 _ _ _ _  _ _ H) in H0.
-  assert (inject_id b2 = Some (b2, delta)).
-  unfold inject_id in *. inv H. trivial. assumption.
-  (*mi_memval*)
+  - (*mi_align*)
+  apply (align12 _ _ _ ofs  _ p H) in H0; auto.
+ - (*mi_memval*)
   assert (MV1:= memval12 _ _ _ _  H H0).
   assert (inject_id b2 = Some (b2, delta)).
   unfold inject_id in *. inv H. trivial.
@@ -1330,13 +1328,18 @@ Lemma storev_valid_block_1:
 forall ch m addr v m',
 Mem.storev ch m addr v = Some m' ->
 (forall b, Mem.valid_block m b -> Mem.valid_block m' b).
-Proof. intros. destruct addr; inv H. eapply Mem.store_valid_block_1; eauto. Qed.
+Proof. intros. destruct addr; inv H. destruct (zle _ _) in H2; try discriminate.
+ eapply Mem.store_valid_block_1; eauto.
+Qed.
 
 Lemma storev_valid_block_2:
 forall ch m addr v m',
 Mem.storev ch m addr v = Some m' ->
 (forall b, Mem.valid_block m' b -> Mem.valid_block m b).
-Proof. intros. destruct addr; inv H. eapply Mem.store_valid_block_2; eauto. Qed.
+Proof. intros. destruct addr; inv H. 
+ destruct (zle _ _) in H2; try discriminate.
+eapply Mem.store_valid_block_2; eauto.
+Qed.
 
 (*This is an [F,V]-independent definition of meminj_preserves_globals*)
 Definition meminj_preserves_globals_ind (globals: (block->Prop)*(block->Prop)) f :=
@@ -1851,8 +1854,10 @@ Lemma nextblock_storev:
   Mem.storev chunk m addr v = Some m' -> Mem.nextblock m' = Mem.nextblock m.
 Proof.
   unfold Mem.storev; intros. destruct addr; try discriminate.
+ destruct (zle _ _) in H; try discriminate.
   eapply Mem.nextblock_store; eauto.
 Qed.
+
 Lemma nextblock_freelist:
   forall fbl m m',
   Mem.free_list m fbl = Some m' ->

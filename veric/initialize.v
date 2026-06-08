@@ -830,10 +830,14 @@ Proof.
 * (* Float64 *)
    clear - AL.
   simpl in AL. apply Z.mod_divide.  intro Hx; inv Hx. apply Z.eqb_eq; auto.
+(*
+*
+
   rewrite Z.eqb_eq in *.
   apply Zmod_divides; [ lia | ].
   apply Zmod_divides in AL; [ | lia].
   destruct AL as [c ?]. exists (2 * c)%Z. rewrite Z.mul_assoc. apply H.
+*)
 *  intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
   exists READABLE.

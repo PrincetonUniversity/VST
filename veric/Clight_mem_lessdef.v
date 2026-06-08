@@ -229,6 +229,7 @@ destruct op; simpl in H1.
    2: eexists; split; [eapply eval_Elvalue; eauto; econstructor 3; eassumption | apply Val.lessdef_refl].
    unfold Mem.loadv in *.
   **
+   destruct (zle _ _) in H3; [ | discriminate].
    pose proof (Mem.load_valid_access _ _ _ _ _ H3).
    destruct H1 as [_ ?].
    destruct H as [? _].
@@ -241,10 +242,12 @@ destruct op; simpl in H1.
    split.
    eapply eval_Elvalue; eauto.
    econstructor 1; eauto.
+   simpl. destruct (zle _ _); [ | lia]. auto.
    clear - H5.
    apply mem_lessdef_decode_val; auto.
   **
    inv H2.
+   simpl in H7. destruct (zle _ _) in H7; [ | discriminate].
    pose proof (Mem.load_valid_access _ _ _ _ _ H7).
    destruct H as [? _].
    apply Mem.load_loadbytes in H7.
@@ -261,7 +264,8 @@ destruct op; simpl in H1.
    econstructor 4; eauto.
    rewrite <- H1.
     econstructor; eauto.
-    rewrite H12. auto.
+    rewrite H12.
+    simpl. destruct (zle _ _); [ | lia].  auto.
     apply H2.
 *
 clear mem_lessdef_eval_lvalue.
@@ -477,13 +481,16 @@ Proof. apply eval_expr_lvalue_ind; intros; try solve [econstructor; eauto].
   destruct H2 as [M1 [M2 M3]].
   inv H1; simpl in *.
   - eapply deref_loc_value; eauto.
-    simpl. destruct (Mem.load_loadbytes _ _ _ _ _ H3) as [vals [X Y]]; subst.
+    simpl.
+   destruct (zle _ _); auto.
+   destruct (Mem.load_loadbytes _ _ _ _ _ H3) as [vals [X Y]]; subst.
     rewrite M1 in X. apply Mem.load_valid_access in H3. destruct H3.
     eapply Mem.loadbytes_load; trivial.
   - apply deref_loc_reference; trivial.
   - apply deref_loc_copy; trivial.
   - apply deref_loc_bitfield; auto.
      inv H2. econstructor; eauto.
+    simpl in H7|-*. destruct (zle _ _); auto.
     destruct (Mem.load_loadbytes _ _ _ _ _ H7) as [vals [X Y]]; subst.
     rewrite M1 in X. apply Mem.load_valid_access in H7. destruct H7.
     unfold Mem.loadv.

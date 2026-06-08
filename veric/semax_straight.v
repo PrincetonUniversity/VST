@@ -941,6 +941,13 @@ Qed.
 
 Opaque Int.repr.
 
+Lemma address_mapsto_offset_range: 
+ forall [ch v sh b ofs m],
+  address_mapsto ch v sh (b,ofs) m ->
+  ofs + size_chunk ch <= Ptrofs.modulus.
+(* Need a new conjunct in definition of address_mapsto *)
+Admitted.
+
 Lemma semax_load:
 forall (Delta: tycontext) sh id P e1 t2 v2,
     typeof_temp Delta id = Some t2 ->
@@ -1033,6 +1040,8 @@ split; [split3 | ].
    exists m1; exists m2; split3; auto.
    apply Clight.deref_loc_value with ch; auto.
    unfold loadv.
+   destruct (zle _ _);
+    [ | assert (l := address_mapsto_offset_range H5); clear - l g; lia].
    rewrite (age_jm_dry H).
    apply core_load_load.
    intros.
@@ -1186,6 +1195,8 @@ split; [split3 | ].
    exists m1; exists m2; split3; auto.
    apply Clight.deref_loc_value with ch; auto.
    unfold loadv.
+   destruct (zle _ _);
+    [ | assert (l := address_mapsto_offset_range H5); clear - l g; lia].
    rewrite (age_jm_dry H).
    apply core_load_load.
    intros.
@@ -1653,6 +1664,8 @@ auto.
 unfold Mem.storev.
 simpl m_dry.
 rewrite (age_jm_dry Hage).
+destruct (zle _ _);
+  [ | apply address_mapsto_offset_range in H4; clear - g H4; lia].
 auto.
 apply (resource_decay_trans _ (nextblock (m_dry jm1)) _ (m_phi jm1)).
 rewrite (age_jm_dry Hage); lia.
@@ -1815,16 +1828,14 @@ assert (H11: (res_predicates.address_mapsto ch v3  sh
   hnf; eauto. }
 apply address_mapsto_can_store'
    with (ch':=ch') (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))))) in H11;
-  auto.
-2: apply H77.
+  auto; [ | apply H77].
 destruct H11 as [m' [H11 AM]].
 exists (store_juicy_mem _ _ _ _ _ _ H11).
-exists (te);  exists rho; split3; auto.
-subst; simpl; auto.
-rewrite level_store_juicy_mem. apply age_level; auto.
+exists (te);  exists rho; split3; auto;
+ [ subst; simpl; auto | rewrite level_store_juicy_mem; apply age_level; auto | ].
 split; auto.
-split.
-split3; auto.
+split; [ split3; auto | ].
+-
 generalize (eval_expr_relate _ _ _ _ _ e2 jm1 HGG' Hge (guard_environ_e1 _ _ _ TC4)); intro.
 spec H2; [ assumption | ].
 rewrite <- (age_jm_dry Hage) in H2, He1.
@@ -1843,7 +1854,9 @@ auto.
 unfold Mem.storev.
 simpl m_dry.
 rewrite (age_jm_dry Hage).
+destruct (zle _ _); [| apply address_mapsto_offset_range in H4; lia].
 auto.
+-
 apply (resource_decay_trans _ (nextblock (m_dry jm1)) _ (m_phi jm1)).
 rewrite (age_jm_dry Hage); lia.
 apply (age1_resource_decay _ _ Hage).
@@ -1860,9 +1873,11 @@ apply juicy_store_nodecay.
  inv H; simpl; apply join_writable01 in RJ; auto;
  unfold perm_of_sh; rewrite if_true by auto; if_tac; constructor.
 }
+-
 rewrite level_store_juicy_mem. split; [apply age_level; auto|].
 simpl. unfold inflate_store; rewrite ghost_of_make_rmap.
 apply age1_ghost_of, age_jm_phi; auto.
+-
 split.
 2 : {
       eapply (corable_core _ (m_phi jm1)), pred_hereditary; eauto; [|apply age_jm_phi; auto].

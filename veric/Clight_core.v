@@ -369,6 +369,7 @@ Proof. intros.
   apply mem_step_refl.
   inv H0.
 + eapply mem_step_trans; try eassumption. simpl in H2.
+ if_tac in H2; [ | discriminate].
   eapply mem_step_store; eassumption.
 + eapply mem_step_trans; try eassumption.
   eapply mem_step_storebytes; eassumption.
@@ -410,23 +411,26 @@ apply Build_MemSem with (csem := cl_core_sem ge).
   induction CS;
   try apply mem_step_refl;
   try solve [eapply mem_step_freelist; eassumption].
-*
+-
  inv H2.
- unfold Mem.storev in H4. apply Mem.store_storebytes in H4.
- eapply mem_step_storebytes; eauto.
- eapply mem_step_storebytes; eauto.
-inv H3.
-apply Mem.store_storebytes in H9.
-eapply mem_step_storebytes; eauto.
-*
+ * unfold Mem.storev in H4.
+   if_tac in H4; [ | discriminate]. rename H2 into H'.
+   apply Mem.store_storebytes in H4.
+   eapply mem_step_storebytes; eauto.
+ * eapply mem_step_storebytes; eauto.
+ * inv H3. simpl in H9.
+   if_tac in H9; [ | discriminate]. rename H3 into H'. 
+  apply Mem.store_storebytes in H9.
+  eapply mem_step_storebytes; eauto.
+-
  rewrite andb_true_iff in H; destruct H.
  eapply inline_external_call_mem_step; eauto.
-*
+-
   inv H.
   clear - H3.
   induction H3. apply mem_step_refl.
  eapply mem_step_trans. eapply mem_step_alloc; eassumption. auto.
-*
+-
  rewrite andb_true_iff in H; destruct H.
  eapply inline_external_call_mem_step; eauto.
 Defined.

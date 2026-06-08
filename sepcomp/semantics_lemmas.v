@@ -542,6 +542,7 @@ Transparent Mem.load.
 unfold Mem.load in *.
 Opaque Mem.load.
 destruct PLE.
+if_tac in LD; [ | inv LD]. rename H into H'.
 if_tac in LD; [ | inv LD].
 rewrite if_true.
 rewrite <- LD; clear LD.
@@ -578,6 +579,7 @@ Proof.
 intros.
 unfold Mem.storev in *.
 destruct v1; try discriminate.
+if_tac in H; [ | discriminate]. rename H0 into H'.
 Transparent Mem.store.
 unfold Mem.store in *.
 Opaque Mem.store.

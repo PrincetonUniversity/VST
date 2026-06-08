@@ -784,8 +784,8 @@ destruct sz; apply derives_refl.
   apply align_compatible_rec_by_value_inv with (ch:=ch) in H0; auto.
   apply align_compatible_rec_by_value with (ch:=ch); auto.
    apply Z.divide_add_r; auto.
-  clear - H8. subst t. 
-  destruct sz; inv H8; simpl; (apply Z.mod_divide; [lia | reflexivity]).
+  clear - H8. subst t. simpl in H8 |-*. 
+  destruct sz; inv H8; simpl; (apply Z.mod_divide; [compute; lia | reflexivity]).
   unfold Ptrofs.max_unsigned.
   lia.
  }
@@ -819,7 +819,7 @@ destruct sz; apply derives_refl.
   apply Z.divide_mul_l; auto.
   clear - t H4.
   subst t.
-  destruct sz; inv H4; simpl; (apply Z.mod_divide; [lia | reflexivity]).
+  destruct sz; inv H4; simpl; (apply Z.mod_divide; [compute; lia | reflexivity]).
   pose proof (Zlength_nonneg data); lia.
 Qed.
 

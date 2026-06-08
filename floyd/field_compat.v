@@ -1062,9 +1062,8 @@ split3.
 -
  eapply align_compatible_rec_by_value_inv in H6; [ | eassumption ].
  eapply align_compatible_rec_by_value; [ eassumption | ].
- apply Z.divide_add_r.
- eapply Z.divide_trans; eassumption.
- eapply Z.divide_trans; try apply align_size_chunk_divides; eassumption.
+ apply Z.divide_add_r; [ | auto].
+ apply Z.divide_trans with (align_chunk b); auto.
 -
   clear - H7 NS NB.
   destruct gfs. apply I.
