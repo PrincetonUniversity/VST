@@ -837,7 +837,7 @@ Proof.
       rewrite H1 in *;
       intros.
       simpl.
-      normalize. apply derives_refl.
+      normalize. rewrite predicates_hered.prop_true_andp by rep_lia. apply derives_refl.
     - rewrite zero_val_eq.
       rewrite unfold_fold_reptype.
       eapply derives_trans; [ | apply union_pred_ext_derives with

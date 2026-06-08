@@ -941,13 +941,6 @@ Qed.
 
 Opaque Int.repr.
 
-Lemma address_mapsto_offset_range: 
- forall [ch v sh b ofs m],
-  address_mapsto ch v sh (b,ofs) m ->
-  ofs + size_chunk ch <= Ptrofs.modulus.
-(* Need a new conjunct in definition of address_mapsto *)
-Admitted.
-
 Lemma semax_load:
 forall (Delta: tycontext) sh id P e1 t2 v2,
     typeof_temp Delta id = Some t2 ->
@@ -1455,7 +1448,10 @@ rewrite encode_val_length.
 clear - OK. apply decode_encode_val_size in OK.
    rewrite !size_chunk_conv in OK. apply Nat2Z.inj; auto.
 apply decode_encode_val_ok1; auto.
-
+destruct H7 as [Hsize H7].
+split.
+rewrite <-(decode_encode_val_size _ _ OK); auto.
+auto.
 intro loc. hnf.
 if_tac. exists (writable0_readable wsh).
 hnf; rewrite H5.
@@ -1506,6 +1502,7 @@ intros.
 pose proof (address_mapsto_can_store' _ _ ch _ _ wsh _ _ v' _ H (decode_encode_val_ok_same _)).
 destruct H1 as [m' [? ?]].
 destruct H as [? [? [_ [[? [[ _ [_ ?]] _]] _]]]]; auto.
+destruct H as [Hsize H]; auto.
 rewrite exp_sepcon1 in a.
 destruct a as [v'' ?].
 rewrite sepcon_andp_prop1 in H1.

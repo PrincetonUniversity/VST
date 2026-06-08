@@ -706,10 +706,22 @@ Definition address_mapsto_old (ch: memory_chunk) (v: val) : spec :=
 Definition address_mapsto (ch: memory_chunk) (v: val) : spec :=
         fun (sh: Share.t) (l: AV.address) =>
            EX bl: list memval, 
-               !! (length bl = size_chunk_nat ch  /\ decode_val ch bl = v /\ (align_chunk ch | snd l))  &&
+               !! (length bl = size_chunk_nat ch  /\ decode_val ch bl = v
+                   /\ snd l + size_chunk ch <= Ptrofs.modulus /\ (align_chunk ch | snd l))  &&
                 (allp (jam (adr_range_dec l (size_chunk ch))
                                     (fun loc => yesat NoneP (VAL (nth (Z.to_nat (snd loc - snd l)) bl Undef)) sh loc)
                                     noat)).
+
+
+Lemma address_mapsto_offset_range: 
+ forall [ch v sh b ofs m],
+  address_mapsto ch v sh (b,ofs) m ->
+  ofs + size_chunk ch <= Ptrofs.modulus.
+Proof.
+intros.
+destruct H as [bl [[ _ [_ [? _]]] _]].
+auto.
+Qed.
 
 Lemma address_mapsto_align: forall ch v sh l,
   address_mapsto ch v sh l = address_mapsto ch v sh l && !! (align_chunk ch | snd l).
@@ -719,7 +731,7 @@ Proof.
   constructor; unfold address_mapsto.
   apply exp_left; intro.
   apply andp_left1.
-  intros ? [? [? ?]].
+  intros ? [? [? [? ?]]].
   auto.
 Qed.
 
@@ -938,11 +950,12 @@ Qed.
 Lemma address_mapsto_exists:
   forall ch v sh (rsh: readable_share sh) loc w0
       (RESERVE: forall l', adr_range loc (size_chunk ch) l' -> w0 @ l' = NO Share.bot bot_unreadable),
+      snd loc + size_chunk ch <= Ptrofs.modulus ->
       (align_chunk ch | snd loc) ->
       exists w, address_mapsto ch (decode_val ch (encode_val ch v)) sh loc w 
                     /\ core w = core w0.
 Proof.
-intros. rename H into Halign.
+intros. rename H0 into Halign. rename H into Hsize.
 unfold address_mapsto.
 pose (f l' := if adr_range_dec loc (size_chunk ch) l'
                      then YES sh rsh (VAL (nthbyte (snd l' - snd loc) (encode_val ch v))) NoneP
@@ -1010,10 +1023,11 @@ Qed.
 
 Lemma VALspec_range_exp_address_mapsto:
   forall ch sh l,
+     snd l + size_chunk ch <= Ptrofs.modulus ->
     (align_chunk ch | snd l) ->
     VALspec_range (size_chunk ch) sh l |-- EX v: val, address_mapsto ch v sh l.
 Proof.
-  intros.
+  intros * Hsize ?.
   intros w ?.
   simpl in H0 |- *.
   cut (exists (b0 : list memval),

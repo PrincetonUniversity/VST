@@ -15,7 +15,7 @@ Lemma mapsto_core_load: forall ch v sh loc m,
 Proof.
 unfold address_mapsto, core_load.
 intros until m; intros H.
-destruct H as [phi0 [phi1 [Hjoin [[bl [[Hlen [Hdec Halign]] H]] ?]]]].
+destruct H as [phi0 [phi1 [Hjoin [[bl [[Hlen [Hdec [Hsize Halign]]] H]] ?]]]].
 unfold allp, jam in *.
 exists bl.
 repeat split; auto.

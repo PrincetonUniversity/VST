@@ -714,7 +714,7 @@ Proof.
   repeat rewrite prop_true_andp by apply I;
   try match type of H with Some (decode_val ?ch ?B) = Some (?V) =>
             exists B; replace V with (decode_val ch B) by (inversion H; auto);
-            clear H; repeat split; auto
+            clear H; repeat split; simpl in *; auto; try lia
        end.
 * (* Int8 *)
   apply Z.divide_1_l.
@@ -730,14 +730,11 @@ Proof.
   rewrite if_true by (destruct loc; destruct H; subst; apply Plt_strict).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
-  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
-  rewrite H0.
-  destruct loc; destruct H; subst b0.
-  apply nth_getN; simpl; lia.
-  rewrite H0.
-  destruct loc; destruct H; subst b0.
-  apply nth_getN; simpl; lia.
+  unfold Genv.perm_globvar. rewrite VOL.
+ (*  rewrite preds_fmap_NoneP. *)
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality;
+  rewrite H0;
+  destruct loc; destruct H; subst b0; assert (z0=z) by lia; subst z0; rewrite Z.sub_diag; simpl; auto.
 * (* Int16 *)
   simpl in AL.
   apply Z.mod_divide. intro Hx; inv Hx. apply Z.eqb_eq; auto.
@@ -753,14 +750,12 @@ Proof.
   rewrite if_true by (  destruct loc; destruct H; subst; apply Plt_strict).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
- unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
-  rewrite H0.
-  destruct loc; destruct H; subst b0.
-  apply nth_getN; simpl; lia.
-  rewrite H0.
-  destruct loc; destruct H; subst b0.
-  apply nth_getN; simpl; lia.
+ unfold Genv.perm_globvar. rewrite VOL.
+ destruct (gvar_readonly v);  repeat f_equal; auto with extensionality;
+  rewrite H0;
+  destruct loc; destruct H; subst b0;
+  erewrite nth_getN; try eassumption;
+  assert (z0=z \/ z0=z+1) by lia; destruct H; subst z0; simpl; auto.
 * (* Int32 *)
   simpl in AL. apply Z.mod_divide.  intro Hx; inv Hx. apply Z.eqb_eq; auto.
 * (* Int32 *)
@@ -775,14 +770,12 @@ Proof.
   rewrite if_true by (  destruct loc; destruct H; subst; apply Plt_strict).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
- unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
-  rewrite H0.
-  destruct loc; destruct H; subst b0.
-  apply nth_getN; simpl; lia.
-  rewrite H0.
-  destruct loc; destruct H; subst b0.
-  apply nth_getN; simpl; lia.
+ unfold Genv.perm_globvar. rewrite VOL.
+ destruct (gvar_readonly v);  repeat f_equal; auto with extensionality;
+  rewrite H0;
+  destruct loc; destruct H; subst b0;
+  erewrite nth_getN; try eassumption;
+  assert (z0=z \/ z0=z+1 \/ z0 = z+2 \/ z0 = z+3) by lia; decompose [or] H; subst z0; simpl; auto.
 * (* Int64 *)
   simpl in AL. apply Z.mod_divide.  intro Hx; inv Hx. apply Z.eqb_eq; auto.
 * (* Int64 *)
@@ -797,14 +790,12 @@ Proof.
   rewrite if_true by (  destruct loc; destruct H; subst; apply Plt_strict).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
- unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
-  rewrite H0.
-  destruct loc; destruct H; subst b0.
-  apply nth_getN; simpl; lia.
-  rewrite H0.
-  destruct loc; destruct H; subst b0.
-  apply nth_getN; simpl; lia.
+ unfold Genv.perm_globvar. rewrite VOL. 
+ destruct (gvar_readonly v);  repeat f_equal; auto with extensionality;
+  rewrite H0;
+  destruct loc; destruct H; subst b0;
+  erewrite nth_getN; try eassumption;
+  assert (z0=z \/ z0=z+1 \/ z0 = z+2 \/ z0 = z+3 \/ z0=z+4 \/ z0=z+5 \/ z0=z+6 \/ z0=z+7) by lia; decompose [or] H; subst z0; simpl; auto.
 * (* Float32 *)
   simpl in AL. apply Z.mod_divide.  intro Hx; inv Hx. apply Z.eqb_eq; auto.
 * (* Float32 *)
@@ -819,25 +810,15 @@ Proof.
   rewrite if_true by (  destruct loc; destruct H; subst; apply Plt_strict).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
- unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
-  rewrite H0.
-  destruct loc; destruct H; subst b0.
-  apply nth_getN; simpl; lia.
-  rewrite H0.
-  destruct loc; destruct H; subst b0.
-  apply nth_getN; simpl; lia.
+ unfold Genv.perm_globvar. rewrite VOL.
+ destruct (gvar_readonly v);  repeat f_equal; auto with extensionality;
+  rewrite H0;
+  destruct loc; destruct H; subst b0;
+  erewrite nth_getN; try eassumption;
+  assert (z0=z \/ z0=z+1 \/ z0 = z+2 \/ z0 = z+3) by lia; decompose [or] H; subst z0; simpl; auto.
 * (* Float64 *)
    clear - AL.
   simpl in AL. apply Z.mod_divide.  intro Hx; inv Hx. apply Z.eqb_eq; auto.
-(*
-*
-
-  rewrite Z.eqb_eq in *.
-  apply Zmod_divides; [ lia | ].
-  apply Zmod_divides in AL; [ | lia].
-  destruct AL as [c ?]. exists (2 * c)%Z. rewrite Z.mul_assoc. apply H.
-*)
 *  intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
   exists READABLE.
@@ -849,22 +830,21 @@ Proof.
   rewrite if_true by (  destruct loc; destruct H; subst; apply Plt_strict).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
- unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
-  rewrite H0.
-  destruct loc; destruct H; subst b0.
-  apply nth_getN; simpl; lia.
-  rewrite H0.
-  destruct loc; destruct H; subst b0.
-  apply nth_getN; simpl; lia.
+ unfold Genv.perm_globvar. rewrite VOL. 
+ destruct (gvar_readonly v);  repeat f_equal; auto with extensionality;
+  rewrite H0;
+  destruct loc; destruct H; subst b0;
+  erewrite nth_getN; try eassumption;
+  assert (z0=z \/ z0=z+1 \/ z0 = z+2 \/ z0 = z+3 \/ z0=z+4 \/ z0=z+5 \/ z0=z+6 \/ z0=z+7) by lia; decompose [or] H; subst z0; simpl; auto.
 * (* address_mapsto_zeros *)
  rewrite address_mapsto_zeros_eq.
  split; auto. 
   split; auto. simpl in HI. clear - HI. destruct (Z.max_spec z0 0); destruct H; lia.
+  split. simpl. simpl in HI. lia.
   intro loc. hnf. specialize (H2 loc); simpl in H2.
-rewrite Zmax_Z_of_nat.
-rewrite Z_to_nat_max.
-if_tac; auto.
+  rewrite Zmax_Z_of_nat.
+  rewrite Z_to_nat_max.
+  if_tac; auto.
 
   exists READABLE.
   destruct H2.
@@ -906,7 +886,7 @@ if_tac; auto.
  exists  (getN (size_chunk_nat Mptr) z (mem_contents m3) !! b).
  repeat split; auto.
  clear - H. 
- cbv iota. congruence.
+ cbv iota. congruence. rewrite Genv.init_data_size_addrof in HI. clear - HI; lia.
   simpl in AL. apply Z.mod_divide.  intro Hx; inv Hx. apply Z.eqb_eq; auto.
   intro loc; specialize (H2 loc). hnf. simpl init_data_size in H2.
  replace (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr) in H2
@@ -937,6 +917,8 @@ if_tac; auto.
   rewrite Ptrofs.unsigned_repr by (change Ptrofs.max_unsigned with (Ptrofs.modulus-1); lia).
   split.
   simpl in AL|-*.
+  split. 
+  rewrite Genv.init_data_size_addrof in HI. clear - HI; lia.
   apply Z.mod_divide.  intro Hx; inv Hx. apply Z.eqb_eq; auto.
   hnf. intro loc; specialize (H2 loc). hnf.
   simpl init_data_size in H2.
@@ -1699,7 +1681,8 @@ Proof.
  rewrite address_mapsto_zeros_eq in H1|-*.
  rewrite Z_to_nat_max in *.
  split.  destruct H1; lia.
- destruct H1 as [H1' H1].
+ destruct H1 as [H1' [Hsize H1]].
+ split; auto.
  intro loc; specialize (H1 loc).
  assert (H99:  Z.max (Z.max z0 0) 0 = Z.max z0 0).
    apply Z.max_l. apply Zmax_bound_r. lia.

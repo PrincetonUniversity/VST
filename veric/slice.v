@@ -966,7 +966,8 @@ Proof.
   transitivity
    (EX  bl : list memval,
     !!(length bl = size_chunk_nat ch /\
-       decode_val ch bl = v /\ (align_chunk ch | snd a)) &&
+       decode_val ch bl = v /\ 
+        snd a + size_chunk ch <= Ptrofs.modulus /\ (align_chunk ch | snd a)) &&
    ((allp
       (jam (adr_range_dec a (size_chunk ch))
          (fun loc : address =>

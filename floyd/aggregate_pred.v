@@ -1245,8 +1245,10 @@ Lemma mapsto_zeros_zero_Vptr
        mapsto_zeros 0 sh (Vptr b z) = emp.
 Proof.
 intros.
-unfold mapsto_zeros. simpl.
-rewrite prop_true_andp. reflexivity.
+unfold mapsto_zeros.
+rewrite prop_true_andp by rep_lia.
+simpl.
+rewrite predicates_hered.prop_true_andp. reflexivity.
 rep_lia.
 Qed.
 
@@ -1417,6 +1419,7 @@ Proof.
 intros.
 unfold mapsto_zeros; simpl. destruct p; simpl; normalize.
 rewrite prop_true_andp by rep_lia.
+rewrite predicates_hered.prop_true_andp by rep_lia.
 reflexivity.
 Qed.
 

@@ -64,7 +64,7 @@ Proof.
  }
  f_equal. f_equal; extensionality bl.
  f_equal. f_equal.
- simpl;  apply prop_ext; intuition.
+ simpl;  apply prop_ext; intuition; rename H1 into Hsize; rename H3 into H2.
  destruct bl; inv H0. destruct bl; inv H.
  unfold Memdata.decode_val in *. simpl in *.
  destruct m; try congruence.
@@ -102,7 +102,7 @@ Proof.
  }
  f_equal; f_equal; extensionality bl.
  f_equal. f_equal.
- simpl;  apply prop_ext; intuition.
+ simpl;  apply prop_ext; intuition; rename H1 into Hsize; rename H3 into H2.
  destruct bl; inv H0. destruct bl; inv H3.
  unfold Memdata.decode_val in *. simpl in *.
  destruct m; try congruence.
@@ -139,7 +139,7 @@ Proof.
  }
  apply equal_f. apply f_equal. apply f_equal. extensionality bl.
  apply equal_f. apply f_equal. apply f_equal.
- simpl;  apply prop_ext; intuition.
+ simpl;  apply prop_ext; intuition; rename H1 into Hsize; rename H3 into H2.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.
  destruct m; try congruence.
@@ -176,7 +176,7 @@ Proof.
  }
  apply equal_f. apply f_equal. apply f_equal. extensionality bl.
  apply equal_f. apply f_equal. apply f_equal.
- simpl;  apply prop_ext; intuition.
+ simpl;  apply prop_ext; intuition; rename H1 into Hsize; rename H3 into H2.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.
  destruct m; try congruence.

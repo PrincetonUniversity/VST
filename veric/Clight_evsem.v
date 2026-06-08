@@ -30,6 +30,7 @@ Inductive load_bitfieldT: type -> intsize -> signedness -> Z -> Z -> mem -> bloc
   | load_bitfield_intro: forall sz sg1 attr sg pos width m b ofs c bytes,
       0 <= pos -> 0 < width <= bitsize_intsize sz -> pos + width <= bitsize_carrier sz ->
       sg1 = (if zlt width (bitsize_intsize sz) then Signed else sg) ->
+       Ptrofs.unsigned ofs + size_chunk (chunk_for_carrier sz) <= Ptrofs.modulus ->
       (align_chunk (chunk_for_carrier sz) | (Ptrofs.unsigned ofs)) ->
       Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk (chunk_for_carrier sz)) = Some bytes ->
       decode_val (chunk_for_carrier sz) bytes = Vint c ->
@@ -38,6 +39,7 @@ Inductive load_bitfieldT: type -> intsize -> signedness -> Z -> Z -> mem -> bloc
 
 Inductive deref_locT (ty : type) (m : mem) (b : block) (ofs : ptrofs) : bitfield -> val -> list mem_event -> Prop :=
     deref_locT_value : forall (chunk : memory_chunk) bytes,
+                      Ptrofs.unsigned ofs + size_chunk chunk <= Ptrofs.modulus ->
                       access_mode ty = By_value chunk ->
                       (align_chunk chunk | (Ptrofs.unsigned ofs)) ->
                       Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk chunk) = Some bytes ->
@@ -48,8 +50,7 @@ Inductive deref_locT (ty : type) (m : mem) (b : block) (ofs : ptrofs) : bitfield
   | deref_locT_bitfield : forall (sz : intsize) 
                            (sg : signedness) (pos width : Z) 
                            (v : val) bytes,
-                         load_bitfieldT ty sz sg pos width m 
-                           b ofs v bytes ->
+                         load_bitfieldT ty sz sg pos width m b ofs v bytes ->
                          deref_locT ty m b ofs (Bits sz sg pos width) v (Read b (Ptrofs.unsigned ofs) (size_chunk (chunk_for_carrier sz)) bytes :: nil)
 .
 
@@ -59,21 +60,15 @@ Proof.
   inv D.
   + eapply deref_loc_value; eauto.
      simpl. 
-     destruct (zle _ _).
-    2:{
-  admit.  (* TODO: need premise in deref_locT_value: Ptrofs.unsigned ofs + size_chunk chunk <= Ptrofs.modulus *)
-  }
+     destruct (zle _ _); [ | lia].
  eapply Mem.loadbytes_load; eauto.
   + apply deref_loc_reference; trivial.
   + apply deref_loc_copy; trivial.
   + inv H; apply deref_loc_bitfield; constructor; auto.
      simpl. 
-     destruct (zle _ _).
-    2:{
-  admit.  (* TODO: need premise in deref_locT_bitfield: Ptrofs.unsigned ofs + size_chunk (chunk_for_carrier sz) <= Ptrofs.modulus *)
-  }  
-    rewrite <- H7; apply Mem.loadbytes_load; auto.
-Admitted.
+     destruct (zle _ _); [ | lia].
+    rewrite <- H8; apply Mem.loadbytes_load; auto.
+Qed.
 
 Lemma deref_locT_ax2 a m loc ofs bf v (D:deref_loc (typeof a) m loc ofs bf v):
       exists T, deref_locT (typeof a) m loc ofs bf v T.

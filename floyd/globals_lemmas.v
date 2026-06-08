@@ -1582,7 +1582,8 @@ split3; auto. apply I.
 split3.
 simpl. unfold sizeof; simpl.  lia.
 2: apply I.
-red. constructor; auto. intros. lia. 
+red. constructor; auto. intros. lia.
+rewrite predicates_hered.prop_true_andp; auto. lia.
 -
 unfold sizeof; simpl.
 rewrite Z.max_r by lia.
@@ -1631,7 +1632,8 @@ rewrite <- (Z2Nat.id n) in H11 by lia.
 unfold Zrepeat.
 clear - H10 H11 H13 Halign.
 revert i0 H10 H11 Halign; induction (Z.to_nat n); intros; simpl.
-rewrite Nat.mul_0_r; apply derives_refl.
+rewrite Nat.mul_0_r.
+rewrite derives_eq. apply predicates_hered.andp_left2. apply predicates_hered.derives_refl.
 autorewrite with sublist. normalize.
 rewrite mapsto_memory_block.address_mapsto_zeros_eq in *.
 rewrite Nat2Z.inj_mul.
