@@ -353,6 +353,7 @@ Inductive store_bitfieldT: type -> intsize -> signedness -> Z -> Z -> mem -> blo
   | store_bitfield_intro: forall sz sg1 attr sg pos width m b ofs c n m' bytes,
       0 <= pos -> 0 < width <= bitsize_intsize sz -> pos + width <= bitsize_carrier sz ->
       sg1 = (if zlt width (bitsize_intsize sz) then Signed else sg) ->
+      Ptrofs.unsigned ofs + size_chunk (chunk_for_carrier sz) <= Ptrofs.modulus ->
       (align_chunk (chunk_for_carrier sz) | (Ptrofs.unsigned ofs)) ->
       Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk (chunk_for_carrier sz)) = Some bytes ->
       decode_val (chunk_for_carrier sz) bytes = Vint c ->
@@ -396,12 +397,10 @@ Lemma assign_locT_ax1 ce ty m b ofs bf v m' T (A:assign_locT ce ty m b ofs bf v 
     assign_loc ce ty m b ofs bf v m'.
 Proof.
   destruct A; [eapply assign_loc_value; eauto | eapply assign_loc_copy; eauto | eapply assign_loc_bitfield; eauto].
-  inv H; econstructor; eauto; simpl; destruct (zle _ _).
-  - rewrite <- H6; apply Mem.loadbytes_load; auto.
-  -   admit.  (* TODO: need premise in store_bitfield: Ptrofs.unsigned ofs + size_chunk (chunk_for_carrier sz) <= Ptrofs.modulus *)  
-  - auto.  
-  - admit.  (* TODO: need premise in store_bitfield: Ptrofs.unsigned ofs + size_chunk (chunk_for_carrier sz) <= Ptrofs.modulus *)  
-Admitted.
+  inv H; econstructor; eauto; simpl; destruct (zle _ _); try lia.
+  - rewrite <- H7; apply Mem.loadbytes_load; auto.
+  - apply H8.
+Qed.
 
 Lemma assign_locT_ax2 ce ty m b ofs bf v m' (A:assign_loc ce ty m b ofs bf v m'):
     exists T, assign_locT ce ty m b ofs bf v m' T.
@@ -437,7 +436,7 @@ Proof.
     intros. destruct E as [LD [? [? ?]]]; subst.
     constructor; eassumption.
   - inv H.
-    apply Mem.store_storebytes in H7.
+    apply Mem.store_storebytes in H8.
     split. { split; [trivial | exists m1; split; trivial]. }
     intros. destruct E as [LD [? [? ?]]]; subst.
     econstructor; constructor; eauto.
@@ -1018,8 +1017,8 @@ Proof.
     eapply storebytes_sub in H5 as (? & ? & ?); eauto.
     do 2 eexists; eauto; constructor; auto.
   - inv H0.
-    eapply mem_sub_loadbytes in H7; eauto.
-    eapply Mem.store_storebytes, storebytes_sub in H9 as (? & ? & ?); eauto.
+    eapply mem_sub_loadbytes in H8; eauto.
+    eapply Mem.store_storebytes, storebytes_sub in H10 as (? & ? & ?); eauto.
     do 2 eexists; eauto; econstructor; constructor; eauto.
     apply Mem.storebytes_store; eauto.
 Qed.
