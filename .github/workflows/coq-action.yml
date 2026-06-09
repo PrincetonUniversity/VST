@@ -90,7 +90,6 @@ jobs:
       fail-fast: false
       matrix:
         coq_version:
-          - '9.0'
           - '9.1'
           - 'dev' 
         make_target:
