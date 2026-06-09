@@ -304,9 +304,9 @@ CGFLAGS =  -DCOMPCERT -short-idents
 # ##### Interaction Trees Flags #####
 
 # as of 1 July 2025, coq-itree package seems not compatible with rocq 9.2+alpha, so still using submodule
-ifneq ($(wildcard InteractionTrees/theories),)
-EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
-endif
+# ifneq ($(wildcard InteractionTrees/theories),)
+# EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
+# endif
 
 # ##### FCF (Foundational Cryptography Framework) Flags #####
 

@@ -809,7 +809,8 @@ Proof.
     split.
     { split; auto.
       setoid_rewrite Hi.
-      split; [|apply Z.divide_1_l].
+      split3; [| | apply Z.divide_1_l].
+       2: simpl; rewrite <- (Ptrofs.repr_unsigned o); rewrite ptrofs_add_repr; rep_lia.
       unfold decode_val; simpl.
       unfold decode_int; simpl.
       rewrite rev_if_be_singleton; simpl.
