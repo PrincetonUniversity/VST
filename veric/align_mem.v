@@ -300,7 +300,9 @@ Proof.
   + destruct s; try solve [exists 0%nat; reflexivity | exists 1%nat; reflexivity | exists 2%nat; reflexivity | exists 3%nat; reflexivity].
   + destruct f; try solve [exists 0%nat; reflexivity | exists 1%nat; reflexivity | exists 2%nat; reflexivity | exists 3%nat; reflexivity].
   + simpl. unfold Mptr.
-      destruct Archi.ptr64; [exists 3%nat | exists 2%nat]; reflexivity.
+      destruct Archi.ptr64;
+       try (exists 3%nat; reflexivity);
+       try (exists 2%nat; reflexivity).
   + simpl.
     auto.
   + exists 0%nat; reflexivity.

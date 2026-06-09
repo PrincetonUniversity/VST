@@ -1548,7 +1548,9 @@ Proof.
       { clear IHN. rewrite Ptrofs.add_unsigned.
         rewrite (Ptrofs.unsigned_repr (if Archi.ptr64 then 8 else 4)).
         + rewrite Ptrofs.unsigned_repr.
-          - apply Z.divide_add_r; trivial. unfold align_chunk, Mptr. simple_if_tac; apply Z.divide_refl.
+          - apply Z.divide_add_r; trivial. unfold align_chunk, Mptr.
+            simple_if_tac; try apply Z.divide_refl; 
+               (* this line is for the x86.  Yuck.  *) (unfold Archi.align_int64; exists 2; lia).
           - unfold size_chunk, Mptr in H3. simple_if_tac; unfold Ptrofs.max_unsigned; lia.
        + unfold size_chunk, Mptr in H3. simple_if_tac; unfold Ptrofs.max_unsigned; lia. }
       apply andp_left2; trivial.

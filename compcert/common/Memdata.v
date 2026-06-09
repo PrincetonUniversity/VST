@@ -49,7 +49,7 @@ Proof.
 Qed.
 
 Definition size_chunk_nat (chunk: memory_chunk) : nat :=
-  Z.to_nat(size_chunk chunk).
+  Z.to_nat (size_chunk chunk).
 
 Lemma size_chunk_conv:
   forall chunk, size_chunk chunk = Z.of_nat (size_chunk_nat chunk).
@@ -76,11 +76,14 @@ Qed.
   the byte offset of the location being addressed should be an exact
   multiple of the natural alignment for the chunk being addressed.
   This natural alignment is defined by the following
-  [align_chunk] function.  Some target architectures
-  (e.g. PowerPC and x86) have no alignment constraints, which we could
-  reflect by taking [align_chunk chunk = 1].  However, other architectures
-  have stronger alignment requirements.  The following definition is
-  appropriate for PowerPC, ARM and x86. *)
+  [align_chunk] function.
+
+  Most CompCert target architectures have no alignment constraints,
+  in the sense that the processors can load and store any quantity
+  at any alignment.  Therefore, for these targets we could take
+  [align_chunk chunk = 1].  However, the ABIs for these targets prescribe
+  higher alignments, for performance or binary compatibility reasons.
+  We follow the ABI prescriptions in the definition of [aligh_chunk]. *)
 
 Definition align_chunk (chunk: memory_chunk) : Z :=
   match chunk with
@@ -90,41 +93,92 @@ Definition align_chunk (chunk: memory_chunk) : Z :=
   | Mint16signed => 2
   | Mint16unsigned => 2
   | Mint32 => 4
-  | Mint64 => 8
+  | Mint64 => Archi.align_int64
   | Mfloat32 => 4
-  | Mfloat64 => 4
+  | Mfloat64 => Archi.align_float64
   | Many32 => 4
-  | Many64 => 4
+  | Many64 => Z.max Archi.align_int64 Archi.align_float64
   end.
 
 Lemma align_chunk_pos:
   forall chunk, align_chunk chunk > 0.
 Proof.
-  intro. destruct chunk; simpl; lia.
+  intro. destruct chunk; reflexivity.
 Qed.
 
 Lemma align_chunk_Mptr: align_chunk Mptr = if Archi.ptr64 then 8 else 4.
 Proof.
-  unfold Mptr; destruct Archi.ptr64; auto.
+  unfold Mptr. reflexivity || (destruct Archi.ptr64; auto).
 Qed.
 
 Lemma align_size_chunk_divides:
   forall chunk, (align_chunk chunk | size_chunk chunk).
 Proof.
-  intros. destruct chunk; simpl; try apply Z.divide_refl; exists 2; auto.
+  intros.
+  exists (size_chunk chunk / align_chunk chunk); destruct chunk; reflexivity.
 Qed.
 
 Lemma align_le_divides:
   forall chunk1 chunk2,
   align_chunk chunk1 <= align_chunk chunk2 -> (align_chunk chunk1 | align_chunk chunk2).
 Proof.
-  intros. destruct chunk1; destruct chunk2; simpl in *;
-  solve [ extlia
-        | apply Z.divide_refl
-        | exists 2; reflexivity
-        | exists 4; reflexivity
-        | exists 8; reflexivity ].
+  intros. unfold align_chunk, Archi.align_int64, Archi.align_float64 in H.
+  exists (align_chunk chunk2 / align_chunk chunk1); 
+  destruct chunk1; destruct chunk2; simpl in H; reflexivity || lia.
 Qed.
+
+Lemma align_chunk_max:
+  forall chunk, (align_chunk chunk | 8).
+Proof.
+  intros. exists (8 / align_chunk chunk); destruct chunk; reflexivity.
+Qed.
+
+(** Given the size [sz] of a block, [min_safe_alignment sz] is the minimum
+    alignment that guarantees that all valid memory accesses in the block
+    have at least this alignment.  *)
+
+Definition min_safe_alignment (sz: Z) : Z :=
+  if zlt sz 2 then 1
+  else if zlt sz 4 then 2
+  else if zlt sz 8 then 4 else 8.
+
+Lemma min_safe_alignment_pos: forall sz,
+  min_safe_alignment sz > 0.
+Proof.
+  intros; unfold min_safe_alignment. repeat (destruct zlt); lia.
+Qed.
+
+Lemma min_safe_alignment_sound: forall sz chunk,
+  size_chunk chunk <= sz -> (align_chunk chunk | min_safe_alignment sz).
+Proof.
+  intros.
+  generalize Z.divide_1_l Z.divide_refl; intros.
+  assert (2 | 4) by (exists 2; auto).
+  assert (2 | 8) by (exists 4; auto).
+  assert (4 | 8) by (exists 2; auto).
+  unfold size_chunk, align_chunk, min_safe_alignment in *.
+  destruct (zlt sz 2). destruct chunk; auto; lia.
+  destruct (zlt sz 4). destruct chunk; auto; lia.
+  destruct (zlt sz 8). destruct chunk; auto; lia.
+  destruct chunk; auto.
+Qed.
+
+Lemma min_safe_alignment_8: forall sz,
+  (min_safe_alignment sz | 8).
+Proof.
+  intros. exists (8 / min_safe_alignment sz).
+  unfold min_safe_alignment. repeat destruct zlt; reflexivity.
+Qed.
+
+Lemma min_safe_alignment_mono: forall sz1 sz2,
+  sz1 <= sz2 -> (min_safe_alignment sz1 | min_safe_alignment sz2).
+Proof.
+  intros. exists (min_safe_alignment sz2 / min_safe_alignment sz1).
+  unfold min_safe_alignment. repeat destruct zlt; reflexivity || lia.
+Qed.
+
+(** Memory quantities are a coarser variant of memory chunks, used to represent
+    the size of a pointer (32 or 64 bits). *)
 
 Inductive quantity : Type := Q32 | Q64.
 

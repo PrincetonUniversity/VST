@@ -1350,7 +1350,7 @@ Lemma address_mapsto_8bytes_forward:
     (b : block)
     (i : ptrofs)
     (SZ : Ptrofs.unsigned i + 8 < Ptrofs.modulus)
-    (AL : (8 | Ptrofs.unsigned i))
+    (AL : (Archi.align_int64 | Ptrofs.unsigned i))
     (r : readable_share sh),
 predicates_hered.derives
  (predicates_sl.sepcon
@@ -1413,7 +1413,8 @@ intros.
     apply decode_val_Vubyte_inj in H0,H1,H2,H3,H4,H5,H6,H7; subst.
    apply (predicates_hered.exp_right (map Byte [b0;b1;b2;b3;b4;b5;b6;b7])).
      rewrite predicates_hered.prop_true_andp.
-      2:{ split3. reflexivity. reflexivity. split. simpl; lia. apply AL. }
+      2:{ split3. reflexivity. reflexivity. split. simpl; lia. apply AL.
+ }
    rewrite address_mapsto_8bytes_aux; auto.
 Qed.
 
@@ -1488,9 +1489,9 @@ Proof.
  rewrite (prop_true_andp (field_compatible tulong [] p)) by auto.
  destruct H as [H0 [_ [SZ [AL _]]]]. red in SZ. simpl sizeof in SZ.
    destruct p; inversion H0. clear H0.
- assert (8 | Ptrofs.unsigned i)
-   by (eapply align_compatible_rec_by_value_inv in AL; [ | reflexivity]; assumption).
- clear AL.
+ eapply align_compatible_rec_by_value_inv in AL; [ | reflexivity].
+ simpl in AL.
+ let a := constr:(Archi.align_int64) in let b := eval compute in a in change a with b in AL.
  Intros.
  unfold at_offset.
  rewrite !offset_offset_val. rewrite !Z.add_0_r.
@@ -1507,7 +1508,7 @@ Proof.
  rewrite !(prop_true_andp (tc_val' tulong _)) by (apply tc_val_tc_val'; apply Logic.I).
  rewrite ?(prop_true_andp _ _ (Z.divide_1_l _)).
  rewrite !orp_FF.
- rewrite (prop_true_andp (_ | _)) by apply H.
+ rewrite (prop_true_andp (_ | _)) by apply AL.
  if_tac.
 -
  rewrite derives_eq.

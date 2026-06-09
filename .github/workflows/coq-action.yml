@@ -21,7 +21,6 @@ jobs:
         # except for the "make_target" field and make_target related excludes
         coq_version:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
-          - '9.0'
           - '9.1'
           - 'dev'
         bit_size:

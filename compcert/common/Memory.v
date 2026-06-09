@@ -39,7 +39,7 @@ Local Unset Case Analysis Schemes.
 
 Local Notation "a # b" := (PMap.get b a) (at level 1).
 
-Module Mem <: MEM.
+Module Mem.
 
 Definition perm_order' (po: option permission) (p: permission) :=
   match po with
@@ -435,7 +435,10 @@ Definition load (chunk: memory_chunk) (m: mem) (b: block) (ofs: Z): option val :
 
 Definition loadv (chunk: memory_chunk) (m: mem) (addr: val) : option val :=
   match addr with
-  | Vptr b ofs => load chunk m b (Ptrofs.unsigned ofs)
+  | Vptr b ofs =>
+      if zle (Ptrofs.unsigned ofs + size_chunk chunk) Ptrofs.modulus
+      then load chunk m b (Ptrofs.unsigned ofs)
+      else None
   | _ => None
   end.
 
@@ -551,7 +554,10 @@ Qed.
 
 Definition storev (chunk: memory_chunk) (m: mem) (addr v: val) : option mem :=
   match addr with
-  | Vptr b ofs => store chunk m b (Ptrofs.unsigned ofs) v
+  | Vptr b ofs => 
+      if zle (Ptrofs.unsigned ofs + size_chunk chunk) Ptrofs.modulus
+      then store chunk m b (Ptrofs.unsigned ofs) v
+      else None
   | _ => None
   end.
 
@@ -734,6 +740,12 @@ Proof.
   rewrite pred_dec_false; auto.
 Qed.
 
+Lemma loadv_load: forall chunk b ofs v m,
+  loadv chunk m (Vptr b ofs) = Some v -> load chunk m b (Ptrofs.unsigned ofs) = Some v.
+Proof.
+  simpl; intros. destruct zle; congruence.
+Qed.
+
 (** ** Properties related to [loadbytes] *)
 
 Theorem range_perm_loadbytes:
@@ -894,12 +906,10 @@ Proof.
   exploit loadbytes_split. eexact LB. lia. lia.
   intros (bytes1 & bytes2 & LB1 & LB2 & APP).
   change 4 with (size_chunk Mint32) in LB1.
-  exploit loadbytes_load. eexact LB1.
-  simpl. apply Z.divide_trans with 8; auto. exists 2; auto.
+  exploit loadbytes_load. eexact LB1. eauto with divide.
   intros L1.
   change 4 with (size_chunk Mint32) in LB2.
-  exploit loadbytes_load. eexact LB2.
-  simpl. apply Z.divide_add_r. apply Z.divide_trans with 8; auto. exists 2; auto. exists 1; auto.
+  exploit loadbytes_load. eexact LB2. eauto with divide.
   intros L2.
   exists (decode_val Mint32 (if Archi.big_endian then bytes1 else bytes2));
   exists (decode_val Mint32 (if Archi.big_endian then bytes2 else bytes1)).
@@ -910,26 +920,6 @@ Proof.
   erewrite loadbytes_length; eauto. reflexivity.
 Qed.
 
-Lemma addressing_int64_split:
-  forall i,
-  Archi.ptr64 = false ->
-  (8 | Ptrofs.unsigned i) ->
-  Ptrofs.unsigned (Ptrofs.add i (Ptrofs.of_int (Int.repr 4))) = Ptrofs.unsigned i + 4.
-Proof.
-  intros.
-  rewrite Ptrofs.add_unsigned.
-  replace (Ptrofs.unsigned (Ptrofs.of_int (Int.repr 4))) with (Int.unsigned (Int.repr 4))
-    by (symmetry; apply Ptrofs.agree32_of_int; auto).
-  change (Int.unsigned (Int.repr 4)) with 4.
-  apply Ptrofs.unsigned_repr.
-  exploit (Zdivide_interval (Ptrofs.unsigned i) Ptrofs.modulus 8).
-  lia. apply Ptrofs.unsigned_range. auto.
-  exists (two_p (Ptrofs.zwordsize - 3)).
-  unfold Ptrofs.modulus, Ptrofs.zwordsize, Ptrofs.wordsize.
-  unfold Wordsize_Ptrofs.wordsize. destruct Archi.ptr64; reflexivity.
-  unfold Ptrofs.max_unsigned. lia.
-Qed.
-
 Theorem loadv_int64_split:
   forall m a v,
   loadv Mint64 m a = Some v -> Archi.ptr64 = false ->
@@ -938,16 +928,16 @@ Theorem loadv_int64_split:
   /\ loadv Mint32 m (Val.add a (Vint (Int.repr 4))) = Some (if Archi.big_endian then v2 else v1)
   /\ Val.lessdef v (Val.longofwords v1 v2).
 Proof.
-  intros. destruct a; simpl in H; inv H.
+  intros. destruct a; simpl in H; inv H. destruct zle; inv H2.
   exploit load_int64_split; eauto. intros (v1 & v2 & L1 & L2 & EQ).
   unfold Val.add; rewrite H0.
   assert (NV: Ptrofs.unsigned (Ptrofs.add i (Ptrofs.of_int (Int.repr 4))) = Ptrofs.unsigned i + 4).
-  { apply addressing_int64_split; auto.
-    exploit load_valid_access. eexact H2. intros [P Q]. auto. }
+  { rewrite Ptrofs.add_unsigned. rewrite Ptrofs.agree32_of_int by auto.  apply Ptrofs.unsigned_repr.
+    generalize (Ptrofs.unsigned_range i); unfold Ptrofs.max_unsigned; lia. }
   exists v1, v2.
 Opaque Ptrofs.repr.
-  split. auto.
-  split. simpl. rewrite NV. auto.
+  split. simpl. rewrite zle_true by lia; auto.
+  split. simpl. rewrite NV. rewrite zle_true by lia; auto.
   auto.
 Qed.
 
@@ -1048,7 +1038,13 @@ Proof.
   congruence.
 Qed.
 
-Local Hint Resolve store_valid_access_1 store_valid_access_2 store_valid_access_3: mem.
+Lemma storev_store: forall chunk b ofs v m m',
+  storev chunk m (Vptr b ofs) v = Some m' -> store chunk m b (Ptrofs.unsigned ofs) v = Some m'.
+Proof.
+  simpl; intros. destruct zle; congruence.
+Qed.
+
+Local Hint Resolve store_valid_access_1 store_valid_access_2 store_valid_access_3 storev_store: mem.
 
 Theorem load_store_similar:
   forall chunk',
@@ -1380,26 +1376,6 @@ Theorem store_int16_sign_ext:
   store Mint16signed m b ofs (Vint n).
 Proof. intros. apply store_similar_chunks. apply encode_val_int16_sign_ext. auto. Qed.
 
-(*
-Theorem store_float64al32:
-  forall m b ofs v m',
-  store Mfloat64 m b ofs v = Some m' -> store Mfloat64al32 m b ofs v = Some m'.
-Proof.
-  unfold store; intros.
-  destruct (valid_access_dec m Mfloat64 b ofs Writable); try discriminate.
-  destruct (valid_access_dec m Mfloat64al32 b ofs Writable).
-  rewrite <- H. f_equal. apply mkmem_ext; auto.
-  elim n. apply valid_access_compat with Mfloat64; auto. simpl; lia.
-Qed.
-
-Theorem storev_float64al32:
-  forall m a v m',
-  storev Mfloat64 m a v = Some m' -> storev Mfloat64al32 m a v = Some m'.
-Proof.
-  unfold storev; intros. destruct a; auto. apply store_float64al32; auto.
-Qed.
-*)
-
 (** ** Properties related to [storebytes]. *)
 
 Theorem range_perm_storebytes:
@@ -1656,10 +1632,8 @@ Proof.
   exploit storebytes_split. eexact SB. intros [m1 [SB1 SB2]].
   rewrite encode_val_length in SB2. simpl in SB2.
   exists m1; split.
-  apply storebytes_store. exact SB1.
-  simpl. apply Z.divide_trans with 8; auto. exists 2; auto.
-  apply storebytes_store. exact SB2.
-  simpl. apply Z.divide_add_r. apply Z.divide_trans with 8; auto. exists 2; auto. exists 1; auto.
+  apply storebytes_store. exact SB1. eauto with divide.
+  apply storebytes_store. exact SB2. eauto with divide.
 Qed.
 
 Theorem storev_int64_split:
@@ -1669,13 +1643,14 @@ Theorem storev_int64_split:
      storev Mint32 m a (if Archi.big_endian then Val.hiword v else Val.loword v) = Some m1
   /\ storev Mint32 m1 (Val.add a (Vint (Int.repr 4))) (if Archi.big_endian then Val.loword v else Val.hiword v) = Some m'.
 Proof.
-  intros. destruct a; simpl in H; inv H. rewrite H2.
+  intros. destruct a; simpl in H; inv H. destruct zle; inv H2. rewrite H1.
   exploit store_int64_split; eauto. intros [m1 [A B]].
+  assert (NV: Ptrofs.unsigned (Ptrofs.add i (Ptrofs.of_int (Int.repr 4))) = Ptrofs.unsigned i + 4).
+  { rewrite Ptrofs.add_unsigned. rewrite Ptrofs.agree32_of_int by auto. apply Ptrofs.unsigned_repr.
+    generalize (Ptrofs.unsigned_range i); unfold Ptrofs.max_unsigned; lia. }
   exists m1; split.
-  exact A.
-  unfold storev, Val.add. rewrite H0.
-  rewrite addressing_int64_split; auto.
-  exploit store_valid_access_3. eexact H2. intros [P Q]. exact Q.
+  simpl. rewrite zle_true by lia. exact A.
+  simpl. rewrite H0. unfold storev. rewrite NV. simpl. rewrite zle_true by lia. exact B.
 Qed.
 
 (** ** Properties related to [alloc]. *)
@@ -2258,10 +2233,10 @@ Record mem_inj (f: meminj) (m1 m2: mem) : Prop :=
       perm m1 b1 ofs k p ->
       perm m2 b2 (ofs + delta) k p;
     mi_align:
-      forall b1 b2 delta chunk ofs p,
-      f b1 = Some(b2, delta) ->
-      range_perm m1 b1 ofs (ofs + size_chunk chunk) Max p ->
-      (align_chunk chunk | delta);
+      forall b1 b2 delta ofs sz p,
+      f b1 = Some(b2, delta) -> sz > 0 ->
+      range_perm m1 b1 ofs (ofs + sz) Max p ->
+      (min_safe_alignment sz | delta);
     mi_memval:
       forall b1 ofs b2 delta,
       f b1 = Some(b2, delta) ->
@@ -2304,7 +2279,10 @@ Proof.
   replace (ofs + delta + size_chunk chunk)
      with ((ofs + size_chunk chunk) + delta) by lia.
   eapply range_perm_inj; eauto.
-  apply Z.divide_add_r; auto. eapply mi_align; eauto with mem.
+  apply Z.divide_add_r; auto.
+  apply Z.divide_trans with (min_safe_alignment (size_chunk chunk)).
+  apply min_safe_alignment_sound. lia.
+  eapply mi_align; eauto using size_chunk_pos with mem.
 Qed.
 
 (** Preservation of loads. *)
@@ -2662,7 +2640,7 @@ Proof.
 Qed.
 
 Definition inj_offset_aligned (delta: Z) (size: Z) : Prop :=
-  forall chunk, size_chunk chunk <= size -> (align_chunk chunk | delta).
+  (min_safe_alignment size | delta).
 
 Lemma alloc_left_mapped_inj:
   forall f m1 m2 lo hi m1' b1 b2 delta,
@@ -2675,21 +2653,23 @@ Lemma alloc_left_mapped_inj:
   mem_inj f m1' m2.
 Proof.
   intros. inversion H. constructor.
-(* perm *)
+- (* perm *)
   intros.
   exploit perm_alloc_inv; eauto. intros. destruct (eq_block b0 b1). subst b0.
   rewrite H4 in H5; inv H5. eauto. eauto.
-(* align *)
+- (* align *)
   intros. destruct (eq_block b0 b1).
-  subst b0. assert (delta0 = delta) by congruence. subst delta0.
++ subst b0. assert (delta0 = delta) by congruence. subst delta0.
+  apply Z.divide_trans with (min_safe_alignment (hi - lo)); auto.
+  apply min_safe_alignment_mono.
   assert (lo <= ofs < hi).
-  { eapply perm_alloc_3; eauto. apply H6. generalize (size_chunk_pos chunk); lia. }
-  assert (lo <= ofs + size_chunk chunk - 1 < hi).
-  { eapply perm_alloc_3; eauto. apply H6. generalize (size_chunk_pos chunk); lia. }
-  apply H2. lia.
-  eapply mi_align0 with (ofs := ofs) (p := p); eauto.
+  { eapply perm_alloc_3; eauto. apply H7; lia. }
+  assert (lo <= ofs + sz - 1 < hi).
+  { eapply perm_alloc_3; eauto. apply H7; lia. }
+  lia.
++ eapply mi_align0 with (ofs := ofs) (p := p); eauto.
   red; intros. eapply perm_alloc_4; eauto.
-(* mem_contents *)
+- (* mem_contents *)
   injection H0; intros NEXT MEM.
   intros. rewrite <- MEM; simpl. rewrite NEXT.
   exploit perm_alloc_inv; eauto. intros.
@@ -2892,9 +2872,9 @@ Theorem loadv_extends:
   Val.lessdef addr1 addr2 ->
   exists v2, loadv chunk m2 addr2 = Some v2 /\ Val.lessdef v1 v2.
 Proof.
-  unfold loadv; intros. inv H1.
-  destruct addr2; try congruence. eapply load_extends; eauto.
-  congruence.
+  unfold loadv; intros. inv H1; try congruence.
+  destruct addr2; try congruence. destruct zle; try congruence.
+  eapply load_extends; eauto.
 Qed.
 
 Theorem loadbytes_extends:
@@ -2956,9 +2936,10 @@ Theorem storev_extends:
      storev chunk m2 addr2 v2 = Some m2'
   /\ extends m1' m2'.
 Proof.
-  unfold storev; intros. inv H1.
-  destruct addr2; try congruence. eapply store_within_extends; eauto.
-  congruence.
+  unfold storev; intros.
+  inv H1; try congruence. destruct addr2; try congruence. destruct zle; try congruence.
+  eapply store_within_extends; eauto.
+
 Qed.
 
 Theorem storebytes_within_extends:
@@ -3327,6 +3308,31 @@ Proof.
   apply H0. generalize (size_chunk_pos chunk). lia.
 Qed.
 
+Lemma address_inject_below:
+  forall f m1 m2 chunk b1 ofs1 b2 delta,
+  inject f m1 m2 ->
+  valid_access m1 chunk b1 (Ptrofs.unsigned ofs1) Nonempty ->
+  Ptrofs.unsigned ofs1 + size_chunk chunk <= Ptrofs.modulus ->
+  f b1 = Some (b2, delta) ->
+  Ptrofs.unsigned (Ptrofs.add ofs1 (Ptrofs.repr delta)) + size_chunk chunk <= Ptrofs.modulus.
+Proof.
+  intros.
+  erewrite address_inject' by eauto.
+  set (x1 := Ptrofs.unsigned ofs1) in *.
+  set (x' := x1 + size_chunk chunk - 1).
+  assert (A: x1 <= x' < x1 + size_chunk chunk) by (generalize (size_chunk_pos chunk); lia).
+  set (ofs' := Ptrofs.repr x').
+  assert (B: Ptrofs.unsigned ofs' = x').
+  { unfold ofs'; apply Ptrofs.unsigned_repr.
+    unfold Ptrofs.max_unsigned. generalize (Ptrofs.unsigned_range ofs1); lia. }
+  assert (C: perm m1 b1 (Ptrofs.unsigned ofs') Cur Nonempty).
+  { apply H0. rewrite B. apply A. }
+  assert (D: 0 <= Ptrofs.unsigned ofs' + delta <= Ptrofs.max_unsigned).
+  { eapply mi_representable; eauto using perm_cur. }
+  rewrite B in D; unfold x', Ptrofs.max_unsigned in D.
+  lia.
+Qed.
+
 Theorem weak_valid_pointer_inject_no_overflow:
   forall f m1 m2 b ofs b' delta,
   inject f m1 m2 ->
@@ -3461,16 +3467,12 @@ Proof.
   assert (P: al > 0) by lia.
   assert (Q: Z.abs al <= Z.abs sz). apply Zdivide_bounds; auto. lia.
   rewrite Z.abs_eq in Q; try lia. rewrite Z.abs_eq in Q; try lia.
-  assert (R: exists chunk, al = align_chunk chunk /\ al = size_chunk chunk).
-    destruct H0. subst; exists Mint8unsigned; auto.
-    destruct H0. subst; exists Mint16unsigned; auto.
-    destruct H0. subst; exists Mint32; auto.
-    subst; exists Mint64; auto.
-  destruct R as [chunk [A B]].
-  assert (valid_access m chunk b ofs Nonempty).
-    split. red; intros; apply H3. lia. congruence.
-  exploit valid_access_inject; eauto. intros [C D].
-  congruence.
+  assert (A: (min_safe_alignment sz | delta)).
+  { destruct H. destruct mi_inj0. eapply mi_align0; eauto with mem. }
+  assert (B: min_safe_alignment al = al).
+  { destruct H0 as [E | [E | [E | E]]]; subst al; reflexivity. }
+  apply Z.divide_add_r; auto. rewrite <- B. eapply Z.divide_trans; eauto.
+  eapply min_safe_alignment_mono; eauto.
 Qed.
 
 (** Preservation of loads *)
@@ -3492,12 +3494,14 @@ Theorem loadv_inject:
   Val.inject f a1 a2 ->
   exists v2, loadv chunk m2 a2 = Some v2 /\ Val.inject f v1 v2.
 Proof.
-  intros. inv H1; simpl in H0; try discriminate.
+  intros. inv H1; simpl in H0; try discriminate. destruct zle; try discriminate.
   exploit load_inject; eauto. intros [v2 [LOAD INJ]].
   exists v2; split; auto. unfold loadv.
+  rewrite zle_true.
   replace (Ptrofs.unsigned (Ptrofs.add ofs1 (Ptrofs.repr delta)))
      with (Ptrofs.unsigned ofs1 + delta).
   auto. symmetry. eapply address_inject'; eauto with mem.
+  eapply address_inject_below; eauto with mem.
 Qed.
 
 Theorem loadbytes_inject:
@@ -3601,12 +3605,14 @@ Theorem storev_mapped_inject:
   exists n2,
     storev chunk m2 a2 v2 = Some n2 /\ inject f n1 n2.
 Proof.
-  intros. inv H1; simpl in H0; try discriminate.
+  intros. inv H1; simpl in H0; try discriminate. destruct zle; try discriminate.
   unfold storev.
+  rewrite zle_true.
   replace (Ptrofs.unsigned (Ptrofs.add ofs1 (Ptrofs.repr delta)))
     with (Ptrofs.unsigned ofs1 + delta).
   eapply store_mapped_inject; eauto.
   symmetry. eapply address_inject'; eauto with mem.
+  eapply address_inject_below; eauto with mem.
 Qed.
 
 Theorem storebytes_mapped_inject:
@@ -3813,24 +3819,25 @@ Proof.
   intros. inversion H.
   set (f' := fun b => if eq_block b b1 then Some(b2, delta) else f b).
   assert (inject_incr f f').
-    red; unfold f'; intros. destruct (eq_block b b1). subst b.
+  { red; unfold f'; intros. destruct (eq_block b b1). subst b.
     assert (f b1 = None). eauto with mem. congruence.
-    auto.
+    auto. }
   assert (mem_inj f' m1 m2).
-    inversion mi_inj0; constructor; eauto with mem.
-    unfold f'; intros. destruct (eq_block b0 b1).
+  { inversion mi_inj0; constructor; eauto with mem.
+  + unfold f'; intros. destruct (eq_block b0 b1).
       inversion H8. subst b0 b3 delta0.
       elim (fresh_block_alloc _ _ _ _ _ H0). eauto with mem.
       eauto.
-    unfold f'; intros. destruct (eq_block b0 b1).
+  + unfold f'; intros. destruct (eq_block b0 b1).
       inversion H8. subst b0 b3 delta0.
       elim (fresh_block_alloc _ _ _ _ _ H0).
-      eapply perm_valid_block with (ofs := ofs). apply H9. generalize (size_chunk_pos chunk); lia.
+      eapply perm_valid_block with (ofs := ofs). apply H10. lia.
       eauto.
-    unfold f'; intros. destruct (eq_block b0 b1).
+  + unfold f'; intros. destruct (eq_block b0 b1).
       inversion H8. subst b0 b3 delta0.
       elim (fresh_block_alloc _ _ _ _ _ H0). eauto with mem.
       apply memval_inject_incr with f; auto.
+  }
   exists f'. split. constructor.
 (* inj *)
   eapply alloc_left_mapped_inj; eauto. unfold f'; apply dec_eq_true.
@@ -4067,7 +4074,7 @@ Proof.
   eapply mi_align0; eauto.
   eapply mi_align1 with (ofs := ofs + delta') (p := p); eauto.
   red; intros. replace ofs0 with ((ofs0 - delta') + delta') by lia.
-  eapply mi_perm0; eauto. apply H0. lia.
+  eapply mi_perm0; eauto. apply H1. lia.
   (* memval *)
   destruct (f b1) as [[b' delta'] |] eqn:?; try discriminate.
   destruct (f' b') as [[b'' delta''] |] eqn:?; inv H.
@@ -4444,6 +4451,16 @@ Proof.
   elim (H0 ofs0). lia. auto.
 Qed.
 
+Lemma storev_unchanged_on:
+  forall chunk m b ofs v m',
+  storev chunk m (Vptr b ofs) v = Some m' ->
+  (forall i, Ptrofs.unsigned ofs <= i < Ptrofs.unsigned ofs + size_chunk chunk -> ~ P b i) ->
+  unchanged_on m m'.
+Proof.
+  intros. simpl in H; destruct zle; try discriminate.
+  eapply store_unchanged_on; eauto.
+Qed.
+
 Lemma storebytes_unchanged_on:
   forall m b ofs bytes m',
   storebytes m b ofs bytes = Some m' ->
@@ -4545,6 +4562,7 @@ Global Hint Resolve
   Mem.valid_access_perm
   Mem.valid_access_load
   Mem.load_valid_access
+  Mem.loadv_load
   Mem.loadbytes_range_perm
   Mem.valid_access_store
   Mem.perm_store_1
@@ -4555,6 +4573,7 @@ Global Hint Resolve
   Mem.store_valid_access_1
   Mem.store_valid_access_2
   Mem.store_valid_access_3
+  Mem.storev_store
   Mem.storebytes_range_perm
   Mem.perm_storebytes_1
   Mem.perm_storebytes_2

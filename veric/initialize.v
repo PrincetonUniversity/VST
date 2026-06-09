@@ -777,7 +777,11 @@ Proof.
   erewrite nth_getN; try eassumption;
   assert (z0=z \/ z0=z+1 \/ z0 = z+2 \/ z0 = z+3) by lia; decompose [or] H; subst z0; simpl; auto.
 * (* Int64 *)
-  simpl in AL. apply Z.mod_divide.  intro Hx; inv Hx. apply Z.eqb_eq; auto.
+  clear - AL.
+  set (a := Archi.align_int64); compute in a; subst a.
+  apply Z.eqb_eq in AL. apply Z.mod_divide in AL; [ | congruence].
+  destruct AL as [x H]. subst. 
+  first [exists x; lia | exists (2*x)%Z; lia].
 * (* Int64 *)
   intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
@@ -817,8 +821,11 @@ Proof.
   erewrite nth_getN; try eassumption;
   assert (z0=z \/ z0=z+1 \/ z0 = z+2 \/ z0 = z+3) by lia; decompose [or] H; subst z0; simpl; auto.
 * (* Float64 *)
-   clear - AL.
-  simpl in AL. apply Z.mod_divide.  intro Hx; inv Hx. apply Z.eqb_eq; auto.
+  clear - AL.
+  set (a := Archi.align_float64); compute in a; subst a.
+  apply Z.eqb_eq in AL. apply Z.mod_divide in AL; [ | congruence].
+  destruct AL as [x H]. subst. 
+  first [exists x; lia | exists (2*x)%Z; lia].
 *  intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
   exists READABLE.

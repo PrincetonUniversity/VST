@@ -1597,12 +1597,14 @@ normalize.
 assert (field_compatible0 (Tarray (Tpointer t' noattr) n noattr) (ArraySubsc 0::nil) (gz i)).
 { rewrite H9; split3; auto. apply I. split; auto. simpl. unfold sizeof; simpl.
    rewrite Z.max_r by lia. lia.
-  split. red. apply align_compatible_rec_Tarray. intros.
-     eapply align_compatible_rec_by_value. reflexivity.
-     simpl.
+  split; [ | simpl; split; auto; lia].
+  apply align_compatible_rec_Tarray. intros.
+  eapply align_compatible_rec_by_value. reflexivity.
+   simpl.
   rewrite H8 in H9; unfold globals_of_env in H9. destruct (Map.get (ge_of rho) i); inv H9.
-  normalize. apply Z.divide_mul_l. unfold Mptr.  destruct Archi.ptr64; exists 1; simpl; auto.
-  simpl. split; auto. lia.
+  normalize. apply Z.divide_mul_l.
+  unfold Mptr.
+  destruct Archi.ptr64; first [exists 1; simpl; lia | exists 2; simpl; lia].
 }
 assert (Halign: (align_chunk Mptr | Ptrofs.unsigned i0)). {
   rewrite H8 in H9;
