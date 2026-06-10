@@ -53,9 +53,7 @@ jobs:
               opam install -y coq-flocq
               opam install -y ${{ matrix.coq_version == '9.0' && matrix.bit_size == 64 && 'coq-compcert.3.16' }} || exit_code=$?
               # Required by test2
-              opam install -y coq-ext-lib
-              # can simplify next line once the coq-paco opam package is available for rocq 9.1 
-              opam install -y ${{ matrix.coq_version != '9.1' && 'coq-paco' }} || exit_code=$?
+              opam install -y coq-ext-lib coq-itree
             endGroup
           # See https://github.com/coq-community/docker-coq-action/tree/v1#permissions
           before_script: |
@@ -141,7 +139,7 @@ jobs:
           script: |
             startGroup "Build & Install"
               make -f util/make-touch  IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
-              # put the first version back once CompCert 3.16 is in the Coq Platform
+              # use the first version only when coq-released has a version of CompCert compatible with this VST
               # make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }}  IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
               make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=bundled IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
             endGroup
