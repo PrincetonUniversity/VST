@@ -127,7 +127,7 @@ eapply semax_pre_post'; [ | |
    apply (semax_call_subsume fs A E Pre Post argsig retty cc Hsub
                Delta x (PROPx P (LOCALx Q (SEPx R))) None a bl H)].
 3:{ split; intros; congruence. }
-3:{ apply Coq.Init.Logic.I. }
+3:{ apply Logic.I. }
 + rewrite bi.and_elim_r; apply bi.and_mono; first done.
   iIntros "($ & $ & $)".
 + rewrite /semax_call.maybe_retval /= bi.and_elim_r.

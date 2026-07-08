@@ -86,7 +86,7 @@ Proof.
       rewrite upd_Znth_eq; [|auto].
       rewrite /data_at; f_equiv.
       apply map_ext_in.
-      intros; rewrite -> In_upto(*, map_length, upto_length*) in *; simpl in *.
+      intros; rewrite -> In_upto in *; simpl in *.
       erewrite Znth_map, Znth_upto; simpl; auto; try lia.
       erewrite sublist_split with (mid := i)(hi := i + 1), sublist_len_1; auto; try lia.
       destruct (in_dec eq_dec a (sublist 0 i lasts ++ [Znth i lasts])); rewrite -> in_app in *.
@@ -899,7 +899,7 @@ Proof.
         apply (leibniz_equiv(A := gmap.gmapR _ (exclR (leibnizO _)))).
         rewrite ora_comm.
         intros i; rewrite gmap.lookup_op.
-        destruct (eq_dec i t); [subst; rewrite lookup_insert lookup_singleton | rewrite lookup_insert_ne // lookup_singleton_ne // left_id //].
+        destruct (eq_dec i t); [subst; rewrite lookup_insert_eq lookup_singleton_eq | rewrite lookup_insert_ne // lookup_singleton_ne // left_id //].
         rewrite newer_out //.
         replace (Zlength h') with (Zlength t'); auto.
       + rewrite -> upd_Znth_diff' by (rewrite -> ?Zlength_map, ?Zlength_upto; auto).
@@ -967,7 +967,7 @@ Proof.
       rewrite -!bi.sep_exist_l -bi.sep_exist_r.
       apply bi.sep_mono.
       * f_equiv.
-        erewrite upd_Znth_eq, !map_length, upto_length, !map_map;
+        erewrite upd_Znth_eq, !length_map, upto_length, !map_map;
           [|rewrite -> !Zlength_map, Zlength_upto; unfold N in *; auto].
         apply map_ext_in; intros; rewrite -> In_upto in *.
         replace (Zlength t') with (Zlength h').
@@ -1014,7 +1014,7 @@ Proof.
         apply (leibniz_equiv(A := gmap.gmapR _ (exclR (leibnizO _)))).
         rewrite ora_comm.
         intros i; rewrite gmap.lookup_op.
-        destruct (eq_dec i (Znth a t')); [subst; rewrite lookup_singleton lookup_insert | rewrite lookup_singleton_ne // lookup_insert_ne // left_id //].
+        destruct (eq_dec i (Znth a t')); [subst; rewrite lookup_singleton_eq lookup_insert_eq | rewrite lookup_singleton_ne // lookup_insert_ne // left_id //].
         rewrite newer_out //.
         apply Forall2_Znth; auto; last lia.
         erewrite <- (sublist_same_gen _ _ h); first done; lia.

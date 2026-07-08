@@ -442,10 +442,10 @@ Lemmas about specific types
   to limit their application and make them fail faster *)
 
 #[export] Hint Extern 1 (mapsto _ _ _ _ ⊢ mapsto _ _ _ _) =>
-   (simple apply mapsto_mapsto_int32; apply Coq.Init.Logic.I)  : cancel.
+   (simple apply mapsto_mapsto_int32; apply Logic.I)  : cancel.
 
 #[export] Hint Extern 1 (mapsto _ _ _ _ ⊢ mapsto_ _ _ _) =>
-   (simple apply mapsto_mapsto__int32; apply Coq.Init.Logic.I)  : cancel.
+   (simple apply mapsto_mapsto__int32; apply Logic.I)  : cancel.
 
 #[export] Hint Extern 1 (mapsto _ _ _ _ ⊢ mapsto_ _ _ _) =>
     (apply mapsto_mapsto_) : cancel.

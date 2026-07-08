@@ -1,8 +1,5 @@
-Require Import Coq.Setoids.Setoid.
-Require Import Coq.ZArith.ZArith.
+Require Import Stdlib.Setoids.Setoid.
 Require Import VST.zlist.sublist.
-Require Import Coq.Lists.List.
-Require Import Coq.micromega.Lia.
 Require Import iris.bi.monpred.
 Require Import iris.proofmode.proofmode.
 Set Warnings "-notation-overridden,-hiding-delimiting-key".
@@ -65,7 +62,7 @@ Proof.
   apply IProp_eq; extensionality n x.
   apply prop_ext.
   unfold oupred.ouPred_holds; simpl.
-  tauto.
+  by intuition.
 Qed.
 
 Lemma and_True : forall P, (P ∧ True) = P.
@@ -76,7 +73,7 @@ Proof.
   apply IProp_eq; extensionality n x.
   apply prop_ext.
   unfold oupred.ouPred_holds; simpl.
-  tauto.
+  by intuition.
 Qed.
 
 Lemma True_or : forall P, (True ∨ P) = True.
@@ -86,7 +83,7 @@ Proof.
   apply IProp_eq; extensionality n x.
   apply prop_ext.
   unfold oupred.ouPred_holds; simpl.
-  tauto.
+  by intuition.
 Qed.
 
 Lemma or_True : forall P, (P ∨ True) = True.
@@ -97,7 +94,7 @@ Proof.
   apply IProp_eq; extensionality n x.
   apply prop_ext.
   unfold oupred.ouPred_holds; simpl.
-  tauto.
+  by intuition.
 Qed.
 
 Lemma pure_True : forall (P : Prop), P -> (bi_pure(PROP := ouPred M) P) = True.
@@ -120,7 +117,7 @@ Proof.
   apply IProp_eq; extensionality n x.
   apply prop_ext.
   unfold ouPred_holds.
-  tauto.
+  by intuition.
 Qed.
 
 Corollary prop_false_andp : forall (P : Prop) Q, ~P -> (⌜P⌝ ∧ Q) = False.
@@ -133,7 +130,7 @@ Qed.
 Lemma pure_and : forall (P Q : Prop), bi_pure(PROP := ouPredI M) (P /\ Q) = (⌜P⌝ ∧ ⌜Q⌝).
 Proof.
   intros.
-  ouPred.unseal; apply IProp_eq; extensionality n x; apply prop_ext; tauto.
+  ouPred.unseal. apply IProp_eq; extensionality n x; apply prop_ext; done.
 Qed.
 
 Lemma exp_comm : forall {B C} (P: B -> C -> ouPred M),
@@ -525,13 +522,13 @@ Lemma sep_emp : forall P, (P ∗ emp) = P.
 Proof.
   intros; destruct P; ouPred.unseal; apply IProp_eq; extensionality n x; apply prop_ext.
   split.
-  - intros (? & ? & ? & ? & ?).
+  - intros (? & ? & ? & ? & Hemp).
     eapply ouPred_mono; eauto.
     etrans; last done.
-    etrans; last by rewrite !(ora_comm x0); apply ora_orderN_op.
-    rewrite left_id //.
+    etrans; last apply ora_monoN_l, Hemp.
+    rewrite right_id //.
   - intros; exists x, ε; rewrite right_id; repeat split; auto.
-    unfold oupred.ouPred_holds.
+    unfold oupred.ouPred_holds, ouPred_emp.
     reflexivity.
 Qed.
 
@@ -698,7 +695,7 @@ Qed.
 Lemma False_or : forall P, (P ∨ False) = P.
 Proof.
   intros; destruct P; ouPred.unseal; apply IProp_eq; extensionality n x; apply prop_ext.
-  unfold ouPred_pure_def, oupred.ouPred_holds; intuition auto.
+  by intuition auto.
 Qed.
 
 Lemma or_False : forall P, (False ∨ P) = P.
@@ -821,15 +818,6 @@ Ltac normalize1 :=
 
 Ltac normalize1_in Hx :=
              match type of Hx with
-(*                 | context [@andp ?A (@LiftNatDed ?T ?B ?C) ?D ?E ?F] =>
-                         change (@andp A (@LiftNatDed T B C) D E F) with (D F ∧ E F)
-                 | context [@later ?A  (@LiftNatDed ?T ?B ?C) (@LiftIndir ?X1 ?X2 ?X3 ?X4 ?X5) ?D ?F] =>
-                    change (@later A  (@LiftNatDed T B C) (@LiftIndir X1 X2 X3 X4 X5) D F)
-                     with (@later B C X5 (D F))
-                 | context [@sepcon ?A (@LiftNatDed ?B ?C ?D)
-                                                         (@LiftSepLog ?E ?F ?G ?H) ?J ?K ?L] =>
-                   change (@sepcon A (@LiftNatDed B C D) (@LiftSepLog E F G H) J K L)
-                      with (@sepcon C D H (J L) (K L))*)
                 | bi_entails(PROP := monPredI _ _) _ _ => let Hx' := fresh "Hx" in inversion Hx as [Hx']; revert Hx'; monPred.unseal; intros Hx'
                 | context [ ⌜?P⌝%I ] =>
                                     rewrite -> (bi.pure_True P) in Hx by auto with typeclass_instances

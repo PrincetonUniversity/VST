@@ -543,7 +543,7 @@ Proof.
 intros.
 assert (⊢denote_tc_nodivover (Vint i) (Vlong j)) as H by auto.
 rewrite (denote_tc_nodivover_e64_il s) in H.
-apply ouPred.pure_soundness in H.
+apply pure_soundness in H.
 rewrite andb_false_iff.
 destruct (Int64.eq j Int64.mone) eqn: Hj; auto.
 apply Int64.same_if_eq in Hj as ->.

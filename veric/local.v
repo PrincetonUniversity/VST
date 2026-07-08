@@ -1,6 +1,6 @@
 Require Import VST.veric.base.
 Require Import VST.msl.msl_standard.
-Require Import Coq.Relations.Relations.
+Require Import Stdlib.Relations.Relations.
 
 Definition deterministic_rel {T} (R: relation T) :=
   forall s s' s'', R s s' /\ R s s'' -> s'=s''.

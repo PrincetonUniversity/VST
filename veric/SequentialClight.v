@@ -48,7 +48,7 @@ Proof.
     eapply Hspec in HP; last done.
     revert HP; ouPred.unseal; intros (Hpre & Hpost).
     split; first apply Hpre.
-    intros ???? Hpost'; eapply Hpost; auto.
+    intros ???? Hpost'; ouPred.unseal; eapply Hpost; auto.
   - apply IHfs; auto.
     intros; apply Hspecs; auto.
 Qed.
@@ -86,7 +86,7 @@ Proof.
        assert (b0 = b) as -> by congruence.
        assert (q0 = q) as -> by congruence.
        done. }
-  intros n; eapply ouPred.pure_soundness, (step_fupdN_soundness_no_lc' _ (S n) O); [apply _..|].
+  intros n; unshelve eapply pure_soundness, (step_fupdN_soundness_no_lc' _ (S n) O); [apply _..|].
   simpl; intros; iIntros "_".
   iMod (@init_VST _ _ VSTGpreS0) as "H".
   iDestruct ("H" $! Hinv) as (??? HE) "(H & auth)".

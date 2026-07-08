@@ -206,19 +206,19 @@ Proof.
   destruct (plt b (nextblock m1)).
   - rewrite <- app_assoc in *.
     edestruct IHgl as (? & ? & ? & ?); eauto.
-    { rewrite app_length /= in Hlen; lia. }
+    { rewrite length_app /= in Hlen; lia. }
     { unfold Plt in *; lia. }
     eexists _, _; rewrite in_app_iff; eauto.
   - assert (b = nextblock m1) as -> by (unfold Plt in *; lia).
     destruct a; eexists _, _; rewrite in_app_iff; split; first by simpl; eauto.
     set (gl' := ((_ ++ _) ++ _)).
     assert (Pos.to_nat (nextblock m1) <= length gl').
-    { subst gl'; rewrite app_length; lia. }
+    { subst gl'; rewrite length_app; lia. }
     rewrite (add_globals_hack (rev _)); [| | rewrite rev_involutive // |].
-    + rewrite nth_error_map nth_error_rev rev_length; last lia.
+    + rewrite nth_error_map nth_error_rev length_rev; last lia.
       replace (_ - (_ - Pos.to_nat (nextblock m1)))%nat with (Pos.to_nat (nextblock m1)) by lia.
       subst gl'; rewrite nth_error_app1; last lia.
-      rewrite app_length /= in Hlen; rewrite nth_error_app2; last lia.
+      rewrite length_app /= in Hlen; rewrite nth_error_app2; last lia.
       replace (_ - _)%nat with O by lia; done.
     + subst gl'.
       rewrite map_rev list_norepet_rev //.

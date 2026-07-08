@@ -96,7 +96,7 @@ Proof.
   destruct Delta. unfold temp_types in *; simpl in *.
   unfold typecheck_temp_environ.
   intros. destruct (eq_dec id0 id).
-  + subst; rewrite lookup_insert. exists v; intuition.
+  + subst; rewrite lookup_insert_eq. exists v; intuition.
   + rewrite lookup_insert_ne //. specialize (H1 id0 _ H). auto.
 Qed.
 

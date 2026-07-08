@@ -1,6 +1,7 @@
 From Ltac2 Require Import Ltac2.
 
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
+Set Warnings "-ltac2-unused-variable".
 Require Import VST.floyd.base2.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.functional_base.

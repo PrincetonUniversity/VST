@@ -22,13 +22,17 @@ maintainer: "VST team"
 homepage: "http://vst.cs.princeton.edu/"
 dev-repo: "git+https://github.com/PrincetonUniversity/VST.git"
 bug-reports: "https://github.com/PrincetonUniversity/VST/issues"
-license: "https://raw.githubusercontent.com/PrincetonUniversity/VST/master/LICENSE"
+license: "BSD-2-Clause"
 
 depends: [
-  "coq" {>= "8.19.1" & <= "8.20.0"}
-  "coq-compcert" {>= "3.11"}
-  "coq-vst-zlist" {>= "2.11"}
-  "coq-flocq" {>= "4.1.0"}
-  "coq-iris" {="4.3.0"}
-  "coq-vst-ora" {="1.1"}
+  "rocq-vst-ora" { = "1.2" }
+  "coq-compcert" {>= "3.16" & < "3.18~"}
+  "coq-vst-zlist" {= "2.13" | = "dev"}
+  "coq-flocq" {>= "4.2.0" & < "5~"}
+]
+tags: [
+  "category:Computer Science/Semantics and Compilation/Semantics"
+  "keyword:C"
+  "logpath:VST"
+  "date:2026-7-8"
 ]

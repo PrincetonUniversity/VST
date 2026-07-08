@@ -303,8 +303,8 @@ Section BTree.
     length (replace i x l) = length l.
   Proof.
     intros; unfold replace.
-    rewrite app_length; simpl.
-    rewrite firstn_length, skipn_length.
+    rewrite length_app; simpl.
+    rewrite length_firstn, length_skipn.
     rewrite Min.min_l; lia.
   Qed.
 
@@ -351,7 +351,7 @@ Section BTree.
   Proof.
     intros; unfold replace.
     assert (length (firstn i l) = i) as Hlen.
-    { rewrite firstn_length, Min.min_l; auto. }
+    { rewrite length_firstn, Min.min_l; auto. }
     rewrite nth_error_app2; rewrite Hlen; auto.
     rewrite minus_diag; auto.
   Qed.      
@@ -463,7 +463,7 @@ Section BTree.
     rewrite Hchildren; split; auto.
     apply Forall_insert.
     + apply Forall_replace'; auto; simpl.
-      repeat rewrite skipn_length.
+      repeat rewrite length_skipn.
       destruct Hover as (Hover & Hwf); rewrite Hover.
       rewrite NPeano.Nat.add_1_r, odd_div; simpl.
       split; try lia.
@@ -473,13 +473,13 @@ Section BTree.
       rewrite (alt_Forall wf_btree_aux).
       apply Forall_skipn; auto.
     + unfold wf_btree_aux; fold wf_btree_aux.
-      rewrite firstn_length, Min.min_l; [|apply Nat.div_le_upper_bound; lia].
+      rewrite length_firstn, Min.min_l; [|apply Nat.div_le_upper_bound; lia].
       unfold wf_btree_over in Hover.
       destruct Hover as (Hover & Hwf); rewrite Hover.
       rewrite NPeano.Nat.add_1_r, odd_div; simpl.
       split; [lia|].
       destruct Hwf as [|(Hlen & ?)]; [subst; rewrite firstn_nil; auto | right].
-      rewrite firstn_length, Hlen, Hover, Min.min_l; [|lia].
+      rewrite length_firstn, Hlen, Hover, Min.min_l; [|lia].
       split; auto.
       rewrite (alt_Forall wf_btree_aux).
       apply Forall_firstn; auto.
@@ -502,7 +502,7 @@ Section BTree.
     rewrite Hchildren; split; auto.
     apply Forall_insert.
     + apply Forall_replace'; auto; simpl.
-      repeat rewrite skipn_length.
+      repeat rewrite length_skipn.
       destruct Hover as (Hover & Hwf); rewrite Hover.
       rewrite NPeano.Nat.add_1_r, odd_div; simpl.
       split; try lia.
@@ -512,13 +512,13 @@ Section BTree.
       rewrite (alt_Forall wf_btree_aux).
       apply Forall_skipn; auto.
     + unfold wf_btree_aux; fold wf_btree_aux.
-      rewrite firstn_length, Min.min_l; [|apply Nat.div_le_upper_bound; lia].
+      rewrite length_firstn, Min.min_l; [|apply Nat.div_le_upper_bound; lia].
       unfold wf_btree_over in Hover.
       destruct Hover as (Hover & Hwf); rewrite Hover.
       rewrite NPeano.Nat.add_1_r, odd_div; simpl.
       split; [lia|].
       destruct Hwf as [|(Hlen & ?)]; [subst; rewrite firstn_nil; auto | right].
-      rewrite firstn_length, Hlen, Hover, Min.min_l; [|lia].
+      rewrite length_firstn, Hlen, Hover, Min.min_l; [|lia].
       split; auto.
       rewrite (alt_Forall wf_btree_aux).
       apply Forall_firstn; auto.
@@ -537,7 +537,7 @@ Section BTree.
     remove_at i (replace i x l) = remove_at i l.
   Proof.
     intros; unfold remove_at, replace.
-    assert (length (firstn i l) = i) as Hlen by (rewrite firstn_length, Min.min_l; auto).
+    assert (length (firstn i l) = i) as Hlen by (rewrite length_firstn, Min.min_l; auto).
     rewrite firstn_app1, firstn_firstn, skipn_app2; auto; rewrite Hlen; auto.
     rewrite <- minus_Sn_m, minus_diag; auto.
   Qed.
@@ -795,11 +795,11 @@ Section BTree.
       destruct H as (Hover & Hwf'); rewrite Hover.
       rewrite (Nat.add_1_r (2 * d)), odd_div.
       unfold replace; simpl; constructor; [|constructor; auto]; simpl.
-      + rewrite firstn_length, Min.min_l; [split|]; try lia.
+      + rewrite length_firstn, Min.min_l; [split|]; try lia.
         destruct Hwf' as [|(? & ?)]; subst; auto; right.
-        rewrite firstn_length, Min.min_l; [split; auto | lia].
+        rewrite length_firstn, Min.min_l; [split; auto | lia].
         rewrite (alt_Forall wf_btree_aux); apply Forall_firstn; auto.
-      + repeat rewrite skipn_length; split; [lia|].
+      + repeat rewrite length_skipn; split; [lia|].
         destruct Hwf' as [|(? & ?)]; subst; auto; right.
         split; [lia|].
         rewrite (alt_Forall wf_btree_aux); apply Forall_skipn; auto.

@@ -24,8 +24,7 @@ Require Import VST.veric.Clight_initial_world.
 Require Import VST.veric.initialize.
 Require Import VST.veric.coqlib4.
 Require Export compcert.common.Values.
-Require Import Coq.Logic.JMeq.
-
+Require Import Stdlib.Logic.JMeq.
 Import Ctypes Clight.
 
 Section mpred.
@@ -1005,7 +1004,7 @@ assert  (TC5: typecheck_glob_environ (filter_genv psi) (glob_types Delta)). {
 }
 
 assert (⊢ ▷ (<absorb> P a (filter_genv psi, args) ∗ funassert Delta psi ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) -∗
-  jsafeN OK_spec psi (E a) z (Clight_core.Callstate f args Kstop))) as Hsafe; last by apply bi.wand_entails, ouPred.later_soundness.
+  jsafeN OK_spec psi (E a) z (Clight_core.Callstate f args Kstop))) as Hsafe; last by apply bi.wand_entails, later_soundness.
 assert (⊢ ▷ ((globals_auth (make_env (Genv.genv_symb psi)) ∗ <absorb> P a (filter_genv psi, args) ∗ funassert Delta psi) -∗
   <absorb> initial_call_assert OK_spec (globalenv prog) (E a) f args ⎡(∃ v, Q a v) ∗ funassert Delta psi⎤ O)) as Hpre.
 2: { rewrite /bi_emp_valid Hpre; f_equiv.

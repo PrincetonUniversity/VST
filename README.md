@@ -17,7 +17,7 @@ The [LICENSE](LICENSE) file has information about copyright, licensing, and perm
 
 ## How to install:
 
-[See here for instructions](./ivst.md).
+[See here for instructions](./BUILD_ORGANIZATION.md) (but note that VST 3.x is not currently in the Rocq Platform).
 
 ## Documentation:
 

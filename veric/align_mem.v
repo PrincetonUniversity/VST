@@ -1,6 +1,6 @@
-Require Import Coq.Sorting.Permutation.
-Require Import Coq.Sorting.Sorting.
-Require Import Coq.Structures.Orders.
+Require Import Stdlib.Sorting.Permutation.
+Require Import Stdlib.Sorting.Sorting.
+Require Import Stdlib.Structures.Orders.
 Require Import VST.veric.base.
 Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.type_induction.

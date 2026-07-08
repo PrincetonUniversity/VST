@@ -1,4 +1,4 @@
-(* modified from iris.algebra.frac *)
+(* following iris.algebra.frac *)
 
 From iris.algebra Require Export cmra.
 From iris.algebra Require Import proofmode_classes.
@@ -49,6 +49,7 @@ Section share.
   Lemma readable_top : share_readable share_top.
   Proof. apply writable_readable, writable_top. Qed.
 
+  Context {SI : sidx}.
 Set Warnings "-redundant-canonical-projection".
   Canonical Structure shareO := leibnizO share_car.
 Set Warnings "redundant-canonical-projection".

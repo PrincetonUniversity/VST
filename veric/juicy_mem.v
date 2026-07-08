@@ -997,7 +997,7 @@ Section mpred.
   Lemma elem_of_to_agree : forall {A} (v : A), proj1_sig (elem_of_agree (to_agree v)) = v.
   Proof.
     intros; destruct (elem_of_agree (to_agree v)); simpl.
-    rewrite -elem_of_list_singleton //.
+    rewrite -list_elem_of_singleton //.
   Qed.
 
   Definition res_le r1 r2 : Prop := r1.1 ≼ r2.1 ∧ (r1.2 = None ∨ r1.2 = r2.2).
@@ -1015,8 +1015,8 @@ Section mpred.
     apply shared_valid in Hv as (_ & Hv).
     apply option_included_total in H as [-> | (? & ? & -> & Heq & H)]; auto.
     rewrite Heq /= in Hv |- *.
-    assert (✓{0} x2) by (by apply cmra_valid_validN).
-    right; f_equal; symmetry; apply (elem_of_agree_ne' O); first done.
+    assert (✓{sidx_zero} x2) by (by apply cmra_valid_validN).
+    right; f_equal; symmetry; apply (elem_of_agree_ne' sidx_zero); first done.
     symmetry; apply agree_valid_includedN; first done.
     by apply @cmra_included_includedN.
   Qed.
@@ -1124,7 +1124,7 @@ Section mpred.
     ([∗ list] k↦y ∈ l, f k y) ⊣⊢ [∗ list] k;y ∈ seq 0 (length l);l, f k y.
   Proof.
     intros; induction l using rev_ind; simpl; first done.
-    rewrite big_sepL_app app_length seq_app big_sepL2_snoc /= -IHl.
+    rewrite big_sepL_app length_app seq_app big_sepL2_snoc /= -IHl.
     rewrite Nat.add_0_r bi.sep_emp //.
   Qed.
 
@@ -1155,19 +1155,19 @@ Section mpred.
     intros.
     destruct (list_to_map _ !! _) eqn: Hl; simpl.
     * apply elem_of_list_to_map, elem_of_zip_gen in Hl as (? & Hk & Hv); simpl in *.
-      apply list_lookup_fmap_inv in Hk as (? & -> & (-> & ?)%lookup_seq).
+      apply list_lookup_fmap_Some_1 in Hk as (? & -> & (-> & ?)%lookup_seq).
       rewrite /adr_add /= if_true.
       rewrite Z.add_simpl_l Nat2Z.id; erewrite nth_lookup_Some; done.
       { destruct k; simpl; lia. }
       { rewrite fst_zip.
         apply NoDup_fmap_2, NoDup_seq.
         intros ??; inversion 1; lia.
-        { rewrite length_fmap seq_length //. } }
+        { rewrite length_fmap length_seq //. } }
     * if_tac; last done.
       destruct k as (?, z), l as (?, ofs), H; subst.
       apply not_elem_of_list_to_map_2 in Hl; contradiction Hl.
-      rewrite fst_zip; last rewrite length_fmap seq_length //.
-      rewrite elem_of_list_fmap /adr_add /=.
+      rewrite fst_zip; last rewrite length_fmap length_seq //.
+      rewrite list_elem_of_fmap /adr_add /=.
       exists (Z.to_nat (ofs - z)).
       split; first by f_equal; lia.
       rewrite elem_of_seq; lia.
@@ -1192,24 +1192,24 @@ Section mpred.
   Proof.
     iIntros "(% & % & Hm)".
     rewrite -(big_sepL_fmap (λ i, adr_add (b, lo) (Z.of_nat i)) (λ _ i, i ↦ VAL Undef)).
-    rewrite -(big_sepL2_replicate_r _ _ (λ _ i v, i ↦ v)); last by rewrite length_fmap seq_length.
-    rewrite big_sepL2_alt length_fmap seq_length length_replicate bi.pure_True // bi.True_and.
+    rewrite -(big_sepL2_replicate_r _ _ (λ _ i v, i ↦ v)); last by rewrite length_fmap length_seq.
+    rewrite big_sepL2_alt length_fmap length_seq length_replicate bi.pure_True // bi.True_and.
     assert (NoDup (zip ((λ i : nat, adr_add (b, lo) (Z.of_nat i)) <$> seq 0 (Z.to_nat (hi - lo)))
      (replicate (Z.to_nat (hi - lo)) (VAL Undef))).*1).
     { rewrite fst_zip.
       apply NoDup_fmap_2, NoDup_seq.
       intros ??; inversion 1; lia.
-      { rewrite length_fmap seq_length length_replicate //. } }
+      { rewrite length_fmap length_seq length_replicate //. } }
     rewrite -(big_sepM_list_to_map (λ x y, x ↦ y)) //.
     pose proof (alloc_result _ _ _ _ _ Halloc) as ->.
     iMod (mapsto_insert_big with "Hm") as "(Hm & $)".
     { rewrite dom_list_to_map_L fst_zip.
-      intros l (? & -> & ?)%elem_of_list_to_set%elem_of_list_fmap_2.
+      intros l (? & -> & ?)%elem_of_list_to_set%list_elem_of_fmap.
       destruct (H (adr_add (nextblock m, lo) (Z.of_nat x))) as (Hnext & _).
       rewrite elem_of_dom Hnext.
       * intros (? & ?); done.
       * rewrite /adr_add /=; lia.
-      * rewrite length_fmap seq_length length_replicate //. }
+      * rewrite length_fmap length_seq length_replicate //. }
     iExists _; iFrame; iPureIntro.
     split; last done.
     intros l; specialize (H l); destruct H as (Hnext & Hcontents & Haccess).
@@ -1248,24 +1248,24 @@ Section mpred.
   Proof.
     iIntros "(% & % & Hm)".
     rewrite -(big_sepL_fmap (λ i, adr_add (b, lo) (Z.of_nat i)) (λ _ i, i ↦□ VAL Undef)).
-    rewrite -(big_sepL2_replicate_r _ _ (λ _ i v, i ↦□ v)); last by rewrite length_fmap seq_length.
-    rewrite big_sepL2_alt length_fmap seq_length length_replicate bi.pure_True // bi.True_and.
+    rewrite -(big_sepL2_replicate_r _ _ (λ _ i v, i ↦□ v)); last by rewrite length_fmap length_seq.
+    rewrite big_sepL2_alt length_fmap length_seq length_replicate bi.pure_True // bi.True_and.
     assert (NoDup (zip ((λ i : nat, adr_add (b, lo) (Z.of_nat i)) <$> seq 0 (Z.to_nat (hi - lo)))
      (replicate (Z.to_nat (hi - lo)) (VAL Undef))).*1).
     { rewrite fst_zip.
       apply NoDup_fmap_2, NoDup_seq.
       intros ??; inversion 1; lia.
-      { rewrite length_fmap seq_length length_replicate //. } }
+      { rewrite length_fmap length_seq length_replicate //. } }
     rewrite -(big_sepM_list_to_map (λ x y, x ↦□ y)) //.
     pose proof (alloc_result _ _ _ _ _ Halloc) as ->.
     iMod (mapsto_insert_persist_big with "Hm") as "(Hm & $)".
     { rewrite dom_list_to_map_L fst_zip.
-      intros l (? & -> & ?)%elem_of_list_to_set%elem_of_list_fmap_2.
+      intros l (? & -> & ?)%elem_of_list_to_set%list_elem_of_fmap.
       destruct (H (adr_add (nextblock m, lo) (Z.of_nat x))) as (Hnext & _).
       rewrite elem_of_dom Hnext.
       * intros (? & ?); done.
       * rewrite /adr_add /=; lia.
-      * rewrite length_fmap seq_length length_replicate //. }
+      * rewrite length_fmap length_seq length_replicate //. }
     iExists _; iFrame; iPureIntro.
     split; last done.
     intros l; specialize (H l); destruct H as (Hnext & Hcontents & Haccess).
@@ -1308,7 +1308,7 @@ Section mpred.
     { rewrite fst_zip.
       apply NoDup_fmap_2, NoDup_seq.
       intros ??; inversion 1; lia.
-      { rewrite length_fmap seq_length //. } }
+      { rewrite length_fmap length_seq //. } }
     rewrite big_sepL2_alt -(big_sepM_list_to_map (λ x y, x ↦ y)) //.
     iDestruct "H" as "(_ & H)".
     iMod (mapsto_delete_big with "Hm H").
@@ -1356,7 +1356,7 @@ Section mpred.
       { split; first done; apply plus_1_lt. }
     - unfold contents_cohere, contents_at in *.
       erewrite storebytes_mem_contents by done.
-      intros ?; destruct (eq_dec k l); [subst; rewrite lookup_insert | rewrite lookup_insert_ne //].
+      intros ?; destruct (eq_dec k l); [subst; rewrite lookup_insert_eq | rewrite lookup_insert_ne //].
       + rewrite /= elem_of_to_agree; inversion 1; subst.
         rewrite Maps.PMap.gss Maps.ZMap.gss //.
       + destruct (eq_dec l.1 k.1); [rewrite e Maps.PMap.gss | rewrite Maps.PMap.gso //; auto].
@@ -1364,7 +1364,7 @@ Section mpred.
         rewrite Maps.ZMap.gso // -e; auto.
     - unfold access_cohere in *.
       erewrite <- Memory.storebytes_access by done.
-      destruct (eq_dec k l); [subst; rewrite lookup_insert | rewrite lookup_insert_ne //].
+      destruct (eq_dec k l); [subst; rewrite lookup_insert_eq | rewrite lookup_insert_ne //].
       erewrite resR_to_resource_eq in Haccess by done.
       rewrite /= !elem_of_to_agree // in Haccess |- *.
   Qed.
@@ -1389,7 +1389,7 @@ Section mpred.
     { rewrite fst_zip.
       apply NoDup_fmap_2, NoDup_seq.
       intros ??; inversion 1; lia.
-      { rewrite length_fmap seq_length //. } }
+      { rewrite length_fmap length_seq //. } }
     rewrite big_sepL2_alt -(big_sepM_list_to_map (λ x y, x ↦{dq} y)) //.
     iIntros "(_ & H)".
     iDestruct (mapsto_lookup_big with "Hm H") as %Hall; iPureIntro.
@@ -1433,7 +1433,7 @@ Section mpred.
     { rewrite fst_zip.
       apply NoDup_fmap_2, NoDup_seq.
       intros ??; inversion 1; lia.
-      { rewrite !length_fmap seq_length //. } }
+      { rewrite !length_fmap length_seq //. } }
     rewrite big_sepL2_alt -(big_sepM_list_to_map (λ x y, x ↦{#sh} y)) //.
     iDestruct "H" as "(_ & H)".
     iDestruct (gen_heap.mapsto_lookup_big with "Hm H") as %Hall.
@@ -1443,12 +1443,12 @@ Section mpred.
     { rewrite fst_zip.
       apply NoDup_fmap_2, NoDup_seq.
       intros ??; inversion 1; lia.
-      { rewrite !length_fmap seq_length //. } }
+      { rewrite !length_fmap length_seq //. } }
     rewrite big_sepL2_alt -(big_sepM_list_to_map (λ x y, x ↦{#sh} y)) //.
     iDestruct (resource_map_auth_valid with "Hm") as %(_ & Hvalid).
-    rewrite !length_fmap seq_length bi.pure_True // bi.True_and.
+    rewrite !length_fmap length_seq bi.pure_True // bi.True_and.
     iMod (mapsto_update_big with "Hm H") as "(Hm & $)"; first done.
-    { rewrite Hlen !dom_list_to_map_L !fst_zip //; rewrite !length_fmap seq_length //; lia. }
+    { rewrite Hlen !dom_list_to_map_L !fst_zip //; rewrite !length_fmap length_seq //; lia. }
     iDestruct (resource_map_auth_valid with "Hm") as %(_ & Hvalid').
     iExists _; iFrame; iPureIntro; split; last done.
     unfold coherent, resource_at in *; intros l.

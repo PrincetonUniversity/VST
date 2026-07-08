@@ -196,7 +196,7 @@ Lemma rev_if_be_length:
   forall l, length (rev_if_be l) = length l.
 Proof.
   intros; unfold rev_if_be; destruct Archi.big_endian.
-  apply List.rev_length.
+  apply List.length_rev.
   auto.
 Qed.
 

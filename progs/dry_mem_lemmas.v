@@ -266,7 +266,7 @@ Lemma encode_vals_length : forall lv,
   length (concat (map (encode_val Mint8unsigned) lv)) = length lv.
 Proof.
   induction lv; auto; simpl.
-  rewrite app_length IHlv encode_val_length //.
+  rewrite length_app IHlv encode_val_length //.
 Qed.
 
 Definition main_pre_dry (m : mem) (prog : Clight.program) (ora : OK_ty)

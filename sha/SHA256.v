@@ -138,9 +138,9 @@ Function hash_blocks (r: registers) (msg: list int) {measure length msg} : regis
   end.
 Proof. intros.
  destruct (lt_dec (length msg) 16).
- rewrite skipn_length_short. simpl; lia. subst; simpl in *; lia.
+ rewrite length_skipn_short. simpl; lia. subst; simpl in *; lia.
  rewrite <- teq; auto.
- rewrite skipn_length. simpl; lia.
+ rewrite length_skipn. simpl; lia.
 Qed.
 
 Definition SHA_256 (str : list byte) : list byte :=

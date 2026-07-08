@@ -1,4 +1,4 @@
-Require Import Coq.Logic.FunctionalExtensionality.
+Require Import Stdlib.Logic.FunctionalExtensionality.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.res_predicates.
@@ -600,7 +600,87 @@ Qed.
   <affine> rguard OK_spec psi E Delta curf (frame_ret_assert R F0) k -∗
   jsafeN OK_spec psi E ora (Callstate ff args ctl)).
 Proof.
+<<<<<<< HEAD
 Qed.*)
+=======
+  iIntros "#Bel".
+  iPoseProof ("Bel" with "[%]") as "Bel'".
+  { exists id; eauto. }
+  pose proof (tc_vals_length _ _ TC8) as Hlen.
+  iDestruct "Bel'" as "[BE | BI]".
+  - (* external call *)
+    iPoseProof (semax_call_external with "BE") as "Hsafe"; [done..|].
+    iNext; iIntros "(F0 & ?) fun #HR rguard".
+    iApply ("Hsafe" with "rguard fun F0").
+    by iApply "HR".
+  - (* internal call *)
+    rewrite believe_internal_mask_mono //.
+    iDestruct "BI" as (b' f (H3a & H3b & COMPLETE & H17 & H17' & Hvars & H18 & H18')) "BI".
+    injection H3a as <-; change (Genv.find_funct psi (Vptr b Ptrofs.zero) = Some (Internal f)) in H3b.
+    rewrite H16 in H3b; inv H3b.
+    iSpecialize ("BI" with "[%] [%]").
+    { intros; apply tycontext_sub_refl. }
+    { apply cenv_sub_refl. }
+    iNext; iIntros "(F0 & P) fun #HR rguard".
+    iMod ("HR" with "P") as (???) "((? & ?) & #post)".
+    iSpecialize ("BI" $! x1); rewrite semax_fold_unfold.
+    iPoseProof ("BI" with "[%] [Bel] [rguard]") as "#guard".
+    { split3; eauto; [apply tycontext_sub_refl | apply cenv_sub_refl]. }
+    { done. }
+    { iIntros "!>"; rewrite bi.affinely_elim.
+      rewrite bi.pure_and; setoid_rewrite (bi.pure_True (nE x1 ⊆ E)); last done.
+      rewrite bi.and_True.
+      iApply (semax_call_aux2 _ _ _ _ _ _ _ _ _ (clientparams,retty) (Econst_int Int.zero tint) nil with "post rguard"); try done.
+      * rewrite closed_wrt_modvars_Scall //.
+      * destruct H18' as [-> _]; rewrite H18 //. }
+    iApply jsafe_step; rewrite /jstep_ex.
+    iIntros (?) "(Hm & ?)".
+    destruct (build_call_temp_env f args) as (te & Hte).
+    { rewrite /= in H18; rewrite H18 length_map // in Hlen. }
+    iMod (alloc_stackframe with "Hm") as (?? [??]) "(Hm & stack)"; [try done.. |].
+    { unfold var_sizes_ok in Hvars.
+      rewrite !Forall_forall in Hvars, COMPLETE |- *.
+      intros v H0. specialize (COMPLETE v H0). specialize (Hvars v H0).
+      rewrite (cenv_sub_sizeof CSUB); auto. }
+    iIntros "!>"; iExists _, _; iSplit.
+    { apply list_norepet_append_inv in H17 as (? & ? & ?).
+      iPureIntro; constructor; constructor; done. }
+    iFrame.
+    iApply ("guard" with "[-]"); last by iIntros "!> !>"; iPureIntro.
+    iSplit.
+    + iPureIntro.
+      split; last done.
+      eapply semax_call_typecheck_environ; eauto.
+      * rewrite -Genv.find_funct_find_funct_ptr //.
+      * destruct GuardEnv as ((? & ? & ?) & ?); done.
+      * rewrite snd_split -H18 //.
+    + iFrame; monPred.unseal; iFrame.
+      monPred.unseal; iFrame.
+      apply list_norepet_app in H17 as [H17 [_ _]].
+      rewrite /bind_args; monPred.unseal; iSplit.
+      * iPureIntro.
+        rewrite /tc_formals -H18 //.
+        match goal with H: tc_vals _ ?A |- tc_vals _ ?B => replace B with A; auto end.
+        clear - H17 Hte. forget (create_undef_temps (fn_temps f)) as te0.
+        revert args te0 te Hte H17.
+        induction (fn_params f); destruct args; intros; auto; try discriminate.
+        { destruct a; inv Hte. }
+        destruct a; simpl in Hte. inv H17.
+        rewrite (IHl _ _ _ Hte) //.
+        simpl; f_equal.
+        unfold eval_id, construct_rho; simpl.
+        erewrite pass_params_ni; try eassumption.
+        rewrite Maps.PTree.gss. reflexivity.
+      * iApply (make_args_close_precondition _ _ _ _ ve _ (argsassert_of _)); try done.
+        eapply tc_vals_Vundef; eauto.
+Qed.
+
+Lemma semax_call_aux {CS'}
+  E (Delta : tycontext) (psi : genv) (ora : OK_ty) (b : block) (id : ident) cc
+  A0 P (x : dtfr A0) A nE deltaP deltaQ retty clientparams
+  (F0 : assert) F (ret : option ident) (curf: function) args (a : expr)
+  (bl : list expr) (R : ret_assert) (vx:env) (tx:Clight.temp_env) (k : cont) (rho : environ)
+>>>>>>> vst_on_iris
 
 Lemma make_te_lookup : forall (params : list (ident * type)) l args lv (te : tenviron)
   (Hnodup : NoDup (zip (map fst params ++ l) (args ++ lv)).*1)
@@ -752,6 +832,7 @@ Proof.
     iDestruct "H" as (([=] & ->)) "H"; subst.
     iDestruct "sub" as ((-> & ->)) "sub".
     repeat match goal with H : existT _ _ = existT _ _ |- _ => apply inj_pair2 in H end; subst.
+<<<<<<< HEAD
     iExists _, _, _, _, _, _; iSplit; first done.
     iDestruct "H" as "(HP & HQ)".
     iRewrite "HP"; iRewrite "HQ"; done. }
@@ -967,6 +1048,75 @@ Proof.
            ** destruct (fn_return f); try done; iFrame; iPureIntro; by split; first apply tc_val_tc_val'.
            ** by rewrite Hr.
         ++ rewrite monPred_at_affinely //.
+=======
+    iNext; iExists _, _, _; iSplit; done. }
+  set (args := @eval_exprlist CS clientparams bl rho).
+  set (args' := @eval_exprlist CS' clientparams bl rho).
+  iDestruct "SubClient" as "[(%NSC & %Hcc) ClientAdaptation]"; subst cc. destruct nsig as [nparams nRetty].
+  inversion NSC; subst nRetty nparams; clear NSC.
+  simpl fst in *; simpl snd in *.
+  assert (typecheck_environ Delta rho) as TC4.
+  { clear - TC3 TS.
+    destruct TC3 as [TC3 TC4].
+    eapply typecheck_environ_sub in TC3; [| eauto].
+    auto. }
+  rewrite (add_and (_ ∧ ▷ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((_ & H) & _)"; destruct HGG; iApply (typecheck_exprlist_sound_cenv_sub(CS := CS) with "H").
+  iDestruct "H" as "(H & >%HARGS)".
+  fold args in HARGS; fold args' in HARGS.
+  setoid_rewrite tc_exprlist_sub; [|done..]. setoid_rewrite tc_expr_sub; [|done..].
+  rewrite (add_and (_ ∧ ▷ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((_ & H) & _)"; destruct HGG; iApply (tc_exprlist_length(CS := CS) with "H").
+  iDestruct "H" as "(H & >%LENbl)".
+  assert (LENargs: Datatypes.length clientparams = Datatypes.length args).
+  { rewrite LENbl eval_exprlist_length //. }
+  assert (TCD': tc_environ Delta' rho) by eapply TC3.
+  rewrite (add_and (_ ∧ ▷ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((_ & H) & _)"; iApply (tc_eval_exprlist(CS' := CS) with "H").
+  iDestruct "H" as "(H & >%TCargs)"; fold args in TCargs.
+  iSpecialize ("ClientAdaptation" $! x (ge_of rho, args)).
+  rewrite (bi.pure_True (argsHaveTyps _ _)).
+  2: { clear -TCargs. clearbody args. generalize dependent clientparams.
+       induction args; intros.
+       - destruct clientparams; simpl in *. constructor. contradiction.
+       - destruct clientparams; simpl in *. contradiction. destruct TCargs.
+         apply tc_val_has_type in H; simpl. apply IHargs in H0.
+         constructor; eauto. }
+  rewrite bi.True_and.
+  assert (CSUBpsi:cenv_sub (@cenv_cs CS) psi).
+  { destruct HGG as [CSUB' HGG]. apply (cenv_sub_trans CSUB' HGG). }
+  destruct HGG as [CSUB HGG].
+  rewrite (add_and (_ ∧ ▷ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((H & _) & _)"; iApply (typecheck_expr_sound_cenv_sub(CS := CS) with "H").
+  iDestruct "H" as "(H & >%Heval_eq)"; rewrite Heval_eq in EvalA.
+  subst rho; iApply (@semax_call_aux CS' _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ (normal_ret_assert
+                   (∃ old : val, assert_of (substopt ret (` old) (monPred_at F)) ∗
+                      maybe_retval (assert_of (Q x)) retty ret)) with "Prog_OK [F0 H] [fun] [] [rguard]"); try eassumption; try reflexivity;
+    [| by monPred.unseal | | by repeat monPred.unseal].
+  - iCombine "F0 H" as "H"; rewrite bi.sep_and_l; iSplit.
+    + rewrite bi.later_and; iDestruct "H" as "[(_ & ?) _]".
+      rewrite tc_exprlist_cenv_sub // tc_expr_cenv_sub //.
+    + iNext; iDestruct "H" as "[_ $]".
+  - iClear "funcatb". iIntros "!> !> !>".
+    iIntros "(F & P)".
+    iMod (fupd_mask_subseteq (Ef x)) as "Hmask"; first by set_solver.
+    iMod ("ClientAdaptation" with "P") as (???) "[H #post]".
+    iMod "Hmask" as "_".
+    rewrite !ofe_morO_equivI /=.
+    iSpecialize ("HeqP" $! x1); iSpecialize ("HeqQ" $! x1).
+    rewrite !discrete_fun_equivI.
+    iSpecialize ("HeqP" $! (filter_genv psi, args)); iRewrite "HeqP" in "H".
+    iExists x1, (F ∗ ⎡F1⎤); iIntros "!>"; monPred.unseal; iSplit; first by (iPureIntro; set_solver).
+    iSplit; first by iDestruct "H" as "($ & $)".
+    iIntros (?) "!> (% & F & nQ)"; simpl.
+    destruct ret; simpl.
+    + iExists old; iDestruct "F" as "($ & F1)".
+      iSpecialize ("HeqQ" $! (get_result1 i rho')); iRewrite -"HeqQ" in "nQ".
+      iDestruct "nQ" as "($ & nQ)"; iApply "post"; iFrame; by iPureIntro.
+    + iExists Vundef; iDestruct "F" as "($ & F1)".
+      destruct (type_eq retty Tvoid); subst.
+      * iSpecialize ("HeqQ" $! (globals_only rho')); iRewrite -"HeqQ" in "nQ".
+        iApply "post"; iFrame; by iPureIntro.
+      * destruct retty; first contradiction; iDestruct "nQ" as (v ?) "nQ";
+          iSpecialize ("HeqQ" $! (env_set (globals_only rho') ret_temp v)); iRewrite -"HeqQ" in "nQ";
+          iExists v; (iSplit; [by iPureIntro|]; iApply "post"; iFrame; by iPureIntro).
+>>>>>>> vst_on_iris
 Qed.
 
 (* We need the explicit frame because it might contain typechecking information. *)

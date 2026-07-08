@@ -2377,7 +2377,7 @@ intros.
 rewrite value_fits_eq; simpl.
 unfold type_is_volatile; simpl.
 destruct (attr_volatile a); auto.
-hnf. intro. apply Coq.Init.Logic.I.
+hnf. intro. apply Logic.I.
 Qed.
 
 (* TODO: move all change type lemmas into one file. Also those change compspecs lemmas. *)

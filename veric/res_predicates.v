@@ -1,8 +1,8 @@
-From iris.proofmode Require Export tactics.
+From iris.proofmode Require Export proofmode.
 Require Import compcert.cfrontend.Ctypes.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From iris_ora.algebra Require Import gmap.
-From iris_ora.logic Require Export logic algebra invariants.
+From iris_ora.logic Require Export logic invariants.
 From VST.veric Require Import shares address_conflict.
 From VST.msl Require Export shares.
 From VST.veric Require Export base Memory share_instance.
@@ -450,7 +450,7 @@ Proof.
     iDestruct "Hv" as (v) "Hv".
     iDestruct (IHn with "H") as (bl [??]) "H"; subst.
     iExists (bl ++ [v]); iSplit.
-    { rewrite app_length /=; iPureIntro; split; auto; lia. }
+    { rewrite length_app /=; iPureIntro; split; auto; lia. }
     rewrite big_sepL_app /= Nat.add_0_r; iFrame.
 Qed.
 
@@ -460,7 +460,7 @@ Proof.
   intros; remember (rev l) as l'; generalize dependent l; induction l'; intros.
   { by destruct l; [|apply app_cons_not_nil in Heql']. }
   apply (f_equal (@rev _)) in Heql'; rewrite rev_involutive in Heql'; subst; simpl.
-  rewrite app_length seq_app !big_opL_app IHl'; last by rewrite rev_involutive.
+  rewrite length_app seq_app !big_opL_app IHl'; last by rewrite rev_involutive.
   simpl; rewrite nth_middle Nat.add_0_r.
   rewrite -(big_opL_ext (fun _ y => f y (nth y (rev l' ++ [a]) inhabitant))); first done.
   intros ??[-> ?]%lookup_seq.
@@ -824,9 +824,9 @@ Proof.
   - destruct b1; last by apply app_cons_not_nil in Heqb1'.
     symmetry in Hlen; apply nil_length_inv in Hlen as ->; auto.
   - apply (f_equal (@rev _)) in Heqb1'; rewrite rev_involutive in Heqb1'; subst; simpl in *.
-    rewrite app_length /= in Hlen; destruct (list_snoc b2) as (b2' & ? & ->); first lia.
+    rewrite length_app /= in Hlen; destruct (list_snoc b2) as (b2' & ? & ->); first lia.
     rewrite !big_opL_app /= !Nat.add_0_r.
-    assert (length (rev b1') = length b2') as Hlen' by (rewrite app_length /= in Hlen; lia); rewrite Hlen'.
+    assert (length (rev b1') = length b2') as Hlen' by (rewrite length_app /= in Hlen; lia); rewrite Hlen'.
     iIntros "[(H1 & Hv1 & _) (H2 & Hv2 & _)]".
     iDestruct (mapsto_value_cohere with "[$Hv1 $Hv2]") as %[=]; subst.
     by iDestruct (IHb1' with "[$H1 $H2]") as %->; first by rewrite rev_involutive.

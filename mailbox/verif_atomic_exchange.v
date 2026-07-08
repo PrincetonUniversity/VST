@@ -40,7 +40,7 @@ Proof.
   induction l; simpl; intros.
   - rewrite lookup_empty nth_error_nil //.
   - destruct (eq_dec n i).
-    + subst; rewrite lookup_insert Nat.sub_diag //.
+    + subst; rewrite lookup_insert_eq Nat.sub_diag //.
     + rewrite lookup_insert_ne //.
       destruct (i - n)%nat as [|n'] eqn: Hi; first lia.
       rewrite IHl /=; last lia.
@@ -52,7 +52,7 @@ Lemma list_to_hist_insert : forall l n e,
 Proof.
   induction l; simpl; intros.
   - rewrite Nat.add_0_r //.
-  - rewrite insert_commute; last lia.
+  - rewrite insert_insert_ne; last lia.
     replace (n + S _)%nat with (S n + length l)%nat by lia.
     rewrite IHl //.
 Qed.
@@ -116,19 +116,12 @@ Lemma hist_ref_incl : forall sh h h' p,
 Proof.
   intros; iIntros "(Hh & Hr)".
   iPoseProof (own_valid_2 with "Hr Hh") as "H".
-  rewrite frac_auth_agreeI.
-  if_tac.
-  - iDestruct "H" as %Hh; iPureIntro.
-    apply leibniz_equiv in Hh as <-.
-    intros ??.
-    rewrite list_to_hist_lookup; last lia.
-    destruct (nth_error _ _) eqn: E; inversion 1; subst.
-    rewrite Nat.sub_0_r // in E.
-  - iDestruct "H" as %Hh; iPureIntro.
-    assert (forall i, included(A := optionR (exclR (leibnizO AE_hist_el)))
+  rewrite auth_both_validI.
+  iDestruct "H" as "((% & %) & _)"; iPureIntro.
+  destruct c; inv H.
+  - assert (forall i, included(A := optionR (exclR (leibnizO AE_hist_el)))
       (h !! i) (list_to_hist h' 0 !! i)) as Hincl.
-    { rewrite -gmap.lookup_included /included.
-      destruct Hh as (z & Hz); exists z; rewrite Hz //. }
+    { rewrite -gmap.lookup_included /included; eexists; by rewrite H2. }
     intros ?? Ht.
     specialize (Hincl t); rewrite Ht list_to_hist_lookup in Hincl; last lia.
     rewrite Nat.sub_0_r in Hincl.
@@ -136,6 +129,10 @@ Proof.
     rewrite Excl_included in Hincl; rewrite Hincl //.
     { rewrite option_included in Hincl.
       destruct Hincl as [| (? & ? & ? & ? & ?)]; done. }
+  - intros ??.
+    rewrite list_to_hist_lookup; last lia.
+    destruct (nth_error _ _) eqn: E; inversion 1; subst.
+    rewrite Nat.sub_0_r // in E.
 Qed.
 
 Lemma hist_add' : forall sh h h' e p,

@@ -1,4 +1,4 @@
-Require Import FunInd.
+From Stdlib Require Import FunInd.
 Require Import VST.zlist.sublist.
 Require Import VST.veric.log_normalize.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
@@ -165,12 +165,12 @@ Definition load_store_init_data1 (ge: Genv.t fundef type) (m: mem) (b: block) (p
 
 Definition initializer_aligned (z: Z) (d: init_data) : bool :=
   match d with
-  | Init_int16 n => Zeq_bool (z mod 2) 0
-  | Init_int32 n => Zeq_bool (z mod 4) 0
-  | Init_int64 n => Zeq_bool (z mod 8) 0
-  | Init_float32 n =>  Zeq_bool (z mod 4) 0
-  | Init_float64 n =>  Zeq_bool (z mod 8) 0
-  | Init_addrof symb ofs =>  Zeq_bool (z mod (size_chunk Mptr)) 0
+  | Init_int16 n => Z.eqb (z mod 2) 0
+  | Init_int32 n => Z.eqb (z mod 4) 0
+  | Init_int64 n => Z.eqb (z mod 8) 0
+  | Init_float32 n =>  Z.eqb (z mod 4) 0
+  | Init_float64 n =>  Z.eqb (z mod 8) 0
+  | Init_addrof symb ofs =>  Z.eqb (z mod (size_chunk Mptr)) 0
   | _ => true
   end.
 
@@ -631,14 +631,14 @@ Transparent load.
             iExists B; replace V with (decode_val ch B) by (inversion H; auto);
             clear H
        end; try (iSplit; last (by simpl; rewrite ?Z.add_0_r -?Z.add_assoc);
-                 iPureIntro; repeat split; auto; try solve [apply Zmod_divide; [intro Hx; inv Hx | apply Zeq_bool_eq; auto]]).
+                 iPureIntro; repeat split; auto; try solve [apply Zmod_divide; [intro Hx; inv Hx | apply Z.eqb_eq; auto]]).
 Opaque load.
 * (* Int8 *)
-  apply Zone_divide.
+  apply Z.divide_1_l.
 * (* Float64 *)
   clear - AL.
-  simpl in AL. apply Zmod_divide. intro Hx; inv Hx. apply Zeq_bool_eq; auto.
-  rewrite <- Zeq_is_eq_bool in *; simpl.
+  simpl in AL. apply Z.mod_divide. intro Hx; inv Hx.
+  rewrite -> Z.eqb_eq in *; simpl.
   apply Zmod_divides; [ lia | ].
   apply Zmod_divides in AL; [ | lia].
   destruct AL as [c ?]. exists (2 * c)%Z. rewrite Z.mul_assoc. apply H.
@@ -663,7 +663,7 @@ Opaque load.
   injection H as H.
   rewrite /genviron2globals.
   assert (align_chunk Mptr | z).
-  { simpl in AL. apply Zmod_divide. intro Hx; inv Hx. apply Zeq_bool_eq; auto. }
+  { simpl in AL. apply Zmod_divide. intro Hx; inv Hx. apply Z.eqb_eq; auto. }
   destruct (Genv.find_symbol (genv_genv ge) i) eqn: Hi.
   + iLeft. iSplit; first done. rewrite Ptrofs.add_zero_l.
     iExists (getN (size_chunk_nat Mptr) z (Maps.PMap.get b (mem_contents m3))).
@@ -860,7 +860,7 @@ Qed.
 
 Definition all_initializers_aligned (prog: program) :=
   forallb (fun idv => andb (initializers_aligned 0 (gvar_init (snd idv)))
-                                 (Zlt_bool (init_data_list_size (gvar_init (snd idv))) Ptrofs.modulus))
+                                 (Z.ltb (init_data_list_size (gvar_init (snd idv))) Ptrofs.modulus))
                       (prog_vars prog) = true.
 
 Lemma forallb_rev: forall {A} f (vl: list A), forallb f (rev vl) = forallb f vl.
@@ -1302,7 +1302,7 @@ Proof.
   intros ?? (-> & ?)%lookup_seq.
   rewrite /block_bounds /=.
   apply alloc_globals_rev_nextblock in H.
-  rewrite globals_bounds_app1; last by rewrite Zlength_correct in H; rewrite rev_length; lia.
+  rewrite globals_bounds_app1; last by rewrite Zlength_correct in H; rewrite length_rev; lia.
   destruct (globals_bounds _ _ _); apply big_sepL_mono; intros.
   rewrite /inflate_loc.
   pose proof (alloc_result _ _ _ _ _ Halloc) as ->.

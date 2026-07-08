@@ -30,7 +30,7 @@ Notation "" := (DfracOwn (Share share_top)) (in custom dfrac).
 
 Section dfrac.
 
-Context `{ST : ShareType}.
+Context {SI : sidx} `{ST : ShareType}.
 Set Warnings "-redundant-canonical-projection".
   Canonical Structure dfracO := leibnizO dfrac.
 Set Warnings "redundant-canonical-projection".
@@ -86,13 +86,13 @@ Set Warnings "redundant-canonical-projection".
 
   Lemma dfrac_op_discarded :
     DfracDiscarded ⋅ DfracDiscarded = DfracDiscarded.
-  Proof. rewrite /op /dfrac_op_instance /= left_id //. Qed.
+  Proof. rewrite /op /dfrac_op_instance /= ucmra_unit_left_id //. Qed.
 
   Lemma dfrac_op_own_discarded q : DfracOwn q ⋅ DfracDiscarded = DfracBoth q.
-  Proof. rewrite /op /= right_id //. Qed.
+  Proof. rewrite /op /= ucmra_unit_right_id //. Qed.
 
   Lemma dfrac_op_both_discarded q : DfracBoth q ⋅ DfracDiscarded = DfracBoth q.
-  Proof. rewrite /op /= right_id //. Qed.
+  Proof. rewrite /op /= ucmra_unit_right_id //. Qed.
 
   Lemma dfrac_included_eq dq dp : dq ≼ dp ↔ match dq, dp with
     | DfracOwn q, DfracOwn p | DfracOwn q, DfracBoth p | DfracBoth q, DfracBoth p => q ≼ p
@@ -144,9 +144,9 @@ Set Warnings "redundant-canonical-projection".
   Proof.
     apply: discrete_cancelable.
     intros [q1|q1] [q2|q2] ? [=]; simplify_eq/=; try done.
-    - by apply (share_cancelable _ 0) in H1 as ->.
+    - by apply (share_cancelable _ sidx_zero) in H1 as ->.
     - destruct H as (? & J & ?).
-      apply (share_cancelable _ 0) in H1 as ->; try done.
+      apply (share_cancelable _ sidx_zero) in H1 as ->; try done.
       rewrite J; hnf; eauto.
   Qed.
 
@@ -166,7 +166,7 @@ Set Warnings "redundant-canonical-projection".
   Proof.
     intros ??? ->%dfrac_full_exclusive H.
     destruct z; last done.
-    rewrite /op /cmra_op /= right_id in H; injection H as H.
+    rewrite /op /cmra_op /= ucmra_unit_right_id in H; injection H as H.
     symmetry in H; apply share_op_join in H as (? & ? & [=] & ? & J); subst.
     rewrite share_op_comm in J; apply share_op_top' in J as (_ & ->); done.
   Qed.
@@ -174,7 +174,7 @@ Set Warnings "redundant-canonical-projection".
   Definition dfrac_ucmra_mixin : UcmraMixin dfrac.
   Proof.
     split; try done.
-    intros [|]; rewrite /op /dfrac_op_instance /= left_id //.
+    intros [|]; rewrite /op /dfrac_op_instance /= ucmra_unit_left_id //.
   Qed.
 Set Warnings "-redundant-canonical-projection".
   Canonical Structure dfracUC := Ucmra dfrac dfrac_ucmra_mixin.
@@ -210,7 +210,7 @@ Set Warnings "redundant-canonical-projection".
     ✓ (DfracOwn q ⋅ DfracDiscarded) ↔ ∃ sh, q = Share sh ∧ ~share_writable sh.
   Proof.
     rewrite /op /= /valid /=.
-    rewrite right_id //.
+    rewrite ucmra_unit_right_id //.
   Qed.
 
   Definition readable_dfrac (dq : dfrac) :=
@@ -229,7 +229,7 @@ Set Warnings "redundant-canonical-projection".
   Qed.
 
   Global Instance dfrac_is_op q q1 q2 :
-    @IsOp shareR q q1 q2 →
+    IsOp(A := shareR) q q1 q2 →
     IsOp' (DfracOwn q) (DfracOwn q1) (DfracOwn q2).
   Proof. rewrite /IsOp' /IsOp dfrac_op_own=>-> //. Qed.
 
@@ -262,7 +262,7 @@ Set Warnings "redundant-canonical-projection".
     - inversion 1; hnf; auto.
     - intros ?? [?|?]; subst.
       + by left.
-      + right; destruct x; rewrite /op /= left_id //.
+      + right; destruct x; rewrite /op /= ucmra_unit_left_id //.
     - intros ??? [?|?] [?|?]; subst; hnf; auto.
       right; destruct x; rewrite !dfrac_op_both_discarded //.
     - intros ??? [?|?]; subst; hnf; auto.

@@ -473,19 +473,19 @@ Proof.
     rewrite lookup_insert_ne //.
     intros ->; erewrite newer_out in H0 by eauto; discriminate.
   - right; split; auto; exists m.
-    destruct (eq_dec m n); [subst; rewrite lookup_insert in Hin; congruence | rewrite lookup_insert_ne // in Hin].
+    destruct (eq_dec m n); [subst; rewrite lookup_insert_eq in Hin; congruence | rewrite lookup_insert_ne // in Hin].
     split; auto; intros; eapply Hlatest; eauto.
     rewrite lookup_insert_ne //.
     intros ->; erewrite newer_out in H1 by eauto; discriminate.
   - left; split; auto.
     intros ???.
-    destruct (eq_dec n t); [subst; rewrite lookup_insert | rewrite lookup_insert_ne //]; eauto.
+    destruct (eq_dec n t); [subst; rewrite lookup_insert_eq | rewrite lookup_insert_ne //]; eauto.
     inversion 1; auto.
   - right; split; auto; exists m.
     apply newer_out in H.
-    split; [destruct (eq_dec m n); [subst; rewrite lookup_insert; congruence | rewrite lookup_insert_ne //]|].
+    split; [destruct (eq_dec m n); [subst; rewrite lookup_insert_eq; congruence | rewrite lookup_insert_ne //]|].
     intros ??.
-    destruct (eq_dec n t); [subst; rewrite lookup_insert | rewrite lookup_insert_ne //]; eauto.
+    destruct (eq_dec n t); [subst; rewrite lookup_insert_eq | rewrite lookup_insert_ne //]; eauto.
     intro; inversion 1; contradiction.
 Qed.
 
@@ -494,7 +494,7 @@ Lemma latest_read_new : forall h n v, newer h n -> v <> Empty ->
 Proof.
   unfold latest_read; intros.
   right; split; auto; exists n.
-  rewrite lookup_insert; split; auto.
+  rewrite lookup_insert_eq; split; auto.
   intros ???; destruct (eq_dec n t); [subst; auto | rewrite lookup_insert_ne //].
   intro Ht; specialize (H t); rewrite Ht in H; lapply H; [lia | discriminate].
 Qed.

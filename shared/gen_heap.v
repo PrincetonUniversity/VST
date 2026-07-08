@@ -146,7 +146,7 @@ Section definitions.
   (see the proof of [meta_set]. *)
   Local Definition meta_def `{Countable A} (l : L) (N : namespace) (x : A) : iProp Σ :=
     ∃ γm, ghost_map_elem (gen_meta_name hG) l dfrac.DfracDiscarded γm ∗
-          own(A := reservation_mapR) γm (reservation_map_data (positives_flatten N) (to_agree (encode x))).
+          own(A := reservation_mapR) γm (reservation_map_data (coPpick (↑ N)) (to_agree (encode x))).
   Local Definition meta_aux : seal (@meta_def). Proof. by eexists. Qed.
   Definition meta := meta_aux.(unseal).
   Local Definition meta_unseal : @meta = @meta_def := meta_aux.(seal_eq).
@@ -326,10 +326,7 @@ Section gen_heap.
     iDestruct 1 as (γm) "[Hγm Hm]". iExists γm. iFrame "Hγm".
     iApply (own_update with "Hm").
     apply reservation_map_alloc; last done.
-    cut (positives_flatten N ∈@{coPset} ↑N); first by set_solver.
-    (* TODO: Avoid unsealing here. *)
-    rewrite namespaces.nclose_unseal. apply elem_coPset_suffixes.
-    exists 1%positive. by rewrite left_id_L.
+    pose proof (coPpick_elem_of (↑ N) (nclose_non_empty _)); set_solver.
   Qed.
 
   (** Update lemmas *)

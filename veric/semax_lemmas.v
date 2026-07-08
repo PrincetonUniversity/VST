@@ -467,14 +467,14 @@ induction k1; simpl; intros; auto.
 Qed.
 
 Lemma cat_prefix_empty:
-   forall prefix ctl, ctl =  app_cont prefix ctl -> prefix = Kstop.
+   forall p ctl, ctl = app_cont p ctl -> p = Kstop.
 Proof.
 intros.
-pose proof (app_cont_length prefix ctl).
+pose proof (app_cont_length p ctl).
 rewrite <- H in H0.
-assert (length_cont prefix = O) by lia.
+assert (length_cont p = O) by lia.
 clear - H1.
-destruct prefix; inv H1; auto.
+destruct p; inv H1; auto.
 Qed.
 
 Definition true_expr : Clight.expr := Clight.Econst_int Int.one (Tint I32 Signed noattr).

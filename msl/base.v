@@ -7,10 +7,8 @@
     throughtout the proof.  It also defines some convenience tactics.
  *)
 Require Export VST.msl.Extensionality.
-Require Export Coq.Lists.List.
-Require Export Coq.Bool.Bool.
-Require Export Coq.Relations.Relations.
-Require Export Lia.
+From Stdlib Require Export Lists.List Bool.Bool Relations.Relations.
+From Stdlib Require Export Lia.
 
 (* Global Set Warnings "-deprecated-hint-rewrite-without-locality".  Delete this line after we abandon Coq 8.13 *)
 

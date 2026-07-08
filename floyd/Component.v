@@ -295,7 +295,7 @@ Proof.
   + split; trivial.
     eapply semax_external_binaryintersection. apply EXT1. apply EXT2.
       apply BI.
-      rewrite Sig2; simpl. rewrite map_length. trivial.
+      rewrite Sig2; simpl. rewrite length_map. trivial. 
 Qed.
 
 Lemma find_funspec_sub: forall specs' specs 
@@ -738,19 +738,20 @@ Proof.
       - rewrite <- Heqq; clear Heqq. 
         erewrite semax_prog.make_tycontext_s_g.
         2: rewrite make_tycontext_s_find_id; eassumption.
-        f_equal. rewrite type_of_funspec_sub_si in Y. apply (ouPred.soundness _ O) in Y; auto.
+        f_equal. rewrite type_of_funspec_sub_si in Y. apply pure_soundness in Y; auto.
       - rewrite make_tycontext_s_find_id. eassumption.
     + rewrite semax_prog.make_tycontext_g_G_None in Heqq by trivial.
       rewrite semax_prog.make_tycontext_g_G_None; trivial.
       apply find_id_None_iff. apply find_id_None_iff in Heqw. intros N; apply Heqw.
       rewrite map_app in *. setoid_rewrite HI1 in N. trivial. }
-  eapply Build_Component; subst; try solve [apply c].
-+ setoid_rewrite HI1; apply c.
+  (* after Rocq 9.2, "apply c" automatically tries "apply (Comp_MkInitPred c)"
+     (before 9.2 it is supposed to try it but is bugged, cf rocq-prover/rocq#21036) *)
+  eapply Build_Component; subst; try solve [apply c | apply (Comp_MkInitPred c)].
++ setoid_rewrite HI1; apply c. 
 + rewrite map_app; setoid_rewrite HI1; rewrite <- map_app; apply c.
 + intros. specialize (Comp_G_justified c i _ _ H H0); intros. destruct fd.
   - eapply InternalInfo_subsumption. apply AUX2. apply AUX1. apply Comp_ctx_LNR. apply H1.
   - auto.
-+ apply (Comp_MkInitPred c).
 Qed.
 
 (*Together with Lemma  Comp_Exports_suboption, this lemma means we can abstract or hide exports*)
@@ -758,25 +759,25 @@ Lemma Comp_Exports_sub1 Exports' (HE1: map fst Exports' = map fst Exports)
       (HE2: Forall2 funspec_sub (map snd Exports) (map snd Exports')):
       @Component Espec V E Imports p Exports' GP G.
 Proof.
-  eapply Build_Component; try apply c.
-+ setoid_rewrite HE1; apply c.
+  (* after Rocq 9.2 the second apply is subsumed by the first, cf rocq-prover/rocq#21036 *)
+  eapply Build_Component; try apply c; try apply (Comp_MkInitPred c).
++ setoid_rewrite HE1; apply c. 
 + intros i phi Hi. rename phi into phi'.
   assert (X: exists phi, find_id i Exports = Some phi /\ funspec_sub phi phi').
   { clear - HE1 HE2 Hi. eapply find_funspec_sub; eassumption. }
   destruct X as [phi [Phi PHI]].
   destruct (Comp_G_Exports c _ _ Phi) as [psi [Psi PSI]].
   exists psi; split; [ trivial | eapply funspec_sub_trans; eassumption ].
-+ apply (Comp_MkInitPred c).
 Qed.
 
 Lemma Comp_Exports_sub2 Exports' (LNR: list_norepet (map fst Exports'))
       (HE2: forall i, sub_option (find_id i Exports') (find_id i Exports)):
       @Component Espec V E Imports p Exports' GP G.
 Proof.
-  eapply Build_Component; try apply c; trivial.
+  (* after Rocq 9.2 the second apply is subsumed by the first, cf rocq-prover/rocq#21036 *)
+  eapply Build_Component; try apply c; try apply (Comp_MkInitPred c); trivial.
 + intros i phi' Hi. specialize (HE2 i). rewrite Hi in HE2; simpl in HE2.
   apply c; trivial.
-+apply (Comp_MkInitPred c).
 Qed.
 
 Definition funspecs_sqsub Exp Exp' :=
@@ -846,11 +847,11 @@ Lemma Comp_Exports_sub Exports' (LNR: list_norepet (map fst Exports'))
       (HE2: funspecs_sqsub Exports Exports'):
       @Component Espec V E Imports p Exports' GP G.
 Proof.
-  eapply Build_Component; try apply c; trivial.
+  (* after Rocq 9.2 the second apply is subsumed by the first, cf rocq-prover/rocq#21036 *)
+  eapply Build_Component; try apply c; try apply (Comp_MkInitPred c); trivial.
   intros i phi' Hi. destruct (HE2 _ _ Hi) as [phi [H1 H2]].
   apply (Comp_G_Exports c) in H1; destruct H1 as [psi [H3 H4]].
   exists psi; split; trivial. eapply funspec_sub_trans; eassumption.
- apply (Comp_MkInitPred c).
 Qed.
 
 End Component.
@@ -1308,7 +1309,7 @@ destruct fd.
       (rewrite semax_prog.find_id_maketycontext_s; eassumption).
     simpl.
     rewrite type_of_funspec_sub_si in Sub.
-    apply (ouPred.soundness _ O) in Sub as ->; reflexivity.
+    apply pure_soundness in Sub as ->; reflexivity.
   - simpl in *. rewrite semax_prog.make_tycontext_g_G_None; trivial.
     remember (find_id j V) as p; destruct p; symmetry in Heqp; simpl; trivial.
     specialize (D t).

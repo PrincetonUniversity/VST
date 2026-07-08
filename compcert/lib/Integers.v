@@ -16,7 +16,7 @@
 
 (** Formalizations of machine integers modulo $2^N$ #2<sup>N</sup>#. *)
 
-Require Import Eqdep_dec Zquot Zwf.
+From Coq Require Import Eqdep_dec Zquot Zwf.
 Require Import Coqlib Zbits.
 Require Archi.
 
@@ -2518,6 +2518,44 @@ Proof.
   unfold lt in H. rewrite signed_zero in H. destruct (zlt (signed y) 0). congruence. auto.
 Qed.
 
+(** ** Properties of [mulhu] (upper bits of unsigned multiplication) *)
+
+Lemma mulhu_zero:
+  forall x, mulhu x zero = zero.
+Proof.
+  intros. unfold mulhu. rewrite unsigned_zero. rewrite Z.mul_0_r.
+  reflexivity.
+Qed.
+
+Lemma mulhu_one:
+  forall x, mulhu x one = zero.
+Proof.
+  intros. unfold mulhu. rewrite unsigned_one. rewrite Z.mul_1_r.
+  rewrite Zdiv_small. reflexivity. apply unsigned_range.
+Qed.
+
+Lemma mulhu_commut:
+  forall x y, mulhu x y = mulhu y x.
+Proof.
+  intros. unfold mulhu. rewrite Z.mul_comm. reflexivity.
+Qed.
+
+(** ** Properties of [mulhs] (upper bits of signed multiplication) *)
+
+Lemma mulhs_zero:
+  forall x, mulhs x zero = zero.
+Proof.
+  intros. unfold mulhs. rewrite signed_zero. rewrite Z.mul_0_r.
+  reflexivity.
+Qed.
+
+Lemma mulhs_commut:
+  forall x y, mulhs x y = mulhs y x.
+Proof.
+  intros. unfold mulhs. rewrite Z.mul_comm. reflexivity.
+Qed.
+
+
 (** ** Properties of integer zero extension and sign extension. *)
 
 Lemma bits_zero_ext:
@@ -3571,6 +3609,8 @@ Definition shr' (x: int) (y: Int.int): int :=
   repr (Z.shiftr (signed x) (Int.unsigned y)).
 Definition rol' (x: int) (y: Int.int): int :=
   rol x (repr (Int.unsigned y)).
+Definition ror' (x: int) (y: Int.int) :int :=
+  ror x (repr (Int.unsigned y)).
 Definition shrx' (x: int) (y: Int.int): int :=
   divs x (shl' one y).
 Definition shr_carry' (x: int) (y: Int.int): int :=
@@ -3613,6 +3653,35 @@ Proof.
   rewrite Z.shiftr_spec. apply bits_signed.
   generalize (Int.unsigned_range y); lia.
   lia.
+Qed.
+
+Remark int_unsigned_range:
+  forall x, 0 <= Int.unsigned x <= max_unsigned.
+Proof.
+  intros.
+  unfold max_unsigned. unfold modulus.
+  generalize (Int.unsigned_range x).
+  unfold Int.modulus in *.
+  change (wordsize) with  64%nat in *.
+  change (Int.wordsize) with 32%nat in *.
+  unfold two_power_nat. simpl.
+  lia.
+Qed.
+
+Remark int_unsigned_repr:
+  forall x, unsigned (repr (Int.unsigned x)) = Int.unsigned x.
+Proof.
+  intros. rewrite unsigned_repr. auto.
+  apply int_unsigned_range.
+Qed.
+
+Lemma bits_rol':
+  forall x y i,
+  0 <= i < zwordsize ->
+  testbit (rol' x y) i = testbit x ((i - Int.unsigned y) mod zwordsize).
+Proof.
+  intros. unfold rol'. rewrite bits_rol; auto. rewrite int_unsigned_repr.
+  auto.
 Qed.
 
 Lemma shl'_mul_two_p:
@@ -4617,26 +4686,6 @@ Proof.
 Qed.
 
 (** Utility proofs for mixed 32bit and 64bit arithmetic *)
-
-Remark int_unsigned_range:
-  forall x, 0 <= Int.unsigned x <= max_unsigned.
-Proof.
-  intros.
-  unfold max_unsigned. unfold modulus.
-  generalize (Int.unsigned_range x).
-  unfold Int.modulus in *.
-  change (wordsize) with  64%nat in *.
-  change (Int.wordsize) with 32%nat in *.
-  unfold two_power_nat. simpl.
-  lia.
-Qed.
-
-Remark int_unsigned_repr:
-  forall x, unsigned (repr (Int.unsigned x)) = Int.unsigned x.
-Proof.
-  intros. rewrite unsigned_repr. auto.
-  apply int_unsigned_range.
-Qed.
 
 Lemma int_sub_ltu:
   forall x y,

@@ -1,5 +1,4 @@
-Require Import Coq.Lists.List.
-Require Import Lia.
+From Stdlib Require Import Lists.List Lia.
 
 Fixpoint delete_nth {A} (n: nat) (xs: list A) {struct n} : list A :=
  match n, xs with

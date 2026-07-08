@@ -1,35 +1,23 @@
 # RefinedVST
 
-The refinedVST project is adapted from [RefinedC](https://gitlab.mpi-sws.org/iris/refinedc/-/commits/ea6be6de7f27855a79c9ca18e6a54ba3bd5ed883).
+The RefinedVST project is adapted from [RefinedC](https://gitlab.mpi-sws.org/iris/refinedc/-/commits/ea6be6de7f27855a79c9ca18e6a54ba3bd5ed883).
 
 This is still work in progress.
 
-## Build Instruction
+## Build Instructions
 
-We will need a slightly tweaked version of RefinedC and some part of VST (and for now, compcert 3.14 to generate the frontend).
-
-Compile RefinedC and its dependencies (adapted from the RefinedC readme):
+RefinedVST is installed in two parts: the backend is in the VST repository, and the frontend is a fork of CompCert. We will first install the backend.
 
 Install VST builddep (VST project root directory):
 
 ```[bash]
-sudo apt-get install libmpfr-dev # Implicit Cerberus dependency.
-opam repo add coq-released "https://coq.inria.fr/opam/released"
+opam repo add rocq-released "https://rocq-prover.org/opam/released"
 opam repo add iris-dev "https://gitlab.mpi-sws.org/iris/opam.git"
 opam update
-opam pin yojson 2.2.2 # 3.0.0 removed a feature that our version of cerberus-lib depends on, have to use older versions (or update cerberus-lib)
-opam pin add -n -y cerberus-lib "git+https://github.com/rems-project/cerberus.git#6e3e8be7a3f75b1f1cb0704dca8ef3945be0e413"
 opam pin add builddep/
 ```
 
-Then clone RefinedC to any directory:
-
-```[bash]
-git clone https://github.com/UIC-verif-group/refinedC refinedc
-opam pin ./refinedc -y
-```
-
-Now we use the VST makefile to compile and install the refinedVST files:
+Now we use the VST makefile to compile and install the RefinedVST files:
 
 ```[bash]
 make refinedVST

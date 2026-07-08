@@ -698,14 +698,14 @@ Proof.
     lqueue Tsh tint (is_int I32 Signed) q lock sh1 sh2 h').
   { assert (length lshs1 = length (map (fun vals => map (fun x => let '(p, i) := x in
       QRem p (Vint i)) vals) (rev vals))).
-    { rewrite !map_length, rev_length; rewrite Zlength_correct in *; abstract lia. }
+    { rewrite !length_map, length_rev; rewrite Zlength_correct in *; abstract lia. }
     go_lowerx; eapply derives_trans; [|apply lqueue_shares_join; [eauto | rewrite Hlenl1; eauto]].
     subst lsh'; cancel.
     rewrite combine_map_snd, map_map.
     rewrite <- sepcon_rev, <- map_rev, rev_combine, rev_involutive.
     erewrite map_ext; [apply derives_refl|].
     destruct a; auto.
-    { rewrite rev_length, map_length, rev_length in *; auto. } }
+    { rewrite length_rev, length_map, rev_length in *; auto. } }
   Intros h'.
   repeat (destruct ptrs; [rewrite Zlength_nil in *; discriminate | rewrite Zlength_cons in *]).
   destruct ptrs; [|rewrite Zlength_cons, Zlength_correct in *; lia].

@@ -3,11 +3,12 @@
 (** A "resource map" (or "resource heap") with a proposition controlling authoritative
 ownership of the entire heap, and a "points-to-like" proposition for (mutable,
 fractional, or persistent read-only) ownership of individual elements. *)
+From iris.bi.lib Require Import fractional.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Export auth csum gmap.
 Set Warnings "-custom-entry-overridden,-notation-overridden,-hiding-delimiting-key".
 From iris_ora.algebra Require Export osum gmap view auth.
-From iris_ora.logic Require Export logic own algebra.
+From iris_ora.logic Require Export logic own.
 From VST.shared Require Export share_alg.
 From VST.shared Require Import shared.
 Set Warnings "custom-entry-overridden,notation-overridden,hiding-delimiting-key".
@@ -20,9 +21,7 @@ Section shared.
                                  | YES dq _ v => ⌜✓ dq⌝ ∧ ✓ v
                                  | NO sh _ => ⌜✓ sh⌝
                                  end.
-  Proof.
-    ouPred.unseal. by destruct x.
-  Qed.
+  Proof. by sbi_unfold. Qed.
 
   Lemma shared_order_includedN n (x y : shared V) : ✓{n} y → x ≼ₒ{n} y → x ≼{n} y.
   Proof.
@@ -127,7 +126,7 @@ Section lemmas.
   Proof. unseal. apply _. Qed.
   Global Instance resource_map_elem_persistent k γ v : Persistent (k ↪[γ]□ v).
   Proof. unseal. apply _. Qed.
-(*  Global Instance resource_map_elem_fractional k γ v : Fractional (λ q, k ↪[γ]{#q} v)%I.
+  (*Global Instance resource_map_elem_fractional k γ v : Fractional (λ q, k ↪[γ]{#q} v)%I.
   Proof. unseal. intros p q. rewrite -own_op juicy_view_frag_add //. Qed.
   Global Instance resource_map_elem_as_fractional k γ q v :
     AsFractional (k ↪[γ]{#q} v) (λ q, k ↪[γ]{#q} v)%I q.
@@ -191,7 +190,7 @@ Section lemmas.
     k ↪[γ]{dq1} v1 -∗ k ↪[γ]{dq2} v2 -∗ k ↪[γ]{dq1 ⋅ dq2} v1 ∧ ⌜v1 = v2⌝.
   Proof.
     iIntros "Hl1 Hl2". iDestruct (resource_map_elem_valid_2 with "Hl1 Hl2") as %(? & Hv & ->); iSplit; last done.
-    unseal. iDestruct "Hl1" as (?) "Hl1"; iDestruct "Hl2" as (?) "Hl2"; iExists Hv. iCombine "Hl1 Hl2" as "Hl". rewrite -own_op -auth_frag_op singleton_op YES_op agree_idemp //.
+    unseal. iDestruct "Hl1" as (?) "Hl1"; iDestruct "Hl2" as (?) "Hl2"; iExists Hv. iCombine "Hl1 Hl2" as "Hl". rewrite YES_op agree_idemp //.
   Qed.
 
   Global Instance resource_map_elem_combine_as k γ dq1 dq2 v1 v2 :
@@ -245,7 +244,7 @@ Section lemmas.
     resource_map_elem_no γ k sh1 -∗ k ↪[γ]{dq2} v2 -∗ k ↪[γ]{DfracOwn (Share sh1) ⋅ dq2} v2.
   Proof.
     iIntros "Hl1 Hl2". iDestruct (resource_map_elem_no_elem_valid_2 with "Hl1 Hl2") as %[? Hv].
-    unseal. iDestruct "Hl1" as (?) "Hl1"; iDestruct "Hl2" as (?) "Hl2"; iExists Hv. iCombine "Hl1 Hl2" as "Hl". rewrite -own_op -auth_frag_op singleton_op NO_YES_op //.
+    unseal. iDestruct "Hl1" as (?) "Hl1"; iDestruct "Hl2" as (?) "Hl2"; iExists Hv. iCombine "Hl1 Hl2" as "Hl". rewrite NO_YES_op //.
   Qed.
 
   Lemma resource_map_elem_no_combine k γ sh1 sh2 :
@@ -255,7 +254,7 @@ Section lemmas.
     unseal. iDestruct "Hl1" as "[% Hl1]"; iDestruct "Hl2" as "[% Hl2]"; iCombine "Hl1 Hl2" as "Hl".
     apply share_valid2_joins in J as (? & ? & sh & [=] & [=] & Heq & J); subst.
     iExists sh; iSplit; first done.
-    rewrite -Heq; iExists Hv; rewrite -own_op -auth_frag_op singleton_op.
+    rewrite -Heq; iExists Hv.
     iApply (own_proper with "Hl"); f_equiv.
     eapply @singletonM_proper; first apply _.
     done.
@@ -387,8 +386,8 @@ Section lemmas.
     iDestruct "H" as (? (m' & Hm)) "Hv".
     rewrite gmap_validI; iSpecialize ("Hv" $! k).
     specialize (Hm k).
-    rewrite lookup_op lookup_singleton Some_op_opM in Hm; inversion Hm as [x ? Hk Heq|]; subst.
-    rewrite ouPred.option_validI -Heq.
+    rewrite lookup_op lookup_singleton_eq Some_op_opM in Hm; inversion Hm as [x ? Hk Heq|]; subst.
+    rewrite option_validI -Heq.
     clear Hm Heq.
     subst; rewrite shared_validI.
     destruct (_ !! _) as [|]; simpl in Hk.
@@ -438,8 +437,8 @@ Section lemmas.
     iDestruct "H" as (? (m' & Hm)) "Hv".
     rewrite gmap_validI; iSpecialize ("Hv" $! k).
     specialize (Hm k).
-    rewrite lookup_op lookup_singleton Some_op_opM in Hm; inversion Hm as [x ? Hk Heq|]; subst.
-    rewrite ouPred.option_validI -Heq.
+    rewrite lookup_op lookup_singleton_eq Some_op_opM in Hm; inversion Hm as [x ? Hk Heq|]; subst.
+    rewrite option_validI -Heq.
     clear Hm Heq.
     iDestruct "Hv" as %Hvalid.
     iPureIntro; eexists; split; first done; split; first done.
@@ -610,8 +609,8 @@ Section lemmas.
     iMod (resource_map_update with "Hm Hk") as (?? (? & ? & Hmk)) "(Hm & Hk)"; first done.
     iCombine "Hk Hrest" as "Hm1".
     rewrite -(big_sepM_insert_delete (λ k v, k ↪[γ]{#sh} v))%I insert_id //; iFrame.
-    rewrite -{2}(insert_delete _ _ _ Hm1) map_imap_insert.
-    rewrite lookup_union map_lookup_imap lookup_delete left_id in Hmk.
+    rewrite -{2}(insert_delete_id _ _ _ Hm1) map_imap_insert.
+    rewrite lookup_union map_lookup_imap lookup_delete_eq left_id in Hmk.
     inversion Hmk as [?? Heq Hk|]; subst; rewrite -Hk.
     destruct x; last done.
     destruct Heq; subst.
@@ -639,7 +638,7 @@ Section lemmas.
       destruct mz; simpl; last done.
       rewrite left_id; intros _ <-; rewrite right_id //. }
     rewrite -{1}(big_opM_singletons σ) big_opM_auth_frag.
-    iPoseProof (big_opM_own_1 with "[-]") as "?"; first done.
+    iPoseProof (big_opM_own_1(K := K)(A := rmap_authR _ K (leibnizO V)) with "[-]") as "?"; first done.
     iApply big_sepM_mono; last done; intros ?? Hk.
     specialize (Hvalid k); rewrite Hk in Hvalid.
     destruct x.
@@ -651,7 +650,7 @@ Section lemmas.
       destruct (elem_of_agree v); simpl.
       intros n.
       specialize (Hvalid n); rewrite agree_validN_def in Hvalid.
-      split=> b /=; setoid_rewrite elem_of_list_singleton; eauto.
+      split=> b /=; setoid_rewrite list_elem_of_singleton; eauto.
     - destruct sh; try done.
       iIntros "?"; iExists rsh; done.
   Qed.

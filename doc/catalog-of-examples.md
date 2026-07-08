@@ -124,12 +124,15 @@ Reconstruct missing network packets (or RAID disks) by using Reed-Solomon coding
 
 Where to find it:
 - The paper: [Verified Erasure Correction in Coq with MathComp and VST](https://www.cs.princeton.edu/~appel/papers/FECVerification.pdf), by Joshua M. Cohen, Qinshi Wang, and Andrew W. Appel, in *CAV'22: 34th International Conference on Computer Aided Verification,* August 2022.
-- [C program: fec.c](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/src/fecActuator/fec.c)
-- [Functional model: ReedSolomonList.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/RS/ReedSolomonList.v)
-- [Low-level spec: Specs.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/VST/Specs.v)
-- [Low-level proof: Verif_encode.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/VST/Verif_encode.v) and other `Verif_*.v` in the same directory.
-- [High-level spec: in ReedSolomon.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/RS/ReedSolomon.v)
-- [High-level proof: ReedSolomon.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/RS/ReedSolomon.v)
+- The second paper: [Specifying and Verifying a Real-World Packet Error-Correction System](https://doi.org/10.1007/978-3-031-66064-1_4) [(author's copy)](https://www.cs.princeton.edu/~appel/papers/SpecPaper.pdf), by Joshua M. Cohen and Andrew W. Appel, in VSTTE'23, 15th International Conference on Verified Software: Theories, Tools, and Experiments, October 23, 2023. Springer LNCS vol 14095, July 2024.
+- [C program for first paper: fec.c](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/src/fecActuator/fec.c)
+- [C program for second paper: fecActuator/*.c](https://github.com/verified-network-toolchain/Verified-FEC/tree/end-to-end/src/modified/mini_prod3/fecActuator)
+- [Functional model 1: ReedSolomonList.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/RS/ReedSolomonList.v)
+- [Low-level spec 1: Specs.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/VST/Specs.v)
+- [Low-level proof 1: Verif_encode.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/VST/Verif_encode.v) and other `Verif_*.v` in the same directory.
+- [High-level spec 1: in ReedSolomon.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/RS/ReedSolomon.v)
+- [High-level proof1 : ReedSolomon.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/RS/ReedSolomon.v)
+- See the [README](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/README.md) for more information
 
 ### Quicksort
 - Yes:  Low-expressive, Open-source, Documented, High-level, Unified, High-Expressive, 64-bit
@@ -180,6 +183,16 @@ Numerical-method Stoermer-Verlet integration of the differential equation for a 
 - [Low-level proof: verif_lfharm.v](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/verif_lfharm.v)
 - [High-level spec: total_error.v](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/total_error.v)
 - [High-level proof: total_error.v](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/total_error.v)
+
+### Jacobi iteration for solution of sparse linear systems
+- Yes:  Low-expressive, Open-source, Documented, Multilevel, Unified, High-Expressive, 64-bit
+
+Numerical-method Jacobi iteration to solve a sparse linear system Ax=b, proved to converge within a bounded number of iterations to an accurate result in floating point, provided that the matrix A satisfies certain (testable) conditions.
+
+- The paper: [Verified correctness, accuracy, and convergence of a stationary iterative linear solver: Jacobi method](https://www.cs.princeton.edu/~appel/papers/jacobi.pdf), by Mohit Tekriwal, Andrew W. Appel, Ariel E. Kellison, David Bindel, and Jean-Baptiste Jeannin, In *16th Conference on Intelligent Computer Mathematics*, pp. 206-221, September 2023.
+- [C program: *.c](https://github.com/VeriNum/iterative_methods/tree/main/sparse)
+- [Functional model: jacob_list_fun_model.v](https://github.com/VeriNum/iterative_methods/blob/main/jacob_list_fun_model.v)
+- Low-level spec, High-level spec, proofs, etc.:  See the [README](https://github.com/VeriNum/iterative_methods/blob/main/README.md) for an explanation of which files are which.
 
 ### Binary Search Trees
 

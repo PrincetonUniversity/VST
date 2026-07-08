@@ -7,7 +7,7 @@ Require Import VST.veric.mpred.
 Require Import VST.veric.address_conflict.
 Require Export VST.veric.shares.
 Require Import VST.veric.Cop2. (*for definition of tc_val'*)
-Require Import Coq.Logic.JMeq.
+From Stdlib Require Import Logic.JMeq.
 (* Diagnostic tactic, useful because intuition can be much slower than tauto 
 Tactic Notation "intuition" :=
  try (solve [tauto]; idtac "Intuition used where tauto would work");
@@ -409,8 +409,8 @@ Qed.
 (* Interesting note: in Caesium, they store the function in the ghost state instead of the spec.
    Could we then quantify over a function that meets a spec? *)
 
-Definition funspec_auth m := own(inG0 := funspec_inG) funspec_name (gmap_view_auth (dfrac.DfracOwn 1) m).
-Definition know_funspec l (f: funspec) := own(inG0 := funspec_inG) funspec_name (gmap_view_frag l dfrac.DfracDiscarded (funspec_unfold f)).
+Definition funspec_auth m := own(inG0 := funspec_inG) funspec_name (gmap_view_auth (dfrac.DfracOwn 1) (to_agree <$> m)).
+Definition know_funspec l (f: funspec) := own(inG0 := funspec_inG) funspec_name (gmap_view_frag l dfrac.DfracDiscarded (to_agree (funspec_unfold f))).
 
 Definition func_at (f: funspec) (l : address) : mpred := l ↦□ FUN ∗ know_funspec l f.
 
@@ -423,7 +423,7 @@ Lemma func_at_agree f1 f2 l : ⊢ func_at f1 l -∗ func_at f2 l -∗ ∃ sig cc
 Proof.
   intros; iIntros "(_ & Hf1) (_ & Hf2)".
   iDestruct (own_valid_2 with "Hf1 Hf2") as "H".
-  rewrite gmap_view_frag_op_validI later_equivI funspec_equivI; iDestruct "H" as "[_ H]".
+  rewrite gmap_view_frag_op_validI to_agree_op_validI later_equivI funspec_equivI; iDestruct "H" as "[_ H]".
   iDestruct "H" as (????????) "H".
   iExists _, _, _, _, _, _, _, _; done.
 Qed.
@@ -432,7 +432,11 @@ Lemma func_at_auth m f l : ⊢ funspec_auth m -∗ func_at f l -∗ (m !! l)%std
 Proof.
   intros; iIntros "Hm (_ & Hf)".
   iDestruct (own_valid_2 with "Hm Hf") as "H".
-  rewrite gmap_view_both_validI bi.and_elim_r //.
+  rewrite gmap_view_both_validI_total.
+  iDestruct "H" as (??? Hl) "[H1 H]".
+  rewrite lookup_fmap in Hl; destruct (m !! l)%stdpp; inv Hl.
+  rewrite to_agree_includedI.
+  by iRewrite "H".
 Qed.
 
 Definition func_at' (f: funspec) (l: address) : mpred :=
@@ -547,7 +551,7 @@ Qed.
 Lemma typesig_of_funspec_sub_si2 fs1 fs2:
   (True ⊢ funspec_sub_si fs1 fs2) -> typesig_of_funspec fs1 = typesig_of_funspec fs2.
 Proof.
-intros. rewrite typesig_of_funspec_sub_si -(bi.True_intro emp) in H. by apply ouPred.pure_soundness in H.
+intros. rewrite typesig_of_funspec_sub_si -(bi.True_intro emp) in H. by apply pure_soundness in H.
 Qed.
 
 Lemma funspec_sub_si_ne : forall fs1 fs2, funspec_unfold fs1 ≡ funspec_unfold fs2 ⊢ bi_except_0 (funspec_sub_si fs1 fs2).
@@ -608,12 +612,13 @@ Proof.
 Qed.
 
 
-Definition gvar (id : ident) (b : block) : mpred := own(inG0 := envGS_inG) env_name (gmap_view.gmap_view_frag id dfrac.DfracDiscarded (to_agree b), ε).
+Definition gvar (id : ident) (b : block) : mpred := own(inG0 := envGS_inG) env_name
+  (gmap_view.gmap_view_frag id dfrac.DfracDiscarded (to_agree b), ε).
 
 Global Instance gvar_persistent id b : Persistent (gvar id b).
 Proof.
   apply own_core_persistent, @ora.pair_core_id.
-  - apply (gmap_view.gmap_view_frag_core_id id dfrac.DfracDiscarded); apply _.
+  - apply (gmap_view.gmap_view_frag_core_id _ _ id dfrac.DfracDiscarded); apply _.
   - apply ucmra_unit_core_id.
 Qed.
 
@@ -623,7 +628,9 @@ Proof. apply _. Qed.
 Lemma gvar_agree : forall i b1 b2, ⊢ gvar i b1 -∗ gvar i b2 -∗ ⌜b1 = b2⌝.
 Proof.
   intros; iIntros "H1 H2".
-  by iDestruct (own_valid_2 with "H1 H2") as %((_ & ?%to_agree_op_inv)%lib.gmap_view.gmap_view_frag_op_valid & _).
+  iDestruct (own_valid_2 with "H1 H2") as %(H & _).
+  rewrite lib.gmap_view.gmap_view_frag_op_valid in H.
+  by destruct H as (_ & H%to_agree_op_inv).
 Qed.
 
 (*Definition funspecs_assert (FunSpecs: Maps.PTree.t funspec): mpred :=
@@ -1202,7 +1209,7 @@ Lemma funspec_sub_si_cc phi psi: (True ⊢ funspec_sub_si phi psi) ->
       callingconvention_of_funspec phi = callingconvention_of_funspec psi.
 Proof.
   destruct phi; destruct psi; simpl. intros.
-  rewrite -(bi.True_intro emp) bi.and_elim_l in H. apply ouPred.pure_soundness in H as (? & ?); done.
+  rewrite -(bi.True_intro emp) bi.and_elim_l in H. apply pure_soundness in H as (? & ?); done.
 Qed.
 
 Lemma later_func_ptr_si phi psi (H: True ⊢ funspec_sub_si phi psi) v:

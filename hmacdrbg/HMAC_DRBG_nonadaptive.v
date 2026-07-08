@@ -3864,7 +3864,7 @@ Proof.
         {
           assert (len_eq : length (to_list v) = length (to_list key_input ++ zeroes)).
           f_equal; trivial.
-          rewrite app_length in *.
+          rewrite length_app in *.
           
           repeat rewrite to_list_length in *.
           unfold zeroes in *.
@@ -3883,14 +3883,14 @@ Proof.
           destruct (in_split_l_if init _ in_fixed_len_list). eauto.
 
           unfold to_list in *.
-          apply inputs_len in H1; simpl in *; rewrite app_length in H1;
+          apply inputs_len in H1; simpl in *; rewrite length_app in H1;
             unfold zeroes in H1; rewrite length_replicate in H1;
               rewrite Nat.add_comm in H1; simpl in *.
           rewrite to_list_length in *. lia.
           
           (* match goal with  *)
           (*   | [ H1:  In (to_list key_input ++ zeroes, _) init |- _ ] =>  *)
-          (*      apply inputs_len in H1; simpl in *; rewrite app_length in H1; *)
+          (*      apply inputs_len in H1; simpl in *; rewrite length_app in H1; *)
           (*      unfold zeroes in H1; rewrite length_replicate in H1; *)
           (*      rewrite Nat.add_comm in H1; simpl in *; discriminate *)
           (* end. *)

@@ -1,4 +1,4 @@
-Require Import ZArith.
+From Stdlib Require Import ZArith.
 Require Import VST.msl.Extensionality.
 Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.

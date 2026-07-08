@@ -21,7 +21,7 @@ COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
-COQVERSION= 8.19.1 or-else 8.19.2 or-else 8.20.0
+COQVERSION= 8.19.1 or-else 8.19.2 or-else 8.20.0 or-else 8.20.1 or-else 9.0.0 orelse 9.1.0 or-else 9.1.1 or-else 9.2+alpha
 
 COQV=$(shell $(COQC) -v)
 ifneq ($(IGNORECOQVERSION),true)
@@ -303,6 +303,7 @@ CGFLAGS =  -DCOMPCERT -short-idents
 
 # ##### Interaction Trees Flags #####
 
+# as of 1 July 2025, coq-itree package seems not compatible with rocq 9.2+alpha, so still using submodule
 ifneq ($(wildcard InteractionTrees/theories),)
 EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
 endif
@@ -315,20 +316,15 @@ endif#
 
 # ##### PaCo (Parameterized Coinduction) Flags #####
 
-ifneq ($(wildcard paco/src),)
-EXTFLAGS:=$(EXTFLAGS) -Q paco/src Paco
-endif
+# the following commented out, because we get from opam instead of submodules
+# ifneq ($(wildcard paco/src),)
+# EXTFLAGS:=$(EXTFLAGS) -Q paco/src Paco
+# endif
 
 # ##### SSReflect Flags #####
 
 ifdef MATHCOMP
 EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
-endif
-
-# ##### ORA Flags #####
-
-ifneq ($(wildcard ora/theories),)
-EXTFLAGS:=$(EXTFLAGS) -Q ora/theories iris_ora
 endif
 
 # ##### refinedVST Flags #####
@@ -338,7 +334,10 @@ EXTFLAGS:=$(EXTFLAGS) $(REFINEDVSTFLAGS)
 
 # ##### Flag summary #####
 
-COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) # -Q ../stdpp/theories stdpp -Q ../iris/iris iris -Q ../InteractionTrees/theories ITree -Q ../paco/src Paco -Q ../coq-ext-lib/theories ExtLib -Q ../fcf/src/fcf FCF
+COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) # -Q ../stdpp/theories stdpp -Q ../iris/iris iris -Q ../InteractionTrees/theories ITree -Q ../fcf/src/fcf FCF
+
+# old version with paco, coq-ext-lib; we now obtain these from opam environment instead of submodules
+# COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) # -Q ../stdpp/theories stdpp -Q ../iris/iris iris -Q ../InteractionTrees/theories ITree -Q ../paco/src Paco -Q ../coq-ext-lib/theories ExtLib -Q ../fcf/src/fcf FCF
 
 
 DEPFLAGS:=$(COQFLAGS)
@@ -403,17 +402,6 @@ MSL_FILES = \
   sepalg.v sepalg_generators.v psepalg.v \
   boolean_alg.v tree_shares.v shares.v pshares.v \
   Coqlib2.v sepalg_list.v
-
-ORA_FILES = \
-  theories/algebra/ora.v theories/algebra/excl.v theories/algebra/osum.v \
-  theories/algebra/agree.v theories/algebra/gmap.v theories/algebra/functions.v \
-  theories/algebra/dfrac.v theories/algebra/ext_order.v theories/algebra/view.v \
-  theories/algebra/auth.v theories/algebra/excl_auth.v theories/algebra/frac_auth.v \
-  theories/algebra/gmap_view.v theories/logic/oupred.v theories/logic/algebra.v \
-  theories/logic/iprop.v theories/logic/derived.v theories/logic/own.v \
-  theories/logic/proofmode.v theories/logic/logic.v theories/logic/wsat.v \
-  theories/logic/later_credits.v theories/logic/fancy_updates.v theories/logic/invariants.v \
-  theories/logic/cancelable_invariants.v theories/logic/weakestpre.v theories/logic/ghost_map.v
 
 SEPCOMP_FILES = \
   Address.v \
@@ -798,7 +786,6 @@ files: _CoqProject $(FILES:.v=.vo)
 #
 simpleconc: concurrency/conclib.vo atomics/verif_lock.vo
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
-ora:     _CoqProject $(ORA_FILES:%.v=ora/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
@@ -843,7 +830,7 @@ VST.config:
 
 # Note: doc files are installed into the coq destination folder.
 # This is not ideal but otherwise it gets tricky to handle variants
-install: VST.config
+install: VST.config vst
 	install -d "$(INSTALLDIR)"
 	install -d "$(INSTALLDIR)"
 	for d in $(sort $(dir $(INSTALL_FILES) $(EXTRA_INSTALL_FILES))); do install -d "$(INSTALLDIR)/$$d"; done
@@ -937,18 +924,16 @@ endif
 # ifneq ($(wildcard coq-ext-lib/theories),)
 # 	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
 # endif
+
 ifneq ($(wildcard InteractionTrees/theories),)
-#	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
-	$(COQDEP) -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
+	$(COQDEP) -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
 endif
-ifneq ($(wildcard ora/theories),)
-	$(COQDEP) -Q ora/theories iris_ora ora/theories >>.depend
-endif
+# the following commented out, because we get from opam instead of submodules
+# ifneq ($(wildcard paco/src),)
+# 	$(COQDEP) -Q paco/src Paco paco/src/*.v >>.depend
+# endif
 ifneq ($(wildcard fcf/src/FCF),)
 	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend
-endif
-ifneq ($(wildcard paco/src),)
-	$(COQDEP) -Q paco/src Paco paco/src/*.v >>.depend
 endif
 	wc .depend
 
@@ -957,7 +942,6 @@ clean:
 	rm -f progs/VSUpile/{*,*/*}.{vo,vos,vok,glob}
 	rm -f progs64/VSUpile/{*,*/*}.{vo,vos,vok,glob}
 	rm -f progs/memmgr/*.{vo,vos,vok,glob}
-	rm -f ora/theories/*/*.{vo,vos,vok,glob}
 	rm -f coq-ext-lib/theories/*.{vo,vos,vok,glob} InteractionTrees/theories/{*,*/*}.{vo,vos,vok,glob}
 	rm -f paco/src/*.{vo,vos,vok,glob}
 	rm -f fcf/src/FCF/*.{vo,vos,vok,glob}

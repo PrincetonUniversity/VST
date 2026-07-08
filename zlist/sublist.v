@@ -1,9 +1,5 @@
-Require Import ZArith Znumtheory.
-Require Import Coq.Lists.List.
-Require Import Lia.
+From Stdlib Require Import ZArith Znumtheory Lists.List Lia.
 Import ListNotations.
-
-(* Global Set Warnings "-deprecated-hint-rewrite-without-locality".  Delete this line after we abandon Coq 8.13 *)
 
 Module SublistInternalLib.
 (* Things copied from VST, to avoid dependencies *)
@@ -209,7 +205,7 @@ Proof.
     reflexivity.
 Qed.
 
-Lemma skipn_length: forall {A} (contents: list A) n,
+Lemma length_skipn: forall {A} (contents: list A) n,
   length (skipn n contents) = (length contents - n)%nat.
 Proof.
   intros.
@@ -236,7 +232,7 @@ Proof.
     - simpl. apply IHcontents. lia.
 Qed.
 
-Lemma skipn_length_short:
+Lemma length_skipn_short:
   forall {A} n (al: list A),
     (length al <= n)%nat ->
     (length (skipn n al) = 0)%nat.
@@ -250,7 +246,7 @@ Lemma skipn_short:
    forall {A} n (al: list A), (n >= length al)%nat -> skipn n al = nil.
 Proof.
 intros.
-pose proof (skipn_length_short n al).
+pose proof (length_skipn_short n al).
 assert (length al <= n)%nat by auto.
 specialize (H0 H1).
 destruct (skipn n al); inv H0; auto.
@@ -337,13 +333,13 @@ Proof.
 induction n; intros.
 simpl. rewrite Nat.sub_0_r. rewrite firstn_exact_length. auto.
 destruct (rev vl) eqn:?.
-pose proof (rev_length vl). rewrite Heql in H.
+pose proof (length_rev vl). rewrite Heql in H.
 destruct vl; inv H. reflexivity.
 simpl.
 assert (vl = rev l ++ rev [a]).
 rewrite <- rev_app_distr. simpl app. rewrite <- Heql; rewrite rev_involutive; auto.
 rewrite H.
-rewrite app_length.
+rewrite length_app.
 simpl length.
 rewrite <- (rev_involutive l) at 1.
 rewrite IHn.
@@ -386,14 +382,14 @@ Lemma rev_skipn:
 Proof.
 induction n; intros.
 simpl. rewrite Nat.sub_0_r.
-rewrite <- rev_length.
+rewrite <- length_rev.
 rewrite firstn_exact_length.
 auto.
 destruct vl.
 simpl. auto.
 simpl.
 rewrite IHn.
-rewrite firstn_app1 by (rewrite rev_length; lia).
+rewrite firstn_app1 by (rewrite length_rev; lia).
 auto.
 Qed.
 
@@ -409,7 +405,7 @@ assert (n = (length vl - lo) - (length vl - (lo+n)))%nat by lia.
 rewrite H0 at 2.
 rewrite <- skipn_firstn.
 rewrite rev_skipn.
-rewrite firstn_length. rewrite min_l by lia.
+rewrite length_firstn. rewrite min_l by lia.
 f_equal.
 auto.
 Qed.
@@ -672,7 +668,7 @@ Lemma Zlength_firstn:
   forall {A} n (v: list A), Zlength (firstn (Z.to_nat n) v) = Z.min (Z.max 0 n) (Zlength v).
 Proof.
 intros. rewrite !Zlength_correct.
-rewrite firstn_length.
+rewrite length_firstn.
 (* solve by SMT *)
 rewrite Zmin_spec, Zmax_spec.
 if_tac; [rewrite min_l | rewrite min_r].
@@ -694,7 +690,7 @@ Proof.
 intros.
 (* solve by SMT *)
 rewrite !Zlength_correct.
-rewrite skipn_length. rewrite !Zmax_spec.
+rewrite length_skipn. rewrite !Zmax_spec.
 if_tac.
 if_tac in H.
 lia.
@@ -1243,7 +1239,7 @@ Lemma sublist_nil': forall (A : Type) (lo lo': Z) (al : list A), lo=lo' -> subli
 Proof. intros. subst. apply sublist_nil. Qed.
 
 Lemma sublist_skip {A} (l:list A) i : 0<=i ->  sublist i (Zlength l) l = skipn (Z.to_nat i) l.
-Proof. intros; unfold_sublist_old. apply firstn_same. rewrite skipn_length.
+Proof. intros; unfold_sublist_old. apply firstn_same. rewrite length_skipn.
   rewrite Z2Nat.inj_sub, Zlength_correct, Nat2Z.id. lia. trivial.
 Qed.
 
@@ -1255,7 +1251,7 @@ Lemma sublist_app1:
   0 <= k <= i -> i <= Zlength al -> sublist k i (al ++ bl) = sublist k i al.
 Proof. intros.
   unfold_sublist_old. rewrite skipn_app1. rewrite firstn_app1. trivial.
-  rewrite skipn_length, Z2Nat.inj_sub. apply Nat2Z.inj_le.
+  rewrite length_skipn, Z2Nat.inj_sub. apply Nat2Z.inj_le.
   repeat rewrite Nat2Z.inj_sub. rewrite Z2Nat.id, <- Zlength_correct. lia. lia.
   rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; lia.
   apply Z2Nat.inj_le; lia. lia. rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; lia.
@@ -1848,7 +1844,7 @@ Qed.
 Lemma Zlength_combine : forall {A B} (l : list A) (l' : list B),
   Zlength (combine l l') = Z.min (Zlength l) (Zlength l').
 Proof.
-  intros; rewrite !Zlength_correct, combine_length, Nat2Z.inj_min; auto.
+  intros; rewrite !Zlength_correct, length_combine, Nat2Z.inj_min; auto.
 Qed.
 
 Lemma upd_Znth_cons : forall {A} i a l (x : A), i > 0 ->
@@ -1922,14 +1918,14 @@ Qed.
 Lemma length_concat : forall {A} (l : list (list A)), length (concat l) = fold_right plus O (map (@length A) l).
 Proof.
   induction l; auto; simpl.
-  rewrite app_length, IHl; auto.
+  rewrite length_app, IHl; auto.
 Qed.
 
 Lemma length_concat_min : forall {A}{d: Inhabitant A} (l : list (list A)) i (Hi : 0 <= i < Zlength l),
   (length (Znth i l) <= length (concat l))%nat.
 Proof.
   induction l; simpl; intros; [rewrite Zlength_nil in *; lia|].
-  rewrite app_length; destruct (Z.eq_dec i 0).
+  rewrite length_app; destruct (Z.eq_dec i 0).
   - subst; rewrite Znth_0_cons; lia.
   - rewrite Znth_pos_cons by lia.
     rewrite Zlength_cons in *; etransitivity; [apply IHl|]; lia.
@@ -1940,10 +1936,10 @@ Lemma length_concat_upd : forall {A} {d: Inhabitant A} l i (l' : list A) (Hi : 0
 Proof.
   induction l; intros; [rewrite Zlength_nil in *; lia|].
   destruct (Z.eq_dec i 0).
-  - subst; rewrite upd_Znth0, Znth_0_cons. simpl. rewrite !app_length. lia.
+  - subst; rewrite upd_Znth0, Znth_0_cons. simpl. rewrite !length_app. lia.
   - rewrite upd_Znth_cons, Znth_pos_cons by lia; simpl.
     rewrite Zlength_cons in *.
-    rewrite !app_length, IHl by lia.
+    rewrite !length_app, IHl by lia.
     cut (length (Znth (i - 1) l) <= length (concat l))%nat. lia.
     apply length_concat_min. lia.
 Qed.
@@ -2341,7 +2337,7 @@ Qed.
 Lemma upto_length : forall n, length (upto n) = n.
 Proof.
   induction n; auto; simpl.
-  rewrite map_length, IHn; auto.
+  rewrite length_map, IHn; auto.
 Qed.
 
 Corollary Zlength_upto : forall n, Zlength (upto n) = Z.of_nat n.
@@ -2631,7 +2627,7 @@ Lemma rev_combine : forall {A B} (l1 : list A) (l2 : list B), length l1 = length
   rev (combine l1 l2) = combine (rev l1) (rev l2).
 Proof.
   induction l1; destruct l2; try discriminate; auto; simpl; intros.
-  inv H; rewrite combine_app; [|rewrite !rev_length; auto].
+  inv H; rewrite combine_app; [|rewrite !length_rev; auto].
   rewrite IHl1; auto.
 Qed.
 
@@ -2919,7 +2915,7 @@ Lemma rotate_inj : forall {A} (l1 l2 : list A) n m, rotate l1 n m = rotate l2 n 
 Proof.
   unfold rotate; intros.
   destruct (app_eq_len_eq H) as (Hskip & Hfirst).
-  { unfold sublist; repeat rewrite skipn_length, firstn_length.
+  { unfold sublist; repeat rewrite length_skipn, length_firstn.
     repeat rewrite Zlength_correct; rewrite H0; lia. }
   erewrite <- sublist_same with (al := l1), <- sublist_rejoin with (mid := m - n); auto; try lia.
   rewrite Hfirst, Hskip, sublist_rejoin, sublist_same; auto; try lia.
@@ -3082,7 +3078,7 @@ Lemma list_Znth_eq : forall {A}{d: Inhabitant A} (l : list A),
     l = map (fun j => Znth j l) (upto (length l)).
 Proof.
   induction l; simpl; intros; auto.
-  rewrite Znth_0_cons, IHl, map_map, map_length, upto_length.
+  rewrite Znth_0_cons, IHl, map_map, length_map, upto_length.
   f_equal; apply map_ext_in; intros.
   rewrite Znth_pos_cons, <- IHl.
   unfold Z.succ; rewrite Z.add_simpl_r; auto.

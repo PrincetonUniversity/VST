@@ -1,7 +1,7 @@
 (* Definitions and lemmas used in list solver *)
-Require Import ZArith Znumtheory.
-Require Import Coq.Lists.List.
-Require Import Lia.
+From Stdlib Require Import ZArith Znumtheory.
+Require Import Stdlib.Lists.List.
+From Stdlib Require Import Lia.
 Import ListNotations.
 Require Import VST.zlist.sublist.
 Import SublistInternalLib.

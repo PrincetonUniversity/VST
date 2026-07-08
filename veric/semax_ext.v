@@ -1,10 +1,9 @@
-Require Import Coq.Logic.JMeq.
+From Stdlib Require Import Logic.JMeq.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_base.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
-(*Require Import VST.veric.juicy_mem_ops.*)
 Require Import VST.sepcomp.extspec.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.

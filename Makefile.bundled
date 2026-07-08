@@ -134,7 +134,7 @@ ifdef CLIGHTGEN
 VERSION1= $(lastword $(shell $(CLIGHTGEN) --version))
 VERSION2= $(subst version=,,$(shell grep version $(COMPCERT_SRC_DIR)/VERSION))
 ifneq ($(VERSION1),$(VERSION2))
-$(warning clightgen version $(VERSION1) does not match VST/compcert/VERSION $(VERSION2))
+$(warning $(CLIGHTGEN) version $(VERSION1) does not match VST/compcert/VERSION $(VERSION2))
 endif
 endif
 

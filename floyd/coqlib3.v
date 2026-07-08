@@ -1,10 +1,9 @@
-Require Coq.funind.Recdef.
+Require Stdlib.funind.Recdef.
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
-Require Import Coq.Strings.String.
-Require Import Coq.Strings.Ascii.
-Require Import Coq.Lists.List.
-Require Import Coq.Sorting.Permutation.
+From Stdlib Require Import Strings.String Strings.Ascii.
+Require Import Stdlib.Lists.List.
+Require Import Stdlib.Sorting.Permutation.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.coqlib4.
 

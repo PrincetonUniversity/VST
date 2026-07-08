@@ -67,7 +67,7 @@ Proof.
   - intros; rewrite H //.
   - intros ?????? Hrem.
     destruct (eq_dec i k).
-    + subst; rewrite lookup_insert //.
+    + subst; rewrite lookup_insert_eq //.
     + rewrite lookup_insert_ne //.
       rewrite PTree.gro // in Hrem.
 Qed.

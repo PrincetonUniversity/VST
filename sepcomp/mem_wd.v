@@ -287,13 +287,13 @@ Lemma mem_wd_store_init_data: forall {F V} (ge: Genv.t F V) a (b:block) (z:Z)
   valid_genv ge m1 -> mem_wd m1 -> mem_wd m2.
 Proof. intros F V ge a.
   destruct a; simpl; intros;
-      try apply (mem_wd_store _ _ _ _ _ _ H0 SID); simpl; trivial.
+      try apply (mem_wd_store _ _ _ _ _ _ H SID); simpl; trivial.
    inv SID; trivial.
    remember (Genv.find_symbol ge i) as d.
      destruct d; inv SID.
-     eapply (mem_wd_store _ _ _ _ _ _ H0 H2).
+     eapply (mem_wd_store _ _ _ _ _ _ H H1).
     apply eq_sym in Heqd.
-    destruct H.
+    destruct X.
     apply v.
     unfold isGlobalBlock.
     rewrite orb_true_iff.
@@ -307,21 +307,21 @@ Lemma valid_genv_store_init_data:
   (SID: Genv.store_init_data ge m1 b z a = Some m2),
   valid_genv ge m1 -> valid_genv ge m2.
 Proof. intros F V ge a.
-  destruct a; simpl; intros; inv H; constructor;
+  destruct a; simpl; intros; inv X; constructor;
     try (intros b0 X; eapply Mem.store_valid_block_1 with (b':=b0); eauto;
-          apply H0; auto);
+          apply H; auto);
     try (intros b0 ? X; eapply Mem.store_valid_block_1 with (b':=b0); eauto;
-          eapply H1; eauto);
+          eapply H0; eauto);
     try (inv SID; auto).
   intros.
   remember (Genv.find_symbol ge i) as d.
   destruct d; inv H2.
   eapply Mem.store_valid_block_1; eauto.
   apply eq_sym in Heqd.
-  eapply H0; eauto.
+  eapply H; eauto.
   revert H2. destruct (Genv.find_symbol ge i); intros; try congruence.
   eapply Mem.store_valid_block_1; eauto.
-  eapply H1; eauto.
+  eapply H0; eauto.
 Qed.
 
 Lemma mem_wd_store_init_datalist: forall {F V} (ge: Genv.t F V) l (b:block)
@@ -332,9 +332,9 @@ Proof. intros F V ge l.
     inv SID. trivial.
   remember (Genv.store_init_data ge m1 b z a) as d.
   destruct d; inv SID; apply eq_sym in Heqd.
-  apply (IHl _ _ _ _ H2); clear IHl H2.
-     eapply valid_genv_store_init_data. apply Heqd. apply H.
-  eapply mem_wd_store_init_data. apply Heqd. apply H. apply H0.
+  apply (IHl _ _ _ _ H1); clear IHl H1.
+     eapply valid_genv_store_init_data. apply Heqd. apply X.
+  eapply mem_wd_store_init_data. apply Heqd. apply X. apply H.
 Qed.
 
 Lemma valid_genv_store_init_datalist: forall {F V} (ge: Genv.t F V) l (b:block)
@@ -345,15 +345,15 @@ Proof. intros F V ge l.
     inv SID. trivial.
   remember (Genv.store_init_data ge m1 b z a) as d.
   destruct d; inv SID; apply eq_sym in Heqd.
-  apply (IHl _ _ _ _ H1); clear IHl H1.
-     eapply valid_genv_store_init_data. apply Heqd. apply H.
+  apply (IHl _ _ _ _ H0); clear IHl H0.
+     eapply valid_genv_store_init_data. apply Heqd. apply X.
 Qed.
 
 Lemma mem_wd_alloc_global: forall  {F V} (ge: Genv.t F V) a m0 m1
    (GA: Genv.alloc_global ge m0 a = Some m1),
    mem_wd m0 -> valid_genv ge m0 -> mem_wd m1.
 Proof. intros F V ge a.
-destruct a; simpl. intros.
+destruct a; simpl. intros. rename X into H0.
 destruct g.
   remember (Mem.alloc m0 0 1) as mm. destruct mm.
     apply eq_sym in Heqmm.
@@ -385,7 +385,7 @@ Lemma valid_genv_alloc_global: forall  {F V} (ge: Genv.t F V) a m0 m1
    (GA: Genv.alloc_global ge m0 a = Some m1),
    valid_genv ge m0 -> valid_genv ge m1.
 Proof. intros F V ge a.
-destruct a; simpl. intros.
+destruct a; simpl. intros. rename X into H.
 destruct g.
   remember (Mem.alloc m0 0 1) as d. destruct d.
     apply eq_sym in Heqd.
@@ -414,8 +414,8 @@ induction l; intros; simpl in *.
   inv GA. assumption.
 remember (Genv.alloc_global ge m0 a) as d.
   destruct d; inv GA. apply eq_sym in Heqd.
-  eapply (IHl  _ _  H1). clear H1.
-    apply (valid_genv_alloc_global _ _ _ _ Heqd H).
+  eapply (IHl  _ _  H0). clear H0.
+    apply (valid_genv_alloc_global _ _ _ _ Heqd X).
 Qed.
 
 Lemma mem_wd_alloc_globals:
@@ -427,9 +427,9 @@ induction l; intros; simpl in *.
   inv GA. assumption.
 remember (Genv.alloc_global ge m0 a) as d.
   destruct d; inv GA. apply eq_sym in Heqd.
-eapply (IHl  _ _  H2).
-    apply (mem_wd_alloc_global ge _ _ _ Heqd H H0).
-    apply (valid_genv_alloc_global _ _ _ _ Heqd H0).
+eapply (IHl  _ _  H1).
+    apply (mem_wd_alloc_global ge _ _ _ Heqd H X).
+    apply (valid_genv_alloc_global _ _ _ _ Heqd X).
 Qed.
 
 (*POPL-compcomp used the following lemma to prove mem_wd_load:

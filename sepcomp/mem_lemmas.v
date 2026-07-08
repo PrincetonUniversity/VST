@@ -8,7 +8,7 @@ Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
-Require Import Coq.micromega.Lia.
+From Stdlib Require Import Lia.
 
 Require Import VST.msl.Extensionality.
 

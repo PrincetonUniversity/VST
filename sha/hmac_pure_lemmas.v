@@ -61,9 +61,9 @@ Proof.
 induction l1; simpl; intros.
 { destruct m1; simpl in *. split; trivial.
   assert (length l2 = length (a :: m1 ++ m2)). rewrite <- H; trivial.
-  rewrite H1 in H0; clear H H1. simpl in H0. rewrite app_length in H0. lia. }
+  rewrite H1 in H0; clear H H1. simpl in H0. rewrite length_app in H0. lia. }
 { assert (length (a :: l1 ++ l2) = length (m1 ++ m2)). rewrite <- H; trivial.
-  simpl in H1. do 2 rewrite app_length in H1. rewrite H0 in H1.
+  simpl in H1. do 2 rewrite length_app in H1. rewrite H0 in H1.
   destruct m1; simpl in *. lia.
   inversion H; clear H. subst a0.
   destruct (IHl1 _ _ _ H4 H0). subst. split; trivial. }
@@ -120,7 +120,7 @@ Proof.
  apply IHk; auto. lia.
 Qed.
 
-Lemma skipn_length:
+Lemma length_skipn:
   forall {A} n (al: list A),
     (length al >= n)%nat ->
     (length (skipn n al) = length al - n)%nat.

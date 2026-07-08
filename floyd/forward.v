@@ -198,10 +198,10 @@ unfold size_compatible.
 rewrite !prop_true_andp //.
 rewrite memory_block_data_at_; auto.
 cancel.
-split3; auto. apply Coq.Init.Logic.I.
+split3; auto. apply Logic.I.
 split3; auto.
 apply la_env_cs_sound; auto.
-apply Coq.Init.Logic.I.
+apply Logic.I.
 rewrite memory_block_isptr; Intros; contradiction.
 rewrite memory_block_isptr; Intros; contradiction.
 apply extract_exists_pre. apply H3.
@@ -804,10 +804,10 @@ Ltac change_compspecs_warning A cs cs' :=
 
 Ltac change_compspecs' cs cs' :=
   lazymatch goal with
-  | |- context [data_at(cs := cs') ?sh ?t ?v1] => erewrite (data_at_change_composite(cs_from := cs')(cs_to := cs) sh t); [| apply JMeq_refl | prove_cs_preserve_type]
-  | |- context [field_at(cs := cs') ?sh ?t ?gfs ?v1] => erewrite (field_at_change_composite(cs_from := cs')(cs_to := cs) sh t gfs); [| apply JMeq_refl | prove_cs_preserve_type]
-  | |- context [data_at_(cs := cs') ?sh ?t] => erewrite (data_at__change_composite(cs_from := cs')(cs_to := cs) sh t); [| prove_cs_preserve_type]
-  | |- context [field_at_(cs := cs') ?sh ?t ?gfs] => erewrite (field_at__change_composite(cs_from := cs')(cs_to := cs) sh t gfs); [| prove_cs_preserve_type]
+  | |- context [data_at(cs := cs') ?sh ?t ?v1] => erewrite (data_at_change_composite(cs_from := cs')(cs_to := cs)(CCE := _) sh t); [| apply JMeq_refl | prove_cs_preserve_type]
+  | |- context [field_at(cs := cs') ?sh ?t ?gfs ?v1] => erewrite (field_at_change_composite(cs_from := cs')(cs_to := cs)(CCE := _) sh t gfs); [| apply JMeq_refl | prove_cs_preserve_type]
+  | |- context [data_at_(cs := cs') ?sh ?t] => erewrite (data_at__change_composite(cs_from := cs')(cs_to := cs)(CCE := _) sh t); [| prove_cs_preserve_type]
+  | |- context [field_at_(cs := cs') ?sh ?t ?gfs] => erewrite (field_at__change_composite(cs_from := cs')(cs_to := cs)(CCE := _) sh t gfs); [| prove_cs_preserve_type]
   | |- _ => 
     match goal with 
   | |- context [?A cs'] => 
@@ -979,11 +979,17 @@ end.
 Ltac cancel_for_forward_call := cancel_for_evar_frame.
 Ltac default_cancel_for_forward_call := cancel_for_evar_frame.
 
+(* Work-around to obtain the evar that was created by the `evar` tactic.
+   See PR #834. *)
+Ltac evar_value x := (eval unfold x in x).
+
 Ltac unfold_post := match goal with |- ?Post ⊣⊢ _ => let A := fresh "A" in let B := fresh "B" in
   let T := type of Post in first
-  [evar (A : Type); evar (B : A -> T); unify Post (@bi_exist _ ?A ?B);
+  [evar (A : Type); evar (B : A -> T); let A_evar := (evar_value A) in let B_evar := (evar_value B) in
+     unify Post (@bi_exist _ A_evar B_evar);
      change Post with (@bi_exist _ A B); subst A B |
-   evar (A : list Prop); evar (B : T); unify Post (PROPx ?A ?B);
+   evar (A : list Prop); evar (B : T); let A_evar := (evar_value A) in let B_evar := (evar_value B) in
+   unify Post (PROPx A_evar B_evar);
      change Post with (PROPx A B); subst A B | idtac] end.
 
 
@@ -1072,7 +1078,7 @@ eapply (semax_call_id1_x_wow_nil H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
- | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
+ | apply Logic.I | apply Logic.I | reflexivity
  | (clear; let H := fresh in intro H; inversion H)
  | match_postcondition
  | prove_delete_temp
@@ -1087,7 +1093,7 @@ eapply (semax_call_id1_x_wow H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
- | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
+ | apply Logic.I | apply Logic.I | reflexivity
  | (clear; let H := fresh in intro H; inversion H)
  | match_postcondition
  | prove_delete_temp
@@ -1102,7 +1108,7 @@ eapply (semax_call_id1_y_wow_nil H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
- | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
+ | apply Logic.I | apply Logic.I | reflexivity
  | (clear; let H := fresh in intro H; inversion H)
  | match_postcondition
  | prove_delete_temp
@@ -1117,7 +1123,7 @@ eapply (semax_call_id1_y_wow H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
- | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
+ | apply Logic.I | apply Logic.I | reflexivity
  | (clear; let H := fresh in intro H; inversion H)
  | match_postcondition
  | prove_delete_temp
@@ -1131,7 +1137,7 @@ let H := fresh in intro H;
 eapply (semax_call_id01_wow_nil H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
- [ apply Coq.Init.Logic.I 
+ [ apply Logic.I 
  | match_postcondition
  | unify_postcondition_exps
  | prove_PROP_preconditions
@@ -1142,7 +1148,7 @@ let H := fresh in intro H;
 eapply (semax_call_id01_wow H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
- [ apply Coq.Init.Logic.I 
+ [ apply Logic.I 
  | match_postcondition
  | unify_postcondition_exps
  | prove_PROP_preconditions
@@ -1986,13 +1992,13 @@ Proof.
   destruct v; match type of H with | None = Some true => inv H | _ => idtac end.
   + destruct Archi.ptr64 eqn:Hp; destruct (Int.eq i Int.zero); inv H.
   + destruct Archi.ptr64 eqn:Hp; destruct (Int64.eq i Int64.zero); inv H.
-  + apply Coq.Init.Logic.I.
+  + apply Logic.I.
 Qed.
 
 Lemma typed_false_ptr_e:
  forall t v, typed_false (tptr t) v -> v=nullval.
 Proof.
- intros. destruct v; inv H; try apply Coq.Init.Logic.I.
+ intros. destruct v; inv H; try apply Logic.I.
 unfold nullval.
 f_equal.
 try (pose proof (Int64.eq_spec i Int64.zero);
@@ -4265,18 +4271,18 @@ Ltac function_types_compatible t1 t2 :=
 Ltac check_parameter_vals Delta al :=
  (* Work very carefully here to avoid simplifying or computing v,
     in case v contains something that will blow up *)
- match al with
+ lazymatch al with
  | temp ?i ?v :: ?al' =>
     let ti := constr:(PTree.get i (temp_types Delta)) in
     let ti := eval compute in ti in 
-    match ti with
+    lazymatch ti with
     | Some ?t =>
         let w := constr:(tc_val_dec t v) in
         let y := eval cbv beta iota delta [is_int_dec is_long_dec 
                          is_float_dec is_single_dec is_pointer_or_integer_dec
                          is_pointer_or_null_dec isptr_dec tc_val_dec] in w in
-        match y with
-          | right _ => fail 4 "Local variable" i "cannot hold the value" v "(wrong type)"
+        lazymatch y with
+          | right _ => fail "Local variable" i "cannot hold the value" v "(wrong type)"
           | left _ => idtac
 (*  optionally, give warning
           | _ => let W := fresh "Warning_could_not_prove_this_if_its_false_then_the_caller_wont_be_able_satisfy_the_function_precondition" in 
@@ -4284,7 +4290,7 @@ Ltac check_parameter_vals Delta al :=
 *)
           | _ => idtac (* no optional warning *)
         end
-    | None => fail 3 "Identifer" i "is not a local variable of this function"
+    | None => fail "Identifer" i "is not a local variable of this function"
     end;
     check_parameter_vals Delta al'
  | _ :: ?al' => check_parameter_vals Delta al'
@@ -4458,6 +4464,14 @@ Fixpoint computeQ (ids:list ident) (vals:list val) : option (list localdef) :=
   | _, _ => None
   end.
 
+Ltac apply_computeQ := 
+try reflexivity;
+match goal with |- computeQ (map fst ?A) ?B = _ =>
+  let al := constr:(Zlength A) in let al := eval compute in al in
+  let bl := constr:(Zlength B) in let bl := eval compute in bl in
+  fail 1 "Your PARAM list has" bl "values but the function takes" al "parameters"
+end.
+
 Lemma compute_close_precondition_entails1: 
   forall `{!VSTGS OK_ty Σ} ids P gv vals Q R,
   compute_list_norepet ids = true ->
@@ -4587,10 +4601,16 @@ Ltac start_function1 :=
    end
  end;
  simpl fn_body; simpl fn_params; simpl fn_return;
+ lazymatch goal with |- semax _ _ _ _ (frame_ret_assert (function_body_ret_assert ?t ?X) _) =>
+   lazymatch X with context [temp ret_temp _] =>
+       tryif unify t Tvoid then fail "Your void-returning function should have an empty RETURN() in its funspec"
+       else idtac
+   | _ => idtac
+   end
+ end;
  cbv [dtfr dependent_type_functor_rec constOF idOF prodOF discrete_funOF
       ofe_morOF sigTOF list.listOF oFunctor_car ofe_car] in *;
  cbv [ofe_mor_car];
-(* clear DependedTypeList; *)
  rewrite_old_main_pre;
  rewrite ?argsassert_of_at ?assert_of_at ?postassert_of_at;
  repeat match goal with
@@ -4619,8 +4639,28 @@ Ltac start_function1 :=
 
 Ltac expand_main_pre := expand_main_pre_old.
 
+(*  The following destructs any let-definitions immediately after PRE or POST *)
+Ltac destruct_it B :=
+ match B with 
+ | ?C _ => destruct_it C
+ | let '(x,y) := ?A in _ => destruct A as [x y]
+ | match ?A with _ => _ end =>
+     match type of A with
+     | @sigT _ (fun x => _) => destruct A as [x A] 
+     end
+ end.
+
+Ltac destruct_PRE_POST_lets := (* see issue #839 *)
+repeat lazymatch goal with 
+| |- semax _ _ (bi_sep (close_precondition _ ?B) _) _ _ => destruct_it B
+| |- semax _ _ _ _ (frame_ret_assert (function_body_ret_assert _ ?B) _) => destruct_it B
+end;
+repeat change (fst (?A,?B)) with A in *;
+repeat change (snd (?A,?B)) with B in *.
+
 Ltac start_function2 :=
-  first [ erewrite compute_close_precondition_eq; [ | reflexivity | reflexivity]
+  destruct_PRE_POST_lets;
+  first [ erewrite compute_close_precondition_eq; [ | reflexivity | apply_computeQ ]
         | rewrite close_precondition_main ].
 
 Ltac start_function3 :=

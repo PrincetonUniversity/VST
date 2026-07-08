@@ -16,7 +16,8 @@
 
 (** Associating semantics to built-in functions *)
 
-Require Import String Coqlib.
+From Coq Require Import String.
+Require Import Coqlib.
 Require Import AST Integers Floats Values Memdata.
 Local Open Scope asttyp_scope.
 
@@ -383,6 +384,11 @@ Inductive standard_builtin : Type :=
   | BI_i64_stof
   | BI_i64_utof.
 
+Definition eq_standard_builtin: forall (x y: standard_builtin), {x=y} + {x<>y}.
+Proof.
+  generalize typ_eq; decide equality.
+Defined.
+
 Local Open Scope string_scope.
 
 Definition standard_builtin_table : list (string * standard_builtin) :=
@@ -440,7 +446,7 @@ Definition standard_builtin_sig (b: standard_builtin) : signature :=
   | BI_i64_bswap =>
       [Xlong ---> Xlong]
   | BI_i16_bswap =>
-      [Xint ---> Xint]
+      [Xint16unsigned ---> Xint16unsigned]
   | BI_unreachable =>
       mksignature nil Xvoid cc_default
   | BI_i64_shl  | BI_i64_shr | BI_i64_sar =>
@@ -469,7 +475,7 @@ Program Definition standard_builtin_sem (b: standard_builtin) : builtin_sem (sig
   | BI_subl => mkbuiltin_v2t Xlong Val.subl _ _
   | BI_mull => mkbuiltin_v2t Xlong Val.mull' _ _
   | BI_i16_bswap =>
-    mkbuiltin_n1t Tint Xint
+    mkbuiltin_n1t Tint Xint16unsigned
                   (fun n => Int.repr (decode_int (List.rev (encode_int 2%nat (Int.unsigned n)))))
   | BI_i32_bswap =>
     mkbuiltin_n1t Tint Xint
@@ -521,6 +527,17 @@ Next Obligation.
 Qed.
 Next Obligation.
   inv H; simpl; auto. inv H0; auto.
+Qed.
+Next Obligation.
+  set (bl := rev (encode_int 2 (Int.unsigned n))).
+  set (x := decode_int bl).
+  assert (length bl = 2%nat).
+  { unfold bl. rewrite List.rev_length. apply encode_int_length. }
+  assert (0 <= x < two_p 16).
+  { generalize (int_of_bytes_range (rev_if_be bl)). rewrite rev_if_be_length, H. auto. }
+  assert (two_p 16 < Int.max_unsigned) by (compute; auto).
+  apply Int.eqm_samerepr. rewrite Int.unsigned_repr by lia. rewrite Zbits.Zzero_ext_mod by lia.
+  apply Int.eqm_refl2. rewrite Z.mod_small; auto.
 Qed.
 Next Obligation.
   red. destruct v1; simpl; auto. destruct v2; auto. destruct orb; exact I.

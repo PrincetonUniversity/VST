@@ -915,7 +915,7 @@ Lemma isptr_force_ptr'' : forall p Q,
 Proof.
 intros.
 apply X.
-destruct p; inv H; apply Coq.Init.Logic.I.
+destruct p; inv H; apply Logic.I.
 Qed.
 
 Lemma isptr_offset_val'': forall i p Q,
@@ -924,7 +924,7 @@ Lemma isptr_offset_val'': forall i p Q,
 Proof.
 intros.
 apply X.
-destruct p; inv H; apply Coq.Init.Logic.I.
+destruct p; inv H; apply Logic.I.
 Qed.
 
 Lemma ptr_eq_e': forall v1 v2 B,
@@ -1069,7 +1069,7 @@ Proof.
     apply assert_ext; intros; rewrite /PROPx /LOCALx /SEPx; monPred.unseal.
     rewrite -!and_exist_l; f_equal; f_equal.
     assert (exists x : A, True%type) as [a _].
-    { apply (ouPred.soundness(M := iResUR Σ) _ 0).
+    { unshelve eapply (@pure_soundness (iProp Σ)); [apply _|].
       rewrite /bi_emp_valid H; iIntros "(% & ?)"; eauto. }
     rewrite -(exp_trivial a (fold_right_sepcon R)); f_equal; extensionality.
     rewrite replace_nth_overflow //.
@@ -1094,8 +1094,8 @@ End VST.
 (*#[export] Hint Rewrite andp_makeargs: norm2.
 #[export] Hint Rewrite local_makeargs: norm2.
 #[export] Hint Rewrite liftx_local_retval : norm2.*)
-#[export] Hint Rewrite bool_val_notbool_ptr using apply Coq.Init.Logic.I : norm.
-#[export] Hint Rewrite typed_true_isptr using apply Coq.Init.Logic.I : norm.
+#[export] Hint Rewrite bool_val_notbool_ptr using apply Logic.I : norm.
+#[export] Hint Rewrite typed_true_isptr using apply Logic.I : norm.
 
 Ltac super_unfold_lift_in H :=
    cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T
@@ -1135,7 +1135,7 @@ Ltac clear_Delta_specs :=
  | |- _ => idtac
  end.
 
-#[export] Hint Rewrite sem_cast_pointer2' using (try apply Coq.Init.Logic.I; try assumption; reflexivity) : norm.
+#[export] Hint Rewrite sem_cast_pointer2' using (try apply Logic.I; try assumption; reflexivity) : norm.
 #[export] Hint Rewrite is_pointer_or_null_force_int_ptr using assumption : norm1.
 #[export] Hint Rewrite is_pointer_force_int_ptr using assumption : norm1.
 #[export] Hint Rewrite is_pointer_or_null_match using assumption : norm1.

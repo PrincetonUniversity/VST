@@ -286,7 +286,7 @@ End PROP.
 
 Ltac not_a_prop := match goal with
   | |- not_a_prop  (⌜_⌝) => fail 1
-  | |- _ => apply Coq.Init.Logic.I
+  | |- _ => apply Logic.I
 end.
 
 #[export] Hint Rewrite @gather_prop_left @gather_prop_right : gather_prop.

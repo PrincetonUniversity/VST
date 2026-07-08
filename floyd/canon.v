@@ -1,4 +1,4 @@
-Require Export Coq.Sorting.Permutation.
+Require Export Stdlib.Sorting.Permutation.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.seplog.
 Require Import VST.floyd.base2.
@@ -273,6 +273,8 @@ Proof.
   + rewrite sep_assoc (sep_comm y x) -sep_assoc //.
   + rewrite IHPermutation1 //.
 Qed.
+
+Arguments semax {_ _ _ _ _} E Delta Pre%_assert cmd Post%_assert.
 
 Lemma insert_prop : forall {A} (P: Prop) PP QR, (⌜P⌝ ∧ (@PROPx A Σ PP QR)) = PROPx (P::PP) QR.
 Proof.
@@ -1784,7 +1786,7 @@ Lemma lvar_isptr:
 Proof.
 intros. hnf in H.
 destruct (ve_of rho !! i)%stdpp as [[? ?]|]; try contradiction.
-destruct H; subst; apply Coq.Init.Logic.I.
+destruct H; subst; apply Logic.I.
 Qed.
 
 Lemma gvars_isptr:
@@ -1795,7 +1797,7 @@ subst.
 red in H.
 destruct_glob_types i.
 rewrite Heqo0.
-apply Coq.Init.Logic.I.
+apply Logic.I.
 Qed.
 
 Lemma lvar_isptr_eval_var :
@@ -1879,7 +1881,7 @@ Ltac not_conj_notation :=
  | |- not_conj_notation (_ <= _ <= _)%nat => fail 1
  | |- not_conj_notation (_ <= _ < _)%nat => fail 1
  | |- not_conj_notation (_ < _ <= _)%nat => fail 1
- | |- _ => apply Coq.Init.Logic.I
+ | |- _ => apply Logic.I
  end.
 
 #[export] Hint Rewrite @split_first_PROP using not_conj_notation : norm1.

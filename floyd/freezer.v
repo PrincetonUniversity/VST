@@ -3,7 +3,7 @@ Require Import VST.floyd.base2.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.canon.
 Require Import VST.floyd.entailer.
-Require Import Coq.Lists.List.
+Require Import Stdlib.Lists.List.
 Export ListNotations.
 Require Import VST.floyd.client_lemmas.
 

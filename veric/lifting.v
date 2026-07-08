@@ -1,4 +1,5 @@
-(* A core wp-based separation logic for Clight, in the Iris style. Maybe VeriC can be built on top of this? *)
+(* A core wp-based separation logic for Clight, in the Iris style.
+   We rederive VeriC on top of this simpler logic. *)
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
@@ -472,7 +473,7 @@ Lemma env_to_environ_set : forall ρ n i v, let rho := env_to_environ ρ n in
 Proof.
   intros; subst rho; rewrite /env_to_environ /set_temp.
   destruct ρ as (?, s); simpl; destruct (s !! n)%stdpp as [(?, ?)|] eqn: Hs; simpl.
-  - rewrite lookup_insert //.
+  - rewrite lookup_insert_eq //.
   - rewrite Hs //.
 Qed.
 
@@ -505,7 +506,7 @@ Proof.
     destruct Henv as (? & ? & ?); split3; auto; simpl in *.
     intros id; destruct (snd ρ !! stack_depth c)%stdpp as [(?, ?)|]; last done.
     destruct (eq_dec id i).
-    + subst; rewrite PTree.gss lookup_insert //.
+    + subst; rewrite PTree.gss lookup_insert_eq //.
     + rewrite PTree.gso // lookup_insert_ne //.
   - apply stack_matches_set; auto.
   - intros; rewrite /set_temp in Hover |- *.
@@ -1205,20 +1206,20 @@ Proof.
   setoid_rewrite temps_equiv.
   4: { intros ? (?, ?) ?; simpl; done. }
   assert (length (map fst (fn_vars f)) = length (zip lb (map snd (fn_vars f)))) as Heq1.
-  { rewrite length_zip_with_l_eq map_length //. }
+  { rewrite length_zip_with_l_eq length_map //. }
   assert (length (map fst (fn_params f) ++ map fst (fn_temps f)) = length lv) as Heq2.
-  { rewrite !app_length !map_length Hlv //. }
+  { rewrite !length_app !length_map Hlv //. }
   assert (NoDup (zip (map fst (fn_params f) ++ map fst (fn_temps f)) lv).*1).
   { rewrite -norepet_NoDup fst_zip //. by rewrite Heq2. }
   assert (NoDup (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))).*1).
   { rewrite -norepet_NoDup fst_zip //. by rewrite Heq1. }
   rewrite !map_size_list_to_map //.
-  rewrite !length_zip_with_l_eq // map_length // app_length !map_length.
+  rewrite !length_zip_with_l_eq // length_map // length_app !length_map.
   rewrite Nat.add_assoc; change (Qp.inv _) with (stack_frac f).
   destruct (decide (stack_size f = 0%nat)).
   - unfold stack_frac, stack_size in *.
     if_tac; last by lia.
-    rewrite app_length; if_tac; last by lia.
+    rewrite length_app; if_tac; last by lia.
     destruct (fn_vars f); simpl in *; last done.
     destruct (fn_params f); simpl in *; last done.
     destruct (fn_temps f); simpl in *; last done.
@@ -1232,16 +1233,16 @@ Proof.
     rewrite Qp.mul_1_l; iStopProof; f_equiv.
     unfold q in Hq; apply Qp.add_inj_r in Hq; subst.
     if_tac; if_tac.
-    + rewrite /stack_size in n0; rewrite -> app_length in *; lia.
+    + rewrite /stack_size in n0; rewrite -> length_app in *; lia.
     + destruct (fn_vars f) eqn: Hvars; last done.
       rewrite fmap_app bi.emp_sep -(bi.exist_intro _) /=; f_equiv; last done.
-      rewrite /stack_size Hvars app_length; done.
-    + rewrite -> app_length in *.
+      rewrite /stack_size Hvars length_app; done.
+    + rewrite -> length_app in *.
       destruct (fn_params f) eqn: Hparams; last done.
       destruct (fn_temps f) eqn: Htemps; last done.
       rewrite bi.sep_emp -(bi.exist_intro _) /=; f_equiv.
       rewrite /stack_size Hparams Htemps /= !Nat.add_0_r; done.
-    + rewrite -> app_length in *.
+    + rewrite -> length_app in *.
       rewrite /stack_size -Nat.add_assoc Nat2Pos.inj_add // -pos_to_Qp_add Qp.mul_add_distr_r -frac_op.
       iIntros "H"; rewrite bi.sep_exist_l; iExists _; rewrite bi.sep_exist_r; iExists _.
       iApply stack_frag_split.
@@ -1251,7 +1252,7 @@ Proof.
     + apply map_disjoint_empty_l.
     + apply map_disjoint_empty_l.
     + apply Qp.sub_None, Qp.not_add_le_l in Hq; done.
-  - rewrite fmap_app !app_length !length_fmap Hlv //.
+  - rewrite fmap_app !length_app !length_fmap Hlv //.
   - rewrite fmap_app //.
 Qed.
 
@@ -1274,20 +1275,20 @@ Proof.
   setoid_rewrite temps_equiv.
   4: { intros ? (?, ?) ?; simpl; done. }
   assert (length (map fst (fn_vars f)) = length (zip lb (map snd (fn_vars f)))) as Heq1.
-  { rewrite length_zip_with_l_eq map_length //. }
+  { rewrite length_zip_with_l_eq length_map //. }
   assert (length (map fst (fn_params f) ++ map fst (fn_temps f)) = length lv) as Heq2.
-  { rewrite !app_length !map_length Hlv //. }
+  { rewrite !length_app !length_map Hlv //. }
   assert (NoDup (zip (map fst (fn_params f) ++ map fst (fn_temps f)) lv).*1).
   { rewrite -norepet_NoDup fst_zip //. by rewrite Heq2. }
   assert (NoDup (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))).*1).
   { rewrite -norepet_NoDup fst_zip //. by rewrite Heq1. }
   rewrite !map_size_list_to_map //.
-  rewrite !length_zip_with_l_eq // map_length // app_length !map_length.
+  rewrite !length_zip_with_l_eq // length_map // length_app !length_map.
   rewrite Nat.add_assoc; change (Qp.inv _) with (stack_frac f).
   destruct (decide (stack_size f = 0%nat)).
   - unfold stack_frac, stack_size in *.
     if_tac; last by lia.
-    rewrite app_length; if_tac; last by lia.
+    rewrite length_app; if_tac; last by lia.
     destruct (fn_vars f); simpl in *; last done.
     destruct (fn_params f); simpl in *; last done.
     destruct (fn_temps f); simpl in *; last done.
@@ -1301,16 +1302,16 @@ Proof.
     rewrite Qp.mul_1_l; iStopProof; f_equiv.
     unfold q in Hq; apply Qp.add_inj_r in Hq; subst.
     if_tac; if_tac.
-    + rewrite /stack_size in n0; rewrite -> app_length in *; lia.
+    + rewrite /stack_size in n0; rewrite -> length_app in *; lia.
     + destruct (fn_vars f) eqn: Hvars; last done.
       rewrite fmap_app bi.emp_sep -(bi.exist_intro _) /=; f_equiv; last done.
-      rewrite /stack_size Hvars app_length; done.
-    + rewrite -> app_length in *.
+      rewrite /stack_size Hvars length_app; done.
+    + rewrite -> length_app in *.
       destruct (fn_params f) eqn: Hparams; last done.
       destruct (fn_temps f) eqn: Htemps; last done.
       rewrite bi.sep_emp -(bi.exist_intro _) /=; f_equiv.
       rewrite /stack_size Hparams Htemps /= !Nat.add_0_r; done.
-    + rewrite -> app_length in *.
+    + rewrite -> length_app in *.
       rewrite /stack_size -Nat.add_assoc Nat2Pos.inj_add // -pos_to_Qp_add Qp.mul_add_distr_r -frac_op.
       iIntros "H"; rewrite bi.sep_exist_l; iExists _; rewrite bi.sep_exist_r; iExists _.
       iApply stack_frag_split.
@@ -1320,7 +1321,7 @@ Proof.
     + apply map_disjoint_empty_l.
     + apply map_disjoint_empty_l.
     + apply Qp.sub_None, Qp.not_add_le_l in Hq; done.
-  - rewrite fmap_app !app_length !length_fmap Hlv //.
+  - rewrite fmap_app !length_app !length_fmap Hlv //.
   - rewrite fmap_app //.
 Qed.
 
@@ -1394,10 +1395,10 @@ Proof.
   setoid_rewrite temps_equiv.
   4: { intros ? (?, ?) ?; simpl; done. }
   assert (length (map fst (fn_vars f)) = length (zip lb (map snd (fn_vars f)))) as Heq1.
-  { rewrite length_zip_with_l_eq map_length //. }
-  rewrite app_length in Hparams.
+  { rewrite length_zip_with_l_eq length_map //. }
+  rewrite length_app in Hparams.
   assert (length (map fst (fn_params f) ++ map fst (fn_temps f)) = length lv) as Heq2.
-  { rewrite -map_app !map_length app_length //. }
+  { rewrite -map_app !length_map length_app //. }
   assert (NoDup (zip (map fst (fn_params f) ++ map fst (fn_temps f)) lv).*1).
   { rewrite -norepet_NoDup fst_zip //. by rewrite Heq2. }
   assert (NoDup (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))).*1).
@@ -1412,17 +1413,17 @@ Proof.
     iDestruct (stack_frag_join with "[$Hret $Hvars]") as ((<- & _)) "Hvars".
     rewrite !left_id Nat2Pos.inj_succ // Pplus_one_succ_l -pos_to_Qp_add Qp.mul_add_distr_r Qp.mul_1_l; done.
   - rewrite !map_size_list_to_map //.
-    rewrite !length_zip_with_l_eq // map_length // app_length !map_length.
+    rewrite !length_zip_with_l_eq // length_map // length_app !length_map.
     rewrite Nat.add_assoc; change (Qp.inv _) with (stack_frac f).
     destruct (decide _).
-    { rewrite app_length in e.
+    { rewrite length_app in e.
       rewrite {2}/stack_frac /stack_size.
       destruct (fn_params f); last done.
       destruct (fn_temps f); last done; simpl.
       rewrite !Nat.add_0_r Qp.mul_inv_r; iFrame. }
     iDestruct "Htemps" as (q) "Htemps".
     iDestruct (stack_frag_join with "[$Hvars $Htemps]") as ((<- & _)) "Hvars".
-    rewrite -> app_length in *.
+    rewrite -> length_app in *.
     rewrite left_id right_id -Qp.mul_add_distr_r pos_to_Qp_add -Nat2Pos.inj_add // -Nat.add_assoc (Nat.add_assoc (length _)) Qp.mul_inv_r.
     rewrite fmap_app; done.
   - rewrite length_fmap //.
@@ -1454,7 +1455,7 @@ Lemma make_env_set : forall {A} t i (v : A), make_env (PTree.set i v t) = <[i :=
 Proof.
   intros; apply map_eq; intros k.
   destruct (eq_dec k i).
-  - subst; rewrite make_env_spec PTree.gss lookup_insert //.
+  - subst; rewrite make_env_spec PTree.gss lookup_insert_eq //.
   - rewrite lookup_insert_ne // !make_env_spec PTree.gso //.
 Qed.
 
@@ -1470,7 +1471,7 @@ Lemma bind_temps_map : forall params temps vl te, length params = length vl ->
   make_env te = list_to_map (zip (map fst params ++ map fst temps) (vl ++ repeat Vundef (length temps))).
 Proof.
   intros.
-  rewrite zip_with_app; last by rewrite map_length.
+  rewrite zip_with_app; last by rewrite length_map.
   rewrite list_to_map_app -create_undef_map.
   forget (create_undef_temps temps) as e.
   generalize dependent e; generalize dependent vl; induction params as [|(?, ?)]; destruct vl; inversion 1; simpl.
@@ -1480,8 +1481,8 @@ Proof.
     rewrite make_env_set -insert_union_l -insert_union_r //.
     apply not_elem_of_list_to_map_1.
     rewrite fst_zip.
-    rewrite elem_of_list_In //.
-    { rewrite map_length; lia. }
+    rewrite list_elem_of_In //.
+    { rewrite length_map; lia. }
 Qed.
 
 Lemma bind_parameter_temps_inv : forall params args t te,
@@ -1525,7 +1526,7 @@ Proof.
     iModIntro; iSplit; first done.
     rewrite /stackframe_of0; monPred.unseal; rewrite !monPred_at_big_sepL2.
     erewrite bind_temps_map; try apply H1; try done.
-    + iFrame. iPureIntro; rewrite app_length repeat_length Hargs //.
+    + iFrame. iPureIntro; rewrite length_app repeat_length Hargs //.
     + by eapply list_norepet_append_left. }
   forget (fn_vars f) as vars. clear dependent f.
   assert (forall i, In i (map fst vars) -> empty_env !! i = None) as Hout.
@@ -1550,8 +1551,8 @@ Proof.
     + setoid_rewrite Hve; rewrite make_env_set -insert_union_l -insert_union_r //.
       apply not_elem_of_list_to_map_1.
       rewrite fst_zip.
-      rewrite elem_of_list_In //.
-      { rewrite length_zip_with_l_eq; rewrite map_length; lia. }
+      rewrite list_elem_of_In //.
+      { rewrite length_zip_with_l_eq; rewrite length_map; lia. }
     + intros i; specialize (Hsub i).
       destruct (eq_dec i id); last by rewrite Maps.PTree.gso in Hsub.
       subst; rewrite Hout //; simpl; auto.
@@ -1571,7 +1572,7 @@ Proof.
     assert (ve !! i = Some v) as Hi by (apply PTree.elements_complete; rewrite Hve; simpl; auto).
     rewrite -make_env_spec -Heq lookup_empty // in Hi.
   - assert (ve !! i = Some (b, t)).
-    { rewrite -make_env_spec -Heq lookup_insert //. }
+    { rewrite -make_env_spec -Heq lookup_insert_eq //. }
     destruct (@Maps.PTree.elements_remove _ i (b,t) ve H) as [l1 [l2 [Hel Hrem]]].
     rewrite /freeable_blocks /blocks_of_env Hel map_app /=.
     trans (freeable_blocks ((b,0,@Ctypes.sizeof ge t) :: (map (block_of_binding ge) (l1 ++ l2)))).
@@ -1593,8 +1594,8 @@ Proof.
     + subst; rewrite PTree.grs.
       apply not_elem_of_list_to_map_1.
       rewrite fst_zip.
-      rewrite elem_of_list_In //.
-      { rewrite length_zip_with_l_eq; rewrite map_length; lia. }
+      rewrite list_elem_of_In //.
+      { rewrite length_zip_with_l_eq; rewrite length_map; lia. }
     + rewrite PTree.gro // -make_env_spec -Heq lookup_insert_ne //.
 Qed.
 
@@ -1679,7 +1680,7 @@ Proof.
   - apply stack_matches_dealloc; auto.
   - simpl; intros.
     destruct (eq_dec n (S (stack_depth k))).
-    + subst; apply lookup_delete.
+    + subst; apply lookup_delete_eq.
     + rewrite lookup_delete_ne //.
       apply Htop; simpl; lia.
 Qed.
@@ -2283,7 +2284,9 @@ Proof.
   induction ge as [|i x m ? IH] using map_ind.
   - rewrite !big_opM_empty.
     apply own_increasing_affine, _.
-  - rewrite !big_opM_insert // pair_op_1 own_op IH //.
+  - rewrite !big_opM_insert // pair_op_1.
+    iIntros "(? & ?)".
+    rewrite IH; iFrame.
 Qed.
 
 Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z) ge,
@@ -2295,11 +2298,12 @@ Proof.
   intros; iIntros.
   iMod gen_heap_init_names_empty as (??) "(? & ?)".
   iMod (own_alloc(A := gmap_view.gmap_viewR address (@funspecO' Σ)) (gmap_view.gmap_view_auth (DfracOwn 1) ∅)) as (γf) "?".
-  { apply gmap_view.gmap_view_auth_valid. }
+  { apply (gmap_view.gmap_view_auth_valid(V := iris.algebra.agree.agreeR (@funspecO' Σ))). }
   iMod (own_alloc(A := envR) ((lib.gmap_view.gmap_view_auth DfracDiscarded (to_agree <$> ge), ● ∅) ⋅
     (([^op map] i↦b∈ge, lib.gmap_view.gmap_view_frag i DfracDiscarded (to_agree b)), ε))) as (γe) "He".
   { apply pair_valid; split.
-    * rewrite -big_opM_view_frag; apply view_both_dfrac_valid.
+    * eapply cmra_valid_proper. { apply cmra_op_proper'; first done. symmetry; apply big_opM_view_frag. }
+      apply view_both_dfrac_valid.
       split; first done; intros ????.
       assert (((λ x, (DfracDiscarded, to_agree x)) <$> ge) !! i ≡ Some x) as Hi.
       { rewrite -(gmap.big_opM_singletons (_ <$> _)) big_opM_fmap H //. }
@@ -2312,7 +2316,7 @@ Proof.
       { by exists DfracDiscarded. }
       { by rewrite Hc. }
     * rewrite /= right_id; by apply auth_auth_valid. }
-  rewrite own_op; iDestruct "He" as "(? & Hg)".
+  iDestruct "He" as "(? & Hg)".
   iMod (ext_alloc z) as (?) "(? & ?)".
   iIntros "!>" (?); iExists (GenHeapGS _ _ _ _ γh γm), (FunspecG _ _ γf), (EnvGS _ _ γe), _.
   rewrite /state_interp /mem_auth /funspec_auth /env_auth fmap_empty /= -own_gvars; iFrame.
@@ -2403,7 +2407,7 @@ Definition init_stack (ge : genv) ve te : env_state := (make_env (Genv.genv_symb
 Lemma init_stack_matches : forall ge ve te, stack_matches' ge (init_stack ge ve te) ve te (Some Kstop).
 Proof.
   split3; simpl.
-  - rewrite /init_stack /env_to_environ lookup_insert /=.
+  - rewrite /init_stack /env_to_environ lookup_insert_eq /=.
     split3; simpl; intros; rewrite /Map.get /gmap_to_fun make_env_spec //.
   - done.
   - intros; rewrite lookup_insert_ne //; lia.
@@ -2422,7 +2426,7 @@ Lemma wp_adequacy_call: forall `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK_
             ge n z (Callstate f vs Kstop) m (*∧ φ*)) (* note that this includes ext_spec_exit if the program halts *).
 Proof.
   intros.
-  eapply ouPred.pure_soundness, (step_fupdN_soundness_no_lc'(Σ := Σ) _ (S n) O); [apply _..|].
+  unshelve eapply pure_soundness, (step_fupdN_soundness_no_lc'(Σ := Σ) _ (S n) O); [apply _..|].
   simpl; intros. apply (embed_emp_valid_inj(PROP2 := monPred stack_index _)). iIntros "_".
   iMod (H Hinv) as (????) "(? & ? & E & ?)".
   iPoseProof (call_safe_stop with "[$] [E] [$]") as "Hsafe"; try done.
@@ -2452,7 +2456,7 @@ Proof.
 (*  assert (forall n, @dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem ge) dryspec
             ge n z (State f s Kstop ve te) m ∧ φ) as H'; last (split; [eapply H' | apply (H' 0)]; eauto). *)
   (*intros n;*)
-  eapply ouPred.pure_soundness, (step_fupdN_soundness_no_lc'(Σ := Σ) _ (S n) O); [apply _..|].
+  unshelve eapply pure_soundness, (step_fupdN_soundness_no_lc'(Σ := Σ) _ (S n) O); [apply _..|].
   simpl; intros. apply (embed_emp_valid_inj(PROP2 := monPred stack_index _)). iIntros "_".
   iMod (H Hinv) as (????) "?".
   iStopProof.

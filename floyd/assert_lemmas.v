@@ -330,7 +330,7 @@ Proof.
  intros.
  red.
  destruct (tc_eval_gvar_zero _ _ _ _ H H0 H1) as [b ?].
- rewrite H2. destruct (eqb_type _ _); apply Coq.Init.Logic.I.
+ rewrite H2. destruct (eqb_type _ _); apply Logic.I.
 Qed.
 
 Lemma local_lift2_and: forall (P Q : environ -> Prop), (local (`and P Q) : assert) =

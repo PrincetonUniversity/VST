@@ -1,9 +1,9 @@
-Require Import Coq.Setoids.Setoid.
+Require Import Stdlib.Setoids.Setoid.
 Require Import VST.msl.Extensionality.
 
 (******************************************
 
-Copied From Coq.Logic.JMeq.
+Copied From Stdlib.Logic.JMeq.
 
 No longer involving JMeq_eq, which is potentially inconsistenty with homotopy
 type theory.
@@ -102,7 +102,7 @@ Qed.
 
 (** [JMeq] is equivalent to [eq_dep Type (fun X => X)] *)
 
-Require Import Coq.Logic.Eqdep.
+Require Import Stdlib.Logic.Eqdep.
 
 Lemma JMeq_eq_dep_id :
  forall (A:Type) (B:Type) (x:A) (y:B), JMeq x y -> eq_dep Type (fun X:Type => X) A x B y.

@@ -1,5 +1,5 @@
-Require Export Coq.Lists.List.
-Require Export Coq.ZArith.ZArith.
+Require Export Stdlib.Lists.List.
+Require Export Stdlib.ZArith.ZArith.
 Require Export compcert.lib.Coqlib.
 Require Export compcert.lib.Integers.
 Require Export compcert.lib.Floats.
@@ -8,7 +8,7 @@ Require Export VST.msl.eq_dec.
 Require Export VST.msl.Coqlib2.
 Require Export VST.floyd.coqlib3.
 Require Export VST.zlist.sublist.
-Require Export Lia.
+From Stdlib Require Export Lia.
 Require Export VST.zlist.list_solver.
 
 Definition Vubyte (c: Byte.int) : val :=
@@ -101,7 +101,7 @@ Proof. destruct v; simpl; try solve [right; intros N; trivial]; left; trivial. D
 
 Lemma isptr_offset_val':
  forall i p, isptr p -> isptr (offset_val i p).
-Proof. intros. destruct p; try contradiction; apply Coq.Init.Logic.I. Qed.
+Proof. intros. destruct p; try contradiction; apply Logic.I. Qed.
 #[export] Hint Extern 1 (isptr (offset_val _ _)) => apply isptr_offset_val' : core.
 #[export] Hint Resolve isptr_offset_val': norm.
 

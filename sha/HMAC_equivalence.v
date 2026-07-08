@@ -287,7 +287,7 @@ Proof.
   split; lia.
 
   (* key length *)
-  { rewrite map_length, bitsToBytes_len_gen with (n:=64%nat).
+  { rewrite length_map, bitsToBytes_len_gen with (n:=64%nat).
     reflexivity.
     rewrite LK; reflexivity. }
 

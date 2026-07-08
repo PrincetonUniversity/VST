@@ -1036,6 +1036,16 @@ Proof.
   apply _.
 Qed.
 
+Global Instance address_mapsto_timeless ch v sh l : Timeless (address_mapsto ch v sh l).
+Proof.
+  rewrite /address_mapsto.
+  apply bi.exist_timeless; intros.
+  rewrite /Timeless.
+  rewrite bi.later_and; iIntros "(>(% & % & %) & H)".
+  iSplit; first done.
+  iApply (timeless with "H").
+Qed.
+
 Global Instance mapsto_timeless sh t v1 v2 : Timeless (mapsto sh t v1 v2).
 Proof.
   rewrite /mapsto.

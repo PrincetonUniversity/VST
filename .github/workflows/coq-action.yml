@@ -21,16 +21,16 @@ jobs:
         # except for the "make_target" field and make_target related excludes
         coq_version:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
-          - '8.19'
-          - '8.20'
+          - '9.0'
+          - '9.1'
           - 'dev'
         bit_size:
           - 32
           - 64
         make_target:
           - vst
-        exclude:   
-          - coq_version: 8.19
+        exclude:
+          - coq_version: 9.1
             bit_size: 32
           - coq_version: dev
             bit_size: 32
@@ -50,10 +50,14 @@ jobs:
             endGroup
           install: |
             startGroup "Install dependencies"
-              opam install -y ${{ matrix.coq_version == 'dev' && 'coq-flocq' || matrix.bit_size == 32 && 'coq-compcert-32.3.13.1' || 'coq-compcert.3.13.1' }}
+              opam install -y coq-stdlib
+              opam install -y coq-flocq
+              opam install -y ${{ matrix.coq_version == '9.0' && matrix.bit_size == 64 && 'coq-compcert.3.16' }} || exit_code=$?
               # Required by test2
               opam install -y coq-ext-lib
-              opam install -y coq-iris.4.3.0
+              opam install -y rocq-vst-ora.1.2
+              # can simplify next line once the coq-paco opam package is available for rocq 9.1 
+              opam install -y ${{ matrix.coq_version != '9.1' && 'coq-paco' }} || exit_code=$?
             endGroup
           # See https://github.com/coq-community/docker-coq-action/tree/v1#permissions
           before_script: |
@@ -62,9 +66,8 @@ jobs:
             endGroup
           script: |
             startGroup "Build & Install"
-              # put the first version back once CompCert 3.15 is in the Coq Platform
-              # make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }} IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
-              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=bundled IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
+
+              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.bit_size==64 && matrix.coq_version == '9.0' && 'platform' || 'bundled' }} IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
             endGroup
           after_script: |
             startGroup 'Copy Opam coq/user-contrib and coq-variant'
@@ -89,8 +92,8 @@ jobs:
       fail-fast: false
       matrix:
         coq_version:
-          - '8.19'
-          - '8.20'
+          - '9.0'
+          - '9.1'
           - 'dev' 
         make_target:
           - assumptions.txt
@@ -103,8 +106,10 @@ jobs:
           - 32
           - 64
         exclude:
-          - coq_version: 8.19
-            bit_size: 32
+          - coq_version: 9.1
+            bit_size: 32  # can unexclude this once coq-paco installs
+          - coq_version: 9.1
+            make_target: test2
           - coq_version: dev
             bit_size: 32
           - bit_size: 64
@@ -132,6 +137,7 @@ jobs:
           coq_version: ${{ matrix.coq_version }}
           install: |
             startGroup "Copy downloaded Opam coq/user-contrib and coq-variant"
+              opam install -y coq
               cp -R -v user-contrib/* "$(opam var lib)"/coq/user-contrib
               mkdir -p "$(opam var lib)"/coq-variant
               cp -R -v coq-variant/* "$(opam var lib)"/coq-variant
@@ -143,7 +149,7 @@ jobs:
           script: |
             startGroup "Build & Install"
               make -f util/make-touch  IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
-              # put the first version back once CompCert 3.15 is in the Coq Platform
+              # put the first version back once CompCert 3.16 is in the Coq Platform
               # make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }}  IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
               make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=bundled IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
             endGroup

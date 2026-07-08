@@ -1262,7 +1262,7 @@ destruct (eq_block r b); subst.
         intuition.
         assert (M= nil). destruct M; trivial.
              assert (@length (block * Z) nil = length (rev (p :: M))). rewrite Heqrm; trivial.
-             rewrite rev_length in H3. simpl in H3. inv H3.
+             rewrite length_rev in H3. simpl in H3. inv H3.
         subst. simpl in *. clear H Heqrm H0 H1.
           specialize (Mem.loadbytes_store_same _ _ _ _ _ _ ST). intros LD.
           apply loadbytes_D in LD. destruct LD.
@@ -1389,7 +1389,7 @@ destruct (eq_block r b); subst.
         intuition.
         assert (M= nil). destruct M; trivial.
              assert (@length (block * Z) nil = length (rev (p :: M))). rewrite Heqrm; trivial.
-             rewrite rev_length in H3. simpl in H3. inv H3.
+             rewrite length_rev in H3. simpl in H3. inv H3.
         subst. simpl in *. clear H Heqrm H0 H1.
           specialize (Mem.loadbytes_storebytes_same _ _ _ _ _ ST). intros LD.
           apply loadbytes_D in LD. destruct LD.

@@ -131,6 +131,29 @@ split => rho; monPred.unseal.
 iIntros "((% & ? & []) & ?)".
 Qed.
 
+Ltac simpl_fst_snd :=
+  match goal with |- context[@fst ident funspec ?A] =>
+     let j := eval hnf in A in 
+     match j with (?x,?y) => 
+      try change (fst A) with x;
+      try change (snd A) with y
+     end
+    end.
+
+Ltac SF_vacuous :=
+ try simpl_fst_snd;
+ match goal with |- SF _ _ _ (vacuous_funspec _) => idtac end;
+ match goal with H: @eq compspecs _ _ |- _ => rewrite <- H end;
+red; red; repeat simple apply conj;
+[ reflexivity (* id_in_list ... *)
+| repeat apply Forall_cons; (* Forall complete_type fn_vars *)
+  try apply Forall_nil; reflexivity
+| repeat constructor; simpl; rep_lia (* var_sizes_ok *)
+| reflexivity (* fn_callconv ... *)
+| split3; [reflexivity | reflexivity | intros; apply semax_vacuous] (* semax_body *)
+| eexists; split; compute; reflexivity (* genv_find_func *)
+].
+
 Lemma compspecs_ext:
  forall cs1 cs2 : compspecs,
  @cenv_cs cs1 = @cenv_cs cs2 ->
@@ -417,16 +440,16 @@ Fixpoint FDM_entries (funs1 funs2 : list (ident * Ctypes.fundef function)): opti
                         end
   end.
 
-Definition check_FDM_entry (Imports1 Imports2:funspecs) x : Prop :=
+Definition check_FDM_entry (Imports1 Imports2:funspecs)  x :=
   match x with (i, fd1, fd2) =>
    match fd1, fd2 with
       Internal _, Internal _ => fd1 = fd2
     | Internal _, External _ _ _ _ => match find_id i Imports2 with
-                                        None => False
+                                        None => False%type
                                       | Some phi2 => signature_of_fundef fd1 = signature_of_fundef fd2
                                       end
     | External _ _ _ _, Internal _ => match find_id i Imports1 with
-                                        None => False
+                                        None => False%type
                                       | Some phi1 => signature_of_fundef fd1 = signature_of_fundef fd2
                                       end
     | External _ _ _ _, External _ _ _ _ => fd1 = fd2
@@ -775,21 +798,21 @@ Proof.
 intros.
 destruct v as [G c].
 exists G.
-apply (Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
-+ intros.
-  rewrite Forall_forall in H0.
-  apply find_id_e in E0.
-  apply H0 in E0.
-  red in E0.
-  simpl in E0.
-  destruct (find_id i Exports) eqn:?H; try contradiction.
-  apply (Comp_G_Exports c) in H1.
-  destruct H1 as [phi' [? ?]].
-  
-  exists phi'.
-  split; auto.
-  eapply funspec_sub_trans; eauto.
-+ intros. apply (Comp_MkInitPred c); auto.
+(* after Rocq 9.2 the second apply is subsumed by the first, cf rocq-prover/rocq#21036 *)
+apply (@Build_Component _ _ _ _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try first [apply c | apply (Comp_MkInitPred c)]; auto.
+intros.
+rewrite Forall_forall in H0.
+apply find_id_e in E0.
+apply H0 in E0.
+red in E0.
+simpl in E0.
+destruct (find_id i Exports) eqn:?H; try contradiction.
+apply (Comp_G_Exports c) in H1.
+destruct H1 as [phi' [? ?]].
+
+exists phi'.
+split; auto.
+eapply funspec_sub_trans; eauto.
 Qed.
 
 (*A Variant of prove_restrictExports that uses "Forall2 funspec_sub"
@@ -805,13 +828,13 @@ Proof.
 intros.
 destruct v as [G c].
 exists G.
-apply (Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
+(* after Rocq 9.2 the second apply is subsumed by the first, cf rocq-prover/rocq#21036 *)
+apply (@Build_Component _ _ _ _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try first [apply c | apply (Comp_MkInitPred c)]; auto.
 + rewrite H. apply c.
 + intros. destruct (find_funspec_sub Exports' Exports H H0 _ _ E0) as [psi [Psi PSI]].
   apply (Comp_G_Exports c) in Psi.
   destruct Psi as [tau [Tau TAU]].
   exists tau; split; trivial. eapply funspec_sub_trans; eassumption.
-+ apply (Comp_MkInitPred c).
 Qed.
 
 Fixpoint replace_spec (specs:funspecs) p (phi:funspec):funspecs :=
@@ -954,7 +977,8 @@ destruct v as [G c].
 assert (LNR1: list_norepet (map fst (QPvarspecs p) ++ map fst (G ++ Imports'))).
 { rewrite map_app, <- H, <- map_app. apply c. }
 exists G.
-apply (Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
+(* after Rocq 9.2 the second apply is subsumed by the first, cf rocq-prover/rocq#21036 *)
+apply (@Build_Component _ _ _ _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try first [apply c | apply (Comp_MkInitPred c)]; auto.
 + rewrite <- H. apply c.
 + intros.
   assert (LNR2: list_norepet (map fst (QPvarspecs p) ++ map fst (Imports' ++ G))).
@@ -983,7 +1007,6 @@ apply (Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
       setoid_rewrite Psi. eexists; split. reflexivity. apply (funspec_sub_sub_si _ _ PSI).
     * apply find_id_None_iff in Heqq. rewrite H in Heqq. apply find_id_None_iff in Heqq. rewrite Heqq, Heqw.
       eexists; split. reflexivity. apply funspec_sub_si_refl.
-+ apply (Comp_MkInitPred c).
 Qed.
 
 Lemma replace_spec_Forall2_funspec_sub2 p phi: forall (l : funspecs)
@@ -3047,6 +3070,7 @@ end.
 
 
 Ltac solve_SF_internal P :=
+   (tryif (let a := constr:(@P) in idtac) then idtac else fail "Lemma" P "does not exist");
   apply SF_internal_sound; eapply _SF_internal;
    [  reflexivity 
    | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity

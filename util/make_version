@@ -7,7 +7,7 @@ else
     DATE=date
 fi
 set -e
-printf >$F 'Require Import ZArith Coq.Strings.String. Open Scope string.\n'
+printf >$F 'From Stdlib Require Import ZArith Strings.String. Open Scope string.\n'
 printf >>$F 'Definition git_rev := "'
 if command -v git >/dev/null && [ "$(git rev-parse --is-inside-work-tree 2>/dev/null)" = "true" ]; then
   git log -n 1 --pretty=format:"%H" >>$F || true

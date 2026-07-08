@@ -34,7 +34,7 @@ Lemma env_auth_globals : forall rho, env_auth rho ⊢ globals_auth (fst rho) ∗
 Proof.
   intros.
   rewrite /env_auth.
-  rewrite pair_split own_op.
+  rewrite (pair_split(A := (gmap_view.gmap_viewR ident (leibnizO block)))) own_op.
   iIntros "(#$ & ?)"; iFrame.
 Qed.
 
@@ -47,7 +47,7 @@ Definition env_to_environ (ρ : env_state) n : environ :=
 Global Instance gmap_total `{Countable K} A : CmraTotal (iris.algebra.gmap.gmapR K A).
 Proof. rewrite /CmraTotal /pcore /cmra_pcore /= /gmap.gmap_pcore_instance //. Qed.
 
-Lemma Excl_fmap_incl : forall {A : ofe} (x y : option A), Excl <$> x ≼ Excl <$> y →
+Lemma Excl_fmap_incl : forall {A : ofe} (x y : option A), (Excl <$> x ≼ Excl <$> y)%stdpp →
   match x with Some a => (x ≡ y)%stdpp | None => True end.
 Proof.
   destruct x; last done; simpl.
@@ -110,7 +110,9 @@ Qed.
 Lemma globals_gvar_e : forall `{!heapGS Σ} id v ge, gvar id v ∗ globals_auth ge ⊢ ⌜ge !! id = Some v⌝.
 Proof.
   intros; rewrite /gvar /globals_auth.
-  iIntros "(H1 & H2)"; iDestruct (own_valid_2 with "H2 H1") as %((? & _ & _ & Hid & _ & Hincl)%gmap_view.gmap_view_both_dfrac_valid_discrete_total & _).
+  iIntros "(H1 & H2)"; iDestruct (own_valid_2 with "H2 H1") as "H".
+  rewrite prod_validI gmap_view_both_validI_total.
+  iDestruct "H" as "((% & _ & _ & %Hid & _ & %Hincl) & _)".
   rewrite lookup_fmap in Hid; destruct (lookup _ _); inv Hid.
   apply to_agree_included_L in Hincl as ->; done.
 Qed.
@@ -213,7 +215,7 @@ Proof.
     iApply stack_frag_split.
     { apply map_disjoint_singleton_l_2.
       rewrite not_elem_of_list_to_map_1 //.
-      intros ((?, ?) & ? & ?%elem_of_zip_l%elem_of_list_In)%elem_of_list_fmap_2; simpl in *; congruence. }
+      intros ((?, ?) & ? & ?%elem_of_zip_l%list_elem_of_In)%list_elem_of_fmap; simpl in *; congruence. }
     { done. }
     rewrite -insert_union_singleton_l.
     replace (pos_to_Qp (Pos.of_nat (S (length ll)))) with (1 + pos_to_Qp (Pos.of_nat (length ll)))%Qp.
@@ -248,7 +250,7 @@ Proof.
     { done. }
     { apply map_disjoint_singleton_l_2.
       rewrite not_elem_of_list_to_map_1 //.
-      intros ((?, ?) & ? & ?%elem_of_zip_l%elem_of_list_In)%elem_of_list_fmap_2; simpl in *; congruence. }
+      intros ((?, ?) & ? & ?%elem_of_zip_l%list_elem_of_In)%list_elem_of_fmap; simpl in *; congruence. }
     rewrite -insert_union_singleton_l.
     replace (pos_to_Qp (Pos.of_nat (S (length lt)))) with (1 + pos_to_Qp (Pos.of_nat (length lt)))%Qp.
     rewrite Qp.mul_add_distr_r Qp.mul_1_l //.
@@ -259,9 +261,9 @@ Qed.
 Lemma norepet_NoDup : forall {A} (l : list A), list_norepet l ↔ base.NoDup l.
 Proof.
   induction l; split; inversion 1; constructor; subst.
-  - rewrite elem_of_list_In //.
+  - rewrite list_elem_of_In //.
   - rewrite -IHl //.
-  - rewrite -elem_of_list_In //.
+  - rewrite -list_elem_of_In //.
   - rewrite IHl //.
 Qed.
 
@@ -269,7 +271,7 @@ Definition alloc_vars ve te n (ρ : env_state) := (fst ρ, <[n := (ve, te)]>(snd
 
 Lemma env_to_environ_alloc : forall ve te n ρ, env_to_environ (alloc_vars ve te n ρ) n = (gmap_to_fun ρ.1, ve, te).
 Proof.
-  intros; rewrite /env_to_environ /alloc_vars lookup_insert //.
+  intros; rewrite /env_to_environ /alloc_vars lookup_insert_eq //.
 Qed.
 
 Lemma env_alloc : forall ρ n ve te, (snd ρ !! n)%stdpp = None →

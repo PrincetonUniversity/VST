@@ -22,7 +22,7 @@
 Require Import VST.msl.base.
 Require Import VST.msl.eq_dec.
 Require Import VST.msl.sepalg.
-Require Import GenericMinMax.
+From Stdlib Require Import GenericMinMax.
 
 Module Type BOOLEAN_ALGEBRA.
   Parameters (t:Type) (Ord : t -> t -> Prop)
