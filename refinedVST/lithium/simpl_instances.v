@@ -1,5 +1,5 @@
 From iris.base_logic.lib Require Import iprop.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From lithium Require Import pure_definitions.
 From VST.lithium Require Import simpl_classes.
 
@@ -383,7 +383,7 @@ Proof.
   - move => [n'[?[??]]]; subst.
     have ->: (n = n' + (n - n'))%nat by lia. rewrite replicate_add. do 2 f_equal. lia.
   - move => Hr.
-    have Hn: (n = length l1 + length l2)%nat by rewrite -(length_replicate n x) -app_length Hr.
+    have Hn: (n = length l1 + length l2)%nat by rewrite -(length_replicate n x) -length_app Hr.
     move: Hr. rewrite Hn replicate_add => /app_inj_1[|<- <-]. 1: by rewrite length_replicate.
     exists (length l1). repeat split => //.
     + rewrite !length_replicate. f_equal. lia.
@@ -422,7 +422,7 @@ Global Instance simpl_app_r_id {A} (l1 l2 : list A):
 Proof.
   split.
   - move => H. assert (length (l1 ++ l2) = length l2) as Hlen by by rewrite -H.
-    rewrite app_length in Hlen. assert (length l1 = 0%nat) by lia. by destruct l1.
+    rewrite length_app in Hlen. assert (length l1 = 0%nat) by lia. by destruct l1.
   - by naive_solver.
 Qed.
 
@@ -431,7 +431,7 @@ Global Instance simpl_app_l_id {A} (l1 l2 : list A):
 Proof.
   split.
   - move => H. assert (length (l1 ++ l2) = length l1) as Hlen by by rewrite -H.
-    rewrite app_length in Hlen. assert (length l2 = 0%nat) by lia. by destruct l2.
+    rewrite length_app in Hlen. assert (length l2 = 0%nat) by lia. by destruct l2.
   - move => ->. by rewrite app_nil_r.
 Qed.
 
@@ -467,14 +467,14 @@ Global Instance simpl_fmap_lookup_and {A B} (l : list A) i (f : A → B) x:
 Proof.
   split.
   - move => [y [-> Hl]]. rewrite list_lookup_fmap Hl. naive_solver.
-  - move => Hf. have := list_lookup_fmap_inv _ _ _ _ Hf. naive_solver.
+  - move => Hf. have := list_lookup_fmap_Some_1 _ _ _ _ Hf. naive_solver.
 Qed.
 Global Instance simpl_fmap_lookup_impl {A B} (l : list A) i (f : A → B) x:
   SimplImplRel (=) true ((f <$> l) !! i) (Some x) (∃ y : A, x = f y ∧ l !! i = Some y).
 Proof.
   split.
   - move => [y [? Hl]]; subst. by rewrite list_lookup_fmap Hl.
-  - move => /(list_lookup_fmap_inv _ _ _ _)?. naive_solver.
+  - move => /(list_lookup_fmap_Some_1 _ _ _ _)?. naive_solver.
 Qed.
 Global Instance simpl_lookup_insert_eq {A} (l : list A) i j x x' `{!CanSolve (i = j)}:
   SimplBothRel (=) (<[i := x']> l !! j) (Some x) (x = x' ∧ (j < length l)%nat).

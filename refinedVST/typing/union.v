@@ -3,7 +3,7 @@ From VST.typing Require Export type.
 From VST.typing Require Import programs bytes (*padded*) struct int.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
-Require Import Coq.Program.Equality.
+From Stdlib Require Import Program.Equality.
 
 Definition GetMemberUnionLoc (l : address) (i : ident) (m : ident) : address := (l).
 Notation "l 'at_union{' ul '}ₗ' m" := (GetMemberUnionLoc l ul m) (at level 10, format "l  'at_union{' ul '}ₗ'  m") : stdpp_scope.
@@ -332,7 +332,7 @@ Section union.
     iApply stack_level_embed => //; iPoseProof (stack_level_elim with "L Hv") as "Hv".
     destruct l; iApply (ty_ref with "[%] Hl Hv"); try done.
     pose proof (index_of_ti_member ti x) as Hf.
-    apply elem_of_list_lookup_2, elem_of_list_In in Hf.
+    apply list_elem_of_lookup_2, list_elem_of_In in Hf.
     apply (in_map name_member) in Hf.
     apply (field_compatible_app_inv' [UnionField (name_member (ti_member ti x))]), field_compatible_nested_field in Hly; last done.
     rewrite app_nil_r /nested_field_type /nested_field_offset /= in Hly.
@@ -382,7 +382,7 @@ Section union.
     rewrite {1}/ty_own /=. iDestruct "Hs" as (??) "(#L & Hty & Hpad)".
     pose proof (index_of_ti_member ti x) as Hf.
     unfold get_co in *; destruct (cenv_cs !! ti_union_layout ti)%maps eqn: Hi; last done.
-    apply elem_of_list_lookup_2, elem_of_list_In in Hf.
+    apply list_elem_of_lookup_2, list_elem_of_In in Hf.
     apply (in_map name_member) in Hf.
     iExists _, _. iSplit => //.
     { iPureIntro; split; first done.

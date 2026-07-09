@@ -503,7 +503,7 @@ Section own.
   Lemma find_in_context_type_val_P_own_singleton (l : address) (T:assert->assert):
     (emp ∗ T (l ◁ₗ place' l))
     ⊢ find_in_context (FindValP l) T.
-  Proof. rewrite /place'. iIntros "[_ HT]". iExists _. iFrame "HT" => //=. Qed.
+  Proof. rewrite /place'. iIntros "[_ HT]". iExists (l ◁ₗ place l). iFrame "HT" => //=. Qed.
   Definition find_in_context_type_val_P_own_singleton_inst :=
     [instance find_in_context_type_val_P_own_singleton with FICSyntactic].
   Global Existing Instance find_in_context_type_val_P_own_singleton_inst | 30.

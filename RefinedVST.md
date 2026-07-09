@@ -17,11 +17,11 @@ opam update
 opam pin add builddep/
 ```
 
-Then clone our fork of RefinedC to any directory:
+Then clone our fork of RefinedC to any directory and install Lithium:
 
 ```[bash]
 git clone https://github.com/UIC-verif-group/refinedC refinedc
-opam pin ./refinedc -y
+opam pin coq-lithium ./refinedc -y
 ```
 
 Now we use the VST makefile to compile and install the RefinedVST files:

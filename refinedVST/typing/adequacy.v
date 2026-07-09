@@ -86,7 +86,7 @@ Proof.
   iApply wp_strong_mono.
   iSplitL "H0". 2: {
     iDestruct ("H" $! x) as "(%Htys & #Hf)".
-    pose proof (tc_vals_length _ _ H) as Hlen; rewrite map_length in Hlen.
+    pose proof (tc_vals_length _ _ H) as Hlen; rewrite length_map in Hlen.
     apply Forall2_length in Htys.
     rewrite monPred_objectively_elim.
     iApply "Hf"; iFrame.
@@ -96,7 +96,7 @@ Proof.
   - rewrite /fn_params_post /=.
     iIntros "Hpost !>"; iFrame.
     iDestruct ("Hpost" with "[//]") as "($ & % & $ & $ & ?)".
-    by iApply stackframe_of1_typed.
+    by rewrite stackframe_of1_typed.
   - do 2 (iSplit; first by iIntros "[]").
     rewrite /fn_params_post /=.
     iIntros (?) "(% & Hret & Hpost)".

@@ -1155,7 +1155,7 @@ Section typing.
   Lemma find_in_context_type_val_or_loc_P_val_loc (lv l : address) T:
     (∃ β ty, lv ◁ₗ{β} ty ∗ T (lv ◁ₗ{β} ty))
     ⊢ find_in_context (FindValOrLoc lv l) T.
-  Proof. iDestruct 1 as (β ty) "[Hl HT]". iExists _. by iFrame. Qed.
+  Proof. iDestruct 1 as (β ty) "[Hl HT]". iExists (lv ◁ₗ{β} ty)%I. by iFrame. Qed.
   Definition find_in_context_type_val_or_loc_P_val_loc_inst :=
     [instance find_in_context_type_val_or_loc_P_val_loc with FICSyntactic].
   Global Existing Instance find_in_context_type_val_or_loc_P_val_loc_inst | 10.
@@ -2012,7 +2012,7 @@ Section typing.
       iApply wp_exprs_mono; last iApply ("IH" $! (vl ++ [v]) (ctys0 ++ [t]) with "[%] [%] [%] Hvf Hnext").
       - intros; rewrite -fupd_intro; setoid_rewrite <- app_assoc; done.
       - by inv Hlen.
-      - by rewrite !app_length Hlen'.
+      - by rewrite !length_app Hlen'.
       - rewrite -app_assoc //.
       - rewrite zip_with_app // big_sepL2_snoc; iFrame.
     }

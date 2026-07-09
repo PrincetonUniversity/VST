@@ -66,7 +66,7 @@ Global Instance sep_list_related_to (prop:bi) A B id ig l f :
 Lemma find_sep_list {prop:bi} id (T : _ → prop):
   find_in_context (FindSepList id) T :-
     pattern: A ig l f, sep_list id A ig l f; return T (sep_list id A ig l f).
-Proof. iIntros "(%&%&%&%&?&?)". iExists _. by iFrame. Qed.
+Proof. iIntros "(%&%&%&%&?&?)". iExists (sep_list _ _ _ _ _). by iFrame. Qed.
 Definition find_sep_list_inst := [instance @find_sep_list with FICSyntactic].
 Global Existing Instance find_sep_list_inst | 1.
 
@@ -84,21 +84,21 @@ Proof.
   - case_bool_decide as Hb => //. have [_ /= Heq]:= Hequiv 0. by  move: (Heq Hb) => [->].
   - iDestruct ("IH" $! (f ∘ S) (pred <$> (filter (λ x, x ≠ 0%nat) ig)) l2 with "[//] [%] [Hl]") as "Hl". {
       move => i. split => // Hin. move: (Hequiv (S i)) => [_ /= {}Hequiv]. apply: Hequiv.
-      contradict Hin. apply elem_of_list_fmap. eexists (S i). split => //.
-        by apply elem_of_list_filter.
+      contradict Hin. apply list_elem_of_fmap. eexists (S i). split => //.
+        by apply list_elem_of_filter.
     }
     + iApply (big_sepL_impl with "Hl"). iIntros "!>" (k ??) "Hl".
       case_bool_decide as Hb1; case_bool_decide as Hb2 => //.
-      * contradict Hb2. apply elem_of_list_fmap. eexists (S k). split => //.
-        by apply elem_of_list_filter.
-      * contradict Hb1. move: Hb2 => /elem_of_list_fmap[[|?][? /elem_of_list_filter [??]]] //.
+      * contradict Hb2. apply list_elem_of_fmap. eexists (S k). split => //.
+        by apply list_elem_of_filter.
+      * contradict Hb1. move: Hb2 => /list_elem_of_fmap[[|?][? /list_elem_of_filter [??]]] //.
         by simplify_eq/=.
     + iApply (big_sepL_impl with "Hl"). iIntros "!>" (k ??) "Hl".
       case_bool_decide as Hb1; case_bool_decide as Hb2 => //.
-      * contradict Hb2. move: Hb1 => /elem_of_list_fmap[[|?][? /elem_of_list_filter [??]]] //.
+      * contradict Hb2. move: Hb1 => /list_elem_of_fmap[[|?][? /list_elem_of_filter [??]]] //.
         by simplify_eq/=.
-      * contradict Hb1. apply elem_of_list_fmap. eexists (S k). split => //.
-        by apply elem_of_list_filter.
+      * contradict Hb1. apply list_elem_of_fmap. eexists (S k). split => //.
+        by apply list_elem_of_filter.
 Qed.
 Definition subsume_sep_list_eq_inst := [instance @subsume_sep_list_eq].
 Global Existing Instance subsume_sep_list_eq_inst | 1000.
@@ -112,10 +112,10 @@ Proof.
   unfold CanSolve, sep_list => ?. iIntros "Hsub [<- Hl]".
   rewrite length_insert. iApply "Hsub". iSplit; [done|].
   destruct (decide (i < length l1)%nat). 2: { by rewrite list_insert_ge; [|lia]. }
-  iDestruct (big_sepL_insert_acc with "Hl") as "[? Hl]". { by apply: list_lookup_insert. }
+  iDestruct (big_sepL_insert_acc with "Hl") as "[? Hl]". { by apply: list_lookup_insert_eq. }
   have [//|y ?]:= lookup_lt_is_Some_2 l1 i.
   iDestruct ("Hl" $! y with "[]") as "Hl". { by case_decide. }
-  case_bool_decide; last done; by rewrite list_insert_insert list_insert_id.
+  case_bool_decide; last done; by rewrite list_insert_insert_eq list_insert_id.
 Qed.
 Definition subsume_sep_list_insert_in_ig_inst := [instance @subsume_sep_list_insert_in_ig].
 Global Existing Instance subsume_sep_list_insert_in_ig_inst.
@@ -171,8 +171,8 @@ Proof.
   rewrite Heq1 => /=. rewrite bool_decide_false //. iFrame.
   iApply (big_sepL_impl with "H"); iIntros "!#" (???) "?".
   case_bool_decide as Hx1 => //; case_bool_decide as Hx2 => //; contradict Hx2.
-  * by move: Hx1 => /(elem_of_list_fmap_2 _ _ _)[[|?]//=[->?]].
-  * intros ?; contradiction Hx1. apply elem_of_list_fmap. eexists (S k). split => //.
+  * by move: Hx1 => /(list_elem_of_fmap _ _ _)[[|?]//=[->?]].
+  * intros ?; contradiction Hx1. apply list_elem_of_fmap. eexists (S k). split => //.
 Qed.
 Definition subsume_sep_list_cons_inst := [instance @subsume_sep_list_cons].
 Global Existing Instance subsume_sep_list_cons_inst | 40.

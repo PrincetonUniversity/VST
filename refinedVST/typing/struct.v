@@ -4,7 +4,7 @@ From VST.typing Require Export type.
 From VST.typing Require Import programs bytes.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
-Require Import Coq.Program.Equality.
+From Stdlib Require Import Program.Equality.
 
 Definition GetMemberLoc {cs : compspecs} (l : address) (i : ident) (m : ident) : address :=
   (l.1, Ptrofs.add l.2 (Ptrofs.repr (field_offset cenv_cs m (get_co i).(co_members)))).
@@ -221,7 +221,7 @@ Section struct.
           { rewrite orb_true_r // in Hout. }
           apply id_in_list_false in Hid; contradiction Hid.
           rewrite in_map_iff.
-          apply elem_of_list_lookup_2, elem_of_list_In in H2; eauto.
+          apply list_elem_of_lookup_2, list_elem_of_In in H2; eauto.
       + destruct j; inv Hm; inv Htys; eauto.
   Qed.
 
@@ -261,7 +261,7 @@ Section struct.
           { rewrite orb_true_r // in Hout. }
           apply id_in_list_false in Hid; contradiction Hid.
           rewrite in_map_iff.
-          apply elem_of_list_lookup_2, elem_of_list_In in H2; eauto.
+          apply list_elem_of_lookup_2, list_elem_of_In in H2; eauto.
       + destruct j; inv Hm; inv Htys; simpl insert.
         rewrite make_ty_prod_cons2; f_equal; eauto.
   Qed.
@@ -415,7 +415,7 @@ Section struct.
       pose proof (get_co_members_no_replicate i).
       iApply (aggregate_pred.struct_pred_ext_derives with "H"); first done.
       intros ??? Hmem; rewrite /heap_withspacer /mapsto_memory_block.at_offset /=; f_equiv.
-      apply in_get_member, elem_of_list_In, elem_of_list_lookup_1 in Hmem as (j & ?).
+      apply in_get_member, list_elem_of_In, list_elem_of_lookup_1 in Hmem as (j & ?).
       assert (is_Some (co_members (get_co i) !! j)) as Hty by eauto.
       apply lookup_lt_is_Some_1 in Hty; rewrite H in Hty; apply lookup_lt_is_Some_2 in Hty as (? & ?).
       erewrite proj_struct_lookup by done.
@@ -471,13 +471,13 @@ Section struct.
     apply bi.sep_affine.
     * rewrite /mapsto_memory_block.at_offset /=.
       destruct (val2adr _); last apply _.
-      apply elem_of_list_In, elem_of_list_lookup_1 in Hin as (j & Hj).
+      apply list_elem_of_In, list_elem_of_lookup_1 in Hin as (j & Hj).
       pose proof (lookup_lt_Some _ _ _ Hj) as Hlt.
       rewrite H -lookup_lt_is_Some in Hlt; destruct Hlt.
       eapply TCForall_Forall, Forall_lookup in Htys; last done.
       erewrite proj_struct_lookup; try done; try apply _.
       rewrite get_member_name //.
-      eapply elem_of_list_In, elem_of_list_lookup_2; eauto.
+      eapply list_elem_of_In, list_elem_of_lookup_2; eauto.
     * rewrite /heap_spacer; if_tac; apply _.
   Qed.
 
@@ -598,7 +598,7 @@ Section struct.
       iExists (existT (field_type (name_member m) mems) v'.1 :: vs); iFrame.
       destruct j.
       2: { destruct Hj as (Hj & _); inv Hj.
-           apply elem_of_list_lookup_2, elem_of_list_In in H1 as [-> | ?].
+           apply list_elem_of_lookup_2, list_elem_of_In in H1 as [-> | ?].
            * rewrite Pos.eqb_refl // in Hout.
            * destruct (id_in_list) eqn: Hid; first by rewrite orb_true_r in Hout.
              apply id_in_list_false in Hid; contradiction Hid.
@@ -710,7 +710,7 @@ Section struct.
     iDestruct (iterate_elim0 INV with "HG [] [#]") as "[Hinv HG]"; unfold INV; clear INV.
     { by rewrite !take_0. } {
       iIntros "!>" (j ? ? (?&?&?&Hvs&?)%lookup_zip_with_Some); simplify_eq/=.
-      iIntros "Hinv [? $]". rewrite lookup_take in Hvs. 2: { rewrite Hlen2. by apply: lookup_lt_Some. }
+      iIntros "Hinv [? $]". rewrite lookup_take_lt in Hvs. 2: { rewrite Hlen2. by apply: lookup_lt_Some. }
       erewrite take_S_r; [|done]. erewrite take_S_r; [|done].
       rewrite big_sepL2_snoc. iFrame.
     }
@@ -744,7 +744,7 @@ Section struct.
     pose proof (get_co_members_no_replicate i) as Hnorep.
     unfold get_co in *; destruct (cenv_cs !! i)%maps eqn: Hi; last done.
     apply fmap_Some_1 in Hj as (m & Hm & ->).
-    pose proof (proj1 (elem_of_list_In _ _) (elem_of_list_lookup_2 _ _ _ Hm)).
+    pose proof (proj1 (list_elem_of_In _ _) (list_elem_of_lookup_2 _ _ _ Hm)).
     assert (in_members (name_member m) (co_members c)) as Hin.
     { apply in_map_iff; eauto. }
     iModIntro; iExists _, _; iSplit.
@@ -914,7 +914,7 @@ Check value_fits_eq.
     rewrite monPred_at_embed.
     apply aggregate_pred.struct_pred_ext; first done; intros f ?? Hin.
     rewrite -heap_withspacer_eq /heap_withspacer /mapsto_memory_block.at_offset /=; f_equiv.
-    pose proof (in_get_member _ _ Hin) as (? & Hi)%elem_of_list_In%elem_of_list_lookup_1.
+    pose proof (in_get_member _ _ Hin) as (? & Hi)%list_elem_of_In%list_elem_of_lookup_1.
     erewrite proj_struct_lookup; try done.
     2: rewrite !list_lookup_fmap Hi /= name_member_get //.
     rewrite uninit_memory_block.
@@ -1061,7 +1061,7 @@ Check value_fits_eq.
     iIntros (Φ) "Hl HΦ" => /=.
     rewrite /GetMemberLoc.
     unfold get_co in *; destruct (cenv_cs !! i)%maps eqn: Hi; last done.
-    pose proof (proj1 (elem_of_list_In _ _) (elem_of_list_lookup_2 _ _ _ Hm)).
+    pose proof (proj1 (list_elem_of_In _ _) (list_elem_of_lookup_2 _ _ _ Hm)).
     assert (in_members (name_member m) (co_members c)) as Hin.
     { apply in_map_iff; eauto. }
     assert (plain_members (co_members c) = true) as Hplain.

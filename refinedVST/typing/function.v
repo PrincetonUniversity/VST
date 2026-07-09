@@ -238,7 +238,7 @@ Section function.
   Proof.
     intros; rewrite /stackframe_of0' /typed_stackframe.
     iIntros "(H & Hts) Hparams"; iSplitL "H".
-    - iApply (big_sepL_mono with "H"); intros ?? H%elem_of_list_lookup_2.
+    - iApply (big_sepL_mono with "H"); intros ?? H%list_elem_of_lookup_2.
       rewrite !Forall_forall in Hcomplete Halign.
       specialize (Hcomplete _ H); specialize (Halign _ H).
       rewrite /var_block0 /typed_var_block.
@@ -271,7 +271,7 @@ Section function.
     intros; rewrite /stackframe_of1' /typed_stackframe1.
     iIntros "(Hvars & Htemps)".
     rewrite -bi.sep_exist_l; iSplitL "Hvars".
-    - iApply (big_sepL_mono with "Hvars"); intros ?? H%elem_of_list_lookup_2.
+    - iApply (big_sepL_mono with "Hvars"); intros ?? H%list_elem_of_lookup_2.
       (*rewrite !Forall_forall in Hcomplete Halign.
       specialize (Hcomplete _ H); specialize (Halign _ H).*)
       rewrite /var_block1 /typed_var_block.
@@ -309,7 +309,7 @@ Section function.
     iIntros "HT (%fn&(%&%)&%He&Hfn)".
     simpl in *; subst.
     inv H.
-    rewrite /type_of_params map_length in Hlen.
+    rewrite /type_of_params length_map in Hlen.
     iExists (Internal fn); iSplit.
     { iPureIntro; destruct l, He as (-> & ? & ?); rewrite /adr2val /=; eexists; split3; eauto.
       { rewrite Genv.find_funct_ptr_iff //. }
@@ -565,7 +565,7 @@ Section inline_function.
     iIntros "!#" (lsa lsv Hly) "Ha Hv".
     iAssert ⌜length lsa = length (f_args fn)⌝%I as %Hlen1. {
       iDestruct (big_sepL2_length with "Ha") as %->.
-      iPureIntro. move: Hall => /Forall2_length ->. by rewrite fmap_length.
+      iPureIntro. move: Hall => /Forall2_length ->. by rewrite flength_map.
     }
     iDestruct (big_sepL2_length with "Hv") as %Hlen2.
     move: Hl Hall Hly. move: {1 2 3}(f_args fn) => alys Hl Hall Hly.
