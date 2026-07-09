@@ -192,7 +192,7 @@ Ltac map_ext_eq_tac :=
   match goal with
   | |- context[ (<[?i := _]>)%stdpp ] =>
     destruct (eq_dec i j); subst;
-    rewrite ?lookup_insert ?lookup_insert_ne //
+    rewrite ?lookup_insert_eq ?lookup_insert_ne //
   end.
 
 Section mpred.
@@ -564,7 +564,7 @@ unfold_lift.
 simpl.
 unfold eval_id.
 simpl.
-rewrite lookup_insert.
+rewrite lookup_insert_eq.
 unfold_lift.
 reflexivity.
 Qed.
@@ -917,7 +917,7 @@ Proof.
   destruct TC as (TC & ? & ?); split3; auto; simpl.
   intros ?? Ht.
   destruct (eq_dec id i).
-  + subst; rewrite lookup_insert.
+  + subst; rewrite lookup_insert_eq.
     eexists; split; first done.
     assert (t = ty) as -> by congruence.
     apply TC in H as (? & ? & ?); eauto.

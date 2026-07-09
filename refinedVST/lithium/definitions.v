@@ -1,4 +1,4 @@
-From iris.proofmode Require Export tactics.
+From iris.proofmode Require Export proofmode.
 From lithium Require Export base pure_definitions.
 
 (** Definitions that are used by the Lithium automation. *)

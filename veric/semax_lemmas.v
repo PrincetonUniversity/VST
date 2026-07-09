@@ -1,4 +1,4 @@
-(*Require Import iris.bi.lib.fixpoint_banach.*)
+Require Import iris.bi.lib.fixpoint_banach.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
@@ -71,7 +71,7 @@ Lemma subst_set : forall {A} id v (P : environ -> A) v' rho
   subst id (λ _ : environ, eval_id id rho) P (env_set rho id v') = P rho.
 Proof.
   intros; destruct rho as ((?, ?), ?); rewrite /subst /env_set /=; unfold_lift.
-  rewrite insert_insert insert_id //.
+  rewrite insert_insert_eq insert_id //.
   by rewrite /eval_id Hid.
 Qed.
 
@@ -123,7 +123,7 @@ Lemma typecheck_environ_set : forall Delta rho id t v, typecheck_environ Delta r
 Proof.
   intros ????? (? & ? & ?) ??; split3; auto.
   intros i ? Ht; destruct (eq_dec i id).
-  + subst i; rewrite lookup_insert; exists v; split; eauto.
+  + subst i; rewrite lookup_insert_eq; exists v; split; eauto.
     assert (ty = t) by congruence; subst; auto.
   + rewrite lookup_insert_ne; auto.
 Qed.
@@ -180,49 +180,9 @@ Proof.
   destruct (Genv.find_funct _ _) as [[|]|]; apply _.
 Qed.
 
-  (* will be in fixpoint_banach once we bump Iris *)
-  Lemma fixpoint_plain `{!BiPlainly PROP} {A}
-      (F : (A -d> PROP) → A -d> PROP) `{!Contractive F} :
-    (∀ Φ, (∀ x, Plain (Φ x)) → (∀ x, Plain (F Φ x))) →
-    ∀ x, Plain (fixpoint F x).
-  Proof.
-    intros ?. apply fixpoint_ind.
-    - intros Φ1 Φ2 HΦ ??. by rewrite -(HΦ _).
-    - exists (λ _, emp%I); apply _.
-    - done.
-    - apply limit_preserving_forall=> x.
-      apply limit_preserving_Plain; solve_proper.
-  Qed.
-
-  Lemma fixpoint_absorbing {PROP : bi} {A} (F : (A -d> PROP) → A -d> PROP) `{!Contractive F} :
-    (∀ Φ, (∀ x, Absorbing (Φ x)) → (∀ x, Absorbing (F Φ x))) →
-    ∀ x, Absorbing (fixpoint F x).
-  Proof.
-    intros ?. apply fixpoint_ind.
-    - intros Φ1 Φ2 HΦ ??. by rewrite -(HΦ _).
-    - exists (λ _, True%I); apply _.
-    - done.
-    - apply limit_preserving_forall=> x.
-      apply bi.limit_preserving_entails; solve_proper.
-  Qed.
-
-  Lemma fixpoint_plain_absorbing `{!BiPlainly PROP} {A}
-      (F : (A -d> PROP) → A -d> PROP) `{!Contractive F} :
-    (∀ Φ, (∀ x, Plain (Φ x)) → (∀ x, Absorbing (Φ x)) →
-          (∀ x, Plain (F Φ x) ∧ Absorbing (F Φ x))) →
-    ∀ x, Plain (fixpoint F x) ∧ Absorbing (fixpoint F x).
-  Proof.
-    intros ?. apply fixpoint_ind.
-    - intros Φ1 Φ2 HΦ ??. by rewrite -(HΦ _).
-    - exists (λ _, True%I); split; apply _.
-    - naive_solver.
-    - apply limit_preserving_forall=> x.
-      apply limit_preserving_and; apply bi.limit_preserving_entails; solve_proper.
-  Qed.
-
 Lemma semax'_plain_absorbing CS E Delta P c R : Plain (semax'(CS := CS) OK_spec E Delta P c R) ∧ Absorbing (semax' OK_spec E Delta P c R).
 Proof.
-  apply fixpoint_plain_absorbing; intros; rewrite /semax_; destruct x; split; apply _.
+  apply fixpoint_plain_absoring; intros; rewrite /semax_; destruct x; split; apply _.
 Qed.
 
 Global Instance semax'_plain CS E Delta P c R : Plain (semax'(CS := CS) OK_spec E Delta P c R).

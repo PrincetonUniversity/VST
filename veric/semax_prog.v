@@ -111,11 +111,11 @@ Proof.
     + eapply make_env_guard_environ; eauto.
     + rewrite /close_precondition monPred_at_sep /=; iFrame; iPureIntro.
       split; last done; split; last by eapply tc_vals_Vundef.
-      pose proof (tc_vals_length _ _ Htc) as Hlen; rewrite map_length in Hlen.
+      pose proof (tc_vals_length _ _ Htc) as Hlen; rewrite length_map in Hlen.
       eapply make_te_lookup_args; eauto.
       rewrite fst_zip.
       * by apply norepet_NoDup.
-      * rewrite !app_length !map_length repeat_length; lia. }
+      * rewrite !length_app !length_map repeat_length; lia. }
   rewrite /= /Clight_seplog.bind_ret; iSplit.
   - iIntros "((% & H & % & E) & $) !>".
     rewrite monPred_at_sep; iDestruct "H" as "(Q & Hstack)".
@@ -915,7 +915,7 @@ Proof.
   eapply believe_exists_fundef in H3; last done.
   rewrite -H in H3.
   pose proof (monPred_in_entails _ _ H3 O) as H'; rewrite monPred_at_emp monPred_at_pure in H'.
-  apply (ouPred.soundness _ O) in H' as (? & Hb & Hty & ?).
+  apply pure_soundness in H' as (? & Hb & Hty & ?).
   rewrite Hb in Eb; inv Eb.
   rewrite Hty; destruct fsig; done.
   destruct f; simpl; auto; intros.
@@ -925,12 +925,6 @@ Lemma tc_vals_has_type_list : forall tys vals, tc_vals tys vals -> Val.has_type_
 Proof.
   induction tys; destruct vals; auto; simpl.
   intros (?%tc_val_has_type & ?); auto.
-Qed.
-
-Lemma env_auth_globals : forall ρ, env_auth ρ ⊢ env_auth ρ ∗ globals_auth ρ.1.
-Proof.
-  intros; rewrite /env_auth pair_split own_op.
-  iIntros "(#$ & $)".
 Qed.
 
 Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
@@ -1008,7 +1002,7 @@ assert (⊢ ▷ (<absorb> P a (filter_genv psi, args) ∗ funassert Delta psi �
 assert (⊢ ▷ ((globals_auth (make_env (Genv.genv_symb psi)) ∗ <absorb> P a (filter_genv psi, args) ∗ funassert Delta psi) -∗
   <absorb> initial_call_assert OK_spec (globalenv prog) (E a) f args ⎡(∃ v, Q a v) ∗ funassert Delta psi⎤ O)) as Hpre.
 2: { rewrite /bi_emp_valid Hpre; f_equiv.
-     iIntros "H (P & F & E)"; iDestruct (env_auth_globals with "E") as "(E & G)".
+     iIntros "H (P & F & E)"; iDestruct (env_auth_globals with "E") as "(G & E)".
      iMod ("H" with "[$G $P $F]") as "H".
      exploit call_safe_stop; last (monPred.unseal; intros H; apply monPred_in_entails with (i := O) in H; simpl in H; iApply (H with "[] [//] [] [//] E [//] H")).
   { intros; rewrite make_env_spec //. }
@@ -1051,6 +1045,7 @@ iDestruct ("Prog_OK" with "[//] [%]") as "[BE | BI]".
   iDestruct (stackframe_of'_curr_env with "[G $Hret Hstack]") as "(% & % & Hcurr & Hstack)"; [try done..|].
   { iFrame. }
   inv Ef.
+  setoid_rewrite monPred_at_plainly.
   iSpecialize ("BI" $! _ (func_tycontext' _ Delta) with "[//] [%] [%] F [%] [Prog_OK] [%] [] [%]"); try apply (@eq_refl _ O).
   { split3; [apply tycontext_sub_refl | apply cenv_sub_refl | done]. }
   { rewrite /believe; monPred.unseal; done. }
@@ -1062,12 +1057,12 @@ iDestruct ("Prog_OK" with "[//] [%]") as "[BE | BI]".
     assert (NoDup (zip (map fst (fn_params fi) ++ map fst (fn_temps fi))
         (args ++ repeat Vundef (length (fn_temps fi)))).*1).
     { rewrite -norepet_NoDup fst_zip //.
-      rewrite map_length in Hlen; rewrite !app_length !map_length Hlen repeat_length //. }
+      rewrite length_map in Hlen; rewrite !length_app !length_map Hlen repeat_length //. }
     split3; last done.
     * by eapply tc_formals_args.
     * split; last by eapply tc_vals_Vundef.
       eapply make_te_lookup_args; eauto.
-      apply tc_vals_length in arg_p; rewrite map_length // in arg_p. }
+      apply tc_vals_length in arg_p; rewrite length_map // in arg_p. }
   iApply (monPred_in_entails with "BI"); apply wp_conseq; simpl.
   + iIntros "((% & Q & % & E) & ?) !>".
     iDestruct stack_level_intro as (?) "#Hl".

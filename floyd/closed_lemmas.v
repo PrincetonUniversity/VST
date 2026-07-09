@@ -30,7 +30,7 @@ Qed.
 Lemma subst_eval_id_eq:
  forall id v, subst id v (eval_id id) = v.
 Proof. unfold subst, eval_id; intros. extensionality rho.
-    unfold force_val, env_set; simpl. rewrite lookup_insert //.
+    unfold force_val, env_set; simpl. rewrite lookup_insert_eq //.
 Qed.
 
 Lemma subst_eval_id_neq:
@@ -81,7 +81,7 @@ intros cs j v; clear subst_eval_expr_eq; induction e; intros; simpl; try auto.
  + unfold eqb_ident.
      unfold subst, eval_id, env_set, te_of. extensionality rho.
      pose proof (Pos.eqb_spec j i).
-     destruct H. subst. rewrite lookup_insert. reflexivity.
+     destruct H. subst. rewrite lookup_insert_eq. reflexivity.
      rewrite lookup_insert_ne; auto.
   + 
      rewrite <- IHe; clear IHe.

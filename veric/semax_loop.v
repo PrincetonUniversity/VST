@@ -61,7 +61,7 @@ Proof.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
   pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
   iDestruct (add_and _ (▷ ⌜_⌝) with "P") as "(P & >%HTCb)".
-  { iIntros "(H & _) !>". iPoseProof (typecheck_expr_sound with "H") as "%"; done. }
+  { iIntros "(H & _) !>". iPoseProof (typecheck_expr_sound(CS := CS) with "H") as "%"; done. }
   iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit.
   { rewrite /= denote_tc_assert_andp bi.and_elim_l bi.and_elim_r; auto. }

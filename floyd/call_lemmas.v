@@ -303,7 +303,7 @@ Proof.
      destruct (ident_eq i a).
      * subst a. rewrite PTree.gss in H0. inv H0.
        rewrite unfold_make_args_cons.
-       unfold eval_id.  simpl. rewrite lookup_insert.
+       unfold eval_id.  simpl. rewrite lookup_insert_eq.
        split; [reflexivity | inv H; auto].
      * rewrite -> PTree.gso in H0 by auto.
        apply IHfl in H0.

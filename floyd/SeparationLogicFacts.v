@@ -200,7 +200,7 @@ Proof.
   intros j tj Hj; destruct (TC j tj Hj) as (v & ? & ?).
   destruct p.
   destruct (ident_eq i j).
-  + subst; eexists. rewrite lookup_insert.
+  + subst; eexists. rewrite lookup_insert_eq.
     assert (tj = t) as -> by (rewrite Hj in H; inv H; done); eauto.
   + exists v.
     rewrite lookup_insert_ne //.

@@ -357,7 +357,7 @@ Proof.
   + destruct bl; simpl in *; trivial.
   + destruct bl. trivial.
     unfold tc_exprlist.
-    unfold typecheck_exprlist; 
+    unfold typecheck_exprlist;
       fold (typecheck_exprlist(CS := CS));
       fold (typecheck_exprlist(CS := CS')).
     setoid_rewrite denote_tc_assert_andp.
@@ -414,9 +414,12 @@ Proof.
   iDestruct "H" as "((% & %Hge0) & Hge & Hs)".
   rewrite -assert_of_eq /=.
   iDestruct (stack_frag_e_1 with "[$Hρ $Hs]") as %(Hve & Hte).
-  rewrite /env_auth pair_split own_op.
+  rewrite /env_auth (pair_split(A := (gmap_view.gmap_viewR ident (leibnizO block)))).
   iDestruct "Hρ" as "(Hge0 & _)".
-  iDestruct (own_valid_2 with "Hge0 Hge") as %(Hge%lib.gmap_view.gmap_view_auth_dfrac_op_inv & _).
+  iDestruct (own_valid_2 with "Hge0 Hge") as %(Hge & _).
+  (* The following line times out without this *)
+  change (uora_ucmraR (gmap.gmapUR _ _)) with (iris.algebra.gmap.gmapUR ident (prodR iris.algebra.dfrac.dfracR (iris.algebra.agree.agreeR (leibnizO block)))) in Hge.
+  apply lib.gmap_view.gmap_view_auth_dfrac_op_inv in Hge.
   apply map_fmap_equiv_inj in Hge; last apply _.
   apply leibniz_equiv in Hge.
   iPureIntro; simpl; intros ????? Hmatch.
@@ -464,20 +467,19 @@ Proof.
   iIntros (?) "Hi".
   iPoseProof (stack_level_embed with "[$] Hi") as "Hi"; simpl.
   iDestruct "Hi" as (?) "Hi".
-  iCombine "Hs Hi" as "Hs"; rewrite stack_frag_join.
-  iDestruct "Hs" as ((<- & _ & _)) "Hs".
+  iDestruct (stack_frag_join with "[$Hs $Hi]") as ((<- & _ & _)) "Hs".
   rewrite right_id -insert_union_singleton_r.
-  rewrite insert_delete_insert.
+  rewrite insert_delete_eq.
   iSplit; last iFrame.
   { iPureIntro; split; auto.
     intros; by rewrite Hte in H. }
   iIntros (?) "#l'"; iDestruct (stack_level_eq with "l l'") as %->.
   rewrite -Heq /=; by iFrame.
-  * apply lookup_delete.
+  * apply lookup_delete_eq.
   * apply map_disjoint_empty_r.
-  * apply map_disjoint_singleton_r_2, lookup_delete.
-  * rewrite -insert_union_singleton_r; last apply lookup_delete.
-    by apply insert_delete.
+  * apply map_disjoint_singleton_r_2, lookup_delete_eq.
+  * rewrite -insert_union_singleton_r; last apply lookup_delete_eq.
+    by apply insert_delete_id.
 Qed.
 
 Lemma wp_tc_expr : forall {CS : compspecs} E f Delta e P (ge : genv) rho,

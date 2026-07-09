@@ -142,7 +142,7 @@ Proof.
   - rewrite !denote_tc_assert_andp tc_bool_e.
     iAssert ⌜is_neutral_cast (implicit_deref (typeof e)) t = true⌝ with "[Pre]" as %?.
     { iDestruct "Pre" as "(_ & (? & _) & _)"; by rewrite embed_pure. }
-    rewrite bi.and_elim_l; iDestruct (neutral_cast_tc_val with "Pre") as %?; [done..|].
+    rewrite bi.and_elim_l; iDestruct (neutral_cast_tc_val(CS := CS) with "Pre") as %?; [done..|].
     iPureIntro.
     destruct TS as (TS & _); specialize (TS id). rewrite Ht in TS.
     destruct (temp_types Delta' !! id) eqn: ?; inv TS.

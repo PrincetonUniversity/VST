@@ -6,6 +6,7 @@ Require Export compcert.lib.Floats.
 Require Export compcert.common.Values.
 Require Export VST.msl.eq_dec.
 Require Export VST.msl.Coqlib2.
+Require Import VST.veric.log_normalize.
 Require Export VST.floyd.coqlib3.
 Require Export VST.zlist.sublist.
 From Stdlib Require Export Lia.
