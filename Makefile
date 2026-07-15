@@ -919,14 +919,14 @@ floyd/floyd.coq: floyd/proofauto.vo
 # missing dependency edges.
 ifeq ($(COMPCERT_NEW),true)
 	# DEPENDENCIES VARIANT COMPCERT_NEW
-	$(COQDEP) $(DEPFLAGS) >.depend-tmp 2>.depend-stderr `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` || { cat .depend-stderr; rm -f .depend-tmp .depend-stderr; exit 1; }
+	ulimit -S -n `ulimit -H -n` 2>/dev/null || true; $(COQDEP) $(DEPFLAGS) >.depend-tmp 2>.depend-stderr `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` || { cat .depend-stderr; rm -f .depend-tmp .depend-stderr; exit 1; }
 	@grep -v 'Warning:.*found in the loadpath' .depend-stderr || true
 	@rm -f .depend-stderr
 	@echo "" >>.depend-tmp
 	@mv .depend-tmp .depend
 else
 	# DEPENDENCIES DEFAULT
-	$(COQDEP) $(DEPFLAGS) >.depend-tmp 2>.depend-stderr `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` || { cat .depend-stderr; rm -f .depend-tmp .depend-stderr; exit 1; }
+	ulimit -S -n `ulimit -H -n` 2>/dev/null || true; $(COQDEP) $(DEPFLAGS) >.depend-tmp 2>.depend-stderr `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` || { cat .depend-stderr; rm -f .depend-tmp .depend-stderr; exit 1; }
 	@grep -v 'Warning:.*found in the loadpath' .depend-stderr || true
 	@rm -f .depend-stderr
 	@mv .depend-tmp .depend
