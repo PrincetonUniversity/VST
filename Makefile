@@ -39,6 +39,7 @@ endif
 # COMPCERT=platform     (default, choose 32 or 64 bit platform supplied x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86)
 # COMPCERT=bundled      (build and use bundled 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86)
 # COMPCERT=bundled_new  (build and use bundled compcert_new 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86)
+# COMPCERT=cascompcert   (use CASCompCert variant)
 # COMPCERT=src_dir      (build and use in source folder COMPCERT_SRC_DIR the variant specified by ARCH and BITSIZE)
 # COMPCERT=inst_dir     (use prebuilt CompCert in COMPCERT_INST_DIR - BITSIZE and ARCH can be left empty or must match)
 #
@@ -65,7 +66,7 @@ endif
 # CLIGHTGEN=$(my_local_bin_path)/clightgen
 
 # # User settable variables #
-COMPCERT ?= bundled
+COMPCERT ?= cascompcert
 ZLIST ?= bundled
 ARCH ?= 
 BITSIZE ?= 64
@@ -106,6 +107,16 @@ else ifeq ($(COMPCERT),bundled_new)
   COMPCERT_NEW = true
   COMPCERT_INFO_PATH_REF = compcert_new
   COMPCERT_BUILD_FROM_SRC = true
+else ifeq ($(COMPCERT),cascompcert)
+  # Bundled CASCompCert variant
+  ifeq ($(strip $(wildcard cascompcert/* cascompcert/.[!.]* cascompcert/..?*)),)
+    $(warning COMPCERT=cascompcert, but the cascompcert directory does not exist or is empty. Update git submodules and try again.)
+    $(error Cannot continue without the CASCompCert sources)
+  endif
+  COMPCERT_SRC_DIR = cascompcert
+  COMPCERT_INST_DIR = cascompcert
+  COMPCERT_BUILD_FROM_SRC = true
+  FLOCQ = bundled
 else ifeq ($(COMPCERT),src_dir)
   # Compile CompCert from source dir
   ifeq ($(COMPCERT_SRC_DIR),)
@@ -227,8 +238,8 @@ endif
 
 
 ifeq ($(FLOCQ),bundled)
- override FLOCQ= -R $(COMPCERT_INST_DIR)/flocq Flocq 
- COMPCERTFLOCQDIRS= compcert/flocq/*/*.v
+ override FLOCQ= -R $(COMPCERT_INST_DIR)/flocq Flocq
+ COMPCERTFLOCQDIRS= $(COMPCERT_SRC_DIR)/flocq/*/*.v
  # this mode to use the flocq built into compcert
 endif
 ifeq ($(FLOCQ),platform)
@@ -278,6 +289,13 @@ DIRS = $(VSTDIRS) $(OTHERDIRS)
 # ##### Compcert Flags #####
 
 COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend export $(BACKEND)
+
+# CASCompCert carries additional proofs under the compcert.concurrency
+# namespace.  Include them when they are present so that individual modules
+# can be built directly from this Makefile.
+ifneq ($(wildcard $(COMPCERT_SRC_DIR)/concurrency),)
+  COMPCERTDIRS += concurrency
+endif
 
 ifeq ($(COMPCERT_EXPLICIT_PATH),true)
   COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT_INST_DIR)/$(d) compcert.$(d)) $(FLOCQ)
@@ -921,7 +939,12 @@ endif
 	wc .depend
 
 clean:
-	rm -f $(addprefix veric/version., v vo vos vok glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo */*.vos */*.vok) compcert/*/*.{vo,vos,vok} compcert/*/*/*.{vo,vos,vok}  compcert_new/*/*.{vo,vos,vok} compcert_new/*/*/*.{vo,vos,vok}
+	rm -f $(addprefix veric/version., v vo vos vok glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo */*.vos */*.vok)
+	for d in compcert compcert_new cascompcert; do \
+	  if [ -d "$$d" ]; then \
+	    find "$$d" -type f \( -name '*.vo' -o -name '*.vos' -o -name '*.vok' -o -name '*.glob' \) -delete; \
+	  fi; \
+	done
 	rm -f progs/VSUpile/{*,*/*}.{vo,vos,vok,glob}
 	rm -f progs64/VSUpile/{*,*/*}.{vo,vos,vok,glob}
 	rm -f progs/memmgr/*.{vo,vos,vok,glob}
@@ -985,4 +1008,3 @@ assumptions.txt: veric/tcb.vo
 # such problem, not sure exactly.  -- Andrew)
 include .depend
 -include .depend-concur
-
