@@ -913,13 +913,27 @@ floyd/floyd.coq: floyd/proofauto.vo
 
 .depend depend:
 	@echo 'coqdep ... >.depend'
+# coqdep's dependency output is written to a temporary file and moved
+# into place only if coqdep succeeds: a partial .depend (e.g. after
+# coqdep is killed) would otherwise silently poison parallel builds with
+# missing dependency edges.  coqdep's stderr is still filtered live
+# through grep; its real exit status is recovered through the pipe via a
+# status file (this recipe runs under POSIX sh, which lacks pipefail).
 ifeq ($(COMPCERT_NEW),true)
 	# DEPENDENCIES VARIANT COMPCERT_NEW
-	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
-	@echo "" >>.depend
+	@{ $(COQDEP) $(DEPFLAGS) `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` 2>&1 >.depend-tmp; echo $$? >.depend-status; } | \
+	   grep -v 'Warning:.*found in the loadpath' || true; \
+	st=`cat .depend-status`; rm -f .depend-status; \
+	[ "$$st" = 0 ] || { rm -f .depend-tmp; exit 1; }; \
+	echo "" >>.depend-tmp; \
+	mv .depend-tmp .depend
 else
 	# DEPENDENCIES DEFAULT
-	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	@{ $(COQDEP) $(DEPFLAGS) `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` 2>&1 >.depend-tmp; echo $$? >.depend-status; } | \
+	   grep -v 'Warning:.*found in the loadpath' || true; \
+	st=`cat .depend-status`; rm -f .depend-status; \
+	[ "$$st" = 0 ] || { rm -f .depend-tmp; exit 1; }; \
+	mv .depend-tmp .depend
 endif
 ifeq ($(COMPCERT_BUILD_FROM_SRC),true)
 	# DEPENDENCIES TO BUILD COMPCERT FROM SOURCE
