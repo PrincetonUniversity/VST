@@ -110,23 +110,21 @@ Import Address Values.
 Section AtomicMachine.
   
 Notation Loc := (address)%type.
-Notation Val := (val)%type.
-
 
 Inductive rw_state : Type :=
 | Rst (n : nat)
 | Wst.
 
+Print event_semantics.mem_event.
 Variant mem_ev : Type :=
-| Read (l : Loc) (v : Val)
-| Write (l : Loc) (v : Val)
-(* block allocation emits a list of Alloc events *)
+| Read (l : Loc)
+| Write (l : Loc)
 | Alloc (l : Loc)
 | Free (l : Loc).
 
 Definition rw_map := gmap address rw_state.
 
-Implicit Types (μ : rw_map) (oμ : option rw_map) (l : Loc) (v : Val)
+Implicit Types (μ : rw_map) (oμ : option rw_map) (l : Loc)
    (ev : mem_ev) (evs : list mem_ev).
 
 Definition initial_rw : rw_map := ∅.
@@ -137,12 +135,9 @@ Definition rsv_Alloc μ l : option rw_map :=
   | _ => None
   end.
 
-(* maybe should free immediately, otherwise Write@t1 || Free@t2 would race *)
-Definition rsv_Free μ l : option rw_map :=
-  match μ !! l with
-  | Some _ => Some $ delete l μ
-  | _ => None
-  end.
+(* can't free right now because a subsequent fin_Read needs the location to be define *)
+Definition rsv_Free μ : option rw_map :=
+   mret μ.
 
 Definition rsv_Write μ l : option rw_map :=
   st ← μ !! l;
@@ -158,50 +153,54 @@ Definition rsv_Read μ l : option rw_map :=
   | _ => None
   end.
 
-Definition unrsv_Alloc μ : option rw_map := mret μ.
+Definition fin_Alloc μ : option rw_map := mret μ.
 
-Definition unrsv_Free μ : option rw_map := mret μ.
+Definition fin_Free μ l : option rw_map :=
+  match μ !! l with
+  | Some _ => Some $ delete l μ
+  | _ => None
+  end.
 
-Definition unrsv_Write μ l : option rw_map :=
+Definition fin_Write μ l : option rw_map :=
   st ← μ !! l;
   match st with
   | Wst => Some $ <[l := Rst O]> μ
   | _ => None
   end.
 
-Definition unrsv_Read μ l : option rw_map :=
+Definition fin_Read μ l : option rw_map :=
   st ← μ !! l;
   match st with
   | Rst (S n) => Some $ <[l := Rst n]> μ
   | _ => None
   end.
 
-Lemma rsv_Write_unrsv_Write μ l :
+Lemma rsv_Write_fin_Write μ l :
   (μ' ← rsv_Write μ l;
-   unrsv_Write μ' l) = Some μ.
+   fin_Write μ' l) = Some μ.
 Proof. Admitted.
 
-Lemma rsv_Read_unrsv_Read μ l :
+Lemma rsv_Read_fin_Read μ l :
   (μ' ← rsv_Read μ l;
-   unrsv_Read μ' l) = Some μ.
+   fin_Read μ' l) = Some μ.
 Proof. Admitted.
 
 Definition rsv_ev ev oμ : option rw_map :=
   μ ← oμ;
   match ev with
-  | Read l v => rsv_Read μ l
-  | Write l v => rsv_Write μ l
+  | Read l => rsv_Read μ l
+  | Write l => rsv_Write μ l
   | Alloc l => rsv_Alloc μ l
-  | Free l => rsv_Free μ l
+  | Free l => rsv_Free μ
   end.
 
-Definition unrsv_ev ev oμ : option rw_map :=
+Definition fin_ev ev oμ : option rw_map :=
   μ ← oμ;
   match ev with
-  | Read l v => unrsv_Read μ l
-  | Write l v => unrsv_Write μ l
-  | Alloc _ => unrsv_Alloc μ
-  | Free _ => unrsv_Free μ
+  | Read l => fin_Read μ l
+  | Write l => fin_Write μ l
+  | Alloc _ => fin_Alloc μ
+  | Free l => fin_Free μ l
   end.
 
 (* for memory events, "reserve permission" by updating rw_map *)
@@ -209,8 +208,8 @@ Definition rsv evs μ : option rw_map :=
   foldr rsv_ev (Some μ) evs.
 
 (* some memory events release permission after completion. *)
-Definition unrsv evs μ : option rw_map :=
-  foldr unrsv_ev (Some μ) evs.
+Definition fin evs μ : option rw_map :=
+  foldr fin_ev (Some μ) evs.
 
 (** ** Atomic operations
 
@@ -280,7 +279,7 @@ Inductive step : tpool -> mem -> rw_map -> tpool -> mem -> rw_map -> Prop :=
 | Core_Commit : forall tp m μ i c T μ'
     (Hget : tp i = Some (Running c T))
     (Hne : T <> [])
-    (Hcommit : unrsv (into_evs T) μ = Some μ'),
+    (Hcommit : fin (into_evs T) μ = Some μ'),
     step tp m μ (upd_tp tp i (Running c [])) m μ'
 
 | SC_Read : forall tp m μ i c ef args chunk l v c'
@@ -374,11 +373,11 @@ Definition memval_value (mv : memval) : val :=
 
 (* general over Read and Write *)
 Definition into_bytes
-    (mk_ev : address -> val -> mem_ev) (b : block) (ofs : Z)
+    (mk_ev : address -> mem_ev) (b : block) (ofs : Z)
     (bytes : list memval) : list mem_ev :=
   foldr
     (fun byte k ofs =>
-       mk_ev (b, ofs) (memval_value byte) :: k (Z.add ofs 1))
+       mk_ev (b, ofs)  :: k (Z.add ofs 1))
     (fun _ => []) bytes ofs.
 
 (* general over Alloc and Free *)
