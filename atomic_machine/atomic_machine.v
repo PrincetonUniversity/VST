@@ -340,7 +340,7 @@ End AtomicMachine.
     instantiation would read the chunk off the external function's
     signature. *)
 
-Local Open Scope string_scope.
+Section ClightAtomicMachine.
 
 Definition c_decode_atomic (ef : external_function) (args : list val)
   : option atomic_op :=
@@ -364,3 +364,50 @@ Definition c_ValEq (m : mem) (v1 v2 : val) : Prop :=
 
 Definition c_ValNEq (m : mem) (v1 v2 : val) : Prop :=
   Val.cmpu_bool (Mem.valid_pointer m) Ceq v1 v2 = Some false.
+
+(* TODO is this sound? *)
+Definition memval_value (mv : memval) : val :=
+  match mv with
+  | Fragment v _ _ => v
+  | _ => Vundef
+  end.
+
+(* general over Read and Write *)
+Definition into_bytes
+    (mk_ev : address -> val -> mem_ev) (b : block) (ofs : Z)
+    (bytes : list memval) : list mem_ev :=
+  foldr
+    (fun byte k ofs =>
+       mk_ev (b, ofs) (memval_value byte) :: k (Z.add ofs 1))
+    (fun _ => []) bytes ofs.
+
+(* general over Alloc and Free *)
+Definition into_range
+    (mk_ev : address -> mem_ev) (b : block) (ofs : Z) (len : nat) : list mem_ev :=
+  flat_map
+    (fun i => [mk_ev (b, Z.add ofs (Z.of_nat i))])
+    (seq 0 len).
+
+Definition into_Allocs (b : block) (lo hi : Z) : list mem_ev :=
+  into_range Alloc b lo (Z.to_nat (hi - lo)).
+
+Definition into_Frees (r : block * Z * Z) : list mem_ev :=
+  let '(b, lo, hi) := r in
+  into_range Free b lo (Z.to_nat (hi - lo)).
+
+(** Translate one event from [event_semantics]. *)
+Definition into_ev (ev : mem_event) : list mem_ev :=
+  match ev with
+  | event_semantics.Read b ofs _ bytes => into_bytes Read b ofs bytes
+  | event_semantics.Write b ofs bytes => into_bytes Write b ofs bytes
+  | event_semantics.Alloc b lo hi =>
+      into_Allocs b lo hi
+  | event_semantics.Free ranges =>
+      flat_map into_Frees ranges
+  end.
+
+(** Translate a trace in event_semantics into AtomicMachine events. *)
+Definition into_evs (T : list mem_event) : list mem_ev :=
+  flat_map into_ev T.
+
+End ClightAtomicMachine.
