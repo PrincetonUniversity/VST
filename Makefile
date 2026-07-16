@@ -66,7 +66,7 @@ endif
 # CLIGHTGEN=$(my_local_bin_path)/clightgen
 
 # # User settable variables #
-COMPCERT ?= cascompcert
+COMPCERT ?= bundled
 ZLIST ?= bundled
 ARCH ?= 
 BITSIZE ?= 64
@@ -283,7 +283,7 @@ ifeq ($(ZLIST),platform)
 else
   VSTDIRS= shared msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics
 endif
-OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730
+OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730 atomic_machine
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 
 # ##### Compcert Flags #####
