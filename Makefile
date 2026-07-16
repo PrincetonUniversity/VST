@@ -921,7 +921,8 @@ floyd/floyd.coq: floyd/proofauto.vo
 # status file (this recipe runs under POSIX sh, which lacks pipefail).
 ifeq ($(COMPCERT_NEW),true)
 	# DEPENDENCIES VARIANT COMPCERT_NEW
-	@{ $(COQDEP) $(DEPFLAGS) `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` 2>&1 >.depend-tmp; echo $$? >.depend-status; } | \
+	@ulimit -S -n `ulimit -H -n` 2>/dev/null || true; \
+	{ $(COQDEP) $(DEPFLAGS) `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` 2>&1 >.depend-tmp; echo $$? >.depend-status; } | \
 	   grep -v 'Warning:.*found in the loadpath' || true; \
 	st=`cat .depend-status`; rm -f .depend-status; \
 	[ "$$st" = 0 ] || { rm -f .depend-tmp; exit 1; }; \
@@ -929,7 +930,8 @@ ifeq ($(COMPCERT_NEW),true)
 	mv .depend-tmp .depend
 else
 	# DEPENDENCIES DEFAULT
-	@{ $(COQDEP) $(DEPFLAGS) `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` 2>&1 >.depend-tmp; echo $$? >.depend-status; } | \
+	@ulimit -S -n `ulimit -H -n` 2>/dev/null || true; \
+	{ $(COQDEP) $(DEPFLAGS) `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` 2>&1 >.depend-tmp; echo $$? >.depend-status; } | \
 	   grep -v 'Warning:.*found in the loadpath' || true; \
 	st=`cat .depend-status`; rm -f .depend-status; \
 	[ "$$st" = 0 ] || { rm -f .depend-tmp; exit 1; }; \
