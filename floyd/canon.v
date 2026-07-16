@@ -2202,6 +2202,6 @@ Ltac simpl_ret_assert ::=
   try (match goal with
       | |- context[bind_ret None tvoid ?P] =>
         let P' := fresh "P'" in evar (P' : assert);
-        assert (bind_ret None tvoid P = P') as -> by (unfold P'; repeat (rewrite bind_ret_exist; apply f_equal; extensionality); apply bind_ret_noret);
+        assert (bind_ret None tvoid P = P') as -> by (unfold P'; repeat (rewrite bind_ret_exist; eapply (f_equal _ (y := λ _, _)); extensionality); apply bind_ret_noret);
         subst P'
       end).
