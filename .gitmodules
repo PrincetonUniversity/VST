@@ -4,3 +4,7 @@
 [submodule "fcf"]
 	path = fcf
 	url = https://github.com/adampetcher/fcf.git
+[submodule "cascompcert"]
+	path = cascompcert
+	url = git@github.com:dkxb/CompCert.git
+	branch = ccc_on_3.17

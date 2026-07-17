@@ -6,16 +6,16 @@
     machine with a lambda-Rust-style reader/writer race detector and SC
     atomic operations.
 
-    A machine configuration is <<(tp, m, mu)>> where [tp] is a thread pool,
-    [m] a CompCert memory, and [mu] a reader/writer state map.  A thread
+    A machine configuration is <<(tp, m, μ)>> where [tp] is a thread pool,
+    [m] a CompCert memory, and [μ] a reader/writer state map.  A thread
     performs a sequential step in two phases: [Core_Try] runs the underlying
-    [ev_step], _claims_ the footprint of the step's event trace in [mu], and
-    installs the trace in the thread pool; [Core_Commit] releases the claim.
-    A claim that overlaps with another thread's outstanding claim is
+    [ev_step], _reserves_ the footprint of the step's event trace in [μ], and
+    installs the trace in the thread pool; [Core_Commit] releases the reserve.
+    A reserve that overlaps with another thread's outstanding reserve is
     unsatisfiable, so a racing thread is stuck between another thread's Try
     and Commit -- exactly the lambda-Rust view of non-atomic accesses as
     spanning two steps.  Atomic operations ([SC_Read], [SC_Write], the CAS
-    rules) execute in a single machine step and merely check [mu].
+    rules) execute in a single machine step and merely check [μ].
 
     ** Deviations from the rules as written in the paper
 
@@ -28,21 +28,14 @@
        before either Commits, the second Commit cannot replay its trace --
        its recorded block is already taken.  Deferred replay would thus make
        perfectly race-free allocations stuck.  Race detection is unaffected
-       by the change, since it lives entirely in [mu], whose claims still
+       by the change, since it lives entirely in [μ], whose reserves still
        span the Try-Commit window.
 
-    2. [claim]/[commit] act on the _footprint set_ of the whole trace rather
-       than folding [incrRW]/[decrRW] over events one at a time.  A single
-       sequential step emits a whole list of events and may touch the same
-       byte more than once: e.g. Clight's [x = x + 1] is one corestep that
-       both reads and writes [x].  Folding per event would make a thread's
-       own [Write] block its own [Read] (Wst is not re-enterable), sticking
-       race-free programs.  Instead the trace is treated as one combined
-       access: bytes written (or allocated/freed) require [Rst 0] and become
-       [Wst]; bytes only read require no writer and gain one reader.
-       [commit] is the pointwise inverse (see [commit_undoes_claim]).
+    2. [reserve]/[commit] fold [incrRW]/[decrRW] over the events of a trace in
+       order.  Consequently, overlapping accesses within one trace must be
+       accepted by the per-event reader/writer transitions themselves.
 
-    3. Locations are bytes: [mu : block -> Z -> RWState], total, with
+    3. Locations are bytes: [μ : block -> Z -> RWState], total, with
        untouched (in particular unallocated) bytes sitting at [Rst 0] --
        the counterpart of absence from the paper's partial map.  Events and
        atomic operations cover byte ranges, and atomics check every byte of
@@ -50,7 +43,7 @@
 
     4. The paper lists [AllocEv]/[FreeEv] but only sketches [incrRW] for
        reads.  Here both count as writes: a [Free] racing with a read is a
-       race, so the freed range is claimed; an [Alloc] claims its entire
+       race, so the freed range is reserveed; an [Alloc] reserves its entire
        block (following [cur_perm] in event_semantics.v, which also ignores
        the [lo]/[hi] bounds), which is vacuous for other threads -- the
        block is fresh -- but keeps dead bytes uniformly at [Rst 0].
@@ -114,138 +107,109 @@ Import Address Values.
     threads are between Try and Commit of a step that reads the byte;
     [Wst] means some thread is mid-step on a write to it. *)
 
+Section AtomicMachine.
+  
+Notation Loc := (address)%type.
+
 Inductive rw_state : Type :=
 | Rst (n : nat)
 | Wst.
 
+Print event_semantics.mem_event.
+Variant mem_ev : Type :=
+| Read (l : Loc)
+| Write (l : Loc)
+| Alloc (l : Loc)
+| Free (l : Loc).
+
 Definition rw_map := gmap address rw_state.
+
+Implicit Types (μ : rw_map) (oμ : option rw_map) (l : Loc)
+   (ev : mem_ev) (evs : list mem_ev).
 
 Definition initial_rw : rw_map := ∅.
 
-(** ** Footprints of event traces *)
-
-(** Bytes written by an event; allocation and freeing count as writes
-    (deviations 2 and 4 above). *)
-Definition ev_writes (e : mem_event) (b : block) (ofs : Z) : bool :=
-  match e with
-  | event_semantics.Write b' ofs' bytes =>
-      eq_block b' b && zle ofs' ofs && zlt ofs (ofs' + Zlength bytes)
-  | event_semantics.Read _ _ _ _ => false
-  | event_semantics.Alloc b' lo hi => eq_block b' b
-  | event_semantics.Free l =>
-      existsb (fun x => let '(b', lo, hi) := x in
-                        eq_block b' b && zle lo ofs && zlt ofs hi) l
+Definition rsv_Alloc μ l : option rw_map :=
+  match μ !! l with
+  | None => Some $ <[l := Rst 0]> μ
+  | _ => None
   end.
 
-Definition ev_reads (e : mem_event) (b : block) (ofs : Z) : bool :=
-  match e with
-  | event_semantics.Read b' ofs' n _ =>
-      eq_block b' b && zle ofs' ofs && zlt ofs (ofs' + n)
-  | _ => false
+(* can't free right now because a subsequent fin_Read needs the location to be define *)
+Definition rsv_Free μ : option rw_map :=
+   mret μ.
+
+Definition rsv_Write μ l : option rw_map :=
+  st ← μ !! l;
+  match st with
+  | Rst O => Some $ <[l := Wst]> μ
+  | _ => None
   end.
 
-Definition trace_writes (T : list mem_event) (b : block) (ofs : Z) : bool :=
-  existsb (fun e => ev_writes e b ofs) T.
-
-Definition trace_reads (T : list mem_event) (b : block) (ofs : Z) : bool :=
-  existsb (fun e => ev_reads e b ofs) T.
-
-(** ** Claiming and committing a trace
-
-    [claim T mu mu'] is the paper's [incrRW], on the footprint of the whole
-    trace: it is satisfiable only if no byte written by [T] has an
-    outstanding reader or writer and no byte read by [T] has an outstanding
-    writer.  [commit T mu mu'] ([decrRW]) releases the claim; its [Wst]
-    requirement on written bytes is an assertion of the machine invariant,
-    so a violation shows up as stuckness rather than being papered over. *)
-
-Fixpoint change_rw_state (f : option rw_state -> option (option rw_state)) mu (b : block) (ofs : Z) n : option rw_map :=
-  match n with
-  | O => Some mu
-  | S n' => match f (mu !! (b, ofs)) with
-            | Some (Some s) => change_rw_state f (<[(b, ofs) := s]> mu) b (ofs + 1) n'
-            | Some None => change_rw_state f (delete (b, ofs) mu) b (ofs + 1) n'
-            | None => None
-            end
+Definition rsv_Read μ l : option rw_map :=
+  st ← μ !! l;
+  match st with
+  | Rst n => Some $ <[l := Rst (S n)]> μ
+  | _ => None
   end.
 
-Definition claim_read := change_rw_state
-  (λ s, match s with Some (Rst n) => Some (Some (Rst (S n))) | _ => None end).
+Definition fin_Alloc μ : option rw_map := mret μ.
 
-Definition claim_write := change_rw_state
-  (λ s, match s with Some (Rst O) => Some (Some Wst) | _ => None end).
-
-Definition claim_alloc := change_rw_state
-  (λ s, match s with None => Some (Some (Rst O)) | _ => None end).
-
-Fixpoint claim (T : list mem_event) (mu : rw_map) : option rw_map :=
-  match T with
-  | [] => Some mu
-  | e :: es =>
-      match e with
-      | Read b ofs n bytes => option_bind _ _ (claim es) (claim_read mu b ofs (length bytes))
-      | Write b ofs bytes => option_bind _ _ (claim es) (claim_write mu b ofs (length bytes))
-      | Alloc b lo hi => option_bind _ _ (claim es) (claim_alloc mu b lo (Z.to_nat (hi - lo)))
-      | Free lb => Some mu (* free happens in commit *)
-      end
+Definition fin_Free μ l : option rw_map :=
+  match μ !! l with
+  | Some _ => Some $ delete l μ
+  | _ => None
   end.
 
-(*Definition claim (T : list mem_event) (mu mu' : rw_map) : Prop :=
-  forall b ofs,
-    if trace_writes T b ofs then mu b ofs = Rst 0 /\ mu' b ofs = Wst
-    else if trace_reads T b ofs then
-      exists n, mu b ofs = Rst n /\ mu' b ofs = Rst (S n)
-    else mu' b ofs = mu b ofs.*)
-
-Definition commit_read := change_rw_state
-  (λ s, match s with Some (Rst (S n)) => Some (Some (Rst n)) | _ => None end).
-
-Definition commit_write := change_rw_state
-  (λ s, match s with Some Wst => Some (Some (Rst O)) | _ => None end).
-
-Definition commit_free := change_rw_state
-  (λ s, match s with Some _ => Some None | _ => None end).
-
-Fixpoint commit (T : list mem_event) (mu : rw_map) : option rw_map :=
-  match T with
-  | [] => Some mu
-  | e :: es =>
-      match e with
-      | Read b ofs n bytes => option_bind _ _ (commit es) (commit_read mu b ofs (length bytes))
-      | Write b ofs bytes => option_bind _ _ (commit es) (commit_write mu b ofs (length bytes))
-      | Alloc b lo hi => Some mu (* alloc happens in claim *)
-      | Free lb => option_bind _ _ (commit es)
-          (foldr (λ '(b, lo, hi) o, match o with
-             | Some mu => commit_free mu b lo (Z.to_nat (hi - lo))
-             | None => None end) (Some mu) lb)
-      end
+Definition fin_Write μ l : option rw_map :=
+  st ← μ !! l;
+  match st with
+  | Wst => Some $ <[l := Rst O]> μ
+  | _ => None
   end.
 
-(*Definition commit (T : list mem_event) (mu mu' : rw_map) : Prop :=
-  forall b ofs,
-    if trace_writes T b ofs then mu b ofs = Wst /\ mu' b ofs = Rst 0
-    else if trace_reads T b ofs then
-      exists n, mu b ofs = Rst (S n) /\ mu' b ofs = Rst n
-    else mu' b ofs = mu b ofs.*)
+Definition fin_Read μ l : option rw_map :=
+  st ← μ !! l;
+  match st with
+  | Rst (S n) => Some $ <[l := Rst n]> μ
+  | _ => None
+  end.
 
-(** Sanity check: with no interference in between, Commit restores the
-    reader/writer map that Try started from. *)
-Definition is_read_or_write e :=
-  match e with Read _ _ _ _ | Write _ _ _ => true | _ => false end.
+Lemma rsv_Write_fin_Write μ l :
+  (μ' ← rsv_Write μ l;
+   fin_Write μ' l) = Some μ.
+Proof. Admitted.
 
-Lemma commit_undoes_claim : forall T mu mu' mu'',
-  Forall is_read_or_write T ->
-  claim T mu = Some mu' -> commit T mu' = Some mu'' ->
-  forall l, mu'' !! l = mu !! l.
-Proof.
-  intros T mu mu' mu'' Hrw Hclaim Hcommit l.
-  induction Hrw in mu', mu'', Hclaim, Hcommit |- *; simpl in *.
-  - inv Hclaim. done.
-  - destruct x eqn: Hx; try done.
-    + destruct claim_write eqn: Hclaimx; inv Hclaim.
-      admit. (* prove something about claim_write and commit_write *)
-    + admit.
-Admitted.
+Lemma rsv_Read_fin_Read μ l :
+  (μ' ← rsv_Read μ l;
+   fin_Read μ' l) = Some μ.
+Proof. Admitted.
+
+Definition rsv_ev ev oμ : option rw_map :=
+  μ ← oμ;
+  match ev with
+  | Read l => rsv_Read μ l
+  | Write l => rsv_Write μ l
+  | Alloc l => rsv_Alloc μ l
+  | Free l => rsv_Free μ
+  end.
+
+Definition fin_ev ev oμ : option rw_map :=
+  μ ← oμ;
+  match ev with
+  | Read l => fin_Read μ l
+  | Write l => fin_Write μ l
+  | Alloc _ => fin_Alloc μ
+  | Free l => fin_Free μ l
+  end.
+
+(* for memory events, "reserve permission" by updating rw_map *)
+Definition rsv evs μ : option rw_map :=
+  foldr rsv_ev (Some μ) evs.
+
+(* some memory events release permission after completion. *)
+Definition fin evs μ : option rw_map :=
+  foldr fin_ev (Some μ) evs.
 
 (** ** Atomic operations
 
@@ -255,16 +219,17 @@ Admitted.
     accesses. *)
 
 Inductive atomic_op : Type :=
-| ALoad (chunk : memory_chunk) (b : block) (ofs : Z)
-| AStore (chunk : memory_chunk) (b : block) (ofs : Z) (v : val)
-| ACAS (chunk : memory_chunk) (b : block) (ofs : Z) (v_exp v_new : val).
+| ALoad (chunk : memory_chunk) l
+| AStore (chunk : memory_chunk) l (v : val)
+| ACAS (chunk : memory_chunk) l (v_exp v_new : val).
 
-Section GenericSC.
-
+(* The thread local state *)
 Context {C : Type}.
 
 (** The single-threaded input semantics. *)
 Variable sem : @EvSem C.
+
+Variable into_evs : list mem_event -> list mem_ev.
 
 (** Recognizes the external calls that are this machine's atomic
     operations; all other external calls are outside the machine's scope
@@ -291,82 +256,82 @@ Definition upd_tp (tp : tpool) (i : nat) (st : tstate) : tpool :=
 Definition initial_tp (c : C) : tpool :=
   fun i => if Nat.eq_dec i O then Some (Running c []) else None.
 
-(** [mu] conditions on the byte range of an atomic access *)
+(** [μ] conditions on the byte range of an atomic access *)
 
-(** No non-atomic write in progress anywhere in the range (paper: mu(l) = Rst n). *)
-Definition no_writer (mu : rw_map) (b : block) (ofs len : Z) : Prop :=
-  forall o, ofs <= o < ofs + len -> mu b o <> Wst.
+(** No non-atomic write in progress anywhere in the range (paper: μ(l) = Rst n). *)
+Definition readable μ l (len : Z) : Prop :=
+  forall o : Z, Z.le l.2 o /\ Z.lt o (l.2 + len) -> μ !! (l.1, o) <> Some Wst.
 
-(** No non-atomic access at all in progress in the range (paper: mu(l) = Rst 0). *)
-Definition unclaimed (mu : rw_map) (b : block) (ofs len : Z) : Prop :=
-  forall o, ofs <= o < ofs + len -> mu b o = Rst 0.
+(** No non-atomic access at all in progress in the range (paper: μ(l) = Rst 0). *)
+Definition writable μ l (len : Z) : Prop :=
+  forall o : Z, Z.le (snd l) o /\ Z.lt o (snd l + len) -> μ !! (fst l, o) = Some (Rst 0).
 
 (** ** The machine *)
 
 Inductive step : tpool -> mem -> rw_map -> tpool -> mem -> rw_map -> Prop :=
 
-| Core_Try : forall tp m mu i c T c' m' mu'
+| Core_Try : forall tp m μ i c T c' m' μ'
     (Hget : tp i = Some (Running c []))
     (Hstep : ev_step sem c m T c' m')
-    (Hclaim : claim T mu mu'),
-    step tp m mu (upd_tp tp i (Running c' T)) m' mu'
+    (Hreserve : rsv (into_evs T) μ = Some μ'),
+    step tp m μ (upd_tp tp i (Running c' T)) m' μ'
 
-| Core_Commit : forall tp m mu i c T mu'
+| Core_Commit : forall tp m μ i c T μ'
     (Hget : tp i = Some (Running c T))
     (Hne : T <> [])
-    (Hcommit : commit T mu mu'),
-    step tp m mu (upd_tp tp i (Running c [])) m mu'
+    (Hcommit : fin (into_evs T) μ = Some μ'),
+    step tp m μ (upd_tp tp i (Running c [])) m μ'
 
-| SC_Read : forall tp m mu i c ef args chunk b ofs v c'
+| SC_Read : forall tp m μ i c ef args chunk l v c'
     (Hget : tp i = Some (Running c []))
     (Hext : at_external sem c m = Some (ef, args))
-    (Hdec : decode_atomic ef args = Some (ALoad chunk b ofs))
-    (Hmu : no_writer mu b ofs (size_chunk chunk))
-    (Hload : Mem.load chunk m b ofs = Some v)
+    (Hdec : decode_atomic ef args = Some (ALoad chunk l))
+    (Hmu : readable μ l (size_chunk chunk))
+    (Hload : Mem.load chunk m l.1 l.2 = Some v)
     (Hret : after_external sem (Some v) c m = Some c'),
-    step tp m mu (upd_tp tp i (Running c' [])) m mu
+    step tp m μ (upd_tp tp i (Running c' [])) m μ
 
-| SC_Write : forall tp m mu i c ef args chunk b ofs v m' c'
+| SC_Write : forall tp m μ i c ef args chunk l v m' c'
     (Hget : tp i = Some (Running c []))
     (Hext : at_external sem c m = Some (ef, args))
-    (Hdec : decode_atomic ef args = Some (AStore chunk b ofs v))
-    (Hmu : unclaimed mu b ofs (size_chunk chunk))
-    (Hstore : Mem.store chunk m b ofs v = Some m')
+    (Hdec : decode_atomic ef args = Some (AStore chunk l v))
+    (Hmu : writable μ l (size_chunk chunk))
+    (Hstore : Mem.store chunk m l.1 l.2 v = Some m')
     (Hret : after_external sem None c m' = Some c'),
-    step tp m mu (upd_tp tp i (Running c' [])) m' mu
+    step tp m μ (upd_tp tp i (Running c' [])) m' μ
 
-| SC_Cas_Suc : forall tp m mu i c ef args chunk b ofs v_exp v_new v_cur m' c'
+| SC_Cas_Suc : forall tp m μ i c ef args chunk l v_exp v_new v_cur m' c'
     (Hget : tp i = Some (Running c []))
     (Hext : at_external sem c m = Some (ef, args))
-    (Hdec : decode_atomic ef args = Some (ACAS chunk b ofs v_exp v_new))
-    (Hmu : unclaimed mu b ofs (size_chunk chunk))
-    (Hload : Mem.load chunk m b ofs = Some v_cur)
+    (Hdec : decode_atomic ef args = Some (ACAS chunk l v_exp v_new))
+    (Hmu : writable μ l (size_chunk chunk))
+    (Hload : Mem.load chunk m l.1 l.2 = Some v_cur)
     (Heq : ValEq m v_cur v_exp)
-    (Hstore : Mem.store chunk m b ofs v_new = Some m')
+    (Hstore : Mem.store chunk m l.1 l.2 v_new = Some m')
     (Hret : after_external sem (Some Vtrue) c m' = Some c'),
-    step tp m mu (upd_tp tp i (Running c' [])) m' mu
+    step tp m μ (upd_tp tp i (Running c' [])) m' μ
 
-| SC_Cas_Fail : forall tp m mu i c ef args chunk b ofs v_exp v_new v_cur c'
+| SC_Cas_Fail : forall tp m μ i c ef args chunk l v_exp v_new v_cur c'
     (Hget : tp i = Some (Running c []))
     (Hext : at_external sem c m = Some (ef, args))
-    (Hdec : decode_atomic ef args = Some (ACAS chunk b ofs v_exp v_new))
-    (Hmu : no_writer mu b ofs (size_chunk chunk))
-    (Hload : Mem.load chunk m b ofs = Some v_cur)
+    (Hdec : decode_atomic ef args = Some (ACAS chunk l v_exp v_new))
+    (Hmu : readable μ l (size_chunk chunk))
+    (Hload : Mem.load chunk m l.1 l.2 = Some v_cur)
     (Hneq : ValNEq m v_cur v_exp)
     (Hret : after_external sem (Some Vfalse) c m = Some c'),
-    step tp m mu (upd_tp tp i (Running c' [])) m mu
-
-| SC_Cas_Stuck : forall tp m mu i c ef args chunk b ofs v_exp v_new v_cur o
+    step tp m μ (upd_tp tp i (Running c' [])) m μ
+(* SC_Cas_Stuck is vacuous in CompCert, but non-trivial in lambda-Rust. *)
+| SC_Cas_Stuck : forall tp m μ i c ef args chunk l v_exp v_new v_cur (o : Z)
     (Hget : tp i = Some (Running c []))
     (Hext : at_external sem c m = Some (ef, args))
-    (Hdec : decode_atomic ef args = Some (ACAS chunk b ofs v_exp v_new))
-    (Hload : Mem.load chunk m b ofs = Some v_cur)
+    (Hdec : decode_atomic ef args = Some (ACAS chunk l v_exp v_new))
+    (Hload : Mem.load chunk m l.1 l.2 = Some v_cur)
     (Heq : ValEq m v_cur v_exp)
-    (Ho : ofs <= o < ofs + size_chunk chunk)
-    (Hmu : mu b o <> Rst 0),
-    step tp m mu (upd_tp tp i StuckState) m mu.
+    (Ho : Z.le l.2 o /\ Z.lt o (l.2 + size_chunk chunk))
+    (Hmu : μ !! (l.1, o) <> Some (Rst 0)),
+    step tp m μ (upd_tp tp i StuckState) m μ.
 
-End GenericSC.
+End AtomicMachine.
 
 (** ** Sample C instantiation of the parameters
 
@@ -374,17 +339,17 @@ End GenericSC.
     instantiation would read the chunk off the external function's
     signature. *)
 
-Local Open Scope string_scope.
+Section ClightAtomicMachine.
 
 Definition c_decode_atomic (ef : external_function) (args : list val)
   : option atomic_op :=
   match ef, args with
   | EF_external "atomic_load" _, [Vptr b ofs] =>
-      Some (ALoad Mint32 b (Ptrofs.unsigned ofs))
+      Some (ALoad Mint32 (b, (Ptrofs.unsigned ofs)))
   | EF_external "atomic_store" _, [Vptr b ofs; v] =>
-      Some (AStore Mint32 b (Ptrofs.unsigned ofs) v)
+      Some (AStore Mint32 (b, (Ptrofs.unsigned ofs)) v)
   | EF_external "atomic_CAS" _, [Vptr b ofs; v_exp; v_new] =>
-      Some (ACAS Mint32 b (Ptrofs.unsigned ofs) v_exp v_new)
+      Some (ACAS Mint32 (b, (Ptrofs.unsigned ofs)) v_exp v_new)
   | _, _ => None
   end.
 
@@ -398,3 +363,50 @@ Definition c_ValEq (m : mem) (v1 v2 : val) : Prop :=
 
 Definition c_ValNEq (m : mem) (v1 v2 : val) : Prop :=
   Val.cmpu_bool (Mem.valid_pointer m) Ceq v1 v2 = Some false.
+
+(* TODO is this sound? *)
+Definition memval_value (mv : memval) : val :=
+  match mv with
+  | Fragment v _ _ => v
+  | _ => Vundef
+  end.
+
+(* general over Read and Write *)
+Definition into_bytes
+    (mk_ev : address -> mem_ev) (b : block) (ofs : Z)
+    (bytes : list memval) : list mem_ev :=
+  foldr
+    (fun byte k ofs =>
+       mk_ev (b, ofs)  :: k (Z.add ofs 1))
+    (fun _ => []) bytes ofs.
+
+(* general over Alloc and Free *)
+Definition into_range
+    (mk_ev : address -> mem_ev) (b : block) (ofs : Z) (len : nat) : list mem_ev :=
+  flat_map
+    (fun i => [mk_ev (b, Z.add ofs (Z.of_nat i))])
+    (seq 0 len).
+
+Definition into_Allocs (b : block) (lo hi : Z) : list mem_ev :=
+  into_range Alloc b lo (Z.to_nat (hi - lo)).
+
+Definition into_Frees (r : block * Z * Z) : list mem_ev :=
+  let '(b, lo, hi) := r in
+  into_range Free b lo (Z.to_nat (hi - lo)).
+
+(** Translate one event from [event_semantics]. *)
+Definition into_ev (ev : mem_event) : list mem_ev :=
+  match ev with
+  | event_semantics.Read b ofs _ bytes => into_bytes Read b ofs bytes
+  | event_semantics.Write b ofs bytes => into_bytes Write b ofs bytes
+  | event_semantics.Alloc b lo hi =>
+      into_Allocs b lo hi
+  | event_semantics.Free ranges =>
+      flat_map into_Frees ranges
+  end.
+
+(** Translate a trace in event_semantics into AtomicMachine events. *)
+Definition into_evs (T : list mem_event) : list mem_ev :=
+  flat_map into_ev T.
+
+End ClightAtomicMachine.
