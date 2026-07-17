@@ -114,11 +114,11 @@ Proof.
 do_funspec_sub. rename w into gv. clear H.
 rewrite <- fupd_intro.
 Exists (sizeof t, gv) (emp: mpred). simpl; entailer!.
-intros tau ? ?. Exists (eval_id ret_temp tau).
+Exists a.
 entailer!.
 if_tac; auto.
 unfold malloc_token.
-assert_PROP (field_compatible t [] (eval_id ret_temp tau)).
+assert_PROP (field_compatible t [] a).
 { entailer!.
   apply malloc_compatible_field_compatible; auto. }
 entailer!.

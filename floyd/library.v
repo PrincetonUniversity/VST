@@ -164,7 +164,7 @@ Definition library_G  {cs: compspecs} prog :=
   try_spec "_free" free_spec' defs.
 
 Lemma semax_func_cons_malloc_aux:
-  forall {cs: compspecs} (gv: globals) (gx : genviron) (t :type) (ret : option val),
+  forall {cs: compspecs} (gv: globals) (t :type) (ret : option val),
 (∃ p : val,
  PROP ( )
  RETURN (p)

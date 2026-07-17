@@ -10,6 +10,7 @@ with contributions from
 [Jean-Marie Madiot](https://madiot.fr/),
 [Gordon Stewart](http://www.cs.princeton.edu/~jsseven/),
 [Qinxiang Cao](http://jhc.sjtu.edu.cn/people/members/faculty/qinxiang-cao.html),
+[William Mansky](https://mansky.lab.uic.edu/),
 Qinshi Wang,
 and others.
 
