@@ -1,89 +1,19 @@
-(** * Generic-SC: the lambda-Rust-Generic machine over an event semantics
+(** *
 
-    This file implements the "lambda-Rust-Generic" (Generic-SC) rules from
-    the paper, lifting a sequential event semantics ([EvSem], from
-    VST.sepcomp.event_semantics) to a sequentially consistent concurrent
-    machine with a lambda-Rust-style reader/writer race detector and SC
-    atomic operations.
+    This file implements a generic sequentially consistent concurrent semantics,
+    lifting a sequential semantics to a sequentially consistent concurrent
+    machine with a lambda-Rust-style reader/writer race detector (the `rw_map`)
+    and SC atomic operations.
 
     A machine configuration is <<(tp, m, μ)>> where [tp] is a thread pool,
     [m] a CompCert memory, and [μ] a reader/writer state map.  A thread
-    performs a sequential step in two phases: [Core_Try] runs the underlying
-    [ev_step], _reserves_ the footprint of the step's event trace in [μ], and
-    installs the trace in the thread pool; [Core_Commit] releases the reserve.
-    A reserve that overlaps with another thread's outstanding reserve is
-    unsatisfiable, so a racing thread is stuck between another thread's Try
-    and Commit -- exactly the lambda-Rust view of non-atomic accesses as
-    spanning two steps.  Atomic operations ([SC_Read], [SC_Write], the CAS
-    rules) execute in a single machine step and merely check [μ].
-
-    ** Deviations from the rules as written in the paper
-
-    1. Memory is updated at [Core_Try], not at [Core_Commit]; there is no
-       [interp]/replay.  The paper notes that for race-free programs the
-       choice is immaterial and picks Commit only to align with lambda-Rust.
-       Over CompCert memories the Commit choice is in fact not well-defined:
-       [Mem.alloc] deterministically returns the current [nextblock], so if
-       two threads Try (each recording an [Alloc] of the same fresh block)
-       before either Commits, the second Commit cannot replay its trace --
-       its recorded block is already taken.  Deferred replay would thus make
-       perfectly race-free allocations stuck.  Race detection is unaffected
-       by the change, since it lives entirely in [μ], whose reserves still
-       span the Try-Commit window.
-
-    2. [reserve]/[commit] fold [incrRW]/[decrRW] over the events of a trace in
-       order.  Consequently, overlapping accesses within one trace must be
-       accepted by the per-event reader/writer transitions themselves.
-
-    3. Locations are bytes: [μ : block -> Z -> RWState], total, with
-       untouched (in particular unallocated) bytes sitting at [Rst 0] --
-       the counterpart of absence from the paper's partial map.  Events and
-       atomic operations cover byte ranges, and atomics check every byte of
-       their chunk's footprint.
-
-    4. The paper lists [AllocEv]/[FreeEv] but only sketches [incrRW] for
-       reads.  Here both count as writes: a [Free] racing with a read is a
-       race, so the freed range is reserveed; an [Alloc] reserves its entire
-       block (following [cur_perm] in event_semantics.v, which also ignores
-       the [lo]/[hi] bounds), which is vacuous for other threads -- the
-       block is fresh -- but keeps dead bytes uniformly at [Rst 0].
-
-    5. There are no explicit continuations: the paper's
-       [at_external(op, vs, K)] becomes [at_external] returning an external
-       function plus arguments, decoded by the [decode_atomic] parameter,
-       and [K[[v]]] becomes [after_external].  N.B. the paper's remark that
-       "RetKind = Unit for atomic read, and RetKind = Val for atomic write"
-       has the two swapped; here a read returns [Some v], a write returns
-       [None] (unit), and CAS returns [Some Vtrue]/[Some Vfalse].
-
-    6. The paper's SC-Cas-Suc does not update the memory, so a successful
-       CAS would never store [v_new]; here it does ([Mem.store]).
-
-    7. The paper's SC-Cas-Fail requires [n > 0], under which a failing CAS
-       with no concurrent readers would be stuck; here it only requires
-       that no non-atomic write be in progress (any [Rst n]).  The [n > 0]
-       looks like a copy-paste from SC-Cas-Stuck.
-
-    8. The core-state type [C] has no distinguished stuck state, so thread
-       pool entries are [Running c T] or [StuckState], and SC_Cas_Stuck
-       moves the thread to [StuckState].  Its side condition is generalized
-       from "[Rst n], [n > 0]" to "some byte of the footprint is not
-       [Rst 0]": a would-succeed CAS during a non-atomic _write_ is equally
-       a race, and this way it is reported by the same rule rather than by
-       implicit stuckness.  (The rule must exist at all because [ValEq] and
-       [ValNEq] may overlap -- lambda-Rust's [lit_eq] is nondeterministic --
-       and safety must not be able to escape through SC_Cas-Fail when the
-       racy success branch is also enabled.)
-
-    9. [ValEq]/[ValNEq] and [decode_atomic] are parameters of the machine,
-       instantiated per language; sample C instantiations are given at the
-       end of the file.  Atomic operations carry a [memory_chunk], since a
-       CompCert memory access needs one (the paper's abstract locations
-       hold whole values).
-
-    10. As in the paper's Generic-SC figure (and unlike APM), there is no
-        scheduler: the stepping thread is chosen nondeterministically.  The
-        figure has no spawn/halt rules, so none are given here either. *)
+    performs a sequential step in two phases: [Core_Try] runs a single thread
+    step and "reserve permissions" by updating the "rw_map" and emits a trace of
+    "on-going" memory events. If a thread has on-going events, it can only
+    execute [Core_Commit] to finish the memory events, and release the reserve.
+    Data-race is modeled by failure to reserve in [μ].
+    
+ *)
 
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
