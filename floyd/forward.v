@@ -5208,7 +5208,10 @@ Ltac do_funspec_sub :=
 intros;
 apply NDsubsume_subsume;
 split; [ split3; reflexivity | intros w; simpl in w; intros [g args];
-                                unfold_for_go_lower; simpl; monPred.unseal; entailer! ].
+                                unfold_for_go_lower; simpl;
+  (* avoid unsealing under existential on the RHS *) let B := fresh "B" in
+  match goal with |- _ ⊢ ?P => set (B := P) end; monPred.unseal; entailer!;
+  subst B; monPred.unseal ].
 
 Ltac do_funspec_sub_nonND :=
    split; 
