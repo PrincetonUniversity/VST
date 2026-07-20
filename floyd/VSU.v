@@ -3100,7 +3100,7 @@ Ltac solve_SF_external B :=
                 | reflexivity
                 | split3;
                    [ left; trivial
-                   | clear; intros ? ? ?; cbv [ofe_mor_car]; 
+                   | clear; intros ? ?; cbv [ofe_mor_car]; 
                      try solve [entailer!]; try apply TT_right;
                      repeat match goal with |- (let (y, z) := ?x in _) _ ∧ _ ⊢ _ =>
                                      destruct x as [y z]

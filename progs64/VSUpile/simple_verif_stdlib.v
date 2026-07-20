@@ -26,7 +26,7 @@ Definition placeholder_spec :=
  PRE [ ]
    PROP (False) PARAMS () GLOBALS () SEP()
  POST [ tint ]
-   PROP() LOCAL() SEP().
+   PROP() RETURN() SEP().
 
 Definition MF_imported_specs: funspecs :=  nil.
 
@@ -45,23 +45,17 @@ contradiction.
 Qed.
 
 (*same proof as in library.v, but the statement is a little different*)
-Lemma semax_func_cons_malloc_aux {cs: compspecs} (gv: globals) (gx : genviron) (ret : option val) z:
+Lemma semax_func_cons_malloc_aux {cs: compspecs} (gv: globals) (ret : option val) z:
   (EX p : val,
    PROP ( )
-        LOCAL (temp ret_temp p)
+        RETURN (p)
         SEP (mem_mgr gv; if eq_dec p nullval then emp else malloc_token' Ews z p * memory_block Ews z p))%assert
-    (make_ext_rval gx (rettype_of_type (tptr tvoid)) ret) |-- !! is_pointer_or_null (force_val ret).
+    (make_ext_rval (rettype_of_type (tptr tvoid)) ret) |-- !! is_pointer_or_null (force_val ret).
 Proof.
  intros.
- monPred.unseal. Intros p.
- rewrite <- insert_local.
- monPred.unseal.
- apply bi.pure_elim_l; intro.
- destruct H; unfold_lift in H.
- unfold_lift in H0. destruct ret; try contradiction.
- unfold eval_id in H. simpl in H. subst p.
- if_tac. rewrite H; entailer!.
- renormalize. monPred.unseal. entailer!.
+ unfold PROPx, RETURNx, SEPx.
+ monPred.unseal. Intros p; subst.
+ if_tac; entailer!.
 Qed.
 
 Definition MF_E : funspecs := MallocFreeASI.
@@ -74,7 +68,7 @@ Definition MallocFreeVSU: VSU
     - solve_SF_external body_malloc. 
       Intros. eapply derives_trans.
       destruct x as [n gv].
-      apply (semax_func_cons_malloc_aux gv gx ret n).
+      apply (semax_func_cons_malloc_aux gv ret n).
       destruct ret; simpl; trivial.
     - solve_SF_external body_free.
     - solve_SF_external body_exit.

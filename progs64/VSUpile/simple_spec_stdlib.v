@@ -127,7 +127,7 @@ Lemma free_spec_sub:
 Proof.
 do_funspec_sub. destruct w as [p gv]. clear H.
 rewrite <- fupd_intro.
-Exists (sizeof t, p, gv) (emp: mpred). simpl; entailer!.
+Exists (sizeof t, p, gv) (emp: mpred). simpl; repeat entailer!.
 if_tac; trivial.
 sep_apply data_at__memory_block_cancel.
 unfold malloc_token; entailer!.

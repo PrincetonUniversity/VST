@@ -79,7 +79,7 @@ Definition Pile_new_spec :=
  PRE [ ] PROP() PARAMS() GLOBALS(gv) SEP(mem_mgr gv)
  POST[ tptr tpile ]
    EX p: val,
-      PROP() LOCAL(temp ret_temp p)
+      PROP() RETURN(p)
       SEP(pilerep nil p; pile_freeable p; mem_mgr gv).
 
 Definition Pile_add_spec :=
@@ -90,7 +90,7 @@ Definition Pile_add_spec :=
     PARAMS (p; Vint (Int.repr n)) GLOBALS (gv)
     SEP(pilerep sigma p; mem_mgr gv)
  POST[ tvoid ]
-    PROP() LOCAL()
+    PROP() RETURN()
     SEP(pilerep (n::sigma) p; mem_mgr gv).
 
 Definition Pile_count_spec :=
@@ -102,7 +102,7 @@ Definition Pile_count_spec :=
     SEP (pilerep sigma p)
  POST[ tint ]
       PROP() 
-      LOCAL(temp ret_temp (Vint (Int.repr (sumlist sigma))))
+      RETURN(Vint (Int.repr (sumlist sigma)))
       SEP(pilerep sigma p).
 
 Definition Pile_free_spec :=
@@ -113,7 +113,7 @@ Definition Pile_free_spec :=
     PARAMS (p) (GLOBALS (gv)
     SEP(pilerep sigma p; pile_freeable p; mem_mgr gv))
  POST[ tvoid ]
-     PROP() LOCAL() SEP(mem_mgr gv).
+     PROP() RETURN() SEP(mem_mgr gv).
 
 Definition PileASI:funspecs := [ Pile_new_spec; Pile_add_spec; Pile_count_spec; Pile_free_spec].
 
