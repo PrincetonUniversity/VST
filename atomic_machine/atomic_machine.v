@@ -15,21 +15,19 @@
     
  *)
 
-Require Import compcert.lib.Coqlib.
+(* Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
-Require Import compcert.common.AST.
+Require Import compcert.common.AST. *)
 
 From Stdlib Require Import Arith.PeanoNat.
 From Stdlib Require Import Strings.String.
 From Stdlib Require Import List.
 Import ListNotations.
 
-Require Import VST.sepcomp.semantics.
-Require Import VST.sepcomp.event_semantics.
 Require Import stdpp.gmap.
-Import Address Values.
+(* Import Address Values. *)
 
 (** ** Reader/writer states
 
@@ -37,22 +35,24 @@ Import Address Values.
     threads are between Try and Commit of a step that reads the byte;
     [Wst] means some thread is mid-step on a write to it. *)
 
-Section AtomicMachine.
-  
-Notation Loc := (address)%type.
+
+Section RWMap.
+
+  Context {Loc : Type} .
+  Declare Instance LocEqDec : EqDecision Loc.
+  Declare Instance LocCountable : Countable Loc.
 
 Inductive rw_state : Type :=
 | Rst (n : nat)
 | Wst.
 
-Print event_semantics.mem_event.
 Variant mem_ev : Type :=
 | Read (l : Loc)
 | Write (l : Loc)
 | Alloc (l : Loc)
 | Free (l : Loc).
 
-Definition rw_map := gmap address rw_state.
+Definition rw_map := gmap Loc rw_state.
 
 Implicit Types (μ : rw_map) (oμ : option rw_map) (l : Loc)
    (ev : mem_ev) (evs : list mem_ev).
@@ -141,202 +141,141 @@ Definition rsv evs μ : option rw_map :=
 Definition fin evs μ : option rw_map :=
   foldr fin_ev (Some μ) evs.
 
+End RWMap.
+
+
+Section Memory.
+  Class MemMixin {Loc Val : Type} {LocEqDec : EqDecision Loc} {LocCountable : Countable Loc} {Mem : Type} {Layout : Type} : Type := {
+    load : Mem -> Loc -> Layout -> option Val;
+    store : Mem -> Loc -> Layout -> Val -> option Mem;
+  }.
+
+  Class RWMapMixin {Loc : Type} {LocEqDec : EqDecision Loc} {LocCountable : Countable Loc} {Layout : Type} : Type := {
+    readable : @rw_map Loc -> Loc -> Layout -> bool;
+    writable : @rw_map Loc -> Loc -> Layout -> bool;
+  }.
+
+End Memory.
+
+Section AtomicMachine.
+
 (** ** Atomic operations
 
     How the underlying language phrases atomic operations as external
-    calls is a parameter of the machine ([decode_atomic] below); this is
+    calls is part of the language interface ([lang_decode_atomic] below); this is
     their common shape.  Each operation carries the [memory_chunk] it
     accesses. *)
 
+
+Context `{MemMixinInst : !@MemMixin Loc Val LocEqDec LocCountable Mem Layout}.
+Context `{RWMapMixinInst : !@RWMapMixin Loc LocEqDec LocCountable Layout}.
+
+Local Notation mem_ev := (@mem_ev Loc).
+
 Inductive atomic_op : Type :=
-| ALoad (chunk : memory_chunk) l
-| AStore (chunk : memory_chunk) l (v : val)
-| ACAS (chunk : memory_chunk) l (v_exp v_new : val).
+| ALoad : Layout -> Loc -> atomic_op
+| AStore : Layout -> Loc -> Val -> atomic_op
+| ACAS : Layout -> Loc -> Val (* expected val *) ->
+        Val (* new val*) -> atomic_op.
 
-(* The thread local state *)
-Context {C : Type}.
+Record sqlang : Type := {
+  (* thread local state *)
+  sqlang_thrd_st : Type;
+  sqlang_true_val : Val;
+  sqlang_false_val : Val;
+  sqlang_step : sqlang_thrd_st -> Mem -> list mem_ev -> sqlang_thrd_st -> Mem -> Prop;
+  sqlang_into_evs : list mem_ev -> list mem_ev;
 
-(** The single-threaded input semantics. *)
-Variable sem : @EvSem C.
+  sqlang_at_external {ret_ty : Type} : sqlang_thrd_st -> Mem -> option (atomic_op * (ret_ty -> sqlang_thrd_st));
 
-Variable into_evs : list mem_event -> list mem_ev.
+  (** Value (in)equality for CAS *)
+  sqlang_ValEq : Mem -> Val -> Val -> Prop;
+  sqlang_ValNEq : Mem -> Val -> Val -> Prop;
+}.
 
-(** Recognizes the external calls that are this machine's atomic
-    operations; all other external calls are outside the machine's scope
-    (no rule applies). *)
-Variable decode_atomic : external_function -> list val -> option atomic_op.
+Context (L : sqlang).
 
-(** Value (in)equality for CAS, relative to a memory.  In C both are
-    deterministic and mutually exclusive (see [c_ValEq]/[c_ValNEq] below);
-    in lambda-Rust comparisons involving dangling pointers make them
-    overlap, which is what forces the explicit SC_Cas_Stuck rule. *)
-Variable ValEq ValNEq : mem -> val -> val -> Prop.
+Local Notation C := (sqlang_thrd_st L).
+Local Notation into_evs := (sqlang_into_evs L).
+Local Notation at_external := (sqlang_at_external L).
+Local Notation Vtrue := (sqlang_true_val L).
+Local Notation Vfalse := (sqlang_false_val L).
+Local Notation ValEq := (sqlang_ValEq L).
+Local Notation ValNEq := (sqlang_ValNEq L).
 
-(** ** Thread pools *)
+Implicit Types (μ : @rw_map Loc) (oμ : option $ @rw_map Loc) (l : Loc)
+   (ev : mem_ev) (evs : list mem_ev) (ly : Layout).
 
 Inductive tstate : Type :=
-| Running (c : C) (T : list mem_event)
+| Running (c : C) (T : list mem_ev)
 | StuckState.
 
-Definition tpool := nat -> option tstate.
-
-Definition upd_tp (tp : tpool) (i : nat) (st : tstate) : tpool :=
-  fun j => if Nat.eq_dec j i then Some st else tp j.
+Definition tpool := gmap nat tstate.
 
 Definition initial_tp (c : C) : tpool :=
-  fun i => if Nat.eq_dec i O then Some (Running c []) else None.
+  <[0 := Running c []]> ∅.
 
 (** [μ] conditions on the byte range of an atomic access *)
 
 (** No non-atomic write in progress anywhere in the range (paper: μ(l) = Rst n). *)
-Definition readable μ l (len : Z) : Prop :=
-  forall o : Z, Z.le l.2 o /\ Z.lt o (l.2 + len) -> μ !! (l.1, o) <> Some Wst.
+(* Definition readable μ l (len : Z) : Prop :=
+  forall o : Z, Z.le l.2 o /\ Z.lt o (l.2 + len) -> μ !! (l.1, o) <> Some Wst. *)
 
 (** No non-atomic access at all in progress in the range (paper: μ(l) = Rst 0). *)
-Definition writable μ l (len : Z) : Prop :=
-  forall o : Z, Z.le (snd l) o /\ Z.lt o (snd l + len) -> μ !! (fst l, o) = Some (Rst 0).
+(* Definition writable μ l (len : Z) : Prop :=
+  forall o : Z, Z.le (snd l) o /\ Z.lt o (snd l + len) -> μ !! (fst l, o) = Some (Rst 0). *)
 
-(** ** The machine *)
-
-Inductive step : tpool -> mem -> rw_map -> tpool -> mem -> rw_map -> Prop :=
+Inductive step : tpool -> Mem -> rw_map -> tpool -> Mem -> rw_map -> Prop :=
 
 | Core_Try : forall tp m μ i c T c' m' μ'
-    (Hget : tp i = Some (Running c []))
-    (Hstep : ev_step sem c m T c' m')
+    (Hget : tp !! i = Some (Running c []))
+    (Hstep : sqlang_step L c m T c' m')
     (Hreserve : rsv (into_evs T) μ = Some μ'),
-    step tp m μ (upd_tp tp i (Running c' T)) m' μ'
+    step tp m μ (<[i := Running c' T]> tp) m' μ'
 
 | Core_Commit : forall tp m μ i c T μ'
-    (Hget : tp i = Some (Running c T))
+    (Hget : tp !! i = Some (Running c T))
     (Hne : T <> [])
     (Hcommit : fin (into_evs T) μ = Some μ'),
-    step tp m μ (upd_tp tp i (Running c [])) m μ'
+    step tp m μ (<[i := Running c []]> tp) m μ'
 
-| SC_Read : forall tp m μ i c ef args chunk l v c'
-    (Hget : tp i = Some (Running c []))
-    (Hext : at_external sem c m = Some (ef, args))
-    (Hdec : decode_atomic ef args = Some (ALoad chunk l))
-    (Hmu : readable μ l (size_chunk chunk))
-    (Hload : Mem.load chunk m l.1 l.2 = Some v)
-    (Hret : after_external sem (Some v) c m = Some c'),
-    step tp m μ (upd_tp tp i (Running c' [])) m μ
+| SC_Read : forall tp m μ i c ly l v (K : Val -> C)
+    (Hget : tp !! i = Some (Running c []))
+    (Hext : at_external c m = Some (ALoad ly l, K))
+    (Hmu : readable μ l ly = true)
+    (Hload : load m l ly = Some v),
+    step tp m μ (<[i := Running (K v) [] ]> tp) m μ
 
-| SC_Write : forall tp m μ i c ef args chunk l v m' c'
-    (Hget : tp i = Some (Running c []))
-    (Hext : at_external sem c m = Some (ef, args))
-    (Hdec : decode_atomic ef args = Some (AStore chunk l v))
-    (Hmu : writable μ l (size_chunk chunk))
-    (Hstore : Mem.store chunk m l.1 l.2 v = Some m')
-    (Hret : after_external sem None c m' = Some c'),
-    step tp m μ (upd_tp tp i (Running c' [])) m' μ
+| SC_Write : forall tp m μ i c ly l v m' (K : unit -> C)
+    (Hget : tp !! i = Some (Running c []))
+    (Hext : at_external c m = Some (AStore ly l v, K))
+    (Hmu : writable μ l ly = true)
+    (Hstore : store m l ly v = Some m'),
+    step tp m μ (<[i := Running (K ()) []]> tp) m' μ
 
-| SC_Cas_Suc : forall tp m μ i c ef args chunk l v_exp v_new v_cur m' c'
-    (Hget : tp i = Some (Running c []))
-    (Hext : at_external sem c m = Some (ef, args))
-    (Hdec : decode_atomic ef args = Some (ACAS chunk l v_exp v_new))
-    (Hmu : writable μ l (size_chunk chunk))
-    (Hload : Mem.load chunk m l.1 l.2 = Some v_cur)
+| SC_Cas_Suc : forall tp m μ i c ly l v_exp v_new v_cur m' (K : Val -> C)
+    (Hget : tp !! i = Some (Running c []))
+    (Hext : at_external c m = Some (ACAS ly l v_exp v_new, K))
+    (Hmu : writable μ l ly = true)
+    (Hload : load m l ly = Some v_cur)
     (Heq : ValEq m v_cur v_exp)
-    (Hstore : Mem.store chunk m l.1 l.2 v_new = Some m')
-    (Hret : after_external sem (Some Vtrue) c m' = Some c'),
-    step tp m μ (upd_tp tp i (Running c' [])) m' μ
+    (Hstore : store m l ly v_new = Some m'),
+    step tp m μ (<[i := Running (K Vtrue) []]> tp) m' μ
 
-| SC_Cas_Fail : forall tp m μ i c ef args chunk l v_exp v_new v_cur c'
-    (Hget : tp i = Some (Running c []))
-    (Hext : at_external sem c m = Some (ef, args))
-    (Hdec : decode_atomic ef args = Some (ACAS chunk l v_exp v_new))
-    (Hmu : readable μ l (size_chunk chunk))
-    (Hload : Mem.load chunk m l.1 l.2 = Some v_cur)
-    (Hneq : ValNEq m v_cur v_exp)
-    (Hret : after_external sem (Some Vfalse) c m = Some c'),
-    step tp m μ (upd_tp tp i (Running c' [])) m μ
+| SC_Cas_Fail : forall tp m μ i c ly l v_exp v_new v_cur (K : Val -> C)
+    (Hget : tp !! i = Some (Running c []))
+    (Hext : at_external c m = Some (ACAS ly l v_exp v_new, K))
+    (Hmu : readable μ l ly = true)
+    (Hload : load m l ly = Some v_cur)
+    (Hneq : ValNEq m v_cur v_exp),
+    step tp m μ (<[i := Running (K Vfalse) []]> tp) m μ
 (* SC_Cas_Stuck is vacuous in CompCert, but non-trivial in lambda-Rust. *)
-| SC_Cas_Stuck : forall tp m μ i c ef args chunk l v_exp v_new v_cur (o : Z)
-    (Hget : tp i = Some (Running c []))
-    (Hext : at_external sem c m = Some (ef, args))
-    (Hdec : decode_atomic ef args = Some (ACAS chunk l v_exp v_new))
-    (Hload : Mem.load chunk m l.1 l.2 = Some v_cur)
+| SC_Cas_Stuck : forall tp m μ i c ly l v_exp v_new v_cur (o : Z) (K : Val -> C)
+    (Hget : tp !! i = Some (Running c []))
+    (Hext : at_external c m = Some (ACAS ly l v_exp v_new, K))
+    (Hload : load m l ly = Some v_cur)
     (Heq : ValEq m v_cur v_exp)
-    (Ho : Z.le l.2 o /\ Z.lt o (l.2 + size_chunk chunk))
-    (Hmu : μ !! (l.1, o) <> Some (Rst 0)),
-    step tp m μ (upd_tp tp i StuckState) m μ.
+    (Ho : writable μ l ly = false),
+    step tp m μ (<[i := StuckState]> tp) m μ.
 
 End AtomicMachine.
-
-(** ** Sample C instantiation of the parameters
-
-    Atomics are word-sized here for concreteness; a real Clight
-    instantiation would read the chunk off the external function's
-    signature. *)
-
-Section ClightAtomicMachine.
-
-Definition c_decode_atomic (ef : external_function) (args : list val)
-  : option atomic_op :=
-  match ef, args with
-  | EF_external "atomic_load" _, [Vptr b ofs] =>
-      Some (ALoad Mint32 (b, (Ptrofs.unsigned ofs)))
-  | EF_external "atomic_store" _, [Vptr b ofs; v] =>
-      Some (AStore Mint32 (b, (Ptrofs.unsigned ofs)) v)
-  | EF_external "atomic_CAS" _, [Vptr b ofs; v_exp; v_new] =>
-      Some (ACAS Mint32 (b, (Ptrofs.unsigned ofs)) v_exp v_new)
-  | _, _ => None
-  end.
-
-(** In C, value comparison is deterministic ([c_ValEq] and [c_ValNEq] are
-    mutually exclusive), so SC_Cas_Fail and SC_Cas_Stuck never overlap; a
-    comparison that CompCert leaves undefined (e.g. on [Vundef]) satisfies
-    neither, and the CAS is stuck with no rule applying. *)
-
-Definition c_ValEq (m : mem) (v1 v2 : val) : Prop :=
-  Val.cmpu_bool (Mem.valid_pointer m) Ceq v1 v2 = Some true.
-
-Definition c_ValNEq (m : mem) (v1 v2 : val) : Prop :=
-  Val.cmpu_bool (Mem.valid_pointer m) Ceq v1 v2 = Some false.
-
-(* TODO is this sound? *)
-Definition memval_value (mv : memval) : val :=
-  match mv with
-  | Fragment v _ _ => v
-  | _ => Vundef
-  end.
-
-(* general over Read and Write *)
-Definition into_bytes
-    (mk_ev : address -> mem_ev) (b : block) (ofs : Z)
-    (bytes : list memval) : list mem_ev :=
-  foldr
-    (fun byte k ofs =>
-       mk_ev (b, ofs)  :: k (Z.add ofs 1))
-    (fun _ => []) bytes ofs.
-
-(* general over Alloc and Free *)
-Definition into_range
-    (mk_ev : address -> mem_ev) (b : block) (ofs : Z) (len : nat) : list mem_ev :=
-  flat_map
-    (fun i => [mk_ev (b, Z.add ofs (Z.of_nat i))])
-    (seq 0 len).
-
-Definition into_Allocs (b : block) (lo hi : Z) : list mem_ev :=
-  into_range Alloc b lo (Z.to_nat (hi - lo)).
-
-Definition into_Frees (r : block * Z * Z) : list mem_ev :=
-  let '(b, lo, hi) := r in
-  into_range Free b lo (Z.to_nat (hi - lo)).
-
-(** Translate one event from [event_semantics]. *)
-Definition into_ev (ev : mem_event) : list mem_ev :=
-  match ev with
-  | event_semantics.Read b ofs _ bytes => into_bytes Read b ofs bytes
-  | event_semantics.Write b ofs bytes => into_bytes Write b ofs bytes
-  | event_semantics.Alloc b lo hi =>
-      into_Allocs b lo hi
-  | event_semantics.Free ranges =>
-      flat_map into_Frees ranges
-  end.
-
-(** Translate a trace in event_semantics into AtomicMachine events. *)
-Definition into_evs (T : list mem_event) : list mem_ev :=
-  flat_map into_ev T.
-
-End ClightAtomicMachine.
