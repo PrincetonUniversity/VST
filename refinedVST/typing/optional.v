@@ -107,6 +107,9 @@ Section optional.
     iIntros (??) "[(%&H)|(%&H)]"; iApply (defined_ty with "H").
   Qed.
 
+  Global Instance optional_objective e ty optty `{!ObjectiveTy ty} `{!ObjectiveTy optty}: ObjectiveTy (e @ optional ty optty).
+  Proof. constructor; apply _. Qed.
+
   (* TODO: should be allow different opttys? *)
   Global Instance simple_subsume_place_optional ty1 ty2 optty b1 b2 `{!Affine P} `{!SimpleSubsumePlace ty1 ty2 P}:
     SimpleSubsumePlace (b1 @ optional ty1 optty) (b2 @ optional ty2 optty) (<affine> ⌜b1 ↔ b2⌝ ∗ P).
@@ -334,6 +337,15 @@ Section optionalO.
     destruct e; by iApply (loc_in_bounds_in_bounds with "Hl").
   Qed.
 
+  Global Instance optionalO_objective A (ty : A → type) e optty `{!∀ a, ObjectiveTy (ty a)} `{!ObjectiveTy optty}: ObjectiveTy (e @ optionalO ty optty).
+  Proof.
+    constructor.
+    - unfold optionalO; simpl_type.
+      destruct e; apply _.
+    - unfold optionalO; simpl_type.
+      destruct e; apply _.
+  Qed.
+
   (* TODO: should we allow different opttys? *)
   Global Instance simple_subsume_place_optionalO A (ty1 : A → _) ty2 optty b
     `{!Affine P} `{!∀ x, SimpleSubsumePlace (ty1 x) (ty2 x) P}:
@@ -364,6 +376,14 @@ Section optionalO.
   Proof. iIntros "HT Hl". by iApply "HT". Qed.
   Definition simpl_hyp_optionalO_None_val_inst := [instance simpl_hyp_optionalO_None_val with 0%N].
   Global Existing Instance simpl_hyp_optionalO_None_val_inst.
+
+  Lemma simpl_hyp_optionalO_down_ty A (ty : A → type) optty l β T:
+    (l ◁ₗ{β} (optionalO (λ x, down_ty (ty x)) (down_ty optty)) -∗ T) ⊢ simplify_hyp (l ◁ₗ{β} down_ty (optionalO ty optty)) T.
+  Proof.
+    iIntros "HT Hl". iApply "HT". rewrite /down_ty /ty_of_rty; simpl_type.
+    iDestruct "Hl" as (x) "Hl"; iExists x.
+    by destruct x.
+  Qed.
 
   Lemma subsume_optionalO_optty B A (ty : B → A → type) optty l β b T:
     (∃ x, <affine> ⌜b x = None⌝ ∗ T x)

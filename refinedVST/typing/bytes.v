@@ -286,6 +286,9 @@ Section uninit.
     by iFrame.
   Qed.
 
+  Global Instance uninit_objective t: ObjectiveTy (uninit t).
+  Proof. constructor; apply _. Qed.
+
   Definition ty_own_var_uninit f x : assert :=
     match list_assoc x (f.(fn_params) ++ f.(fn_temps)) with
     | Some cty => x ◁ₜ|cty| (uninit cty)

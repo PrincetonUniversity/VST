@@ -71,6 +71,9 @@ Section own.
   Global Instance frac_ptr_objective p β ty `{!ObjectiveTy ty}: ObjectiveTy (p @ frac_ptr β ty).
   Proof. constructor; apply _. Qed.
 
+  Global Instance frac_ptr_unrefined_objective β ty `{!ObjectiveTy ty}: ObjectiveTy (frac_ptr β ty).
+  Proof. constructor; apply _. Qed.
+
   Lemma frac_ptr_mono A ty1 ty2 l β β' p p' T:
     (p ◁ₗ{own_state_min β β'} ty1 -∗ ∃ x, <affine> ⌜p = p' x⌝ ∗ p ◁ₗ{own_state_min β β'} (ty2 x) ∗ T x)
     ⊢ subsume (l ◁ₗ{β} p @ frac_ptr β' ty1) (λ x : A, l ◁ₗ{β} (p' x) @ frac_ptr β' (ty2 x)) T.
@@ -171,6 +174,28 @@ Section own.
   Definition simplify_temp_frac_ptr_inst := [instance simplify_temp_frac_ptr with 0%N].
   Global Existing Instance simplify_temp_frac_ptr_inst.
 
+  Lemma simplify_hyp_down_ty_frac_ptr_l l p β ty T:
+    (l ◁ₗ (p @ frac_ptr β (down_ty ty)) -∗ T) ⊢ simplify_hyp (l ◁ₗ down_ty (p @ frac_ptr β ty)) T.
+  Proof.
+    iIntros "H Hl"; iApply "H".
+    rewrite /down_ty /frac_ptr; repeat simpl_type.
+    iDestruct "Hl" as "(% & H & $)".
+    by rewrite down1_obj_elim; iFrame.
+  Qed.
+  Definition simplify_hyp_down_ty_frac_ptr_l_inst := [instance simplify_hyp_down_ty_frac_ptr_l with 0%N].
+  Global Existing Instance simplify_hyp_down_ty_frac_ptr_l_inst.
+
+  Lemma simplify_hyp_down_ty_frac_ptr_unrefined_l l β ty T:
+    (l ◁ₗ (frac_ptr β (down_ty ty)) -∗ T) ⊢ simplify_hyp (l ◁ₗ down_ty (frac_ptr β ty)) T.
+  Proof.
+    iIntros "H Hl"; iApply "H".
+    rewrite /down_ty /frac_ptr /ty_of_rty; repeat simpl_type.
+    iDestruct "Hl" as "(% & % & H & $)".
+    by rewrite down1_obj_elim; iFrame.
+  Qed.
+  Definition simplify_hyp_down_ty_frac_ptr_unrefined_l_inst := [instance simplify_hyp_down_ty_frac_ptr_unrefined_l with 0%N].
+  Global Existing Instance simplify_hyp_down_ty_frac_ptr_unrefined_l_inst.
+
   Lemma simplify_hyp_down_ty_frac_ptr cty v p β ty T:
     (v ◁ᵥ|cty| (p @ frac_ptr β (down_ty ty)) -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| down_ty (p @ frac_ptr β ty)) T.
   Proof.
@@ -180,6 +205,16 @@ Section own.
   Qed.
   Definition simplify_hyp_down_ty_frac_ptr_inst := [instance simplify_hyp_down_ty_frac_ptr with 0%N].
   Global Existing Instance simplify_hyp_down_ty_frac_ptr_inst.
+
+  Lemma simplify_hyp_down_ty_frac_ptr_unrefined cty v β ty T:
+    (v ◁ᵥ|cty| (frac_ptr β (down_ty ty)) -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| down_ty (frac_ptr β ty)) T.
+  Proof.
+    iIntros "H Hv"; iApply "H".
+    rewrite /down_ty /frac_ptr /ty_of_rty; repeat simpl_type.
+    by iDestruct "Hv" as "(% & % & $)".
+  Qed.
+  Definition simplify_hyp_down_ty_frac_ptr_unrefined_inst := [instance simplify_hyp_down_ty_frac_ptr_unrefined with 0%N].
+  Global Existing Instance simplify_hyp_down_ty_frac_ptr_unrefined_inst.
 
   Lemma simplify_goal_down_ty_frac_ptr cty v p β ty T:
     (v ◁ᵥ|cty| (p @ frac_ptr β (down_ty ty)) ∗ T) ⊢ simplify_goal (v ◁ᵥ|cty| down_ty (p @ frac_ptr β ty)) T.
@@ -191,6 +226,17 @@ Section own.
   Qed.
   Definition simplify_goal_down_ty_frac_ptr_inst := [instance simplify_goal_down_ty_frac_ptr with 0%N].
   Global Existing Instance simplify_goal_down_ty_frac_ptr_inst.
+
+  Lemma simplify_goal_down_ty_frac_ptr_unrefined cty v β ty T:
+    (v ◁ᵥ|cty| (frac_ptr β (down_ty ty)) ∗ T) ⊢ simplify_goal (v ◁ᵥ|cty| down_ty (frac_ptr β ty)) T.
+  Proof.
+    iIntros "(H & $)".
+    rewrite /down_ty /frac_ptr /ty_of_rty /ty_own_val; repeat simpl_type.
+    iDestruct "H" as "(% & % & H)".
+    iApply (down1_mono with "H"); auto.
+  Qed.
+  Definition simplify_goal_down_ty_frac_ptr_unrefined_inst := [instance simplify_goal_down_ty_frac_ptr_unrefined with 0%N].
+  Global Existing Instance simplify_goal_down_ty_frac_ptr_unrefined_inst.
 
   (*
   TODO: revisit this comment
