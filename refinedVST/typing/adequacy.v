@@ -87,7 +87,6 @@ Proof.
   iSplitL "H0". 2: {
     iDestruct ("H" $! x) as "(%Htys & #Hf)".
     pose proof (tc_vals_length _ _ H) as Hlen; rewrite length_map in Hlen.
-    apply Forall2_length in Htys.
     rewrite monPred_objectively_elim.
     iApply ("Hf" with "[-]"); iFrame.
     iApply (stackframe_of_typed(typeG0 := TypeG _ _ VSTGS0) with "Hstack Hargs") => //.
@@ -105,13 +104,14 @@ Proof.
     rewrite stackframe_of1_typed; by iFrame.
 Qed.
 
-Lemma typed_fptr_triple : forall `{!VSTGS OK_ty Σ} {cs : compspecs} {A} Espec ge t fp l cty,
-  l ◁ᵥₐₗ|tptr cty| function_ptr ge t fp ⊢ ∃ f, ⌜Genv.find_funct ge l = Some (Internal f)⌝ ∧ ∀ x : dtfr A, ▷ fun_triple Espec (Build_genv ge cenv_cs) (fn_params_pre f fp x) f (fn_params_post f fp x).
+Lemma typed_fptr_triple : forall `{!VSTGS OK_ty Σ} {cs : compspecs} {A} Espec ge fp l cty,
+  l ◁ᵥₐₗ|cty| function_ptr ge fp ⊢ ∃ f, ⌜Genv.find_funct ge l = Some (Internal f)⌝ ∧ ∀ x : dtfr A, ▷ fun_triple Espec (Build_genv ge cenv_cs) (fn_params_pre f fp x) f (fn_params_post f fp x).
 Proof.
   rewrite /ty_own_val_at /ty_own_val /= /ty_own_val /=.
   intros.
-  iIntros "(%x & % & %Hx & %Hfn & H)"; subst.
-  destruct x, Hfn as (? & ? & ? & ? & ? & ? & ? & ? & ?); subst; simpl.
+  iIntros "(%x & % & (%Hty & %Hx) & %Hfn & H)".
+  rewrite Hty /= in Hx; subst.
+  destruct x, Hfn as (? & ? & ? & ? & ? & ? & ? & ?); subst; simpl.
   iExists _; iSplit; first by iPureIntro; apply Genv.find_funct_ptr_iff.
   rewrite -bi.later_forall bi.affinely_elim; by iPoseProof (typed_function_triple with "H") as "H".
 Qed.

@@ -453,7 +453,7 @@ Tactic Notation "start_function" constr(fnname) "(" simple_intropattern(x) ")" :
   iStartProof; repeat iIntros "#?"; iStopProof;
   apply prove_typed_function; [apply _..|];
   intros x;
-  split; [simpl; by [repeat constructor; try econstructor] || fail "in" fnname "argument types don't match layout of arguments" |].
+  split; [simpl; by reflexivity || fail "in" fnname "argument types don't match layout of arguments" |].
 
 Tactic Notation "start_function2" :=
   iStartProof; rewrite /typed_stackframe /typed_var_block.
