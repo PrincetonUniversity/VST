@@ -2220,6 +2220,7 @@ Section typing.
   Definition type_gvar_inst := [instance type_gvar with 1%N].
   Global Existing Instance type_gvar_inst | 5.*)
 
+  (* This works, but we end up with an l that is a very large positive and slows down Qed.
   Lemma type_gvar ge f x cty l {H : TCForall (λ i, TCDone (x ≠ i)) (map fst (fn_vars f))}
     {Hx : TCEq (Genv.find_symbol ge x) (Some l)} T:
     T (l, Ptrofs.zero)
@@ -2233,7 +2234,34 @@ Section typing.
     by iApply "HΦ"; iApply "HT".
   Qed.
   Definition type_gvar_inst := [instance type_gvar with 0%N].
+  Global Existing Instance type_gvar_inst | 5.*)
+
+  Lemma type_gvar ge f x cty {H : TCForall (λ i, TCDone (x ≠ i)) (map fst (fn_vars f))}
+    {Hx : TCDone (Genv.find_symbol ge x ≠ None)} T:
+    T (option.default 1%positive (Genv.find_symbol ge x), Ptrofs.zero)
+    ⊢ typed_lvalue ge f (Evar x cty) T.
+  Proof.
+    iIntros "HT" (Φ) "HΦ".
+    iApply wp_var_global0; last by iApply "HΦ"; iApply "HT".
+    { rewrite TCForall_Forall List.Forall_forall in H.
+      by intros ?%H. }
+    { simpl; by destruct (Genv.find_symbol ge x). }
+  Qed.
+  Definition type_gvar_inst := [instance type_gvar with 0%N].
   Global Existing Instance type_gvar_inst | 5.
+
+  Lemma type_var ge f x cty T:
+    match access_mode cty with By_reference | By_copy => True | _ => False end →
+    typed_lvalue ge f (Evar x cty) (λ l, find_in_context (FindVal cty l) (λ ty, T (adr2val l) ty))
+    ⊢ typed_val_expr ge f (Evar x cty) T.
+  Proof.
+    intros; iIntros "H" (?) "HΦ".
+    rewrite -wp_expr_ptr //.
+    iApply "H"; iIntros ((?,?)) "HT".
+    rewrite /find_in_context /=.
+    iDestruct "HT" as (?) "(Hv & HT)".
+    iApply ("HΦ" with "Hv HT").
+  Qed.
 
   Lemma type_read_lvalue ge f e T:
     is_lvalue e = true →

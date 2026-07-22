@@ -451,18 +451,6 @@ Section place.
       * by destruct i0, s.
       * by destruct f0. }
   Qed.*)
-  Lemma type_var ge f x cty T:
-    match access_mode cty with By_reference | By_copy => True | _ => False end →
-    typed_lvalue ge f (Evar x cty) (λ l, find_in_context (FindVal cty l) (λ ty, T (adr2val l) ty))
-    ⊢ typed_val_expr ge f (Evar x cty) T.
-  Proof.
-    intros; iIntros "H" (?) "HΦ".
-    rewrite -wp_expr_ptr //.
-    iApply "H"; iIntros ((?,?)) "HT".
-    rewrite /find_in_context /=.
-    iDestruct "HT" as (?) "(Hv & HT)".
-    iApply ("HΦ" with "Hv HT").
-  Qed.
 
 End place.
 Global Typeclasses Opaque place.

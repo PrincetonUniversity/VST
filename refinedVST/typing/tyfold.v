@@ -103,7 +103,7 @@ Section tyfold.
     iExists _. iFrame.
     rewrite fmap_app. rewrite H. simpl.
     iSplit.
-    { iPureIntro. by rewrite !app_length Hlen length_fmap. }
+    { iPureIntro. by rewrite !length_app Hlen length_fmap. }
     rewrite last_snoc /=. iFrame. iSplitL "Hb1" => /=.
     - iApply (big_sepL_mono with "Hb1") => k y /(lookup_lt_Some _ _ _). rewrite -Hlen => Hl /=.
       rewrite ?app_comm_cons !lookup_app_l//=. lia.
