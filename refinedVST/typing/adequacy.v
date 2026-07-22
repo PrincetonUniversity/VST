@@ -79,7 +79,7 @@ Definition fn_params_post `{!VSTGS OK_ty Σ} {cs : compspecs} {A} fn fp (x : @dt
 Lemma typed_function_triple : forall `{!VSTGS OK_ty Σ} {cs : compspecs} {A} Espec ge f fp
     (Hcomplete : Forall (λ it, composite_compute.complete_legal_cosu_type it.2 = true) (fn_vars f))
     (Halign : Forall (λ it, align_mem.LegalAlignasFacts.LegalAlignasDefs.is_aligned cenv_cs ha_env_cs la_env_cs it.2 0 = true) (fn_vars f)),
-  typed_function Espec ge f fp ⊢ ∀ x : dtfr A, fun_triple Espec (Build_genv ge cenv_cs) (fn_params_pre f fp x) f (fn_params_post f fp x).
+  typed_function ge f fp ⊢ ∀ x : dtfr A, fun_triple Espec (Build_genv ge cenv_cs) (fn_params_pre f fp x) f (fn_params_post f fp x).
 Proof.
   rewrite /fun_triple /fn_params_pre /=; intros.
   iIntros "#H" (?) "!> %% (Hargs & HP) H0 Hstack".
@@ -89,7 +89,7 @@ Proof.
     pose proof (tc_vals_length _ _ H) as Hlen; rewrite length_map in Hlen.
     apply Forall2_length in Htys.
     rewrite monPred_objectively_elim.
-    iApply "Hf"; iFrame.
+    iApply ("Hf" with "[-]"); iFrame.
     iApply (stackframe_of_typed(typeG0 := TypeG _ _ VSTGS0) with "Hstack Hargs") => //.
     by rewrite length_fmap. }
   rewrite /= /Clight_seplog.bind_ret; iSplit.
@@ -106,7 +106,7 @@ Proof.
 Qed.
 
 Lemma typed_fptr_triple : forall `{!VSTGS OK_ty Σ} {cs : compspecs} {A} Espec ge fp l cty,
-  l ◁ᵥₐₗ|cty| function_ptr Espec ge fp ⊢ ∃ f, ⌜Genv.find_funct ge l = Some (Internal f)⌝ ∧ ∀ x : dtfr A, ▷ fun_triple Espec (Build_genv ge cenv_cs) (fn_params_pre f fp x) f (fn_params_post f fp x).
+  l ◁ᵥₐₗ|cty| function_ptr ge fp ⊢ ∃ f, ⌜Genv.find_funct ge l = Some (Internal f)⌝ ∧ ∀ x : dtfr A, ▷ fun_triple Espec (Build_genv ge cenv_cs) (fn_params_pre f fp x) f (fn_params_post f fp x).
 Proof.
   rewrite /ty_own_val_at /ty_own_val /= /ty_own_val /=.
   intros.
