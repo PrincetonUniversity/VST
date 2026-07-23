@@ -31,108 +31,108 @@ Require Import stdpp.gmap.
 
 Section RWMap.
 
-Context {Loc : Type}.
-Context {LocEqDec : EqDecision Loc}.
-Context {LocCountable : @Countable Loc _}.
+  Context {Loc : Type}.
+  Context {LocEqDec : EqDecision Loc}.
+  Context {LocCountable : @Countable Loc _}.
 
-Inductive rw_state : Type :=
-| Rst (n : nat)
-| Wst.
+  Inductive rw_state : Type :=
+  | Rst (n : nat)
+  | Wst.
 
-Variant mem_ev : Type :=
-| Read (l : Loc)
-| Write (l : Loc)
-| Alloc (l : Loc)
-| Free (l : Loc).
+  Variant mem_ev : Type :=
+  | Read (l : Loc)
+  | Write (l : Loc)
+  | Alloc (l : Loc)
+  | Free (l : Loc).
 
-Definition rw_map := gmap Loc rw_state.
+  Definition rw_map := gmap Loc rw_state.
 
-Implicit Types (μ : rw_map) (oμ : option rw_map) (l : Loc)
-   (ev : mem_ev) (evs : list mem_ev).
+  Implicit Types (μ : rw_map) (oμ : option rw_map) (l : Loc)
+    (ev : mem_ev) (evs : list mem_ev).
 
-Definition initial_rw : rw_map := ∅.
+  Definition initial_rw : rw_map := ∅.
 
-Definition rsv_Alloc μ l : option rw_map :=
-  match μ !! l with
-  | None => Some $ <[l := Rst 0]> μ
-  | _ => None
-  end.
+  Definition rsv_Alloc μ l : option rw_map :=
+    match μ !! l with
+    | None => Some $ <[l := Rst 0]> μ
+    | _ => None
+    end.
 
-(* can't free right now because a subsequent fin_Read needs the location to be define *)
-Definition rsv_Free μ : option rw_map :=
-   mret μ.
+  (* can't free right now because a subsequent fin_Read needs the location to be define *)
+  Definition rsv_Free μ : option rw_map :=
+    mret μ.
 
-Definition rsv_Write μ l : option rw_map :=
-  st ← μ !! l;
-  match st with
-  | Rst O => Some $ <[l := Wst]> μ
-  | _ => None
-  end.
+  Definition rsv_Write μ l : option rw_map :=
+    st ← μ !! l;
+    match st with
+    | Rst O => Some $ <[l := Wst]> μ
+    | _ => None
+    end.
 
-Definition rsv_Read μ l : option rw_map :=
-  st ← μ !! l;
-  match st with
-  | Rst n => Some $ <[l := Rst (S n)]> μ
-  | _ => None
-  end.
+  Definition rsv_Read μ l : option rw_map :=
+    st ← μ !! l;
+    match st with
+    | Rst n => Some $ <[l := Rst (S n)]> μ
+    | _ => None
+    end.
 
-Definition fin_Alloc μ : option rw_map := mret μ.
+  Definition fin_Alloc μ : option rw_map := mret μ.
 
-Definition fin_Free μ l : option rw_map :=
-  match μ !! l with
-  | Some _ => Some $ delete l μ
-  | _ => None
-  end.
+  Definition fin_Free μ l : option rw_map :=
+    match μ !! l with
+    | Some _ => Some $ delete l μ
+    | _ => None
+    end.
 
-Definition fin_Write μ l : option rw_map :=
-  st ← μ !! l;
-  match st with
-  | Wst => Some $ <[l := Rst O]> μ
-  | _ => None
-  end.
+  Definition fin_Write μ l : option rw_map :=
+    st ← μ !! l;
+    match st with
+    | Wst => Some $ <[l := Rst O]> μ
+    | _ => None
+    end.
 
-Definition fin_Read μ l : option rw_map :=
-  st ← μ !! l;
-  match st with
-  | Rst (S n) => Some $ <[l := Rst n]> μ
-  | _ => None
-  end.
+  Definition fin_Read μ l : option rw_map :=
+    st ← μ !! l;
+    match st with
+    | Rst (S n) => Some $ <[l := Rst n]> μ
+    | _ => None
+    end.
 
-Lemma rsv_Write_fin_Write μ l :
-  (μ' ← rsv_Write μ l;
-   fin_Write μ' l) = Some μ.
-Proof. Admitted.
+  Lemma rsv_Write_fin_Write μ l :
+    (μ' ← rsv_Write μ l;
+    fin_Write μ' l) = Some μ.
+  Proof. Admitted.
 
-Lemma rsv_Read_fin_Read μ l :
-  (μ' ← rsv_Read μ l;
-   fin_Read μ' l) = Some μ.
-Proof. Admitted.
+  Lemma rsv_Read_fin_Read μ l :
+    (μ' ← rsv_Read μ l;
+    fin_Read μ' l) = Some μ.
+  Proof. Admitted.
 
-Definition rsv_ev ev oμ : option rw_map :=
-  μ ← oμ;
-  match ev with
-  | Read l => rsv_Read μ l
-  | Write l => rsv_Write μ l
-  | Alloc l => rsv_Alloc μ l
-  | Free l => rsv_Free μ
-  end.
+  Definition rsv_ev ev oμ : option rw_map :=
+    μ ← oμ;
+    match ev with
+    | Read l => rsv_Read μ l
+    | Write l => rsv_Write μ l
+    | Alloc l => rsv_Alloc μ l
+    | Free l => rsv_Free μ
+    end.
 
-Definition fin_ev ev oμ : option rw_map :=
-  μ ← oμ;
-  match ev with
-  | Read l => fin_Read μ l
-  | Write l => fin_Write μ l
-  | Alloc _ => fin_Alloc μ
-  | Free l => fin_Free μ l
-  end.
+  Definition fin_ev ev oμ : option rw_map :=
+    μ ← oμ;
+    match ev with
+    | Read l => fin_Read μ l
+    | Write l => fin_Write μ l
+    | Alloc _ => fin_Alloc μ
+    | Free l => fin_Free μ l
+    end.
 
-(* for memory events, "reserve permission" by updating rw_map *)
-Definition rsv evs μ : option rw_map :=
-  foldr rsv_ev (Some μ) evs.
+  (* for memory events, "reserve permission" by updating rw_map *)
+  Definition rsv evs μ : option rw_map :=
+    foldr rsv_ev (Some μ) evs.
 
-(* some memory events release permission after completion. *)
-Definition fin evs μ : option rw_map :=
-  foldr fin_ev (Some μ) evs.
+  (* some memory events release permission after completion. *)
+  Definition fin evs μ : option rw_map :=
+    foldr fin_ev (Some μ) evs.
 
 End RWMap.
 
@@ -148,114 +148,114 @@ End Memory.
 
 Section AtomicMachine.
 
-Context `{mem_inst: !@Memory Loc Val LocEqDec LocCountable Mem Layout}.
+  Context `{mem_inst: !@Memory Loc Val LocEqDec LocCountable Mem Layout}.
 
-Local Notation mem_ev := (mem_ev(Loc:=Loc)).
-Local Notation rw_map := (rw_map(Loc:=Loc)).
+  Local Notation mem_ev := (mem_ev(Loc:=Loc)).
+  Local Notation rw_map := (rw_map(Loc:=Loc)).
 
-Inductive atomic_op : Type :=
-| ALoad : Layout -> Loc -> atomic_op
-| AStore : Layout -> Loc -> Val -> atomic_op
-| ACAS : Layout -> Loc -> Val (* expected val *) ->
-        Val (* new val*) -> atomic_op.
+  Inductive atomic_op : Type :=
+  | ALoad : Layout -> Loc -> atomic_op
+  | AStore : Layout -> Loc -> Val -> atomic_op
+  | ACAS : Layout -> Loc -> Val (* expected val *) ->
+          Val (* new val*) -> atomic_op.
 
-Class sqlang {mem_inst : @Memory Loc Val LocEqDec LocCountable Mem Layout} : Type := {
-  (* thread local state *)
-  sqlang_thrd_st : Type;
-  (* events emitted by the underlying sequential semantics *)
-  sqlang_true_val : Val;
-  sqlang_false_val : Val;
-  sqlang_step :
-    sqlang_thrd_st -> Mem -> list mem_ev -> sqlang_thrd_st -> Mem -> Prop;
+  Class sqlang {mem_inst : @Memory Loc Val LocEqDec LocCountable Mem Layout} : Type := {
+    (* thread local state *)
+    sqlang_thrd_st : Type;
+    (* events emitted by the underlying sequential semantics *)
+    sqlang_true_val : Val;
+    sqlang_false_val : Val;
+    sqlang_step :
+      sqlang_thrd_st -> Mem -> list mem_ev -> sqlang_thrd_st -> Mem -> Prop;
 
-  (* the atomic operation, and a continuation that takes the return value of the operation, if any *)
-  sqlang_at_external :
-    sqlang_thrd_st -> option (atomic_op * (option Val -> sqlang_thrd_st));
+    (* the atomic operation, and a continuation that takes the return value of the operation, if any *)
+    sqlang_at_external :
+      sqlang_thrd_st -> option (atomic_op * (option Val -> sqlang_thrd_st));
 
-  (** Value (in)equality for CAS *)
-  sqlang_ValEq : Mem -> Val -> Val -> Prop;
-  sqlang_ValNEq : Mem -> Val -> Val -> Prop;
-}.
+    (** Value (in)equality for CAS *)
+    sqlang_ValEq : Mem -> Val -> Val -> Prop;
+    sqlang_ValNEq : Mem -> Val -> Val -> Prop;
+  }.
 
-Context {MemMixinInst : @MemMixin Loc Val _ _ Mem Layout}.
-Context {L : sqlang}.
+  Context {MemMixinInst : @MemMixin Loc Val _ _ Mem Layout}.
+  Context {L : sqlang}.
 
-Local Notation C := sqlang_thrd_st.
-Local Notation at_external := sqlang_at_external.
-Local Notation Vtrue := sqlang_true_val.
-Local Notation Vfalse := sqlang_false_val.
-Local Notation ValEq := sqlang_ValEq.
-Local Notation ValNEq := sqlang_ValNEq.
+  Local Notation C := sqlang_thrd_st.
+  Local Notation at_external := sqlang_at_external.
+  Local Notation Vtrue := sqlang_true_val.
+  Local Notation Vfalse := sqlang_false_val.
+  Local Notation ValEq := sqlang_ValEq.
+  Local Notation ValNEq := sqlang_ValNEq.
 
-Implicit Types (μ : rw_map) (oμ : option rw_map) (l : Loc)
-   (ev : mem_ev) (evs : list mem_ev) (ly : Layout).
+  Implicit Types (μ : rw_map) (oμ : option rw_map) (l : Loc)
+    (ev : mem_ev) (evs : list mem_ev) (ly : Layout).
 
-Inductive tstate : Type :=
-| Running (c : C) (T : list mem_ev)
-| StuckState.
+  Inductive tstate : Type :=
+  | Running (c : C) (T : list mem_ev)
+  | StuckState.
 
-Definition tpool := gmap nat tstate.
+  Definition tpool := gmap nat tstate.
 
-(** No non-atomic write in progress anywhere in ls. *)
-Definition readable μ (ls : list Loc) : Prop :=
-  Forall (fun l => μ !! l <> Some Wst) ls.
+  (** No non-atomic write in progress anywhere in ls. *)
+  Definition readable μ (ls : list Loc) : Prop :=
+    Forall (fun l => μ !! l <> Some Wst) ls.
 
-(** No non-atomic access at all in ls. *)
-Definition writable μ (ls : list Loc) : Prop :=
-  Forall (fun l => μ !! l = Some (Rst 0)) ls.
+  (** No non-atomic access at all in ls. *)
+  Definition writable μ (ls : list Loc) : Prop :=
+    Forall (fun l => μ !! l = Some (Rst 0)) ls.
 
-Inductive at_step : tpool -> Mem -> rw_map -> tpool -> Mem -> rw_map -> Prop :=
+  Inductive at_step : tpool -> Mem -> rw_map -> tpool -> Mem -> rw_map -> Prop :=
 
-| Core_Try : forall tp m μ i c T c' m' μ'
-    (Hget : tp !! i = Some (Running c []))
-    (Hstep : sqlang_step c m T c' m')
-    (Hreserve : rsv T μ = Some μ'),
-    at_step tp m μ (<[i := Running c' T]> tp) m' μ'
-  
-| Core_Commit : forall tp m μ i c T μ'
-    (Hget : tp !! i = Some (Running c T))
-    (Hne : T <> [])
-    (Hcommit : fin T μ = Some μ'),
-    at_step tp m μ (<[i := Running c []]> tp) m μ'
+  | Core_Try : forall tp m μ i c T c' m' μ'
+      (Hget : tp !! i = Some (Running c []))
+      (Hstep : sqlang_step c m T c' m')
+      (Hreserve : rsv T μ = Some μ'),
+      at_step tp m μ (<[i := Running c' T]> tp) m' μ'
+    
+  | Core_Commit : forall tp m μ i c T μ'
+      (Hget : tp !! i = Some (Running c T))
+      (Hne : T <> [])
+      (Hcommit : fin T μ = Some μ'),
+      at_step tp m μ (<[i := Running c []]> tp) m μ'
 
-| SC_Read : forall tp m μ i c ly l v K
-    (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c = Some (ALoad ly l, K))
-    (Hmu : readable μ (layout_to_locs l ly))
-    (Hload : load m l ly = Some v),
-    at_step tp m μ (<[i := Running (K $ Some v) []]> tp) m μ
+  | SC_Read : forall tp m μ i c ly l v K
+      (Hget : tp !! i = Some (Running c []))
+      (Hext : at_external c = Some (ALoad ly l, K))
+      (Hmu : readable μ (layout_to_locs l ly))
+      (Hload : load m l ly = Some v),
+      at_step tp m μ (<[i := Running (K $ Some v) []]> tp) m μ
 
-| SC_Write : forall tp m μ i c ly l v m' K
-    (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c = Some (AStore ly l v, K))
-    (Hmu : writable μ (layout_to_locs l ly))
-    (Hstore : store m l ly v = Some m'),
-    at_step tp m μ (<[i := Running (K None) []]> tp) m' μ
+  | SC_Write : forall tp m μ i c ly l v m' K
+      (Hget : tp !! i = Some (Running c []))
+      (Hext : at_external c = Some (AStore ly l v, K))
+      (Hmu : writable μ (layout_to_locs l ly))
+      (Hstore : store m l ly v = Some m'),
+      at_step tp m μ (<[i := Running (K None) []]> tp) m' μ
 
-| SC_Cas_Suc : forall tp m μ i c ly l v_exp v_new v_cur m' K
-    (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c = Some (ACAS ly l v_exp v_new, K))
-    (Hmu : writable μ (layout_to_locs l ly))
-    (Hload : load m l ly = Some v_cur)
-    (Heq : ValEq m v_cur v_exp)
-    (Hstore : store m l ly v_new = Some m'),
-    at_step tp m μ (<[i := Running (K $ Some Vtrue) []]> tp) m' μ
+  | SC_Cas_Suc : forall tp m μ i c ly l v_exp v_new v_cur m' K
+      (Hget : tp !! i = Some (Running c []))
+      (Hext : at_external c = Some (ACAS ly l v_exp v_new, K))
+      (Hmu : writable μ (layout_to_locs l ly))
+      (Hload : load m l ly = Some v_cur)
+      (Heq : ValEq m v_cur v_exp)
+      (Hstore : store m l ly v_new = Some m'),
+      at_step tp m μ (<[i := Running (K $ Some Vtrue) []]> tp) m' μ
 
-| SC_Cas_Fail : forall tp m μ i c ly l v_exp v_new v_cur K
-    (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c = Some (ACAS ly l v_exp v_new, K))
-    (Hmu : readable μ (layout_to_locs l ly))
-    (Hload : load m l ly = Some v_cur)
-    (Hneq : ValNEq m v_cur v_exp),
-    at_step tp m μ (<[i := Running (K $ Some Vfalse) []]> tp) m μ
+  | SC_Cas_Fail : forall tp m μ i c ly l v_exp v_new v_cur K
+      (Hget : tp !! i = Some (Running c []))
+      (Hext : at_external c = Some (ACAS ly l v_exp v_new, K))
+      (Hmu : readable μ (layout_to_locs l ly))
+      (Hload : load m l ly = Some v_cur)
+      (Hneq : ValNEq m v_cur v_exp),
+      at_step tp m μ (<[i := Running (K $ Some Vfalse) []]> tp) m μ
 
-(** comparison succeeded, but can't write new value because reserve fails. *)
-| SC_Cas_Stuck : forall tp m μ i c ly l v_exp v_new v_cur K
-    (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c = Some (ACAS ly l v_exp v_new, K))
-    (Hload : load m l ly = Some v_cur)
-    (Heq : ValEq m v_cur v_exp)
-    (Ho : ~ writable μ (layout_to_locs l ly)),
-    at_step tp m μ (<[i := StuckState]> tp) m μ.
+  (** comparison succeeded, but can't write new value because reserve fails. *)
+  | SC_Cas_Stuck : forall tp m μ i c ly l v_exp v_new v_cur K
+      (Hget : tp !! i = Some (Running c []))
+      (Hext : at_external c = Some (ACAS ly l v_exp v_new, K))
+      (Hload : load m l ly = Some v_cur)
+      (Heq : ValEq m v_cur v_exp)
+      (Ho : ~ writable μ (layout_to_locs l ly)),
+      at_step tp m μ (<[i := StuckState]> tp) m μ.
 
 End AtomicMachine.
