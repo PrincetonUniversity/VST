@@ -161,47 +161,18 @@ Inductive atomic_op : Type :=
 | ACAS : Layout -> Loc -> Val (* expected val *) ->
         Val (* new val*) -> atomic_op.
 
-(** The type of return value of an atomic operation.
-    Loads returns the value read; stores returns nothing; CAS returns a boolean represented in the language's value type. *)
-Definition atomic_ret_ty (op : atomic_op) : Type :=
-  match op with
-  | ALoad _ _ => Val
-  | AStore _ _ _ => unit
-  | ACAS _ _ _ _ => Val
-  end.
-
-(** An atomic request packages an operation with a continuation whose input
-    is indexed by that operation.
-    TODO can we get rid of the sigma type? *)
-Definition atomic_call (C : Type) : Type :=
-  { op : atomic_op & atomic_ret_ty op -> C }.
-
-Definition load_call {C : Type} (ly : Layout) (l : Loc) (K : Val -> C)
-    : atomic_call C :=
-  existT (ALoad ly l) K.
-
-Definition store_call {C : Type}
-    (ly : Layout) (l : Loc) (v : Val) (K : unit -> C) : atomic_call C :=
-  existT (AStore ly l v) K.
-
-Definition cas_call {C : Type}
-    (ly : Layout) (l : Loc) (v_exp v_new : Val) (K : Val -> C)
-    : atomic_call C :=
-  existT (ACAS ly l v_exp v_new) K.
-
 Class sqlang {MemMixinInst : @MemMixin Loc Val _ _ Mem Layout} : Type := {
   (* thread local state *)
   sqlang_thrd_st : Type;
   (* events emitted by the underlying sequential semantics *)
-  sqlang_ev : Type;
   sqlang_true_val : Val;
   sqlang_false_val : Val;
   sqlang_step :
-    sqlang_thrd_st -> Mem -> list sqlang_ev -> sqlang_thrd_st -> Mem -> Prop;
-  sqlang_into_evs : list sqlang_ev -> list mem_ev;
+    sqlang_thrd_st -> Mem -> list mem_ev -> sqlang_thrd_st -> Mem -> Prop;
 
+  (* the atomic operation, and a continuation that takes the return value of the operation, if any *)
   sqlang_at_external :
-    sqlang_thrd_st -> option (atomic_call sqlang_thrd_st);
+    sqlang_thrd_st -> option (atomic_op * (option Val -> sqlang_thrd_st));
 
   (** Value (in)equality for CAS *)
   sqlang_ValEq : Mem -> Val -> Val -> Prop;
@@ -212,8 +183,6 @@ Context {MemMixinInst : @MemMixin Loc Val _ _ Mem Layout}.
 Context {L : sqlang}.
 
 Local Notation C := sqlang_thrd_st.
-Local Notation E := sqlang_ev.
-Local Notation into_evs := sqlang_into_evs.
 Local Notation at_external := sqlang_at_external.
 Local Notation Vtrue := sqlang_true_val.
 Local Notation Vfalse := sqlang_false_val.
@@ -224,7 +193,7 @@ Implicit Types (μ : rw_map) (oμ : option rw_map) (l : Loc)
    (ev : mem_ev) (evs : list mem_ev) (ly : Layout).
 
 Inductive tstate : Type :=
-| Running (c : C) (T : list E)
+| Running (c : C) (T : list mem_ev)
 | StuckState.
 
 Definition tpool := gmap nat tstate.
@@ -242,50 +211,50 @@ Inductive at_step : tpool -> Mem -> rw_map -> tpool -> Mem -> rw_map -> Prop :=
 | Core_Try : forall tp m μ i c T c' m' μ'
     (Hget : tp !! i = Some (Running c []))
     (Hstep : sqlang_step c m T c' m')
-    (Hreserve : rsv (into_evs T) μ = Some μ'),
+    (Hreserve : rsv T μ = Some μ'),
     at_step tp m μ (<[i := Running c' T]> tp) m' μ'
   
 | Core_Commit : forall tp m μ i c T μ'
     (Hget : tp !! i = Some (Running c T))
     (Hne : T <> [])
-    (Hcommit : fin (into_evs T) μ = Some μ'),
+    (Hcommit : fin T μ = Some μ'),
     at_step tp m μ (<[i := Running c []]> tp) m μ'
 
-| SC_Read : forall tp m μ i c ly l v (K : Val -> C)
+| SC_Read : forall tp m μ i c ly l v K
     (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c = Some (load_call ly l K))
+    (Hext : at_external c = Some (ALoad ly l, K))
     (Hmu : readable μ (layout_to_locs l ly))
     (Hload : load m l ly = Some v),
-    at_step tp m μ (<[i := Running (K v) [] ]> tp) m μ
+    at_step tp m μ (<[i := Running (K $ Some v) []]> tp) m μ
 
-| SC_Write : forall tp m μ i c ly l v m' (K : unit -> C)
+| SC_Write : forall tp m μ i c ly l v m' K
     (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c = Some (store_call ly l v K))
+    (Hext : at_external c = Some (AStore ly l v, K))
     (Hmu : writable μ (layout_to_locs l ly))
     (Hstore : store m l ly v = Some m'),
-    at_step tp m μ (<[i := Running (K ()) []]> tp) m' μ
+    at_step tp m μ (<[i := Running (K None) []]> tp) m' μ
 
-| SC_Cas_Suc : forall tp m μ i c ly l v_exp v_new v_cur m' (K : Val -> C)
+| SC_Cas_Suc : forall tp m μ i c ly l v_exp v_new v_cur m' K
     (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c = Some (cas_call ly l v_exp v_new K))
+    (Hext : at_external c = Some (ACAS ly l v_exp v_new, K))
     (Hmu : writable μ (layout_to_locs l ly))
     (Hload : load m l ly = Some v_cur)
     (Heq : ValEq m v_cur v_exp)
     (Hstore : store m l ly v_new = Some m'),
-    at_step tp m μ (<[i := Running (K Vtrue) []]> tp) m' μ
+    at_step tp m μ (<[i := Running (K $ Some Vtrue) []]> tp) m' μ
 
-| SC_Cas_Fail : forall tp m μ i c ly l v_exp v_new v_cur (K : Val -> C)
+| SC_Cas_Fail : forall tp m μ i c ly l v_exp v_new v_cur K
     (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c = Some (cas_call ly l v_exp v_new K))
+    (Hext : at_external c = Some (ACAS ly l v_exp v_new, K))
     (Hmu : readable μ (layout_to_locs l ly))
     (Hload : load m l ly = Some v_cur)
     (Hneq : ValNEq m v_cur v_exp),
-    at_step tp m μ (<[i := Running (K Vfalse) []]> tp) m μ
+    at_step tp m μ (<[i := Running (K $ Some Vfalse) []]> tp) m μ
 
 (** comparison succeeded, but can't write new value because reserve fails. *)
-| SC_Cas_Stuck : forall tp m μ i c ly l v_exp v_new v_cur (K : Val -> C)
+| SC_Cas_Stuck : forall tp m μ i c ly l v_exp v_new v_cur K
     (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c = Some (cas_call ly l v_exp v_new K))
+    (Hext : at_external c = Some (ACAS ly l v_exp v_new, K))
     (Hload : load m l ly = Some v_cur)
     (Heq : ValEq m v_cur v_exp)
     (Ho : ~ writable μ (layout_to_locs l ly)),

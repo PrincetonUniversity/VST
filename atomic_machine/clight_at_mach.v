@@ -83,18 +83,21 @@ Definition clight_into_evs (trace : list mem_event) : list clight_mem_ev :=
  *)
 Definition clight_at_external
     (c : Clight_core.CC_core)
-    : option (@atomic_call address val memory_chunk Clight_core.CC_core) :=
+    : option (atomic_op * (option val -> Clight_core.CC_core)) :=
   match c with
   | Clight_core.Callstate (Ctypes.External ef _ _ _) args k =>
       match clight_decode_atomic ef args with
       | Some (ALoad ly l) =>
-          Some (load_call ly l (fun v => Clight_core.Returnstate v k))
+          Some (ALoad ly l, (fun ov =>
+            Clight_core.Returnstate
+              (match ov with Some v => v | None => Vundef end) k))
       | Some (AStore ly l v) =>
-          Some (store_call ly l v
-                  (fun _ : unit => Clight_core.Returnstate Vundef k))
+          Some (AStore ly l v,
+                  (fun _ => Clight_core.Returnstate Vundef k))
       | Some (ACAS ly l v_exp v_new) =>
-          Some (cas_call ly l v_exp v_new
-                  (fun v => Clight_core.Returnstate v k))
+          Some (ACAS ly l v_exp v_new,
+                  (fun ov => Clight_core.Returnstate
+                    (match ov with Some v => v | None => Vundef end) k))
       | None => None
       end
   | _ => None
@@ -110,14 +113,21 @@ Definition clight_at_external
      layout_to_locs := fun l chunk =>
        byte_addresses l (size_chunk_nat chunk) |}.
 
+(* event_semantics.ev_step but events are turned into mem_ev *)
+Inductive ev_step_with_mem_ev
+    (evsem_inst : @event_semantics.EvSem Clight_core.CC_core) :
+    Clight_core.CC_core -> mem -> list clight_mem_ev ->
+    Clight_core.CC_core -> mem -> Prop :=
+| ev_step_with_mem_ev_intro c m T c' m' :
+    event_semantics.ev_step evsem_inst c m T c' m' ->
+    ev_step_with_mem_ev evsem_inst c m (clight_into_evs T) c' m'.
+
 #[global] Instance Clight_language (ge : Clight.genv)
-    : @sqlang address val mem memory_chunk :=
+    : @sqlang address val mem memory_chunk _ _ clight_mem_mixin :=
   {| sqlang_thrd_st := Clight_core.CC_core;
-     sqlang_ev := event_semantics.mem_event;
      sqlang_true_val := Values.Vtrue;
      sqlang_false_val := Values.Vfalse;
-     sqlang_step := event_semantics.ev_step (Clight_evsem.CLC_evsem ge);
-     sqlang_into_evs := clight_into_evs;
+     sqlang_step := ev_step_with_mem_ev (Clight_evsem.CLC_evsem ge);
      sqlang_at_external := clight_at_external;
      sqlang_ValEq := clight_ValEq;
      sqlang_ValNEq := clight_ValNEq |}.
