@@ -279,9 +279,9 @@ endif
 # ########## Flags ##########
 
 ifeq ($(ZLIST),platform)
-  VSTDIRS= shared msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics
+  VSTDIRS= shared msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics atomic_machine
 else
-  VSTDIRS= shared msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics
+  VSTDIRS= shared msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics atomic_machine
 endif
 OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730 atomic_machine
 DIRS = $(VSTDIRS) $(OTHERDIRS)
@@ -789,6 +789,11 @@ all: vst files tests hmacdrbg tweetnacl aes
 endif
 
 files: _CoqProject $(FILES:.v=.vo)
+
+lambda-rust-reference: _CoqProject \
+	atomic_machine/lambda_rust/syntax.vo \
+	atomic_machine/lambda_rust/reference.vo \
+	atomic_machine/lambda_rust/races.vo
 
 # TODO:
 #
