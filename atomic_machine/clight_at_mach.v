@@ -100,7 +100,7 @@ Definition clight_at_external
   | _ => None
   end.
 
-#[local] Instance clight_mem_mixin :
+#[global] Instance clight_mem_mixin :
     MemMixin (Loc := address) (Val := val)
       (Mem := mem) (Layout := memory_chunk) :=
   {| load := fun m l chunk =>
@@ -110,7 +110,7 @@ Definition clight_at_external
      layout_to_locs := fun l chunk =>
        byte_addresses l (size_chunk_nat chunk) |}.
 
-Definition Clight_language (ge : Clight.genv)
+#[global] Instance Clight_language (ge : Clight.genv)
     : @sqlang address val mem memory_chunk :=
   {| sqlang_thrd_st := Clight_core.CC_core;
      sqlang_ev := event_semantics.mem_event;
@@ -121,10 +121,5 @@ Definition Clight_language (ge : Clight.genv)
      sqlang_at_external := clight_at_external;
      sqlang_ValEq := clight_ValEq;
      sqlang_ValNEq := clight_ValNEq |}.
-
-(** shorthands. *)
-Definition Clight_tstate (ge : Clight.genv) := tstate (Clight_language ge).
-Definition Clight_tpool (ge : Clight.genv) := tpool (Clight_language ge).
-Definition Clight_step (ge : Clight.genv) := step (Clight_language ge).
 
 End ClightInstantiation.
