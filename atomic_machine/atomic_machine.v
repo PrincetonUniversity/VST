@@ -12,14 +12,8 @@
     "on-going" memory events. If a thread has on-going events, it can only
     execute [Core_Commit] to finish the memory events, and release the reserve.
     Data-race is modeled by failure to reserve in [μ].
-    
- *)
 
-(* Require Import compcert.lib.Coqlib.
-Require Import compcert.lib.Integers.
-Require Import compcert.common.Values.
-Require Import compcert.common.Memory.
-Require Import compcert.common.AST. *)
+ *)
 
 From Stdlib Require Import Arith.PeanoNat.
 From Stdlib Require Import Strings.String.
@@ -27,7 +21,6 @@ From Stdlib Require Import List.
 Import ListNotations.
 
 Require Import stdpp.gmap.
-(* Import Address Values. *)
 
 (** ** Reader/writer states
 
@@ -38,9 +31,9 @@ Require Import stdpp.gmap.
 
 Section RWMap.
 
-  Context {Loc : Type} .
-  Declare Instance LocEqDec : EqDecision Loc.
-  Declare Instance LocCountable : Countable Loc.
+Context {Loc : Type}.
+Context {LocEqDec : EqDecision Loc}.
+Context {LocCountable : @Countable Loc _}.
 
 Inductive rw_state : Type :=
 | Rst (n : nat)
@@ -148,29 +141,20 @@ Section Memory.
   Class MemMixin {Loc Val : Type} {LocEqDec : EqDecision Loc} {LocCountable : Countable Loc} {Mem : Type} {Layout : Type} : Type := {
     load : Mem -> Loc -> Layout -> option Val;
     store : Mem -> Loc -> Layout -> Val -> option Mem;
-  }.
-
-  Class RWMapMixin {Loc : Type} {LocEqDec : EqDecision Loc} {LocCountable : Countable Loc} {Layout : Type} : Type := {
-    readable : @rw_map Loc -> Loc -> Layout -> bool;
-    writable : @rw_map Loc -> Loc -> Layout -> bool;
+    layout_to_locs : Layout -> list Loc
   }.
 
 End Memory.
 
 Section AtomicMachine.
 
-(** ** Atomic operations
+Context {Loc Val Mem Layout : Type}.
+Context {LocEqDec : EqDecision Loc}.
+Context {LocCountable : @Countable Loc _}.
+Context {MemMixinInst : @MemMixin Loc Val _ _ Mem Layout}.
 
-    How the underlying language phrases atomic operations as external
-    calls is part of the language interface ([lang_decode_atomic] below); this is
-    their common shape.  Each operation carries the [memory_chunk] it
-    accesses. *)
-
-
-Context `{MemMixinInst : !@MemMixin Loc Val LocEqDec LocCountable Mem Layout}.
-Context `{RWMapMixinInst : !@RWMapMixin Loc LocEqDec LocCountable Layout}.
-
-Local Notation mem_ev := (@mem_ev Loc).
+Local Notation mem_ev := (mem_ev(Loc:=Loc)).
+Local Notation rw_map := (rw_map(Loc:=Loc)).
 
 Inductive atomic_op : Type :=
 | ALoad : Layout -> Loc -> atomic_op
@@ -178,15 +162,47 @@ Inductive atomic_op : Type :=
 | ACAS : Layout -> Loc -> Val (* expected val *) ->
         Val (* new val*) -> atomic_op.
 
+(** The type of return value of an atomic operation.
+    Loads returns the value read; stores returns nothing; CAS returns a boolean represented in the language's value type. *)
+Definition atomic_ret_ty (op : atomic_op) : Type :=
+  match op with
+  | ALoad _ _ => Val
+  | AStore _ _ _ => unit
+  | ACAS _ _ _ _ => Val
+  end.
+
+(** An atomic request packages an operation with a continuation whose input
+    is indexed by that operation.
+    TODO can we get rid of the sigma type? *)
+Definition atomic_call (C : Type) : Type :=
+  { op : atomic_op & atomic_ret_ty op -> C }.
+
+Definition load_call {C : Type} (ly : Layout) (l : Loc) (K : Val -> C)
+    : atomic_call C :=
+  existT (ALoad ly l) K.
+
+Definition store_call {C : Type}
+    (ly : Layout) (l : Loc) (v : Val) (K : unit -> C) : atomic_call C :=
+  existT (AStore ly l v) K.
+
+Definition cas_call {C : Type}
+    (ly : Layout) (l : Loc) (v_exp v_new : Val) (K : Val -> C)
+    : atomic_call C :=
+  existT (ACAS ly l v_exp v_new) K.
+
 Record sqlang : Type := {
   (* thread local state *)
   sqlang_thrd_st : Type;
+  (* events emitted by the underlying sequential semantics *)
+  sqlang_ev : Type;
   sqlang_true_val : Val;
   sqlang_false_val : Val;
-  sqlang_step : sqlang_thrd_st -> Mem -> list mem_ev -> sqlang_thrd_st -> Mem -> Prop;
-  sqlang_into_evs : list mem_ev -> list mem_ev;
+  sqlang_step :
+    sqlang_thrd_st -> Mem -> list sqlang_ev -> sqlang_thrd_st -> Mem -> Prop;
+  sqlang_into_evs : list sqlang_ev -> list mem_ev;
 
-  sqlang_at_external {ret_ty : Type} : sqlang_thrd_st -> Mem -> option (atomic_op * (ret_ty -> sqlang_thrd_st));
+  sqlang_at_external :
+    sqlang_thrd_st -> option (atomic_call sqlang_thrd_st);
 
   (** Value (in)equality for CAS *)
   sqlang_ValEq : Mem -> Val -> Val -> Prop;
@@ -196,6 +212,7 @@ Record sqlang : Type := {
 Context (L : sqlang).
 
 Local Notation C := (sqlang_thrd_st L).
+Local Notation E := (sqlang_ev L).
 Local Notation into_evs := (sqlang_into_evs L).
 Local Notation at_external := (sqlang_at_external L).
 Local Notation Vtrue := (sqlang_true_val L).
@@ -203,27 +220,22 @@ Local Notation Vfalse := (sqlang_false_val L).
 Local Notation ValEq := (sqlang_ValEq L).
 Local Notation ValNEq := (sqlang_ValNEq L).
 
-Implicit Types (μ : @rw_map Loc) (oμ : option $ @rw_map Loc) (l : Loc)
+Implicit Types (μ : rw_map) (oμ : option rw_map) (l : Loc)
    (ev : mem_ev) (evs : list mem_ev) (ly : Layout).
 
 Inductive tstate : Type :=
-| Running (c : C) (T : list mem_ev)
+| Running (c : C) (T : list E)
 | StuckState.
 
 Definition tpool := gmap nat tstate.
 
-Definition initial_tp (c : C) : tpool :=
-  <[0 := Running c []]> ∅.
+(** No non-atomic write in progress anywhere in ls. *)
+Definition readable μ (ls : list Loc) : Prop :=
+  Forall (fun l => μ !! l <> Some Wst) ls.
 
-(** [μ] conditions on the byte range of an atomic access *)
-
-(** No non-atomic write in progress anywhere in the range (paper: μ(l) = Rst n). *)
-(* Definition readable μ l (len : Z) : Prop :=
-  forall o : Z, Z.le l.2 o /\ Z.lt o (l.2 + len) -> μ !! (l.1, o) <> Some Wst. *)
-
-(** No non-atomic access at all in progress in the range (paper: μ(l) = Rst 0). *)
-(* Definition writable μ l (len : Z) : Prop :=
-  forall o : Z, Z.le (snd l) o /\ Z.lt o (snd l + len) -> μ !! (fst l, o) = Some (Rst 0). *)
+(** No non-atomic access at all in ls. *)
+Definition writable μ (ls : list Loc) : Prop :=
+  Forall (fun l => μ !! l = Some (Rst 0)) ls.
 
 Inductive step : tpool -> Mem -> rw_map -> tpool -> Mem -> rw_map -> Prop :=
 
@@ -241,22 +253,22 @@ Inductive step : tpool -> Mem -> rw_map -> tpool -> Mem -> rw_map -> Prop :=
 
 | SC_Read : forall tp m μ i c ly l v (K : Val -> C)
     (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c m = Some (ALoad ly l, K))
-    (Hmu : readable μ l ly = true)
+    (Hext : at_external c = Some (load_call ly l K))
+    (Hmu : readable μ (layout_to_locs ly) )
     (Hload : load m l ly = Some v),
     step tp m μ (<[i := Running (K v) [] ]> tp) m μ
 
 | SC_Write : forall tp m μ i c ly l v m' (K : unit -> C)
     (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c m = Some (AStore ly l v, K))
-    (Hmu : writable μ l ly = true)
+    (Hext : at_external c = Some (store_call ly l v K))
+    (Hmu : writable μ (layout_to_locs ly) )
     (Hstore : store m l ly v = Some m'),
     step tp m μ (<[i := Running (K ()) []]> tp) m' μ
 
 | SC_Cas_Suc : forall tp m μ i c ly l v_exp v_new v_cur m' (K : Val -> C)
     (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c m = Some (ACAS ly l v_exp v_new, K))
-    (Hmu : writable μ l ly = true)
+    (Hext : at_external c = Some (cas_call ly l v_exp v_new K))
+    (Hmu : writable μ (layout_to_locs ly) )
     (Hload : load m l ly = Some v_cur)
     (Heq : ValEq m v_cur v_exp)
     (Hstore : store m l ly v_new = Some m'),
@@ -264,18 +276,19 @@ Inductive step : tpool -> Mem -> rw_map -> tpool -> Mem -> rw_map -> Prop :=
 
 | SC_Cas_Fail : forall tp m μ i c ly l v_exp v_new v_cur (K : Val -> C)
     (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c m = Some (ACAS ly l v_exp v_new, K))
-    (Hmu : readable μ l ly = true)
+    (Hext : at_external c = Some (cas_call ly l v_exp v_new K))
+    (Hmu : readable μ (layout_to_locs ly) )
     (Hload : load m l ly = Some v_cur)
     (Hneq : ValNEq m v_cur v_exp),
     step tp m μ (<[i := Running (K Vfalse) []]> tp) m μ
-(* SC_Cas_Stuck is vacuous in CompCert, but non-trivial in lambda-Rust. *)
-| SC_Cas_Stuck : forall tp m μ i c ly l v_exp v_new v_cur (o : Z) (K : Val -> C)
+
+(* SC_Cas_Stuck should be vacuous in CompCert, but useful in lambda-Rust. *)
+| SC_Cas_Stuck : forall tp m μ i c ly l v_exp v_new v_cur (K : Val -> C)
     (Hget : tp !! i = Some (Running c []))
-    (Hext : at_external c m = Some (ACAS ly l v_exp v_new, K))
+    (Hext : at_external c = Some (cas_call ly l v_exp v_new K))
     (Hload : load m l ly = Some v_cur)
     (Heq : ValEq m v_cur v_exp)
-    (Ho : writable μ l ly = false),
+    (Ho : writable μ (layout_to_locs ly) = false),
     step tp m μ (<[i := StuckState]> tp) m μ.
 
 End AtomicMachine.
