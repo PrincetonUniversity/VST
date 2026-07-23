@@ -13,6 +13,7 @@ Import ListNotations.
 Require Import VST.sepcomp.event_semantics.
 Set Warnings "-custom-entry-overridden".
 Require Import VST.veric.Clight_evsem.
+Require Import VST.veric.val_lemmas.
 Set Warnings "custom-entry-overridden".
 Require Import atomic_machine.atomic_machine.
 
@@ -88,16 +89,13 @@ Definition clight_at_external
   | Clight_core.Callstate (Ctypes.External ef _ _ _) args k =>
       match clight_decode_atomic ef args with
       | Some (ALoad ly l) =>
-          Some (ALoad ly l, (fun ov =>
-            Clight_core.Returnstate
-              (match ov with Some v => v | None => Vundef end) k))
+          Some (ALoad ly l, fun ov =>
+            Clight_core.Returnstate (force_val ov) k)
       | Some (AStore ly l v) =>
-          Some (AStore ly l v,
-                  (fun _ => Clight_core.Returnstate Vundef k))
+          Some (AStore ly l v, (fun _ => Clight_core.Returnstate Vundef k))
       | Some (ACAS ly l v_exp v_new) =>
-          Some (ACAS ly l v_exp v_new,
-                  (fun ov => Clight_core.Returnstate
-                    (match ov with Some v => v | None => Vundef end) k))
+          Some (ACAS ly l v_exp v_new, (fun ov =>
+            Clight_core.Returnstate (force_val ov) k))
       | None => None
       end
   | _ => None

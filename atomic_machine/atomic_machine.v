@@ -138,7 +138,7 @@ End RWMap.
 
 
 Section Memory.
-  Class MemMixin {Loc Val : Type} {LocEqDec : EqDecision Loc} {LocCountable : Countable Loc} {Mem : Type} {Layout : Type} : Type := {
+  Class Memory {Loc Val : Type} {LocEqDec : EqDecision Loc} {LocCountable : Countable Loc} {Mem : Type} {Layout : Type} : Type := {
     load : Mem -> Loc -> Layout -> option Val;
     store : Mem -> Loc -> Layout -> Val -> option Mem;
     layout_to_locs : Loc -> Layout -> list Loc
@@ -148,9 +148,7 @@ End Memory.
 
 Section AtomicMachine.
 
-Context {Loc Val Mem Layout : Type}.
-Context {LocEqDec : EqDecision Loc}.
-Context {LocCountable : @Countable Loc _}.
+Context `{mem_inst: !@Memory Loc Val LocEqDec LocCountable Mem Layout}.
 
 Local Notation mem_ev := (mem_ev(Loc:=Loc)).
 Local Notation rw_map := (rw_map(Loc:=Loc)).
@@ -161,7 +159,7 @@ Inductive atomic_op : Type :=
 | ACAS : Layout -> Loc -> Val (* expected val *) ->
         Val (* new val*) -> atomic_op.
 
-Class sqlang {MemMixinInst : @MemMixin Loc Val _ _ Mem Layout} : Type := {
+Class sqlang {mem_inst : @Memory Loc Val LocEqDec LocCountable Mem Layout} : Type := {
   (* thread local state *)
   sqlang_thrd_st : Type;
   (* events emitted by the underlying sequential semantics *)
