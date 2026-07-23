@@ -141,7 +141,7 @@ Section Memory.
   Class MemMixin {Loc Val : Type} {LocEqDec : EqDecision Loc} {LocCountable : Countable Loc} {Mem : Type} {Layout : Type} : Type := {
     load : Mem -> Loc -> Layout -> option Val;
     store : Mem -> Loc -> Layout -> Val -> option Mem;
-    layout_to_locs : Layout -> list Loc
+    layout_to_locs : Loc -> Layout -> list Loc
   }.
 
 End Memory.
@@ -254,21 +254,21 @@ Inductive step : tpool -> Mem -> rw_map -> tpool -> Mem -> rw_map -> Prop :=
 | SC_Read : forall tp m μ i c ly l v (K : Val -> C)
     (Hget : tp !! i = Some (Running c []))
     (Hext : at_external c = Some (load_call ly l K))
-    (Hmu : readable μ (layout_to_locs ly) )
+    (Hmu : readable μ (layout_to_locs l ly))
     (Hload : load m l ly = Some v),
     step tp m μ (<[i := Running (K v) [] ]> tp) m μ
 
 | SC_Write : forall tp m μ i c ly l v m' (K : unit -> C)
     (Hget : tp !! i = Some (Running c []))
     (Hext : at_external c = Some (store_call ly l v K))
-    (Hmu : writable μ (layout_to_locs ly) )
+    (Hmu : writable μ (layout_to_locs l ly))
     (Hstore : store m l ly v = Some m'),
     step tp m μ (<[i := Running (K ()) []]> tp) m' μ
 
 | SC_Cas_Suc : forall tp m μ i c ly l v_exp v_new v_cur m' (K : Val -> C)
     (Hget : tp !! i = Some (Running c []))
     (Hext : at_external c = Some (cas_call ly l v_exp v_new K))
-    (Hmu : writable μ (layout_to_locs ly) )
+    (Hmu : writable μ (layout_to_locs l ly))
     (Hload : load m l ly = Some v_cur)
     (Heq : ValEq m v_cur v_exp)
     (Hstore : store m l ly v_new = Some m'),
@@ -277,18 +277,18 @@ Inductive step : tpool -> Mem -> rw_map -> tpool -> Mem -> rw_map -> Prop :=
 | SC_Cas_Fail : forall tp m μ i c ly l v_exp v_new v_cur (K : Val -> C)
     (Hget : tp !! i = Some (Running c []))
     (Hext : at_external c = Some (cas_call ly l v_exp v_new K))
-    (Hmu : readable μ (layout_to_locs ly) )
+    (Hmu : readable μ (layout_to_locs l ly))
     (Hload : load m l ly = Some v_cur)
     (Hneq : ValNEq m v_cur v_exp),
     step tp m μ (<[i := Running (K Vfalse) []]> tp) m μ
 
-(* SC_Cas_Stuck should be vacuous in CompCert, but useful in lambda-Rust. *)
+(** comparison succeeded, but can't write new value because reserve fails. *)
 | SC_Cas_Stuck : forall tp m μ i c ly l v_exp v_new v_cur (K : Val -> C)
     (Hget : tp !! i = Some (Running c []))
     (Hext : at_external c = Some (cas_call ly l v_exp v_new K))
     (Hload : load m l ly = Some v_cur)
     (Heq : ValEq m v_cur v_exp)
-    (Ho : writable μ (layout_to_locs ly) = false),
+    (Ho : ~ writable μ (layout_to_locs l ly)),
     step tp m μ (<[i := StuckState]> tp) m μ.
 
 End AtomicMachine.
