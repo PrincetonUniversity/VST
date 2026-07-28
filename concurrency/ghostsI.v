@@ -20,13 +20,13 @@ Section ghost.
 
 Context {RA: Ghost}.
 
-Lemma own_alloc_strong : forall P (a : G) (pp : preds), ghost_seplog.pred_infinite P -> valid a ->
+Lemma own_alloc_strong : forall P (a : G) (pp : preds), ghost_seplog.pred_infinite P -> ghost.valid a ->
   emp |-- (|==> EX g : own.gname, !!(P g) && own g a pp)%I.
 Proof.
   exact own_alloc_strong.
 Qed.
 
-Lemma own_alloc : forall (a : G) (pp : preds), valid a -> emp%I |-- (|==> EX g : own.gname, own g a pp)%I.
+Lemma own_alloc : forall (a : G) (pp : preds), ghost.valid a -> emp%I |-- (|==> EX g : own.gname, own g a pp)%I.
 Proof.
   exact own_alloc.
 Qed.
@@ -47,14 +47,14 @@ Proof.
   exact own_update_ND.
 Qed.
 
-Lemma own_list_alloc : forall la lp, Forall valid la -> length lp = length la ->
+Lemma own_list_alloc : forall la lp, Forall ghost.valid la -> length lp = length la ->
   emp |-- (|==> (EX lg : _, !!(Zlength lg = Zlength la) &&
     iter_sepcon (fun '(g, a, p) => own g a p) (combine (combine lg la) lp)))%I.
 Proof.
   exact own_list_alloc.
 Qed.
 
-Corollary own_list_alloc' : forall a pp i, 0 <= i -> valid a ->
+Corollary own_list_alloc' : forall a pp i, 0 <= i -> ghost.valid a ->
   emp |-- (|==> (EX lg : _, !!(Zlength lg = i) && iter_sepcon (fun g => own g a pp) lg))%I.
 Proof.
   exact own_list_alloc'.
@@ -278,13 +278,13 @@ Qed.
 
 Context `{A_order : PCM_order(P := A)}.
 
-Lemma map_included_option_ord : forall (a b : gmap K G), map_included ord a b -> forall k, option_ord(ord := ord) (a !! k) (b !! k).
+Lemma map_included_option_ord : forall (a b : gmap K G), map_included (fun _ => ord) a b -> forall k, option_ord(ord := ord) (a !! k) (b !! k).
 Proof.
   intros.
   specialize (H0 k); destruct (a !! k), (b !! k); simpl; auto.
 Qed.
 
-#[export] Instance gmap_order : PCM_order (map_included ord).
+#[export] Instance gmap_order : PCM_order (map_included (fun _ => ord)).
 Proof.
   constructor.
   - apply (map_included_preorder(M := gmap K)), _.
