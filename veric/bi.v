@@ -156,7 +156,7 @@ Qed.
 
 Lemma mpred_bi_mixin :
   BiMixin
-    derives emp prop andp orp imp (@allp _ _) (@exp _ _) sepcon wand persistently.
+    derives emp prop andp orp imp (@allp _ _) (@exp _ _) sepcon wand.
 Proof.
   split.
   - constructor; auto. intro. apply derives_trans.
@@ -191,8 +191,6 @@ Proof.
     rewrite !approx_sepcon; congruence.
   - intros ? P Q ????; hnf in *.
     rewrite wand_nonexpansive (wand_nonexpansive Q); congruence.
-  - intros ????; hnf in *.
-    rewrite !approx_persistently H; auto.
   - apply prop_right.
   - intros.
     apply prop_left; intro.
@@ -216,6 +214,15 @@ Proof.
   - intros; rewrite sepcon_assoc; auto.
   - intros; rewrite <- wand_sepcon_adjoint; auto.
   - intros; rewrite wand_sepcon_adjoint; auto.
+Qed.
+
+Lemma mpred_bi_persistently_mixin :
+  BiPersistentlyMixin
+    derives emp andp (@exp _ _) sepcon persistently.
+Proof.
+  split.
+  - intros ????; hnf in *.
+    rewrite !approx_persistently H; auto.
   - intros; apply persistently_derives; auto.
   - intros; apply persistently_persists.
   - unfold persistently.
@@ -309,13 +316,18 @@ Qed.
 
 Canonical Structure mpredI : bi :=
   {| bi_ofe_mixin := mpred_ofe_mixin; bi_bi_mixin := mpred_bi_mixin;
+     bi_bi_persistently_mixin := mpred_bi_persistently_mixin;
      bi_bi_later_mixin := mpred_bi_later_mixin |}.
 
 (* an Iris extension that is satisfied by most but not all BI instances *)
 Global Instance mpred_later_contractive : BiLaterContractive mpredI.
 Proof.
   intros ????.
-  unfold dist_later in H; change (approx (S n) (|> x) = approx (S n) (|> y))%logic.
+  (* [dist_later] is now a record quantifying over all smaller step-indices rather
+     than a [match] on the index, so it is no longer unfoldable.  [dist_later_fin]
+     is iris's own backwards-compatible restatement -- definitionally the [match]
+     this proof was written against -- and [dist_later_fin_iff] bridges the two. *)
+  apply dist_later_fin_iff in H; change (approx (S n) (|> x) = approx (S n) (|> y))%logic.
   rewrite !approx_later.
   destruct n.
   - rewrite !approx_0; auto.
