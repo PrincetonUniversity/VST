@@ -1062,7 +1062,22 @@ Proof.
           rewrite HHi; auto. }
         iDestruct "snap" as "_".
         iPoseProof (snaps_dealloc with "snaps") as "_".
-        iDestruct "Hclose" as "[_ Hclose]"; iApply "Hclose"; simpl.
+        (* [rocq-dev] Supply the committed result explicitly rather than letting
+           [iApply] unify for it.  Left to guess, it now instantiates the bool with
+           [eq_dec vi 0] delta-expanded through the [EqDec_Z] instance
+           (sepcomp/Address.v:23) and on into [Z_rec], while the [iExists] below
+           writes the same decision folded.  [if_tac] destructs whatever is
+           syntactically the scrutinee of the first [if] it finds
+           (msl/Coqlib2.v:134), so it abstracts one copy and leaves the other
+           standing as a stray sumbool [if] -- which then steals the [if_tac] thirty
+           lines further down that was meant for [eq_dec k0 k].  The symptom is
+           remote and mentions none of this: [inv] has nothing to invert, [k0]/[v0]
+           are never substituted, and [apply upd_Znth_In] reports
+           [Unable to unify "(k, v)" with "(k0, v0)"].  The twin block in
+           [body_get_item] already passes its result explicitly ([$! tt]) and is
+           unaffected. *)
+        iDestruct "Hclose" as "[_ Hclose]";
+          iApply ("Hclose" $! (if eq_dec vi 0 then true else false)); simpl.
         iSplit; last done.
         unfold hashtable.
         rewrite exp_andp2.
@@ -1278,13 +1293,21 @@ Proof.
       + iIntros "hashtable".
         iMod "Hclose'"; iMod ("Hclose" with "[hashtable ref]"); auto.
         iNext; iExists HT; iFrame.
-        iExists hr; iFrame; auto.
+        (* [iris] [iFrame] now instantiates an existential itself when framing a
+           resource determines the witness, so the [iExists hr] that used to follow
+           has nothing left to introduce: [iExists] reports
+           [(!! (apply_hist empty_map hr = Some HT) ∧ emp) not an existential].
+           The witness [iFrame] picks is [hr], the same one that was named here. *)
+        iFrame; auto.
       + iIntros (b) "[[%Hret hashtable] _]".
         iPoseProof (hist_ref_incl with "[$hist $ref]") as "%"; [auto|].
         iMod (hist_add' _ _ _ (HAdd (i0 + 1) 1 b) with "[$hist $ref]") as "[hist ref]"; [auto|].
         iMod "Hclose'"; iMod ("Hclose" with "[hashtable ref]").
-        * iNext; iExists (if b then map_upd HT (i0 + 1) 1 else HT); iFrame.
-          iExists (hr ++ [HAdd (i0 + 1) 1 b]); iSplit; auto.
+        * (* [iris] Same as above: [iFrame] instantiates the history existential
+             itself, so the [iExists (hr ++ [HAdd (i0 + 1) 1 b])] that stood here
+             is gone. *)
+          iNext; iExists (if b then map_upd HT (i0 + 1) 1 else HT); iFrame.
+          iSplit; auto.
           iPureIntro; rewrite apply_hist_app Hhr; simpl.
           destruct (HT (i0 + 1)), b; try congruence.
           -- destruct Hret as [_ X]; specialize (X eq_refl); discriminate.
@@ -1299,10 +1322,19 @@ Proof.
     + pose proof (Zlength_filter id ls).
       forward.
       entailer!.
+      (* [rocq-dev] [forward_if] no longer substitutes the branch condition: it
+         leaves [typed_true tint (if b then Vtrue else Vfalse)] and [b] free.
+         [List.filter id [b]] therefore stays stuck as [if b then [b] else []],
+         [Zlength_cons] finds no [_ :: _], and the error names [Zlength_cons]
+         rather than the missing case split.  Case on [b] and discharge the
+         branch the condition rules out. *)
+      destruct b; try discriminate; try contradiction; try (exfalso; congruence).
       rewrite List.filter_app; simpl.
       rewrite -> Zlength_app, Zlength_cons, Zlength_nil; auto.
     + forward.
       entailer!.
+      (* [rocq-dev] Same as the [then] branch above, with [typed_false]. *)
+      destruct b; try discriminate; try contradiction; try (exfalso; congruence).
       rewrite List.filter_app; simpl.
       rewrite -> Zlength_app, Zlength_nil, Z.add_0_r; auto.
     + Exists (ls ++ [b]) h'; rewrite -> List.filter_app, ?Zlength_app, ?Zlength_cons, ?Zlength_nil; entailer!.
@@ -1421,7 +1453,7 @@ Proof.
       apply NoDup_remove in Hunique; destruct Hunique.
       rewrite Zlength_app Zlength_cons.
       erewrite (IHl (map (fun i => i - 1) (li1 ++ li2))), Zlength_map, Zlength_app; auto; try lia.
-      * apply FinFun.Injective_map_NoDup; auto.
+      * apply Finite.Injective_map_NoDup; auto.
         intros ??; lia.
       * intros ? Hj; rewrite -> in_map_iff in Hj; destruct Hj as (j & ? & Hj); subst.
         exploit (Hli j).
@@ -1440,7 +1472,7 @@ Proof.
     + exploit Hrest; eauto.
       rewrite Znth_0_cons; intros ->.
       erewrite (IHl (map (fun i => i - 1) li)), Zlength_map; try lia.
-      * apply FinFun.Injective_map_NoDup; auto.
+      * apply Finite.Injective_map_NoDup; auto.
         intros ??; lia.
       * intros ? Hj; rewrite -> in_map_iff in Hj; destruct Hj as (j & ? & Hj); subst.
         specialize (Hli _ Hj).
@@ -1861,7 +1893,9 @@ Proof.
       match goal with H : hist_sub _ _ _ |- _ => apply hist_sub_Tsh in H; subst end.
       exists hr, HT; split; auto. }
     iMod ("Hclose" with "[hashtable ref]").
-    { iNext; iExists HT; iFrame; iExists hr; iSplit; auto. }
+    (* [iris] Same as above: [iFrame] instantiates the [hr] existential itself when
+       it frames [ref], so the [iExists hr] that stood between them is gone. *)
+    { iNext; iExists HT; iFrame; iSplit; auto. }
     iModIntro; iPureIntro; split; auto.
     destruct Hhist as (? & ? & ? & ?).
     eapply add_three; eauto. }
