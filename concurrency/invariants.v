@@ -58,8 +58,12 @@ Lemma fresh_inv_name n N : ∃ i, (n <= i)%nat /\ Pos.of_nat (S i) ∈ (↑N:coP
 Proof.
   pose proof (coPpick_elem_of (↑ N ∖ gset_to_coPset (list_to_set (map (fun i => Z.to_pos (i + 1)) (upto n))))).
   rewrite elem_of_difference in H; destruct H as [HN H].
-  { apply coPset_infinite_finite, difference_infinite, gset_to_coPset_finite.
-    apply coPset_infinite_finite, nclose_infinite. }
+  { (* stdpp's [coPpick_elem_of] now takes [X <> empty] rather than [~ set_finite X],
+       so bridge through [set_infinite_non_empty] and stay in [set_infinite]:
+       [nclose_infinite] is already stated that way. *)
+    apply set_infinite_non_empty, difference_infinite.
+    - apply nclose_infinite.
+    - apply gset_to_coPset_finite. }
   exists (Pos.to_nat (coPpick (↑ N ∖ gset_to_coPset (list_to_set (map (fun i => Z.to_pos (i + 1)) (upto n))))) - 1)%nat; split.
   - match goal with |-(?a <= ?b)%nat => destruct (le_lt_dec a b); auto; exfalso end.
     apply H, elem_of_gset_to_coPset, elem_of_list_to_set, elem_of_list_In, in_map_iff.
