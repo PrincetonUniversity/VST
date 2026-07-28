@@ -33,7 +33,7 @@ Declare Scope logic_upd. (* so we can close this scope when we import Iris *)
 
 Open Scope logic_upd.
 
-Notation "|==> P" := (bupd P) (at level 99, P at level 200): logic_upd.
+Notation "|==> P" := (bupd P) (at level 20, P at level 200): logic_upd.
 
 Section bupd_derived.
 
@@ -157,8 +157,8 @@ Class FupdSepLog (A N D I: Type) {ND: NatDed A}{IA: Indir A}{SL: SepLog A}{BSL: 
   bupd_fupd: forall E P, bupd P |-- fupd E E P
   }.
 
-Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): logic_upd.
-Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): logic_upd.
+Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 20, E1 at level 50, E2 at level 50, P at level 200): logic_upd.
+Notation "|={ E }=> P" := (fupd E E P) (at level 20, E at level 50, P at level 200): logic_upd.
 
 Lemma Empty_set_Union : forall {A} S, Union A (Empty_set A) S = S.
 Proof.
