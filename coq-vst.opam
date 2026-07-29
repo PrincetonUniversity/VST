@@ -34,8 +34,8 @@ run-test: [
 depends: [
   "ocaml"
   "coq" {(>= "8.19" & < "9.2~") | = "dev"}
-  "coq-core" { >= "9.0" }
-  "coq-stdlib" { >= "9.0" }
+  ("coq-core" {(>= "9.0") | = "dev"} | "rocq-core" {(>= "9.0") | = "dev"})
+  ("coq-stdlib" {(>= "9.0") | = "dev"} | "rocq-stdlib" {(>= "9.0") | = "dev"})
   "coq-compcert" {(>= "3.15" & < "3.17~") | = "dev"}
   "coq-vst-zlist" {= "2.13" | = "dev"}
   "coq-flocq" {(>= "4.2.0" & < "5~") | = "dev"}
