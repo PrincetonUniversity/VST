@@ -81,3 +81,9 @@ Proof. intros. rewrite H H0 //. Qed.
 ```
 
 TODO: maybe move this to some library
+
+## Atomic Machine
+(The project related to this section is WIP)
+```
+make atomic_machine/ClightAM_DRF.vo
+```

@@ -70,6 +70,20 @@ COMPCERT ?= bundled
 ZLIST ?= bundled
 ARCH ?= 
 BITSIZE ?= 64
+ATOMIC_MACHINE ?= true
+# detects change 
+DEPEND_FILE = .depend
+
+# Currently only supports bundled compcert. cascompcert shares common files in
+# VST/compcert, so when cascompcert is used as a dependency of VST, for those
+# commmon files, it uses the VST copy over the cascompcert copy, including
+# flocq.
+ifeq ($(ATOMIC_MACHINE),true)
+  ifneq ($(COMPCERT),bundled)
+    $(error ATOMIC_MACHINE=true requires COMPCERT=bundled)
+  endif
+  override FLOCQ = bundled
+endif
 
 # # Internal variables #
 # Set to true if the bundled CompCert is used
@@ -305,6 +319,14 @@ else
   EXTFLAGS=
 endif
 
+# Make CASCompCert's concurrency modules available to VST while retaining the
+# bundled CompCert load path.
+ifeq ($(ATOMIC_MACHINE),true)
+  CASCOMPCERT_R_FLAGS = -R cascompcert/concurrency compcert.concurrency
+  COMPCERT_R_FLAGS += $(CASCOMPCERT_R_FLAGS)
+  EXTFLAGS += $(CASCOMPCERT_R_FLAGS)
+endif
+
 # Compcert Clightgen flags
 
 CGFLAGS =  -DCOMPCERT -short-idents
@@ -408,6 +430,7 @@ $(info COMPCERT_INFO_PATH_REF=$(COMPCERT_INFO_PATH_REF))
 $(info COMPCERT_EXPLICIT_PATH=$(COMPCERT_EXPLICIT_PATH))
 $(info COMPCERT_BUILD_FROM_SRC=$(COMPCERT_BUILD_FROM_SRC))
 $(info COMPCERT_NEW=$(COMPCERT_NEW))
+$(info ATOMIC_MACHINE=$(ATOMIC_MACHINE))
 $(info COQFLAGS=$(COQFLAGS))
 $(info COMPCERT_R_FLAGS=$(COMPCERT_R_FLAGS))
 $(info FLOCQ=$(FLOCQ))
@@ -766,6 +789,20 @@ endif
 
 
 # ########## Targets ##########
+
+# Compile CASCompCert targets with its own dependency graph while sharing the
+# bundled VST/compcert tree.  The force prerequisite makes the child Makefile,
+# rather than this wrapper, decide whether an existing .vo is current.
+CASCOMPCERT_MAKE = $(MAKE) -C cascompcert FOR_VST=true \
+  ARCH=$(ARCH) BITSIZE=$(BITSIZE) LIBRARY_FLOCQ=local
+
+.PHONY: cascompcert-force cascompcert-globsemantics
+cascompcert-force:
+
+cascompcert/concurrency/common/GlobSemantics.vo: cascompcert-force
+	+$(CASCOMPCERT_MAKE) concurrency/common/GlobSemantics.vo
+
+globsemantics: cascompcert/concurrency/common/GlobSemantics.vo
 
 default_target: vst $(PROGSDIR)
 vst: _CoqProject msl veric floyd simpleconc
