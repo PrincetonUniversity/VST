@@ -177,7 +177,6 @@ Section AtomicMachine.
     sqlang_ValNEq : Mem -> Val -> Val -> Prop;
   }.
 
-  Context {MemMixinInst : @MemMixin Loc Val _ _ Mem Layout}.
   Context {L : sqlang}.
 
   Local Notation C := sqlang_thrd_st.

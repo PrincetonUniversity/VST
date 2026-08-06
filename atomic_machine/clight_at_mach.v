@@ -102,7 +102,7 @@ Section ClightInstantiation.
     end.
 
   #[global] Instance clight_mem_mixin :
-      MemMixin (Loc := address) (Val := val)
+      Memory (Loc := address) (Val := val)
         (Mem := mem) (Layout := memory_chunk) :=
     {| load := fun m l chunk =>
         let '(b, ofs) := l in Mem.load chunk m b ofs;
