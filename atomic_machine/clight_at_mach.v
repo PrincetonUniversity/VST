@@ -15,7 +15,7 @@ Set Warnings "-custom-entry-overridden".
 Require Import VST.veric.Clight_evsem.
 Require Import VST.veric.val_lemmas.
 Set Warnings "custom-entry-overridden".
-Require Import atomic_machine.atomic_machine.
+Require Import VST.atomic_machine.atomic_machine.
 
 Import Address Values.
 
