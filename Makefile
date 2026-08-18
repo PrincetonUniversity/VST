@@ -792,6 +792,7 @@ files: _CoqProject $(FILES:.v=.vo)
 
 lambda-rust-reference: _CoqProject \
 	atomic_machine/lambda_rust/syntax.vo \
+	atomic_machine/lambda_rust/common.vo \
 	atomic_machine/lambda_rust/reference.vo \
 	atomic_machine/lambda_rust/races.vo
 

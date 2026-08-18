@@ -9,7 +9,7 @@
 From Stdlib Require Import ZArith Lia List.
 From stdpp Require Import base gmap list.
 
-Require Export VST.atomic_machine.lambda_rust.syntax.
+Require Export VST.atomic_machine.lambda_rust.common.
 
 Import ListNotations.
 Open Scope Z_scope.
@@ -24,71 +24,6 @@ Inductive lock_state : Type :=
 | RSt (n : nat).
 
 Definition state : Type := gmap loc (lock_state * val).
-
-Fixpoint init_mem (l : loc) (n : nat) (sigma : state) : state :=
-  match n with
-  | O => sigma
-  | S n =>
-      <[l := (RSt 0, LitV LitPoison)]>
-        (init_mem (l +ₗ 1)%L n sigma)
-  end.
-
-Fixpoint free_mem (l : loc) (n : nat) (sigma : state) : state :=
-  match n with
-  | O => sigma
-  | S n => delete l (free_mem (l +ₗ 1)%L n sigma)
-  end.
-
-(**
-  Equality of dangling pointers is intentionally nondeterministic.  This is
-  why equality and inequality can overlap, and why the explicit CAS-stuck
-  rule below is semantically significant.
-*)
-Inductive lit_eq (sigma : state) : base_lit -> base_lit -> Prop :=
-| IntRefl z :
-    lit_eq sigma (LitInt z) (LitInt z)
-| LocRefl l :
-    lit_eq sigma (LitLoc l) (LitLoc l)
-| LocUnallocL l1 l2 :
-    sigma !! l1 = None ->
-    lit_eq sigma (LitLoc l1) (LitLoc l2)
-| LocUnallocR l1 l2 :
-    sigma !! l2 = None ->
-    lit_eq sigma (LitLoc l1) (LitLoc l2).
-
-Inductive lit_neq (sigma : state) : base_lit -> base_lit -> Prop :=
-| IntNeq z1 z2 :
-    z1 <> z2 ->
-    lit_neq sigma (LitInt z1) (LitInt z2)
-| LocNeq l1 l2 :
-    l1 <> l2 ->
-    lit_neq sigma (LitLoc l1) (LitLoc l2)
-| LocNeqNullR l :
-    lit_neq sigma (LitLoc l) (LitInt 0)
-| LocNeqNullL l :
-    lit_neq sigma (LitInt 0) (LitLoc l).
-
-Inductive bin_op_eval (sigma : state)
-    : bin_op -> base_lit -> base_lit -> base_lit -> Prop :=
-| BinOpPlus z1 z2 :
-    bin_op_eval sigma PlusOp
-      (LitInt z1) (LitInt z2) (LitInt (z1 + z2))
-| BinOpMinus z1 z2 :
-    bin_op_eval sigma MinusOp
-      (LitInt z1) (LitInt z2) (LitInt (z1 - z2))
-| BinOpLe z1 z2 :
-    bin_op_eval sigma LeOp
-      (LitInt z1) (LitInt z2)
-      (lit_of_bool (bool_decide (z1 <= z2)))
-| BinOpEqTrue l1 l2 :
-    lit_eq sigma l1 l2 ->
-    bin_op_eval sigma EqOp l1 l2 (lit_of_bool true)
-| BinOpEqFalse l1 l2 :
-    lit_neq sigma l1 l2 ->
-    bin_op_eval sigma EqOp l1 l2 (lit_of_bool false)
-| BinOpOffset l z :
-    bin_op_eval sigma OffsetOp
-      (LitLoc l) (LitInt z) (LitLoc (l +ₗ z)%L).
 
 (** The original head-step relation. *)
 
@@ -173,7 +108,7 @@ Inductive head_step : expr -> state -> expr -> state -> list expr -> Prop :=
     head_step
       (Alloc (Lit (LitInt n))) sigma
       (Lit (LitLoc l))
-      (init_mem l (Z.to_nat n) sigma) []
+      (init_mem (RSt 0, LitV LitPoison) l (Z.to_nat n) sigma) []
 | FreeS n l sigma :
     0 < n ->
     (forall m,
