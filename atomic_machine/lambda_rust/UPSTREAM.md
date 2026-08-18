@@ -26,12 +26,15 @@ in the paper, is the equivalence target.
   closure.
 - `event_semantics.v` contains the sequential event semantics used by the
   atomic-machine instantiation.
+- `equivalence.v` states the reachability equivalence theorem between stable
+  configurations of the two semantics.
 - `races.v` contains the original next-access and non-racing predicates.
 - `LICENSE.lambda-rust` reproduces the upstream license.
 
-The future equivalence proof should relate the event semantics and atomic
-machine to the reference transition system. The reference transition rules
-remain frozen; generic definitions used by both semantics live in `common.v`.
+The equivalence theorem relates the event semantics and atomic machine to the
+reference transition system. Its proof remains future work. The reference
+transition rules remain frozen; generic definitions used by both semantics
+live in `common.v`.
 
 ## Porting changes
 

@@ -796,6 +796,11 @@ lambda-rust-reference: _CoqProject \
 	atomic_machine/lambda_rust/reference.vo \
 	atomic_machine/lambda_rust/races.vo
 
+lambda-rust-equivalence: lambda-rust-reference \
+	atomic_machine/atomic_machine.vo \
+	atomic_machine/lambda_rust/event_semantics.vo \
+	atomic_machine/lambda_rust/equivalence.vo
+
 # TODO:
 #
 # Add conclib_coqlib, conclib_sublist, and conclib_veric to the targets
