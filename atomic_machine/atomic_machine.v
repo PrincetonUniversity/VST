@@ -168,9 +168,11 @@ Section AtomicMachine.
     sqlang_step :
       sqlang_thrd_st -> Mem -> list mem_ev -> sqlang_thrd_st -> Mem -> Prop;
 
-    (* the atomic operation, and a continuation that takes the return value of the operation, if any *)
+    (* An exposed atomic operation and a continuation that takes its optional
+       return value. *)
     sqlang_at_external :
-      sqlang_thrd_st -> option (atomic_op * (option Val -> sqlang_thrd_st));
+      sqlang_thrd_st -> atomic_op ->
+      (option Val -> sqlang_thrd_st) -> Prop;
 
     (** Value (in)equality for CAS *)
     sqlang_ValEq : Mem -> Val -> Val -> Prop;
@@ -219,21 +221,21 @@ Section AtomicMachine.
 
   | SC_Read : forall tp m μ i c ly l v K
       (Hget : tp !! i = Some (Running c []))
-      (Hext : at_external c = Some (ALoad ly l, K))
+      (Hext : at_external c (ALoad ly l) K)
       (Hmu : readable μ (layout_to_locs l ly))
       (Hload : load m l ly = Some v),
       at_step tp m μ (<[i := Running (K $ Some v) []]> tp) m μ
 
   | SC_Write : forall tp m μ i c ly l v m' K
       (Hget : tp !! i = Some (Running c []))
-      (Hext : at_external c = Some (AStore ly l v, K))
+      (Hext : at_external c (AStore ly l v) K)
       (Hmu : writable μ (layout_to_locs l ly))
       (Hstore : store m l ly v = Some m'),
       at_step tp m μ (<[i := Running (K None) []]> tp) m' μ
 
   | SC_Cas_Suc : forall tp m μ i c ly l v_exp v_new v_cur m' K
       (Hget : tp !! i = Some (Running c []))
-      (Hext : at_external c = Some (ACAS ly l v_exp v_new, K))
+      (Hext : at_external c (ACAS ly l v_exp v_new) K)
       (Hmu : writable μ (layout_to_locs l ly))
       (Hload : load m l ly = Some v_cur)
       (Heq : ValEq m v_cur v_exp)
@@ -242,7 +244,7 @@ Section AtomicMachine.
 
   | SC_Cas_Fail : forall tp m μ i c ly l v_exp v_new v_cur K
       (Hget : tp !! i = Some (Running c []))
-      (Hext : at_external c = Some (ACAS ly l v_exp v_new, K))
+      (Hext : at_external c (ACAS ly l v_exp v_new) K)
       (Hmu : readable μ (layout_to_locs l ly))
       (Hload : load m l ly = Some v_cur)
       (Hneq : ValNEq m v_cur v_exp),
@@ -251,7 +253,7 @@ Section AtomicMachine.
   (** comparison succeeded, but can't write new value because reserve fails. *)
   | SC_Cas_Stuck : forall tp m μ i c ly l v_exp v_new v_cur K
       (Hget : tp !! i = Some (Running c []))
-      (Hext : at_external c = Some (ACAS ly l v_exp v_new, K))
+      (Hext : at_external c (ACAS ly l v_exp v_new) K)
       (Hload : load m l ly = Some v_cur)
       (Heq : ValEq m v_cur v_exp)
       (Ho : ~ writable μ (layout_to_locs l ly)),

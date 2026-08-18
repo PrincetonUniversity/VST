@@ -23,19 +23,8 @@ Section ClightInstantiation.
 
   (** Clight-specialized atomic-machine types. *)
   Local Notation clight_mem_ev := (@mem_ev address).
-
-  (** THe memory chunk (size of data) is hardcoded for each function name. *)
-  Definition clight_decode_atomic (ef : external_function) (args : list val)
-      : option (@atomic_op address val memory_chunk) :=
-    match ef, args with
-    | EF_external "atomic_load" _, [Vptr b ofs] =>
-        Some (ALoad Mint32 (b, Ptrofs.unsigned ofs))
-    | EF_external "atomic_store" _, [Vptr b ofs; v] =>
-        Some (AStore Mint32 (b, Ptrofs.unsigned ofs) v)
-    | EF_external "atomic_CAS" _, [Vptr b ofs; v_exp; v_new] =>
-        Some (ACAS Mint32 (b, Ptrofs.unsigned ofs) v_exp v_new)
-    | _, _ => None
-    end.
+  Local Notation clight_atomic_op :=
+    (@atomic_op address val memory_chunk).
 
   Definition clight_ValEq (m : mem) (v1 v2 : val) : Prop :=
     Val.cmpu_bool (Mem.valid_pointer m) Ceq v1 v2 = Some true.
@@ -79,27 +68,34 @@ Section ClightInstantiation.
   Definition clight_into_evs (trace : list mem_event) : list clight_mem_ev :=
     flat_map clight_into_ev trace.
 
-  (** Similar to compcert at_external, but also computes the continuation after
-      each atomic operation.
-  *)
-  Definition clight_at_external
-      (c : Clight_core.CC_core)
-      : option (atomic_op * (option val -> Clight_core.CC_core)) :=
-    match c with
-    | Clight_core.Callstate (Ctypes.External ef _ _ _) args k =>
-        match clight_decode_atomic ef args with
-        | Some (ALoad ly l) =>
-            Some (ALoad ly l, fun ov =>
-              Clight_core.Returnstate (force_val ov) k)
-        | Some (AStore ly l v) =>
-            Some (AStore ly l v, (fun _ => Clight_core.Returnstate Vundef k))
-        | Some (ACAS ly l v_exp v_new) =>
-            Some (ACAS ly l v_exp v_new, (fun ov =>
-              Clight_core.Returnstate (force_val ov) k))
-        | None => None
-        end
-    | _ => None
-    end.
+  (** Atomic external calls and their post-call continuations. *)
+  Inductive clight_external
+      : Clight_core.CC_core -> clight_atomic_op ->
+        (option val -> Clight_core.CC_core) -> Prop :=
+  | ClightExternalLoad sg tyargs tyret cc b ofs k :
+      clight_external
+        (Clight_core.Callstate
+          (Ctypes.External (EF_external "atomic_load" sg)
+            tyargs tyret cc)
+          [Vptr b ofs] k)
+        (ALoad Mint32 (b, Ptrofs.unsigned ofs))
+        (fun ov => Clight_core.Returnstate (force_val ov) k)
+  | ClightExternalStore sg tyargs tyret cc b ofs v k :
+      clight_external
+        (Clight_core.Callstate
+          (Ctypes.External (EF_external "atomic_store" sg)
+            tyargs tyret cc)
+          [Vptr b ofs; v] k)
+        (AStore Mint32 (b, Ptrofs.unsigned ofs) v)
+        (fun _ => Clight_core.Returnstate Vundef k)
+  | ClightExternalCas sg tyargs tyret cc b ofs v_exp v_new k :
+      clight_external
+        (Clight_core.Callstate
+          (Ctypes.External (EF_external "atomic_CAS" sg)
+            tyargs tyret cc)
+          [Vptr b ofs; v_exp; v_new] k)
+        (ACAS Mint32 (b, Ptrofs.unsigned ofs) v_exp v_new)
+        (fun ov => Clight_core.Returnstate (force_val ov) k).
 
   #[global] Instance clight_mem_mixin :
       Memory (Loc := address) (Val := val)
@@ -121,12 +117,12 @@ Section ClightInstantiation.
       ev_step_with_mem_ev evsem_inst c m (clight_into_evs T) c' m'.
 
   #[global] Instance Clight_language (ge : Clight.genv)
-      : @sqlang address val mem memory_chunk _ _ clight_mem_mixin :=
+      : @sqlang address val _ _ mem memory_chunk clight_mem_mixin :=
     {| sqlang_thrd_st := Clight_core.CC_core;
       sqlang_true_val := Values.Vtrue;
       sqlang_false_val := Values.Vfalse;
       sqlang_step := ev_step_with_mem_ev (Clight_evsem.CLC_evsem ge);
-      sqlang_at_external := clight_at_external;
+      sqlang_at_external := clight_external;
       sqlang_ValEq := clight_ValEq;
       sqlang_ValNEq := clight_ValNEq |}.
 

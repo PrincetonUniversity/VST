@@ -1,7 +1,7 @@
 (**
   Single-threaded lambda-Rust semantics for the atomic machine.
 
-  Sequentially consistent operations are exposed through [lr_at_external].
+  Sequentially consistent operations are exposed through [lr_external].
   Pure computation, non-atomic accesses, allocation, and deallocation are
   handled by [lr_step].  [Fork] deliberately has no rule here.
 *)
@@ -133,8 +133,7 @@ Inductive lr_step
       (fill K e1) m1 T
       (fill K e2) m2.
 
-Definition lr_external : Type :=
-  (@atomic_op loc val lr_layout * (option val -> expr))%type.
+Local Notation lr_atomic_op := (@atomic_op loc val lr_layout).
 
 Definition lr_result_expr (ov : option val) : expr :=
   match ov with
@@ -142,141 +141,33 @@ Definition lr_result_expr (ov : option val) : expr :=
   | None => stuck_term
   end.
 
-Definition lr_lift_external
-    (C : expr -> expr) (oe : option lr_external) : option lr_external :=
-  match oe with
-  | Some (op, K) => Some (op, fun ov => C (K ov))
-  | None => None
-  end.
+(** SC operations at the head of an evaluation context. *)
+Inductive lr_head_external
+    : expr -> lr_atomic_op -> (option val -> expr) -> Prop :=
+| LRReadScE l :
+    lr_head_external
+      (Read ScOrd (Lit (LitLoc l)))
+      (ALoad tt l) lr_result_expr
+| LRWriteScE l e v :
+    to_val e = Some v ->
+    lr_head_external
+      (Write ScOrd (Lit (LitLoc l)) e)
+      (AStore tt l v) (fun _ => Lit LitPoison)
+| LRCasE l e1 lit1 e2 lit2 :
+    to_val e1 = Some (LitV lit1) ->
+    to_val e2 = Some (LitV lit2) ->
+    lr_head_external
+      (CAS (Lit (LitLoc l)) e1 e2)
+      (ACAS tt l (LitV lit1) (LitV lit2)) lr_result_expr.
 
-(**
-  Find the leftmost SC redex selected by lambda-Rust's evaluation contexts,
-  and return both its atomic operation and the surrounding continuation.
-  TODO: define focus next to fill, rewrite lr_at_external using that
-*)
-Fixpoint lr_at_external (e : expr) : option lr_external :=
-  match e with
-  | Var _ | Lit _ | Rec _ _ _ => None
-  | BinOp op e1 e2 =>
-      match to_val e1 with
-      | None =>
-          lr_lift_external (fun e1' => BinOp op e1' e2)
-            (lr_at_external e1)
-      | Some v1 =>
-          match to_val e2 with
-          | None =>
-              lr_lift_external (fun e2' => BinOp op (of_val v1) e2')
-                (lr_at_external e2)
-          | Some _ => None
-          end
-      end
-  | App e0 el =>
-      match to_val e0 with
-      | None =>
-          lr_lift_external (fun e0' => App e0' el)
-            (lr_at_external e0)
-      | Some v0 =>
-          (fix find_external_arg
-              (vl : list val) (el : list expr) {struct el}
-              : option lr_external :=
-             match el with
-             | [] => None
-             | e1 :: el =>
-                 match to_val e1 with
-                 | Some v1 => find_external_arg (vl ++ [v1]) el
-                 | None =>
-                     lr_lift_external
-                       (fun e1' =>
-                          App (of_val v0) (map of_val vl ++ e1' :: el))
-                       (lr_at_external e1)
-                 end
-             end) [] el
-      end
-  | Read o e1 =>
-      match to_val e1 with
-      | None =>
-          lr_lift_external (fun e1' => Read o e1')
-            (lr_at_external e1)
-      | Some (LitV (LitLoc l)) =>
-          match o with
-          | ScOrd => Some (ALoad tt l, lr_result_expr)
-          | Na1Ord | Na2Ord => None
-          end
-      | Some _ => None
-      end
-  | Write o e1 e2 =>
-      match to_val e1 with
-      | None =>
-          lr_lift_external (fun e1' => Write o e1' e2)
-            (lr_at_external e1)
-      | Some v1 =>
-          match to_val e2 with
-          | None =>
-              lr_lift_external (fun e2' => Write o (of_val v1) e2')
-                (lr_at_external e2)
-          | Some v2 =>
-              match o, v1 with
-              | ScOrd, LitV (LitLoc l) =>
-                  Some (AStore tt l v2, fun _ => Lit LitPoison)
-              | _, _ => None
-              end
-          end
-      end
-  | CAS e0 e1 e2 =>
-      match to_val e0 with
-      | None =>
-          lr_lift_external (fun e0' => CAS e0' e1 e2)
-            (lr_at_external e0)
-      | Some v0 =>
-          match to_val e1 with
-          | None =>
-              lr_lift_external (fun e1' => CAS (of_val v0) e1' e2)
-                (lr_at_external e1)
-          | Some v1 =>
-              match to_val e2 with
-              | None =>
-                  lr_lift_external
-                    (fun e2' => CAS (of_val v0) (of_val v1) e2')
-                    (lr_at_external e2)
-              | Some v2 =>
-                  match v0, v1, v2 with
-                  | LitV (LitLoc l), LitV lit1, LitV lit2 =>
-                      Some
-                        (ACAS tt l (LitV lit1) (LitV lit2), lr_result_expr)
-                  | _, _, _ => None
-                  end
-              end
-          end
-      end
-  | Alloc e1 =>
-      match to_val e1 with
-      | None =>
-          lr_lift_external (fun e1' => Alloc e1')
-            (lr_at_external e1)
-      | Some _ => None
-      end
-  | Free e1 e2 =>
-      match to_val e1 with
-      | None =>
-          lr_lift_external (fun e1' => Free e1' e2)
-            (lr_at_external e1)
-      | Some v1 =>
-          match to_val e2 with
-          | None =>
-              lr_lift_external (fun e2' => Free (of_val v1) e2')
-                (lr_at_external e2)
-          | Some _ => None
-          end
-      end
-  | Case e0 el =>
-      match to_val e0 with
-      | None =>
-          lr_lift_external (fun e0' => Case e0' el)
-            (lr_at_external e0)
-      | Some _ => None
-      end
-  | Fork _ => None
-  end.
+(** Evaluation-context closure of [lr_head_external]. *)
+Inductive lr_external
+    : expr -> lr_atomic_op -> (option val -> expr) -> Prop :=
+| LREctxExternal K e op k :
+    lr_head_external e op k ->
+    lr_external
+      (fill K e) op
+      (fun ov => fill K (k ov)).
 
 #[global] Instance lr_language :
     @sqlang loc val _ _ lr_mem lr_layout lr_memory :=
@@ -284,6 +175,6 @@ Fixpoint lr_at_external (e : expr) : option lr_external :=
      sqlang_true_val := LitV (lit_of_bool true);
      sqlang_false_val := LitV (lit_of_bool false);
      sqlang_step := lr_step;
-     sqlang_at_external := lr_at_external;
+     sqlang_at_external := lr_external;
      sqlang_ValEq := lr_val_eq;
      sqlang_ValNEq := lr_val_neq |}.
