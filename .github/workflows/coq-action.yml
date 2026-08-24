@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - master
-      - vst_on_iris
     paths-ignore:
       - 'lib/**'
   pull_request:
