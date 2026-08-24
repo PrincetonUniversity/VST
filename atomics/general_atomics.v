@@ -48,7 +48,13 @@ Lemma atomic_shift_mask_weaken {A B} Eo1 Eo2 Ei a (b : A -> B -> mpred) Q :
   atomic_shift a Eo1 Ei b Q |-- atomic_shift a Eo2 Ei b Q.
 Proof.
   intros; unfold atomic_shift.
-  apply atomic_update_mask_weaken; auto.
+  (* [iris] [atomic_update_mask_weaken] (iris/bi/lib/atomic.v) is now stated as a
+     wand, [atomic_update Eo1 .. -* atomic_update Eo2 ..], where it used to be an
+     entailment.  At the top level that reads [emp |-- _ -* _], which no longer
+     matches a goal of the form [_ |-- _], hence the unify failure naming
+     [emp ⊢ atomic_update ?Eo1 .. -∗ ..].  Same statement, so introduce the
+     hypothesis and apply it through the wand. *)
+  iIntros "AU"; iApply (atomic_update_mask_weaken with "AU"); auto.
 Qed.
 
 (* use iInv instead of applying this lemma *)
