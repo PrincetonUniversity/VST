@@ -79,6 +79,7 @@ coqide
 *~
 *#
 .#*
+.*.log
 *.aux
 doc/html/
 /_CoqProject
