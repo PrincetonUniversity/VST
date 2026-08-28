@@ -4518,7 +4518,7 @@ lazymatch goal with |- semax _ _ _ (frame_ret_assert (function_body_ret_assert ?
 end;
  simpl functors.MixVariantFunctor._functor in *;
  simpl rmaps.dependent_type_functor_rec;
- clear DependedTypeList;
+ try clear DependedTypeList;
  rewrite_old_main_pre;
  repeat match goal with
  | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
