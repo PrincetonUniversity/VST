@@ -16,7 +16,7 @@ Module Info.
   Definition bitsize := 64.
   Definition big_endian := false.
   Definition source_file := "progs/VSUpile/pile.c".
-  Definition normalized := false.
+  Definition normalized := true.
 End Info.
 
 Definition _Apile_add : ident := $"Apile_add".
@@ -106,6 +106,7 @@ Definition _r : ident := $"r".
 Definition _surely_malloc : ident := $"surely_malloc".
 Definition _the_pile : ident := $"the_pile".
 Definition _t'1 : ident := 128%positive.
+Definition _t'2 : ident := 129%positive.
 
 Definition f_surely_malloc := {|
   fn_return := (tptr tvoid);
@@ -159,7 +160,8 @@ Definition f_Pile_add := {|
   fn_params := ((_p, (tptr (Tstruct _pile noattr))) :: (_n, tint) :: nil);
   fn_vars := nil;
   fn_temps := ((_head, (tptr (Tstruct _list noattr))) ::
-               (_t'1, (tptr tvoid)) :: nil);
+               (_t'1, (tptr tvoid)) ::
+               (_t'2, (tptr (Tstruct _list noattr))) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -175,13 +177,16 @@ Definition f_Pile_add := {|
         (Ederef (Etempvar _head (tptr (Tstruct _list noattr)))
           (Tstruct _list noattr)) _n tint) (Etempvar _n tint))
     (Ssequence
-      (Sassign
-        (Efield
-          (Ederef (Etempvar _head (tptr (Tstruct _list noattr)))
-            (Tstruct _list noattr)) _next (tptr (Tstruct _list noattr)))
-        (Efield
-          (Ederef (Etempvar _p (tptr (Tstruct _pile noattr)))
-            (Tstruct _pile noattr)) _head (tptr (Tstruct _list noattr))))
+      (Ssequence
+        (Sset _t'2
+          (Efield
+            (Ederef (Etempvar _p (tptr (Tstruct _pile noattr)))
+              (Tstruct _pile noattr)) _head (tptr (Tstruct _list noattr))))
+        (Sassign
+          (Efield
+            (Ederef (Etempvar _head (tptr (Tstruct _list noattr)))
+              (Tstruct _list noattr)) _next (tptr (Tstruct _list noattr)))
+          (Etempvar _t'2 (tptr (Tstruct _list noattr)))))
       (Sassign
         (Efield
           (Ederef (Etempvar _p (tptr (Tstruct _pile noattr)))
@@ -194,7 +199,8 @@ Definition f_Pile_count := {|
   fn_callconv := cc_default;
   fn_params := ((_p, (tptr (Tstruct _pile noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_q, (tptr (Tstruct _list noattr))) :: (_c, tint) :: nil);
+  fn_temps := ((_q, (tptr (Tstruct _list noattr))) :: (_c, tint) ::
+               (_t'1, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _c (Econst_int (Int.repr 0) tint))
@@ -209,11 +215,13 @@ Definition f_Pile_count := {|
           (Sifthenelse (Etempvar _q (tptr (Tstruct _list noattr)))
             Sskip
             Sbreak)
-          (Sset _c
-            (Ebinop Oadd (Etempvar _c tint)
+          (Ssequence
+            (Sset _t'1
               (Efield
                 (Ederef (Etempvar _q (tptr (Tstruct _list noattr)))
-                  (Tstruct _list noattr)) _n tint) tint)))
+                  (Tstruct _list noattr)) _n tint))
+            (Sset _c
+              (Ebinop Oadd (Etempvar _c tint) (Etempvar _t'1 tint) tint))))
         (Sset _q
           (Efield
             (Ederef (Etempvar _q (tptr (Tstruct _list noattr)))

@@ -16,7 +16,7 @@ Module Info.
   Definition bitsize := 64.
   Definition big_endian := false.
   Definition source_file := "progs/VSUpile/main.c".
-  Definition normalized := false.
+  Definition normalized := true.
 End Info.
 
 Definition _Apile_add : ident := $"Apile_add".
