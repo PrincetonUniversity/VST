@@ -1,3 +1,7 @@
+ifdef VST_LOC
+include $(VST_LOC)/Makefile.bundled
+endif
+
 HFILES = pile.h pile_private.h onepile.h apile.h triang.h stdlib.h \
          fast/fastpile_private.h
 CFILES = pile.c onepile.c apile.c triang.c main.c stdlib.c \
@@ -17,38 +21,23 @@ VFILES = PileModel.v spec_stdlib.v verif_stdlib.v spec_pile.v spec_pile_private.
 CC=ccomp
 CFLAGS=-O
 
--include CONFIGURE
-VST_LOC ?= ../..
-
-ifdef COMPCERT_LOC
-CLIGHTGEN ?= $(COMPCERT_LOC)/clightgen
-endif 
-
-ifdef CLIGHTGEN
-VERSION1= $(lastword $(shell $(CLIGHTGEN) --version))
-VERSION2= $(subst version=,,$(shell grep version ../../compcert/VERSION))
-ifneq ($(VERSION1),$(VERSION2))
-$(warning clightgen version $(VERSION1) does not match VST/compcert/VERSION $(VERSION2))
-endif
-endif
-
-
 CVFILES = $(patsubst %.c,%.v,$(CFILES))
 OFILES = $(patsubst %.c,%.o,$(CFILES))
 VOFILES = $(patsubst %.v,%.vo,$(CVFILES) $(VFILES))
 
-
-VST_DIRS= msl shared sepcomp veric zlist floyd
-VSTFLAGS= $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -R . pile
-
-
-target: _CoqProject verif_main.vo simple_verif_main.vo fast/verif_fastmain.vo
+all: _CoqProject verif_main.vo simple_verif_main.vo fast/verif_fastmain.vo incr/verif_incr.vo
 
 cvfiles: $(CVFILES)
 
 %.vo: %.v
 	@echo COQC $*.v
+ifneq (,$(TIMING))
+	@coqc $(VSTFLAGS) -time $*.v > $<.timing
+else ifeq ($(TIMINGS), true)
+	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" coqc $(VSTFLAGS) $*.v"
+else 
 	@coqc $(VSTFLAGS) $*.v
+endif
 
 CGFLAGS =  -DCOMPCERT -short-idents
 
@@ -62,17 +51,13 @@ endif
 
 incr/verif_incr.vo: incr/verif_incr.v incr/incr.vo
 
-_CoqProject: Makefile
-	@echo $(VSTFLAGS) > _CoqProject
-
 clean:
 	rm -f *.vo *.o *.aux *.vok *.vos
 	rm -f fast/*.vo fast/*.o fast/*.aux fast/*.vok fast/*.vos
+	rm -f incr/*.vo incr/*.o incr/*.aux incr/*.vok incr/*.vos
 
 # .depend depend:
 # 	coqdep $(VSTFLAGS) *.v >.depend
-
-FLOYD= $(VST_LOC)/floyd/proofauto.vo $(VST_LOC)/floyd/VSU.vo
 
 PileModel.vo: PileModel.v $(FLOYD)
 spec_apile.vo: apile.vo spec_stdlib.vo spec_pile.vo $(FLOYD)
