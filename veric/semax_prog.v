@@ -570,7 +570,7 @@ destruct (eq_dec (Vptr b Ptrofs.zero) v') as [?H|?H].
 iLeft.
 destruct (semax_func_cons_aux {| genv_genv := ge'; genv_cenv := cenv_cs |} _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ GE1 Hni Hf' Hclaims)
 as [H4' [H4'' [? [H4 [H4b H4c]]]]].
-subst E' A' fsig' cc'.
+subst E'. apply JMeq_eq in H4; subst A' fsig' cc'.
 apply JMeq_eq in H4b.
 apply JMeq_eq in H4c.
 subst P' Q'.

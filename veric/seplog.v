@@ -356,7 +356,7 @@ Lemma funspec_sub_refl_dep A1 A2 cc1 cc2 sig1 sig2 E1 E2 P1 P2 Q1 Q2 :
   JMeq Q1 Q2 ->
   funspec_sub (mk_funspec cc1 sig1 A1 E1 P1 Q1) (mk_funspec cc2 sig2 A2 E2 P2 Q2).
 Proof.
-intros. subst. apply funspec_sub_refl.
+  intros ->%JMeq_eq -> -> ->%JMeq_eq ->%JMeq_eq ->%JMeq_eq. apply funspec_sub_refl.
 Qed.
 
 Lemma funspec_sub_trans f1 f2 f3: funspec_sub f1 f2 ->
@@ -1118,15 +1118,15 @@ Proof.
   { unfold intersectionMask.
     destruct (phi i); simpl in *.
     inv Heqzz.
-    apply inj_pair2 in H4; subst; auto. }
+    apply JMeq_eq in HD as ->; apply inj_pair2 in H4 as ->; auto. }
   iSplit.
   + destruct (phi i).
     simpl in *; inv Heqzz.
-    apply inj_pair2 in H5; subst; trivial.
+    apply JMeq_eq in HD as ->; apply inj_pair2 in H5 as ->; trivial.
   + iPureIntro; intros; rewrite bi.emp_sep. unfold intersectionPOST.
     iIntros "(% & ?)". destruct (phi i).
     simpl in *; inv Heqzz.
-    apply inj_pair2 in H7; subst; trivial.
+    apply JMeq_eq in HD as ->; apply inj_pair2 in H7 as ->; trivial.
 Qed.
 
 Lemma generalintersection_sub3  {I sig cc}
