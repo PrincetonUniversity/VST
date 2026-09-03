@@ -86,6 +86,7 @@ doc/html/
 .loadpath-export
 _CoqProject-export
 progs/VSUpile/_CoqProject
+progs64/VSUpile/_CoqProject
 wand_demo/vfa/*.ml
 wand_demo/vfa/*.mli
 wand/vfa/*.ml

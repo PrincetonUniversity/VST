@@ -16,7 +16,7 @@ Module Info.
   Definition bitsize := 64.
   Definition big_endian := false.
   Definition source_file := "progs64/VSUpile/onepile.c".
-  Definition normalized := false.
+  Definition normalized := true.
 End Info.
 
 Definition _Apile_add : ident := $"Apile_add".
@@ -97,6 +97,7 @@ Definition _next : ident := $"next".
 Definition _pile : ident := $"pile".
 Definition _the_pile : ident := $"the_pile".
 Definition _t'1 : ident := 128%positive.
+Definition _t'2 : ident := 129%positive.
 
 Definition v_the_pile := {|
   gvar_info := (tptr (Tstruct _pile noattr));
@@ -125,13 +126,15 @@ Definition f_Onepile_add := {|
   fn_callconv := cc_default;
   fn_params := ((_n, tint) :: nil);
   fn_vars := nil;
-  fn_temps := nil;
+  fn_temps := ((_t'1, (tptr (Tstruct _pile noattr))) :: nil);
   fn_body :=
-(Scall None
-  (Evar _Pile_add (Tfunction ((tptr (Tstruct _pile noattr)) :: tint :: nil)
-                    tvoid cc_default))
-  ((Evar _the_pile (tptr (Tstruct _pile noattr))) :: (Etempvar _n tint) ::
-   nil))
+(Ssequence
+  (Sset _t'1 (Evar _the_pile (tptr (Tstruct _pile noattr))))
+  (Scall None
+    (Evar _Pile_add (Tfunction ((tptr (Tstruct _pile noattr)) :: tint :: nil)
+                      tvoid cc_default))
+    ((Etempvar _t'1 (tptr (Tstruct _pile noattr))) :: (Etempvar _n tint) ::
+     nil)))
 |}.
 
 Definition f_Onepile_count := {|
@@ -139,13 +142,15 @@ Definition f_Onepile_count := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_t'1, tint) :: nil);
+  fn_temps := ((_t'1, tint) :: (_t'2, (tptr (Tstruct _pile noattr))) :: nil);
   fn_body :=
 (Ssequence
-  (Scall (Some _t'1)
-    (Evar _Pile_count (Tfunction ((tptr (Tstruct _pile noattr)) :: nil) tint
-                        cc_default))
-    ((Evar _the_pile (tptr (Tstruct _pile noattr))) :: nil))
+  (Ssequence
+    (Sset _t'2 (Evar _the_pile (tptr (Tstruct _pile noattr))))
+    (Scall (Some _t'1)
+      (Evar _Pile_count (Tfunction ((tptr (Tstruct _pile noattr)) :: nil)
+                          tint cc_default))
+      ((Etempvar _t'2 (tptr (Tstruct _pile noattr))) :: nil)))
   (Sreturn (Some (Etempvar _t'1 tint))))
 |}.
 
