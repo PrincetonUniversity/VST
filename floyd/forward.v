@@ -4676,6 +4676,20 @@ Proof.
 intros. eexists. eassumption.
 Qed.
 
+
+Ltac check_no_bitfields' id m :=
+ lazymatch m with
+ | Member_plain _ _ :: ?rest => check_no_bitfields' id rest
+ | Member_bitfield ?i _ _ _ _ _ :: ?rest => fail "VST does not support bitfields; found a bitfield in type" id "(sub)field" i
+ | nil => idtac
+ end.
+
+Ltac check_no_bitfields X :=
+ lazymatch X with
+ | Composite ?id _ ?members _ :: ?rest => check_no_bitfields' id members; check_no_bitfields rest
+ | nil => idtac
+ end.
+
 Ltac simplify_composite_of_def d :=
    let d := eval hnf in d in
   match d with
@@ -4778,6 +4792,7 @@ Ltac make_compspecs prog :=
   | ?t => fail 1 "Expected a Clight.program, but "prog" has type" t
  end then idtac 
   else fail "Expected a Clight.program, but "prog" is undefined; did you forget to import the result of clightgen?";
+  let a := constr:(prog_types prog) in let a := eval hnf in a in check_no_bitfields a;
   let cenv := make_composite_env0 prog in
   make_compspecs_cenv cenv.
 
