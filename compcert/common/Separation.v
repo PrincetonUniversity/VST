@@ -261,7 +261,7 @@ Qed.
 
 Lemma sep_proj2:
   forall P Q m, m |= P ** Q -> m |= Q.
-Proof sep_drop.
+Proof. exact sep_drop. Qed.
 
 Definition sep_pick1 := sep_proj1.
 
@@ -639,6 +639,7 @@ Next Obligation.
 - intros. destruct (Mem.perm_dec m0 b1 ofs Max Nonempty); auto.
   eapply mi_perm_inv; eauto.
   eapply Mem.perm_unchanged_on_2; eauto.
+- eauto using Mem.perm_unchanged_on_2.
 Qed.
 Next Obligation.
   eapply Mem.valid_block_inject_2; eauto.
@@ -708,6 +709,7 @@ Proof.
 - eexact ALLOC1.
 - instantiate (1 := b2). eauto with mem.
 - instantiate (1 := delta). extlia.
+- right; lia.
 - intros. assert (0 <= ofs < sz2) by (eapply Mem.perm_alloc_3; eauto). lia.
 - intros. apply Mem.perm_implies with Freeable; auto with mem.
   eapply Mem.perm_alloc_2; eauto. extlia.

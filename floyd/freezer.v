@@ -1010,7 +1010,8 @@ pattern x;
 match goal with |- ?A x => set (a:=A) end;
 revert x;
 rewrite <- ?sepcon_assoc, sepcon_emp;
-intro x; subst a x.
+intro x; subst a x;
+cbv beta.
 
 Ltac gather_SEP'' L :=
  gather_SEP' L;
