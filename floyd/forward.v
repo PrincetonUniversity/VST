@@ -4113,7 +4113,10 @@ Ltac make_func_ptr id :=
   [ (reflexivity || fail 99  "Local variable " id " is shadowing the global variable" id)
   | (reflexivity || fail 99 "No specification of function " id " in Delta.  If the current function is a leaf function, you may need to invoke the [function_pointers] tactic before [start_function].  If that doesn't work, make sure you have not done clear_Delta_specs or [clearbody Delta_specs].")
   | (reflexivity || fail 99 "No global variable " id " in Delta, i.e., in your extern declarations")
-  | split; reflexivity | ].
+  | split; [ reflexivity || fail 99 "Cannot find 'gvars gv' in your LOCAL list; did you forget GLOBALS(gv) in your funspec?"
+             | reflexivity || fail 99 "It is inconceivable that make_func_ptr would fail this way."
+             ]
+   | ].
 
 Lemma gvars_denote_HP':
  forall Delta P Q R gv i, 
