@@ -2813,6 +2813,9 @@ Tactic Notation "forward_for" constr(Inv) :=
         
   end.
 
+Ltac check_rep_lia :=
+  try rep_lia; match goal with |- ?G => fail 5 "First assert and prove" G end.
+
 Ltac process_cases sign := 
 match goal with
 | |- semax _ _ (seq_of_labeled_statement 
@@ -2827,8 +2830,8 @@ match goal with
         unfold seq_of_labeled_statement at 1;
         apply unsigned_eq_eq in E;
         match sign with
-        | Signed => apply repr_inj_signed in E; [ | rep_lia | rep_lia]
-        | Unsigned => apply repr_inj_unsigned in E; [ | rep_lia | rep_lia]
+        | Signed => apply repr_inj_signed in E; [ | check_rep_lia | rep_lia]
+        | Unsigned => apply repr_inj_unsigned in E; [ | check_rep_lia | rep_lia]
         end;
         try match type of E with ?a = _ => is_var a; subst a end;
         repeat apply -> semax_skip_seq
@@ -2887,8 +2890,9 @@ Ltac forward_if'_new :=
   check_Delta; check_POSTCONDITION;
  repeat apply -> semax_seq_skip;
  repeat (apply seq_assoc1; try apply -> semax_seq_skip);
- hoist_later_in_pre;
-match goal with
+lazymatch goal with |- semax _ _ (Sswitch _ _) _ => forward_switch' 
+ | _ =>  hoist_later_in_pre;
+ match goal with
 | |- @semax ?CS _ ?Delta (|> ?Pre) (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in
     do_compute_expr1 CS Delta Pre e;
@@ -2914,13 +2918,11 @@ match goal with
     else fail 1 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 | |- semax _ (@exp _ _ _ _) _ _ =>
       fail 1 "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
-| |- semax _ _ (Sswitch _ _) _ =>
-  forward_switch'
 | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
      fail 1 "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
 | |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
      fail 1 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
-end.
+end end.
 
 Lemma ENTAIL_break_normal:
  forall Delta R S, ENTAIL Delta, RA_break (normal_ret_assert R) |-- S.
