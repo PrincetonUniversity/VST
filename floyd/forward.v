@@ -4798,7 +4798,10 @@ Ltac make_compspecs prog :=
   | ?t => fail 1 "Expected a Clight.program, but "prog" has type" t
  end then idtac 
   else fail "Expected a Clight.program, but "prog" is undefined; did you forget to import the result of clightgen?";
-  let a := constr:(prog_types prog) in let a := eval hnf in a in check_no_bitfields a;
+  let a := constr:(prog) in let a := eval red in a in
+    match a with Clightdefs.mkprogram ?composites _ _ _ _ =>
+      let b := eval red in composites in   check_no_bitfields b
+    end;
   let cenv := make_composite_env0 prog in
   make_compspecs_cenv cenv.
 

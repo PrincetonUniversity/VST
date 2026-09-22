@@ -100,7 +100,7 @@ jobs:
           - 32
           - 64
         exclude:
-          - coq_version: 9.1
+          - coq_version: dev
             make_target: test2
           - coq_version: dev
             bit_size: 32
