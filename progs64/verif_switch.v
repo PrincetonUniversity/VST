@@ -47,6 +47,19 @@ repeat forward; entailer!!.
 repeat forward; entailer!!.
 Qed.
 
+Lemma body_twice': semax_body Vprog Gprog f_twice twice_spec.
+Proof. (* Tests the fix for issue #858 *)
+start_function.
+apply semax_seq with (PROP() LOCAL(temp _n (Vint (Int.repr (n+n)))) SEP()); [ | abbreviate_semax].
+forward_if.
+repeat forward; entailer!!.
+repeat forward; entailer!!.
+repeat forward; entailer!!.
+repeat forward; entailer!!.
+repeat forward; entailer!!.
+repeat forward; entailer!!.
+Qed.
+
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.

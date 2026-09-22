@@ -1,4 +1,4 @@
-From Stdlib Require Import String List ZArith.
+From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Import Clightdefs.ClightNotations.
 Local Open Scope Z_scope.
@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.15".
+  Definition version := "3.17".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".

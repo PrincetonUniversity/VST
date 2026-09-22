@@ -508,6 +508,23 @@ Ltac insist_rep_lia :=
   fail 1000 "load or store subscript failure: rep_lia cannot prove "A
  end.
 
+Ltac diagnose_solve_msubst_eval_expr :=
+ solve_msubst_eval_expr
+  || match goal with |- msubst_eval_expr ?Delta ?T1 ?T2 ?GV ?e = _ =>
+      match e with
+      | context [Eaddrof (Evar ?id ?t) ?t'] => 
+           let e1 := constr:(msubst_eval_expr Delta T1 T2 GV (Eaddrof (Evar id t) t')) in
+           let e1 := eval compute in e1 in
+           match e1 with None => 
+               tryif unify GV None
+              then fail 1000 "Cannot find the address of" id "as either a local or global variable; sometimes this is caused by a missing lvar clause in the LOCALs"
+              else 
+                  fail 1000 "Cannot find the address of" id "as either a local or global variable; sometimes this is caused by a missing lvar or gvar clause in the LOCALs; missing gvar clause can be caused by omitting GLOBALS(gv) in the funspec precondition"
+           end
+      | _ =>  fail 1000 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)"
+      end
+     end.
+
 Ltac solve_msubst_efield_denote :=
   solve 
   [ repeat first
@@ -1976,7 +1993,7 @@ Ltac store_tac_with_hint LOCAL2PTREE :=
   [ exact LOCAL2PTREE
   | reflexivity
   | reflexivity
-  | (solve_msubst_eval_expr                 || fail 1000 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | diagnose_solve_msubst_eval_expr
   | (solve_msubst_eval_lvalue               || fail 1000 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | check_hint_type
@@ -1998,7 +2015,7 @@ Ltac store_tac_no_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | (solve_msubst_eval_expr                 || fail 1000 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | diagnose_solve_msubst_eval_expr
   | (solve_msubst_eval_LR                   || fail 1000 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | (solve_msubst_efield_denote             || fail 1000 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | econstructor
@@ -2056,7 +2073,7 @@ Ltac forward_store_union_hack id :=
   | reflexivity
   | reflexivity
 
-  | (solve_msubst_eval_expr                 || fail 1000 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | diagnose_solve_msubst_eval_expr
   | (solve_msubst_eval_LR                   || fail 1000 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | (solve_msubst_efield_denote             || fail 1000 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | econstructor

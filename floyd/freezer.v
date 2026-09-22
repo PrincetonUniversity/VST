@@ -442,29 +442,33 @@ Ltac solve_is_increasing :=
 
 Ltac freeze_tac L name :=
   eapply (freeze_SEP'' (map Z.to_nat L)); 
-   [solve_is_increasing | reflexivity 
-   | match goal with
-           | |- semax _ (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: my_delete_list ?A _)))) _ _ =>
+   [solve_is_increasing
+   | match goal with |- _ = (my_freezelist_nth ?A _) => let j := eval compute in A in change A with j end;
+     cbv [my_freezelist_nth my_nth]; unfold map at 1;
+     match goal with |- _ = (_, my_delete_list ?A _) => let j := eval compute in A in change A with j end;
+     cbv [my_delete_list my_delete_nth];
+     reflexivity
+ | match goal with
+           | |- semax _ (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) ::  _)))) _ _ =>
            let D := fresh name in
            set (D:=xs);
-           change xs with (@abbreviate (list mpred) xs) in D;
-            let x := fresh "x" in 
-            set (x:=A); compute in x; subst x;
-             unfold my_delete_list, my_delete_nth
-         end].
+           change xs with (@abbreviate (list mpred) xs) in D
+    end
+].
 
 Ltac freeze_tac_entail L name :=
   eapply (freeze_SEP''entail (map Z.to_nat L)); 
-   [solve_is_increasing | reflexivity 
+   [solve_is_increasing
+   | match goal with |- _ = (my_freezelist_nth ?A _) => let j := eval compute in A in change A with j end;
+     cbv [my_freezelist_nth my_nth]; unfold map at 1;
+     match goal with |- _ = (_, my_delete_list ?A _) => let j := eval compute in A in change A with j end;
+     cbv [my_delete_list my_delete_nth];
+     reflexivity
    | match goal with
-           | |- ENTAIL _, (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: my_delete_list ?A _)))) |-- _ =>
+           | |- ENTAIL _, (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: _)))) |-- _ =>
            let D := fresh name in
            set (D:=xs);
-(*           hnf in D;*)
-           change xs with (@abbreviate (list mpred) xs) in D;
-            let x := fresh "x" in 
-            set (x:=A); compute in x; subst x;
-             unfold my_delete_list, my_delete_nth
+           change xs with (@abbreviate (list mpred) xs) in D
          end].
 
 Function Zlist_complement'  (i: Z) (n: nat) (bl: list Z) : list Z :=
@@ -998,17 +1002,16 @@ Tactic Notation "unlocalize" constr(R_G2) "using" constr(wit) "assuming" constr(
 Ltac thaw'' i :=
 thaw' i;
 let x := fresh "x" in let y := fresh "y" in let a := fresh "a" in 
-match goal with |- context [fold_right_sepcon (map ?F ?A)] =>
-  set (x:= fold_right_sepcon (map F A));
-  set (y := F) in *; 
-  simpl in x
+match goal with |- context [fold_right_sepcon ?A] =>
+  set (x:= fold_right_sepcon A);
+  unfold fold_right_sepcon in x
 end;
 pattern x;
 match goal with |- ?A x => set (a:=A) end;
 revert x;
 rewrite <- ?sepcon_assoc, sepcon_emp;
-intro x; subst a x y;
-  unfold my_delete_list, my_delete_nth, my_nth, fold_right_sepcon.
+intro x; subst a x;
+cbv beta.
 
 Ltac gather_SEP'' L :=
  gather_SEP' L;

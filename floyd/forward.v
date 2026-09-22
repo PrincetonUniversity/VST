@@ -2813,6 +2813,9 @@ Tactic Notation "forward_for" constr(Inv) :=
         
   end.
 
+Ltac check_rep_lia :=
+  try rep_lia; match goal with |- ?G => fail 5 "First assert and prove" G end.
+
 Ltac process_cases sign := 
 match goal with
 | |- semax _ _ (seq_of_labeled_statement 
@@ -2827,8 +2830,8 @@ match goal with
         unfold seq_of_labeled_statement at 1;
         apply unsigned_eq_eq in E;
         match sign with
-        | Signed => apply repr_inj_signed in E; [ | rep_lia | rep_lia]
-        | Unsigned => apply repr_inj_unsigned in E; [ | rep_lia | rep_lia]
+        | Signed => apply repr_inj_signed in E; [ | check_rep_lia | rep_lia]
+        | Unsigned => apply repr_inj_unsigned in E; [ | check_rep_lia | rep_lia]
         end;
         try match type of E with ?a = _ => is_var a; subst a end;
         repeat apply -> semax_skip_seq
@@ -2887,8 +2890,9 @@ Ltac forward_if'_new :=
   check_Delta; check_POSTCONDITION;
  repeat apply -> semax_seq_skip;
  repeat (apply seq_assoc1; try apply -> semax_seq_skip);
- hoist_later_in_pre;
-match goal with
+lazymatch goal with |- semax _ _ (Sswitch _ _) _ => forward_switch' 
+ | _ =>  hoist_later_in_pre;
+ match goal with
 | |- @semax ?CS _ ?Delta (|> ?Pre) (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in
     do_compute_expr1 CS Delta Pre e;
@@ -2914,13 +2918,11 @@ match goal with
     else fail 1 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 | |- semax _ (@exp _ _ _ _) _ _ =>
       fail 1 "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
-| |- semax _ _ (Sswitch _ _) _ =>
-  forward_switch'
 | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
      fail 1 "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
 | |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
      fail 1 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
-end.
+end end.
 
 Lemma ENTAIL_break_normal:
  forall Delta R S, ENTAIL Delta, RA_break (normal_ret_assert R) |-- S.
@@ -4111,7 +4113,10 @@ Ltac make_func_ptr id :=
   [ (reflexivity || fail 99  "Local variable " id " is shadowing the global variable" id)
   | (reflexivity || fail 99 "No specification of function " id " in Delta.  If the current function is a leaf function, you may need to invoke the [function_pointers] tactic before [start_function].  If that doesn't work, make sure you have not done clear_Delta_specs or [clearbody Delta_specs].")
   | (reflexivity || fail 99 "No global variable " id " in Delta, i.e., in your extern declarations")
-  | split; reflexivity | ].
+  | split; [ reflexivity || fail 99 "Cannot find 'gvars gv' in your LOCAL list; did you forget GLOBALS(gv) in your funspec?"
+             | reflexivity || fail 99 "It is inconceivable that make_func_ptr would fail this way."
+             ]
+   | ].
 
 Lemma gvars_denote_HP':
  forall Delta P Q R gv i, 
@@ -4544,13 +4549,14 @@ Ltac expand_main_pre := expand_main_pre_old.
 
 (*  The following destructs any let-definitions immediately after PRE or POST *)
 Ltac destruct_it B :=
- match B with 
+ match B with
  | ?C _ => destruct_it C
  | let '(x,y) := ?A in _ => destruct A as [x y]
  | match ?A with _ => _ end =>
-     match type of A with
+    match type of A with ?tA => let uA := eval hnf in tA in  (* new *)
+     match uA with
      | @sigT _ (fun x => _) => destruct A as [x A] 
-     end
+     end end
  end.
 
 Ltac destruct_PRE_POST_lets := (* see issue #839 *)
@@ -4676,6 +4682,20 @@ Proof.
 intros. eexists. eassumption.
 Qed.
 
+
+Ltac check_no_bitfields' id m :=
+ lazymatch m with
+ | Member_plain _ _ :: ?rest => check_no_bitfields' id rest
+ | Member_bitfield ?i _ _ _ _ _ :: ?rest => fail "VST does not support bitfields; found a bitfield in type" id "(sub)field" i
+ | nil => idtac
+ end.
+
+Ltac check_no_bitfields X :=
+ lazymatch X with
+ | Composite ?id _ ?members _ :: ?rest => check_no_bitfields' id members; check_no_bitfields rest
+ | nil => idtac
+ end.
+
 Ltac simplify_composite_of_def d :=
    let d := eval hnf in d in
   match d with
@@ -4778,6 +4798,10 @@ Ltac make_compspecs prog :=
   | ?t => fail 1 "Expected a Clight.program, but "prog" has type" t
  end then idtac 
   else fail "Expected a Clight.program, but "prog" is undefined; did you forget to import the result of clightgen?";
+  let a := constr:(prog) in let a := eval red in a in
+    match a with Clightdefs.mkprogram ?composites _ _ _ _ =>
+      let b := eval red in composites in   check_no_bitfields b
+    end;
   let cenv := make_composite_env0 prog in
   make_compspecs_cenv cenv.
 

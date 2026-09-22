@@ -1,4 +1,4 @@
-From Stdlib Require Import String List ZArith.
+From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Import Clightdefs.ClightNotations.
 Local Open Scope Z_scope.
@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.15".
+  Definition version := "3.17".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -19,7 +19,7 @@ Module Info.
   Definition normalized := true.
 End Info.
 
-Definition __109 : ident := 7%positive.
+Definition __110 : ident := 7%positive.
 Definition ___builtin_annot : ident := 26%positive.
 Definition ___builtin_annot_intval : ident := 27%positive.
 Definition ___builtin_bswap : ident := 11%positive.
@@ -145,20 +145,20 @@ Definition f_fabs_single := {|
   fn_return := tfloat;
   fn_callconv := cc_default;
   fn_params := ((_x, tfloat) :: nil);
-  fn_vars := ((_u, (Tunion __109 noattr)) :: nil);
+  fn_vars := ((_u, (Tunion __110 noattr)) :: nil);
   fn_temps := ((_t'2, tuint) :: (_t'1, tfloat) :: nil);
   fn_body :=
 (Ssequence
-  (Sassign (Efield (Evar _u (Tunion __109 noattr)) _f tfloat)
+  (Sassign (Efield (Evar _u (Tunion __110 noattr)) _f tfloat)
     (Etempvar _x tfloat))
   (Ssequence
     (Ssequence
-      (Sset _t'2 (Efield (Evar _u (Tunion __109 noattr)) _i tuint))
-      (Sassign (Efield (Evar _u (Tunion __109 noattr)) _i tuint)
+      (Sset _t'2 (Efield (Evar _u (Tunion __110 noattr)) _i tuint))
+      (Sassign (Efield (Evar _u (Tunion __110 noattr)) _i tuint)
         (Ebinop Oand (Etempvar _t'2 tuint)
           (Econst_int (Int.repr 2147483647) tint) tuint)))
     (Ssequence
-      (Sset _t'1 (Efield (Evar _u (Tunion __109 noattr)) _f tfloat))
+      (Sset _t'1 (Efield (Evar _u (Tunion __110 noattr)) _f tfloat))
       (Sreturn (Some (Etempvar _t'1 tfloat))))))
 |}.
 
@@ -170,7 +170,7 @@ Definition composites : list composite_definition :=
  Composite _const_or_not Union
    (Member_plain _c (tptr tschar) :: Member_plain _n (tptr tschar) :: nil)
    noattr ::
- Composite __109 Union
+ Composite __110 Union
    (Member_plain _f tfloat :: Member_plain _i tuint :: nil)
    noattr :: nil).
 
