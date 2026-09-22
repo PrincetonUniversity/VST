@@ -102,7 +102,8 @@ Qed.
 
 (** [JMeq] is equivalent to [eq_dep Type (fun X => X)] *)
 
-Require Import Stdlib.Logic.Eqdep.
+Require Stdlib.Logic.Eqdep.  (* see https://github.com/PrincetonUniversity/VST/issues/866 *)
+Import Stdlib.Logic.EqdepFacts.
 
 Lemma JMeq_eq_dep_id :
  forall (A:Type) (B:Type) (x:A) (y:B), JMeq x y -> eq_dep Type (fun X:Type => X) A x B y.
