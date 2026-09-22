@@ -4549,13 +4549,14 @@ Ltac expand_main_pre := expand_main_pre_old.
 
 (*  The following destructs any let-definitions immediately after PRE or POST *)
 Ltac destruct_it B :=
- match B with 
+ match B with
  | ?C _ => destruct_it C
  | let '(x,y) := ?A in _ => destruct A as [x y]
  | match ?A with _ => _ end =>
-     match type of A with
+    match type of A with ?tA => let uA := eval hnf in tA in  (* new *)
+     match uA with
      | @sigT _ (fun x => _) => destruct A as [x A] 
-     end
+     end end
  end.
 
 Ltac destruct_PRE_POST_lets := (* see issue #839 *)
