@@ -30,8 +30,6 @@ jobs:
         make_target:
           - vst
         exclude:
-          - coq_version: 9.1
-            bit_size: 32
           - coq_version: dev
             bit_size: 32
     steps:
