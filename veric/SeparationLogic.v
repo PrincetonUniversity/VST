@@ -212,7 +212,7 @@ Proof.
 Qed.
 
 Lemma funspec_sub_iff: forall f1 f2, funspec_sub f1 f2 <-> seplog.funspec_sub f1 f2.
-Proof. intros. unfold funspec_sub. now rewrite derives_eq'. Qed.
+Proof. intros. unfold funspec_sub. unfold rmaps.dependent_type_functor_rec. now rewrite derives_eq'. Qed.
 
 Lemma funspec_sub_refl f: funspec_sub f f.
 Proof.
