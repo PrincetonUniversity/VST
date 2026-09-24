@@ -30,15 +30,21 @@ in the paper, is the equivalence target.
   configurations of the two semantics.
 - `adequacy.v` instantiates generic `am_safe`, defines reference safety, and
   proves that AM safety implies reference progress at reachable stable
-  configurations in the non-spawning fragment. It also gives a checked
-  counterexample to transporting full safety through the existing forward
-  relation without strengthening it.
+  configurations. It also gives a checked counterexample to transporting full
+  safety through the forward relation of `equivalence.v`. Both are superseded
+  by the next two files.
+- `safety_reflection.v` proves that AM safety implies reference safety from
+  stably matched initial configurations.
+- `machine_safety.v` proves the converse, and states the equivalence
+  `lr_safety_equivalence`.
 - `races.v` contains the original next-access and non-racing predicates.
 - `LICENSE.lambda-rust` reproduces the upstream license.
 
-The equivalence theorem relates the event semantics and atomic machine to the
-non-spawning reference transition system. The reference transition rules
-remain frozen; generic definitions used by both semantics live in `common.v`.
+The equivalence theorems relate the event semantics and atomic machine to the
+full reference transition system, including thread creation: the machine's
+`Spawn` rule gives the new thread the least unused index, which is where the
+reference appends it. The reference transition rules remain frozen; generic
+definitions used by both semantics live in `common.v`.
 
 ## Safety and adequacy
 
@@ -55,21 +61,20 @@ adequacy: every thread in every reachable reference configuration is a value
 or can take a primitive step. This definition uses the full reference
 semantics, including forks. It does not impose a result postcondition.
 
-`lr_am_safe_reference_stable` is a partial connection to that property. It
-uses `lambda_rust_reachability_equivalence` and a separate local progress
-lemma. Its reference execution must be non-spawning, and the observed
-configuration must have a stable match. It does **not** establish
-`lr_am_safe mc -> lr_reference_safe rc` or the converse.
-
-The existing simulations forget reservations and allow crashed threads to
-match arbitrary thread states. `lr_forward_match_does_not_reflect_safety`
-exhibits a safe AM configuration related to an unsafe reference configuration.
-This witness is not a pair of stable initial states, so it does not refute
-the desired safety correspondence from stable initial states. Proving that
-correspondence requires additional reasoning about intermediate states,
-crashes, and per-thread progress; stable reachability equivalence alone is
-insufficient. Supporting full reference executions also requires a machine
-thread-spawn rule.
+`lr_safety_equivalence` states that, from stably matched initial
+configurations, `lr_am_safe mc <-> lr_reference_safe rc`. Both directions are
+simulations whose relation matches in-flight accesses: a reference thread
+after its first (`Na1Ord`) half corresponds to a machine thread after
+`Core_Try` with the pending event, and the reader/writer map mirrors the
+reference lock states. The machine performs a non-atomic write at `Core_Try`
+and the reference at its second half, so the memories differ exactly at
+write-locked locations. The backward direction additionally tracks pending
+allocations and deallocations, which have no reference counterpart; a pending
+deallocation keeps its reservations until it commits. Each direction uses the
+safety hypothesis at every step, not only at the end: a pending access keeps
+its lock (otherwise its thread could not finish), and a step without a
+counterpart on the other side (a racy `CAS`) leads to an unsafe
+configuration.
 
 Build the safety definitions and proofs with `make lambda-rust-adequacy`.
 

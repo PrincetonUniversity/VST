@@ -4,8 +4,9 @@
     adequacy (with a trivial result postcondition).  The current simulations
     prove reachability between stable configurations, not preservation of
     safety at all intermediate configurations.  Accordingly, the bridge
-    proved here explicitly restricts its observations to stable states and
-    its executions to the non-spawning fragment supported by the machine. *)
+    proved here explicitly restricts its observations to stable states.
+    [safety_reflection.v] and [machine_safety.v] prove the full safety
+    equivalence. *)
 
 From Stdlib Require Import List Lia.
 From stdpp Require Import gmap list.
@@ -125,8 +126,8 @@ Proof.
 Qed.
 
 (** A consequence of full AM safety, using the existing stable reachability
-    equivalence.  Both the stable endpoint and non-spawning execution
-    restrictions are essential to the scope of this theorem. *)
+    equivalence.  The stable endpoint restriction is essential to the scope
+    of this theorem. *)
 Theorem lr_am_safe_reference_stable rc0 mc0 threads sigma mc :
   lr_stable_configuration_match rc0 mc0 ->
   lr_am_safe mc0 ->
