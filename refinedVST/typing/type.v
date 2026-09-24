@@ -2,6 +2,7 @@ From VST.lithium Require Import simpl_classes.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export base annotations.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
+From VST.floyd Require Import type_induction.
 From VST.floyd Require Export data_at_rec_lemmas reptype_lemmas field_at.
 From VST.veric Require Export invariants.
 Set Default Proof Using "Type".
@@ -196,8 +197,249 @@ Proof.
 Qed.
 
 Local Open Scope Z.
+Section Layout.
+  Context {cs : compspecs}.
+
+  Record layout :=
+    Layout {
+      ly_size : nat;
+      ly_align : Z;
+    }.
+
+  (* According to https://en.cppreference.com/c/types/max_align_t. This value is
+     architecture-dependent and is not formalized in CompCert. *)
+  Definition max_align : Z := 16.
+
+  Definition ly_max_align (sz : nat) : layout := {|
+    ly_size := sz;
+    ly_align := max_align
+  |}.
+
+  (* corrects some discrepancies between Ctypes.alignof and align_compatible_rec
+     Possibly it's actually align_compatible that should be adjusted.
+     Note that the definition of field_compatible implicitly determines the axiomatized
+     postcondition of malloc. *)
+  (* This is possibly a simplification of the framework in veric/mem_align.v and might be able
+     to replace it entirely, since under standard assumptions all alignment conditions are
+     reducible to (alignof t | l). *)
+  Fixpoint alignof t : Z :=
+    match t with
+    | Tvoid => 1
+    | Tint I8 _ _ => 1
+    | Tint I16 _ _ => 2
+    | Tint I32 _ _ => 4
+    | Tint IBool _ _ => 1
+    | Tlong _ _ => Archi.align_int64
+    | Tfloat F32 _ => 4
+    | Tfloat F64 _ => 4 (* align_chunk ignores Mfloat64 *)
+    | Tpointer _ _ => if Archi.ptr64 then 8 else 4
+    | Tarray t' n _ => if n <=? 0 then 1 else alignof t'
+    | Tfunction _ _ _ => 1
+    | Tstruct id _ | Tunion id _ =>
+        match (cenv_cs!!id)%maps with Some co => if decide (co_members co = []) then 1 else co_alignof co
+        | None => 1 end
+    end.
+  
+  Lemma alignof_pos t : alignof t > 0.
+  Proof.
+    type_induction t; try done; simpl.
+    - by destruct i.
+    - by destruct f.
+    - by destruct (z <=? 0).
+    - destruct (_ !! _)%maps; last done.
+      case_decide; first done.
+      apply co_alignof_pos.
+    - destruct (_ !! _)%maps; last done.
+      case_decide; first done.
+      apply co_alignof_pos.
+  Qed.
+
+  Lemma sizeof_alignof_compat: forall t, (alignof t | sizeof t).
+  Proof.
+    induction t; simpl; try done.
+    - destruct f; try done.
+      by exists 2.
+    - destruct (z <=? 0); first apply Z.divide_1_l.
+      apply Z.divide_mul_l; auto.
+    - destruct (cenv_cs!!i)%maps; last apply Z.divide_0_r. case_decide; first apply Z.divide_1_l. apply co_sizeof_alignof.
+    - destruct (cenv_cs!!i)%maps; last apply Z.divide_0_r. case_decide; first apply Z.divide_1_l. apply co_sizeof_alignof.
+  Qed.
+
+  (* This is a property of alignas that isn't formalized anywhere in CompCert. *)
+  Definition align_safe a al := align_attr a al `mod` al = 0.
+
+  Lemma align_safe_div a al : al ≠ 0 → align_safe a al → (al | align_attr a al).
+  Proof. apply Zmod_divide. Qed.
+
+  Lemma noalign_safe a al : attr_alignas a = None → align_safe a al.
+  Proof.
+    rewrite /align_safe /align_attr => ->.
+    apply Z_mod_same_full.
+  Qed.
+
+  Fixpoint ty_align_safe t := align_safe (attr_of_type t) (alignof t) /\
+    match t with Tarray t' _ _ => ty_align_safe t' | _ => True end.
+
+  Lemma ty_align_safe_unfold t : ty_align_safe t = (align_safe (attr_of_type t) (alignof t) /\
+    match t with Tarray t' _ _ => ty_align_safe t' | _ => True end).
+  Proof. by destruct t. Qed.
+
+  Lemma ty_align_safe_div t : ty_align_safe t → (alignof t | align_attr (attr_of_type t) (alignof t)).
+  Proof.
+    rewrite ty_align_safe_unfold; intros (? & ?).
+    apply align_safe_div; last done.
+    pose proof (alignof_pos t); lia.
+  Qed.
+
+  Lemma alignof_div t : ty_align_safe t → (alignof t | expr.alignof t).
+  Proof.
+    type_induction t; try done; intros H; pose proof (ty_align_safe_div _ H) as Ha; try (by apply Ha); simpl in *.
+    - etrans; first apply Ha.
+      rewrite /= /align_attr.
+      destruct (attr_alignas a); first done.
+      destruct f; try done.
+      by exists 2.
+    - destruct (z <=? 0); first apply Z.divide_1_l.
+      etrans; first apply Ha.
+      rewrite /= /align_attr.
+      destruct (attr_alignas a); first done.
+      destruct H; auto.
+    - destruct (cenv_cs !! id)%maps; last apply Z.divide_1_l.
+      case_decide; [apply Z.divide_1_l | done].
+    - simpl; destruct (cenv_cs !! id)%maps; last done.
+      case_decide; [apply Z.divide_1_l | done].
+  Qed.
+
+  (* This might be provable from the properties in veric/align_mem.v, but not obviously. *)
+  Definition composite_align_safe c := align_safe (co_attr c) (alignof_composite cenv_cs (co_members c)) /\
+    forall i, ty_align_safe (field_type i (co_members c)).
+
+End Layout.
+
+Class compspecs := Build_compspecs { cs_compspecs :: compspecs.compspecs;
+  cs_align_safe : forall j, composite_align_safe (get_co j) }.
+
 Section CompatRefinedC.
-  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} `{cs : compspecs}.
+
+  Lemma alignof_compatible t ofs : complete_legal_cosu_type t = true →
+    ty_align_safe t →
+    (alignof t | ofs) → align_compatible_rec cenv_cs t ofs.
+    (* The reverse is almost true, but align_compatible_rec for a struct only checks each field's
+       offset, and doesn't require the base to be aligned to the max field alignment. In RefinedC terms,
+       it does check_fields_aligned but not top-level compliance with the layout of the struct. *)
+  Proof.
+    intros H Ha (*; split*).
+    - revert ofs H Ha; type_induction t; try done; simpl; intros ?? [Ha Harr] Hdiv.
+      + destruct i, s; eapply align_compatible_rec_by_value; eauto.
+      + eapply align_compatible_rec_by_value; eauto.
+      + destruct f; eapply align_compatible_rec_by_value; eauto.
+      + eapply align_compatible_rec_by_value; eauto.
+      + constructor; intros.
+        destruct (Z.leb_spec0 z 0); first lia.
+        apply IH; [done..|].
+        apply Z.divide_add_r; first done.
+        apply Z.divide_mul_l, sizeof_alignof_compat.
+      + rewrite /get_co in IH; destruct (cenv_cs !! id)%maps eqn: Hid; last done.
+        destruct (co_su c) eqn: Hsu; last done.
+        eapply align_compatible_rec_Tstruct; [done..|].
+        intros f ?? Ht Hoff.
+        epose proof field_type_in_members f (co_members c) as Hin; rewrite Ht in Hin.
+        pose proof (in_members_field_type _ _ H Hin) as Helem%list_elem_of_In.
+        destruct (decide _).
+        { rewrite e in Helem; inv Helem. }
+        eapply Forall_forall in Helem; last apply IH; simpl in Helem.
+        pose proof (cs_align_safe id) as Hidcomp.
+        rewrite /composite_align_safe /get_co Hid in Hidcomp; destruct Hidcomp as (Hattr & Hfields).
+        assert (ty_align_safe t0) as Hsafe.
+        { specialize (Hfields f); rewrite /field_type Ht // in Hfields. }
+        rewrite Ht in Helem; apply Helem.
+        { pose proof complete_legal_cosu_type_field_type id as Hlegal.
+          rewrite /get_co Hid in Hlegal; specialize (Hlegal H f Hin).
+          by rewrite /field_type Ht in Hlegal. }
+        { done. }
+        apply Z.divide_add_r.
+        * etrans; last apply Hdiv.
+          pose proof (get_co_consistent id) as Hconsistent; rewrite /get_co Hid in Hconsistent.
+          rewrite co_consistent_alignof //.
+          assert (alignof_composite cenv_cs (co_members c) ≠ 0).
+          { pose proof (alignof_composite_pos _ (co_members c) noattr) as H0.
+            rewrite /align_attr /= in H0; lia. }
+          etrans; last by apply align_safe_div, Hattr.
+          etrans; last apply alignof_field_type_divide_alignof; [|done..].
+          rewrite /field_type Ht; by apply alignof_div.
+        * pose proof (field_offset_aligned f _ H) as Haligned.
+          rewrite /field_type Ht in Haligned.
+          rewrite plain_members_field_offset in Hoff; [|done..]; inv Hoff.
+          etrans; last apply Haligned.
+          by apply alignof_div.
+      + rewrite /get_co in IH; destruct (cenv_cs !! id)%maps eqn: Hid; last done.
+        destruct (co_su c) eqn: Hsu; first done.
+        eapply align_compatible_rec_Tunion; [done..|].
+        intros f ? Ht.
+        epose proof field_type_in_members f (co_members c) as Hin; rewrite Ht in Hin.
+        pose proof (in_members_field_type _ _ H Hin) as Helem%list_elem_of_In.
+        destruct (decide _).
+        { rewrite e in Helem; inv Helem. }
+        eapply Forall_forall in Helem; last apply IH; simpl in Helem.
+        pose proof (cs_align_safe id) as Hidcomp.
+        rewrite /composite_align_safe /get_co Hid in Hidcomp; destruct Hidcomp as (Hattr & Hfields).
+        assert (ty_align_safe t0) as Hsafe.
+        { specialize (Hfields f); rewrite /field_type Ht // in Hfields. }
+        rewrite Ht in Helem; apply Helem.
+        { pose proof complete_legal_cosu_type_field_type id as Hlegal.
+          rewrite /get_co Hid in Hlegal; specialize (Hlegal H f Hin).
+          by rewrite /field_type Ht in Hlegal. }
+        { done. }
+        etrans; last apply Hdiv.
+        pose proof (get_co_consistent id) as Hconsistent; rewrite /get_co Hid in Hconsistent.
+        rewrite co_consistent_alignof //.
+        assert (alignof_composite cenv_cs (co_members c) ≠ 0).
+          { pose proof (alignof_composite_pos _ (co_members c) noattr) as H0.
+            rewrite /align_attr /= in H0; lia. }
+        etrans; last by apply align_safe_div, Hattr.
+        etrans; last apply alignof_field_type_divide_alignof; [|done..].
+        rewrite /field_type Ht; by apply alignof_div.
+    (*- induction 1; simpl in *.
+      + destruct t; try done; simpl in *.
+        * destruct i, s; inv H0; try done.
+        * inv H0; try done.
+        * destruct f; inv H0; try done.
+        * inv H0; try done.
+      + destruct Ha.
+        destruct (Z.leb_spec0 n 0); first apply Z.divide_1_l.
+        specialize (H1 0).
+        rewrite Z.mul_0_r Z.add_0_r in H1; apply H1; [lia | done..].
+      + rewrite H0 in H Ha |- *.
+        destruct (co_members co) eqn: Hmembers; simpl in *; first apply Z.divide_1_l.
+        specialize (H3 (name_member m)); rewrite /Ctypes.field_offset /= in H3; destruct (ident_eq _ _); last done.
+        rewrite /layout_field in H3.
+        destruct m; last done.
+        rewrite align_0 in H3.
+        2: { rewrite /bitalignof. pose proof (Ctypes.alignof_pos t); lia. }
+        specialize (H3 _ _ eq_refl eq_refl).
+        rewrite Z.add_0_r /= in H3.
+        specialize (Hcomp i).
+        pose proof (get_co_consistent i) as Hconsistent; rewrite /get_co H0 in Hconsistent Hcomp.
+        destruct Hcomp as (Hattr & Hfields).
+        rewrite co_consistent_alignof //.
+        ...*)
+  Qed.
+
+  Definition ty_layout cty := Layout (Z.to_nat (sizeof cty)) (alignof cty).
+
+  Inductive op_type :=
+  | TypedOp (cty : Ctypes.type)
+  | UntypedOp (ly : layout).
+
+  Coercion ty_layout : Ctypes.type >-> layout.
+  Coercion TypedOp : Ctypes.type >-> op_type.
+
+  Definition ot_layout ot :=
+    match ot with
+    | TypedOp cty => ty_layout cty
+    | UntypedOp ly => ly
+    end.
 
   (* refinedC only checks if `v` fits in the size of cty *)
   (* this is implied by the current mapsto (i.e. data_at_rec_value_fits) *)
@@ -255,8 +497,17 @@ Section CompatRefinedC.
     by rewrite repinject_valinject.
   Qed.
 
-  Definition has_layout_loc (l:address) (cty:Ctypes.type) : Prop :=
-    field_compatible cty [] (adr2val l).
+  Definition has_layout_loc (l:address) (ly:layout) : Prop :=
+    Ptrofs.unsigned l.2 + ly.(ly_size) < Ptrofs.modulus ∧ (ly.(ly_align) | Ptrofs.unsigned l.2).
+
+  Lemma has_layout_field_compatible t l : complete_legal_cosu_type t = true →
+    ty_align_safe t →
+    has_layout_loc l (ty_layout t) → field_compatible t [] l.
+  Proof.
+    intros ?? (? & ?); split3; try done; split3; try done; simpl in *.
+    - lia.
+    - by apply alignof_compatible.
+  Qed.
 
   Arguments has_layout_loc : simpl never.
   Global Typeclasses Opaque has_layout_loc.
@@ -264,6 +515,7 @@ Section CompatRefinedC.
   Definition mapsto (l : address) (q : Share.t) (cty : Ctypes.type) v : assert :=
     ⎡data_at_rec q cty v l⎤.
 
+  (* revisit *)
   Definition mapsto_layout (l : address) (q : Share.t) (cty : Ctypes.type) : assert :=
     ∃ v, <affine> ⌜has_layout_val cty v⌝ ∗ <affine> ⌜has_layout_loc l cty⌝ ∗ mapsto l q cty v.
 
@@ -390,11 +642,8 @@ Section own_state.
     iExists _. by iFrame.
   Qed.
 
-  Lemma has_layout_in_bounds l cty: has_layout_loc l cty → ⊢ loc_in_bounds l (Z.to_nat (sizeof cty)).
-  Proof.
-    intros (_ & _ & ? & _); iPureIntro.
-    simpl in *; rep_lia.
-  Qed.
+  Lemma has_layout_in_bounds l ly: has_layout_loc l ly → ⊢ loc_in_bounds l (ly_size ly).
+  Proof. intros (? & _); auto. Qed.
 
 (*  Lemma heap_mapsto_own_state_app l v1 v2 β:
     l ↦[β] (v1 ++ v2) ⊣⊢ l ↦[β] v1 ∗ (adr_add l (length v1)) ↦[β] v2.
@@ -450,7 +699,7 @@ Record type `{!typeG OK_ty Σ} {cs : compspecs}  := {
   (* TODO: add
    ty_has_op_type ot mt → ty_has_op_type (UntypedOp (ot_layout ot)) mt
    This property is never used explicitly, but relied on by some typing rules *)
-  ty_has_op_type : Ctypes.type → memcast_compat_type → Prop;
+  ty_has_op_type : op_type → memcast_compat_type → Prop;
   (** [ty_own β l ty], also [l ◁ₗ{β} ty], states that the location [l]
   has type [ty]. [β] determines whether the location is fully owned
   [Own] or shared [Shr] (shared is mainly used for global variables). *)
@@ -464,16 +713,16 @@ Record type `{!typeG OK_ty Σ} {cs : compspecs}  := {
   (* should also be Affine? *)
   (** [ty_aligned] states that from [l ◁ₗ{β} ty] follows that [l] is
   aligned according to [ty_has_op_type]. *)
-  ty_aligned cty mt l : ty_has_op_type cty mt → ty_own Own l -∗ <absorb> ⌜l `has_layout_loc` cty ⌝;
+  ty_aligned ot mt l : ty_has_op_type ot mt → ty_own Own l -∗ <absorb> ⌜l `has_layout_loc` (ot_layout ot)⌝;
   (** [ty_size_eq] states that from [v ◁ᵥ ty] follows that [v] has a
   size according to [ty_has_op_type]. *)
-  ty_size_eq cty mt v_rep : ty_has_op_type cty mt → ty_own_val cty v_rep -∗ <absorb> ⌜v_rep `has_layout_val` cty ⌝;
+  ty_size_eq cty mt v_rep : ty_has_op_type (TypedOp cty) mt → ty_own_val cty v_rep -∗ <absorb> ⌜v_rep `has_layout_val` cty⌝;
   (** [ty_deref] states that [l ◁ₗ ty] can be turned into [v ◁ᵥ ty] and a points-to
   according to [ty_has_op_type]. *)
-  ty_deref cty mt l : ty_has_op_type cty mt → ty_own Own l -∗ ∃ v_rep: reptype cty, mapsto l Tsh cty v_rep ∗ ty_own_val cty v_rep;
+  ty_deref cty mt l : ty_has_op_type (TypedOp cty) mt → ty_own Own l -∗ ∃ v_rep: reptype cty, mapsto l Tsh cty v_rep ∗ ty_own_val cty v_rep;
   (** [ty_ref] states that [v ◁ₗ ty] and a points-to for a suitable location [l ◁ₗ ty]
   according to [ty_has_op_type]. *)
-  ty_ref cty mt (l : address) v_rep : ty_has_op_type cty mt → <affine> ⌜l `has_layout_loc` cty⌝ -∗ mapsto l Tsh cty v_rep -∗ ty_own_val cty v_rep -∗ ty_own Own l;
+  ty_ref cty mt (l : address) v_rep : ty_has_op_type (TypedOp cty) mt → <affine> ⌜l `has_layout_loc` cty⌝ -∗ mapsto l Tsh cty v_rep -∗ ty_own_val cty v_rep -∗ ty_own Own l;
   (** [ty_memcast_compat] describes how a value of type [ty] is
   transformed by memcast. [MCNone] means there is no information about
   the new value, [MCCopy] means the value can change, but it still has
@@ -563,7 +812,7 @@ Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} (ty : type) := {
   copy_own_val_affine cty v : Affine (ty.(ty_own_val) cty v);
   copy_own_affine l : Affine (ty.(ty_own) Shr l); (* should always be true? *)
   copy_shr_acc E cty l :
-    mtE ⊆ E → ty.(ty_has_op_type) cty MCCopy →
+    mtE ⊆ E → ty.(ty_has_op_type) (TypedOp cty) MCCopy →
     ty.(ty_own) Shr l ={E}=∗ <affine> ⌜l `has_layout_loc` cty⌝ ∗
        ∃ q' vl, <affine> ⌜readable_share q'⌝ ∗ l ↦{q'}|cty| vl ∗ ty.(ty_own_val) cty vl ∗ (l ↦{q'}|cty| vl ={E}=∗ ty.(ty_own) Shr l)
 }.
@@ -589,7 +838,7 @@ Section loc_in_bounds.
 
   Lemma movable_loc_in_bounds ty (l : address) ot mt:
     ty.(ty_has_op_type) ot mt →
-    ty.(ty_own) Own l -∗ loc_in_bounds l (Z.to_nat (expr.sizeof ot)).
+    ty.(ty_own) Own l -∗ loc_in_bounds l (ly_size (ot_layout ot)).
   Proof.
     intros; iIntros "Hl". iDestruct (ty_aligned with "Hl") as %?; first done.
     by iApply has_layout_in_bounds.
@@ -626,14 +875,16 @@ Section alloc_alive.
   Qed.
 
   Lemma movable_alloc_alive ty l ot mt :
-    ty.(ty_has_op_type) ot mt →
+    complete_legal_cosu_type ot = true →
+    ty_align_safe ot →
+    ty.(ty_has_op_type) (TypedOp ot) mt →
     ty.(ty_own) Own l -∗ alloc_alive_loc l (sizeof ot).
   Proof.
-    iIntros (?) "Hl". iDestruct (ty_aligned with "Hl") as %Hl; [done|].
+    intros; iIntros "Hl". iDestruct (ty_aligned with "Hl") as %Hl; [done|].
     iDestruct (ty_deref with "Hl") as (v) "[Hl Hv]"; [done|].
-    iPoseProof (data_at_rec_alloc with "Hl") as "?"; try done; try apply Hl.
-    destruct Hl as (_ & _ & Hsize & _).
-    simpl in Hsize; rep_lia.
+    destruct Hl; simpl in *; iPoseProof (data_at_rec_alloc with "Hl") as "?"; try done.
+    - rep_lia.
+    - by apply alignof_compatible.
   Qed.
 
   (*Global Instance intro_persistent_alloc_global l:

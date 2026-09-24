@@ -35,11 +35,7 @@ Section union.
   Qed.
 
   Lemma has_layout_union_noattr : forall i a l, l `has_layout_loc` (Tunion i a) ↔ l `has_layout_loc` (Tunion i noattr).
-  Proof.
-    intros; rewrite /has_layout_loc /field_compatible; do 3 f_equiv; last f_equiv; try done.
-    rewrite /align_compatible_dec.align_compatible /=.
-    split; inversion 1; try done; eapply align_compatible_rec_Tunion; done.
-  Qed.
+  Proof. done. Qed.
 
   Lemma mapsto_union : forall id a l v, l ↦|Tunion id a| v ⊣⊢ ⎡aggregate_pred.union_pred (co_members (get_co id))
     (fun it v => mapsto_memory_block.withspacer Tsh (sizeof (field_type (name_member it) (co_members (get_co id))))
@@ -52,7 +48,37 @@ Section union.
 
   #[local] Transparent field_type.
 
-  Lemma type_place_uninit_union ge K (*β*) ul a n l T:
+  Lemma has_layout_loc_union_member l i a f : complete_legal_cosu_type (Tunion i a) = true →
+    in_members f (co_members (get_co i)) →
+    l `has_layout_loc` (Tunion i a) →
+    l at_union{i}ₗ f `has_layout_loc` (field_type f (co_members (get_co i))).
+  Proof.
+    rewrite /GetMemberUnionLoc; intros ? Hf (Hsize & Halign); simpl in *.
+    pose proof (nested_pred_lemmas.complete_Tunion_plain i a H) as Hplain.
+    assert ((cenv_cs !! i)%maps = Some (get_co i)) as Hi.
+    { rewrite /get_co; by destruct (_ !! _)%maps. }
+    rewrite Hi in Hsize Halign; destruct (decide _); first by rewrite e in Hf.
+    pose proof (sizeof_pos (Tunion i a)) as Hpos; rewrite /= Hi in Hpos.
+    rewrite Z2Nat.id in Hsize; last lia.
+    apply (sizeof_Tunion_co_sizeof _ a) in H as (? & ?).
+    pose proof (sizeof_pos (field_type f (co_members (get_co i)))).
+    unfold field_type in *.
+    rewrite /has_layout_loc /= Z2Nat.id; last lia.
+    split.
+    - apply sizeof_union_in_members in Hf.
+      rewrite /field_type in Hf; lia.
+    - etrans; last apply Halign.
+      pose proof (get_co_consistent i) as Hconsistent; rewrite /get_co Hi in Hconsistent.
+      rewrite co_consistent_alignof //.
+      assert (alignof_composite cenv_cs (co_members (get_co i)) ≠ 0).
+      { pose proof (alignof_composite_pos _ (co_members (get_co i)) noattr) as Hz.
+        rewrite /align_attr /= in Hz; lia. }
+      etrans; last by apply align_safe_div, cs_align_safe.
+      etrans; last apply alignof_field_type_divide_alignof; [|done..].
+      apply alignof_div, cs_align_safe.
+  Qed.
+
+  Lemma type_place_uninit_union ge K (*β*) ul a n l T: complete_legal_cosu_type (Tunion ul a) = true →
     (∃ ly, <affine> ⌜Ctypes.field_type n (co_members (get_co ul)) = Errors.OK ly⌝ ∗
     typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (active_union ul n (uninit ly)) T)
     ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (uninit (Tunion ul a)) T.
@@ -65,46 +91,46 @@ Section union.
     { iPureIntro. unfold get_co in *; destruct (cenv_cs !! ul)%maps eqn: Hi; try done.
       eauto. }
     rewrite uninit_memory_block // has_layout_union_noattr.
-    iDestruct "Hs" as (?) "Hs"; iSplit => //=.
+    iDestruct "Hs" as (Hl) "Hs"; iSplit => //=.
     rewrite name_member_get Hly.
-    replace (match (cenv_cs !! ul)%maps with | Some co => co_sizeof co | None => 0 end) with (co_sizeof (get_co ul));
-      last by rewrite /get_co; destruct (cenv_cs !! ul)%maps.
+    assert ((cenv_cs !! ul)%maps = Some (get_co ul)) as Hul by by unfold get_co in *; destruct (cenv_cs !! ul)%maps.
+    rewrite Hul.
     iStopProof; split => i; rewrite /stack_level; monPred.unseal.
     iIntros "?"; iExists i; rewrite monPred_at_affinely; iSplit => //.
-    rewrite -{1}(isptr_offset_val_zero l) // -withspacer_uninit_memory_block //.
-    - iStopProof; f_equiv; try done.
+    rewrite -{1}(isptr_offset_val_zero l) // -(withspacer_uninit_memory_block ly) //=.
+    - pose proof (sizeof_pos ly); pose proof (sizeof_pos (Tunion ul a)) as Hsize.
+      rewrite /= Hul in Hsize.
+      rewrite !Z2Nat.id; [|lia..].
+      iStopProof; f_equiv; try done.
       rewrite /mapsto_memory_block.at_offset; extensionality p.
       destruct p; try done.
       rewrite isptr_offset_val_zero //.
-    - apply (field_compatible_app_inv' [UnionField n]), field_compatible_nested_field in H; last done.
-      rewrite app_nil_r /nested_field_type /nested_field_offset /= in H.
-      apply compute_in_members_true_iff in Hin; rewrite Hin Hly // in H.
-    - split.
-      + replace ly with (field_type n (co_members (get_co ul))) by rewrite /= Hly //.
-        etrans; first by apply sizeof_union_in_members.
-        eapply sizeof_Tunion_co_sizeof, H.
-      + destruct H as (_ & _ & Hsz & _); simpl in Hsz.
-        replace (match (cenv_cs !! ul)%maps with | Some co => co_sizeof co | None => 0 end) with (co_sizeof (get_co ul)) in *;
-          last by rewrite /get_co; destruct (cenv_cs !! ul)%maps.
-        rep_lia.
-    - destruct H as (_ & _ & Hsz & _); simpl in Hsz.
-      replace (match (cenv_cs !! ul)%maps with | Some co => co_sizeof co | None => 0 end) with (co_sizeof (get_co ul)) in Hsz;
-        last by rewrite /get_co; destruct (cenv_cs !! ul)%maps.
+    - apply (has_layout_loc_union_member _ _ _ n) in Hl; [|done..].
+      rewrite /GetMemberUnionLoc /= Hly in Hl.
+      rewrite Ptrofs.add_zero; by destruct l.
+    - destruct Hl as [Hsz _].
+      rewrite /= Hul in Hsz.
+      split; try rep_lia.
+      apply sizeof_Tunion_co_sizeof in H as (_ & ?).
+      apply sizeof_union_in_members in Hin.
+      rewrite /field_type Hly in Hin; lia.
+    - destruct Hl as [Hsz _].
+      rewrite /= Hul in Hsz.
       lia.
   Qed.
   Definition type_place_uninit_union_inst := [instance type_place_uninit_union].
   Global Existing Instance type_place_uninit_union_inst.
 
-  Lemma type_place_active_union ge K β ul n l ty T:
+  Lemma type_place_active_union ge K β ul n l ty T: complete_legal_cosu_type (Tunion ul noattr) = true →
     typed_place ge K (l at_union{ul}ₗ n) β ty (λ l2 β ty2 typ, T l2 β ty2 (λ t, active_union ul n (typ t)))
     ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l β (active_union ul n ty) T.
   Proof.
-    iIntros "HP" (Φ) "Hs HΦ !>" => /=.
+    intros; iIntros "HP" (Φ) "Hs HΦ !>" => /=.
     iDestruct "Hs" as (? (i & Hi & Hn & <-) ??) "(#L & Hty & Hspace)".
     iExists _, _. iSplit => //.
     { iPureIntro; split; first done.
       apply plain_members_union_field_offset; try done.
-      destruct H as (_ & H & _). apply nested_pred_lemmas.complete_Tunion_plain in H.
+      apply nested_pred_lemmas.complete_Tunion_plain in H.
       rewrite /get_co Hi // in H. }
     rewrite Ptrofs.add_zero /GetMemberUnionLoc; destruct l.
     iPoseProof (stack_level_elim with "L Hty") as "Hty".
@@ -157,9 +183,9 @@ Section union.
   |}%I.
   Next Obligation. iIntros (?????). by iApply ty_share. Qed.
   Next Obligation. iIntros (?????->) "Hl". by iApply (ty_aligned _ _ MCNone with "Hl").  Qed.
-  Next Obligation. iIntros (?????->) "Hv". by iDestruct (ty_size_eq _ _ MCNone with "Hv") as %?. Qed.
+  Next Obligation. iIntros (?????[=]) "Hv"; subst. by iDestruct (ty_size_eq _ _ MCNone with "Hv") as %?. Qed.
   Next Obligation. iIntros (??????) => /=. by apply: ty_deref. Qed.
-  Next Obligation. iIntros (??????->?) "Hl Hv" => /=. by iApply (ty_ref _ _ MCNone with "[] Hl Hv"). Qed.
+  Next Obligation. iIntros (??????[=]?) "Hl Hv" => /=; subst. by iApply (ty_ref _ _ MCNone with "[] Hl Hv"). Qed.
   (* Next Obligation. iIntros (???????) "Hv" => /=. by iApply (ty_memcast_compat (_ @ int size_t) with "[Hv]"). Qed. *)
 
   Global Program Instance copyable_tunion_tag ti x : Copyable (tunion_tag ti x).
@@ -169,7 +195,7 @@ Section union.
     rewrite /ty_own_val_at /ty_own_val /=. apply _. Qed.
   Next Obligation. move => *. unfold tunion_tag; simpl_type. apply _. Qed.
   Next Obligation.
-    rewrite /ty_own/ty_own_val/= => ??????->/=.
+    rewrite /ty_own/ty_own_val/= => ?????? Heq /=; inv Heq.
     iIntros "Hl". iMod (copy_shr_acc _ _ with "Hl") as (???) "Hc" => //.
     iSplitR => //. iExists _, _. by iFrame.
   Qed.
@@ -290,7 +316,8 @@ Section union.
 
   (*** variant *)
   Program Definition variant (ti : tunion_info A) (x : A) (ty : type) : type := {|
-    ty_has_op_type ot mt := (∃ a, ot = Tunion ti.(ti_union_layout) a) /\ ty.(ty_has_op_type) (field_type (name_member (ti_member ti x)) (get_co ti.(ti_union_layout)).(co_members)) MCNone;
+    ty_has_op_type ot mt := complete_legal_cosu_type (Tunion ti.(ti_union_layout) noattr) = true /\
+      (∃ a, ot = Tunion ti.(ti_union_layout) a) /\ ty.(ty_has_op_type) (field_type (name_member (ti_member ti x)) (get_co ti.(ti_union_layout)).(co_members)) MCNone;
     ty_own β l := (<affine> ⌜l `has_layout_loc` Tunion ti.(ti_union_layout) noattr⌝ ∗
       ∃ n, stack_level n ∗ ⎡heap_withspacer β (sizeof (field_type (name_member (ti_member ti x)) (get_co ti.(ti_union_layout)).(co_members))) (co_sizeof (get_co ti.(ti_union_layout)))
       (λ p, match val2adr p with Some l => (l ◁ₗ{β} ty) n | _ => False end) l⎤)%I;
@@ -304,11 +331,11 @@ Section union.
     rewrite -embed_fupd; iApply embed_mono; first done.
     iApply logic.invariants.inv_alloc. iModIntro. iExists _. iFrame; auto.
   Qed.
-  Next Obligation. iIntros (?????? ((? & ->) & ?)) "(% & % & L & Hv & _)".
+  Next Obligation. iIntros (?????? (? & (? & ->) & ?)) "(% & % & L & Hv & _)".
     rewrite has_layout_union_noattr //.
   Qed.
-  Next Obligation. iIntros (?????? ((? & ->) & ?)) "(% & ($ & %) & Hv)". Qed.
-  Next Obligation. iIntros (?????? ((? & ->) & ?)) => /=.
+  Next Obligation. iIntros (?????? (? & (? & [=]) & ?)) "(% & ($ & %) & Hv)". Qed.
+  Next Obligation. iIntros (?????? (? & (? & [=]) & ?)) => /=; subst.
     iIntros "(_ & % & #L & Hl & Hspacer)".
     iPoseProof (stack_level_elim with "L Hl") as "Hl".
     iDestruct (ty_deref with "Hl") as (v) "(? & Hv)"; first done.
@@ -321,7 +348,7 @@ Section union.
     split; first by rewrite /aggregate_pred.aggregate_pred.union_Prop inject_field_union_Prop.
     exists _, eq_refl; rewrite /= unfold_fold_reptype //.
   Qed.
-  Next Obligation. iIntros (??????? ((? & ->) & ?) Hly) "Hl Hv" => /=.
+  Next Obligation. iIntros (??????? (? & (? & [=]) & ?) Hly) "Hl Hv" => /=; subst.
     rewrite mapsto_union.
     iDestruct "Hv" as "(% & (% & % & % & %Hinj) & Hv)".
     iSplit; first by erewrite <- has_layout_union_noattr.
@@ -334,9 +361,7 @@ Section union.
     pose proof (index_of_ti_member ti x) as Hf.
     apply list_elem_of_lookup_2, list_elem_of_In in Hf.
     apply (in_map name_member) in Hf.
-    apply (field_compatible_app_inv' [UnionField (name_member (ti_member ti x))]), field_compatible_nested_field in Hly; last done.
-    rewrite app_nil_r /nested_field_type /nested_field_offset /= in Hly.
-    apply compute_in_members_true_iff in Hf; rewrite Hf Ptrofs.add_zero // in Hly.
+    by eapply has_layout_loc_union_member.
   Qed.
   (* Next Obligation. iIntros (????????) "Hv". by iApply (ty_memcast_compat with "Hv"). Qed. *)
 
@@ -373,11 +398,12 @@ Section union.
   Global Existing Instance subsume_variant_variant_inst.
 
   Lemma type_place_variant ge K β ul n l ty ti x {Heq: TCEq (name_member (ti_member ti x)) n} T :
+    complete_legal_cosu_type (Tunion ti.(ti_union_layout) noattr) = true →
     <affine> ⌜ul = ti.(ti_union_layout)⌝ ∗
      typed_place ge K (l at_union{ul}ₗ n) β ty (λ l2 β ty2 typ, T l2 β ty2 (λ t, variant ti x (typ t)))
     ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l β (variant ti x ty) T.
   Proof.
-    move: Heq => /TCEq_eq <-.
+    move: Heq => /TCEq_eq <- H.
     iIntros "[-> HP]" (Φ) "Hs HΦ !>" => /=.
     rewrite {1}/ty_own /=. iDestruct "Hs" as (??) "(#L & Hty & Hpad)".
     pose proof (index_of_ti_member ti x) as Hf.
@@ -387,7 +413,7 @@ Section union.
     iExists _, _. iSplit => //.
     { iPureIntro; split; first done.
       apply plain_members_union_field_offset; try done.
-      destruct H as (_ & H & _). apply nested_pred_lemmas.complete_Tunion_plain in H.
+      apply nested_pred_lemmas.complete_Tunion_plain in H.
       rewrite /get_co Hi // in H. }
     rewrite Ptrofs.add_zero /GetMemberUnionLoc; destruct l.
     iPoseProof (stack_level_elim with "L Hty") as "Hty".
@@ -402,14 +428,16 @@ Section union.
   Definition type_place_variant_inst := [instance type_place_variant].
   Global Existing Instance type_place_variant_inst | 20.
 
-  Lemma type_place_variant_neq ge K ul n l ty ti x T :
+  Lemma type_place_variant_neq ge K ul n l ty ti x T : complete_legal_cosu_type (Tunion (ti_union_layout ti) noattr) = true →
     (<affine> ⌜ul = ti.(ti_union_layout)⌝ ∗ <affine> ⌜ty.(ty_has_op_type) (field_type (name_member (ti_member ti x)) (get_co ul).(co_members)) MCNone⌝ ∗
      ∀ v, v ◁ᵥ|field_type (name_member (ti_member ti x)) (get_co ul).(co_members)|  ty -∗ typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (uninit (Tunion ul noattr)) T)
     ⊢ typed_place ge (GetMemberUnionPCtx ul n :: K) l Own (variant ti x ty) T.
   Proof.
-    iIntros "[-> [% HP]]". iApply (typed_place_subsume _ _ _ _ (uninit (Tunion (ti_union_layout ti) noattr))).
+    iIntros (?) "[-> [% HP]]". iApply (typed_place_subsume _ _ _ _ (uninit (Tunion (ti_union_layout ti) noattr))).
     iApply uninit_mono.
     { split; eauto. }
+    { hnf; split; last done.
+      by apply noalign_safe. }
     iIntros (?) "(% & % & Hv)".
     iExists tt. by iApply "HP".
   Qed.

@@ -148,11 +148,11 @@ Section int.
     by iMod (heap_mapsto_own_state_share with "H") as "$".
   Qed.
   Next Obligation. iIntros (????? ->) "(%&%&%&$&_)". Qed.
-  Next Obligation. iIntros (????? -> (? & ? & ?)). done. Qed.
-  Next Obligation. iIntros (????? ->) "(%v&%&%&%&Hl)". iFrame. 
+  Next Obligation. iIntros (????? [=] (? & ? & ?)). done. Qed.
+  Next Obligation. iIntros (????? [=]) "(%v&%&%&%&Hl)"; subst. iFrame. 
     rewrite repinject_valinject //.
     by eapply val_to_Z_by_value. Qed.
-  Next Obligation. iIntros (????? v -> ?) "Hl (% & % & %)".
+  Next Obligation. iIntros (????? v [=] ?) "Hl (% & % & %)"; subst.
     iExists (repinject it v). 
     rewrite /heap_mapsto_own_state.
     rewrite valinject_repinject //; last by eapply val_to_Z_by_value.
@@ -164,18 +164,21 @@ Section int.
   Lemma int_loc_in_bounds l β n it:
      l ◁ₗ{β} n @ int it -∗ loc_in_bounds l (Z.to_nat (sizeof it)).
   Proof.
-    iIntros "(%&%Hv&%&%&_)". by iApply has_layout_in_bounds.
+    iIntros "(%&%Hv&%&%&_)". by iApply (has_layout_in_bounds _ it).
   Qed.
   Global Instance loc_in_bounds_int n it β: LocInBounds (n @ int it) β (Z.to_nat (sizeof it)).
   Proof.
     constructor. intros; apply int_loc_in_bounds.
   Qed.
 
-  Global Instance alloc_alive_int n it: AllocAlive (n @ int it) Own (sizeof it) True.
+  Global Instance alloc_alive_int n it `{TCDone (ty_align_safe it)}: AllocAlive (n @ int it) Own (sizeof it) True.
   Proof.
     constructor. iIntros (l ?) "(%&%&%&%Hly&Hl)".
-    iApply (data_at_rec_alloc with "Hl"); try done; try apply Hly.
-    destruct Hly as (_ & _ & ? & _); simpl in *; rep_lia.
+    destruct Hly; simpl in *.
+    assert (complete_legal_cosu_type it = true) by by destruct v, it.
+    iApply (data_at_rec_alloc with "Hl"); try done.
+    * rep_lia.
+    * by apply alignof_compatible.
   Qed.
 
   (*Global Program Instance learn_align_int β it n
@@ -288,8 +291,8 @@ Section int.
   have to reprove this everytime? *)
   Global Program Instance int_copyable x it : Copyable (x @ int it).
   Next Obligation.
-    iIntros (???????) "(%v&%Hv&%Hn&%Hl&Hl)".
-    simpl in *; subst.
+    iIntros (?????? Hcty) "(%v&%Hv&%Hn&%Hl&Hl)".
+    simpl in *; inv Hcty.
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[% [% Hl]]" => //.
     iSplitR => //. iExists q, (valinject it v). iFrame. iModIntro.
     apply val_to_Z_by_value in Hn as ?.
@@ -1264,21 +1267,19 @@ Section offsetof.
     iIntros (s m l E ?). iDestruct 1 as (n Hn) "H". iExists _. iSplitR => //. by iApply ty_share.
   Qed.
   Next Obligation. iIntros (s m ot mt l ?). iDestruct 1 as (??) "Hn". by iDestruct (ty_aligned with "Hn") as "$". Qed.
-  Next Obligation. iIntros (s m ot mt l ->). iDestruct 1 as (??) "[% Hn]". by iApply (ty_size_eq _ _ mt with "Hn"). Qed.
+  Next Obligation. iIntros (s m ot mt l [=]); subst. iDestruct 1 as (??) "[% Hn]". by iApply (ty_size_eq _ _ mt with "Hn"). Qed.
   Next Obligation.
-    iIntros (s m ot mt l ?). iDestruct 1 as (??) "Hn".
-    iDestruct (ty_deref with "Hn") as (v) "[Hl Hi]"; [done|]. iExists _. iFrame.
-    eauto with iFrame.
+    iIntros (s m ot mt l [=]); subst. iDestruct 1 as (??) "Hn".
+    iDestruct (ty_deref _ _ mt with "Hn") as (v) "[Hl Hi]"; [done|]. iExists _. iFrame; auto.
   Qed.
   Next Obligation.
     iIntros (s m ? l v ???) "Hl". iDestruct 1 as (??)"[% Hn]".
     iExists _. iSplit => //. by iApply (@ty_ref with "[] Hl").
-    Unshelve. done.
   Qed.
 
   Global Program Instance offsetof_copyable s m : Copyable (offsetof s m).
   Next Obligation.
-    iIntros (s m E cty l ? Hcty). simpl in Hcty; subst. iDestruct 1 as (n Hn) "Hl".
+    iIntros (s m E cty l ? Hcty). simpl in Hcty; inv Hcty. iDestruct 1 as (n Hn) "Hl".
     iMod (copy_shr_acc with "Hl") as (???) "(%&Hl&H2&H3)" => //.
     iModIntro. iSplitR => //. iExists _, _.
     iFrame "Hl".

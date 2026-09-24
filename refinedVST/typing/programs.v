@@ -1947,7 +1947,7 @@ Section typing.
   Qed.
 
   Lemma type_alignof ge f ty t T:
-    typed_value t (Vptrofs (Ptrofs.repr (alignof ty))) (T (Vptrofs (Ptrofs.repr (alignof ty))))
+    typed_value t (Vptrofs (Ptrofs.repr (expr.alignof ty))) (T (Vptrofs (Ptrofs.repr (expr.alignof ty))))
     ⊢ typed_val_expr ge f (Ealignof ty t) T.
   Proof.
     iIntros "HP" (Φ) "HΦ".

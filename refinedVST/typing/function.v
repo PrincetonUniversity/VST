@@ -36,12 +36,12 @@ Section function.
 
   Definition typed_var_block (idt: ident * Ctypes.type): assert :=
   <affine> ⌜(Ctypes.sizeof (snd idt) <= Ptrofs.max_unsigned)%Z⌝ ∗
-  idt.1 ◁ₗᵥ|idt.2| uninit (idt.2).
+  idt.1 ◁ₗᵥ|idt.2| uninit (ty_layout idt.2).
 
   Definition typed_stackframe1 (f: Clight.function) : assert :=
     ([∗ list] idt ∈ fn_vars f, typed_var_block idt) ∗
-    ([∗ list] idt ∈ Clight.fn_params f, idt.1 ◁ₜ|idt.2| uninit (val_type idt.2)) ∗
-    ([∗ list] idt ∈ fn_temps f, idt.1 ◁ₜ|idt.2| uninit (val_type idt.2)).
+    ([∗ list] idt ∈ Clight.fn_params f, idt.1 ◁ₜ|idt.2| uninit (ty_layout (val_type idt.2))) ∗
+    ([∗ list] idt ∈ fn_temps f, idt.1 ◁ₜ|idt.2| uninit (ty_layout (val_type idt.2))).
 
   (* up? *)
   Definition stack_token := ⇓ emp.
@@ -82,7 +82,7 @@ Section function.
   Definition typed_stackframe (f: Clight.function) (tys: list type) : assert :=
     ([∗ list] idt ∈ fn_vars f, typed_var_block idt) ∗
     ([∗ list] idt;ty ∈ Clight.fn_params f;tys, idt.1 ◁ₜ|idt.2| ty) ∗
-    ([∗ list] idt ∈ fn_temps f, idt.1 ◁ₜ|idt.2| uninit (val_type idt.2)).
+    ([∗ list] idt ∈ fn_temps f, idt.1 ◁ₜ|idt.2| uninit (ty_layout (val_type idt.2))).
 
   Definition typed_function (fn : function) (fp : A → fn_params) : assert :=
     (<affine> ∀ x, <affine> ⌜length (fp x).(fp_atys) = length (Clight.fn_params fn)⌝ ∗
@@ -181,9 +181,9 @@ Section function.
   |}.
   Next Obligation. iDestruct 1 as (fn) "[? [H [? ?]]]". iExists _. iFrame. by iApply (heap_mapsto_own_state_share with "H"). Qed.
   Next Obligation. iIntros (fp f ot mt l (? & ? & ->)). iDestruct 1 as (??) "(?&%&?)". eapply fntbl_entry_inj in H; eauto; subst; done. Qed.
-  Next Obligation. iIntros (fp f ot mt v (? & ? & ->)). iDestruct 1 as (? (? & Hv)) "?". simpl in Hv; subst. iPureIntro; hnf; split; auto. Qed.
-  Next Obligation. iIntros (fp f ot mt v (fn & Htbl & ->)). iDestruct 1 as (??) "(?&%&?)". eapply fntbl_entry_inj in Htbl; eauto; subst. iFrame; eauto. Qed.
-  Next Obligation. iIntros (fp f ot mt v ? (? & Htbl & ->) ?) "?". iDestruct 1 as (? (Heq & ?)) "?". simpl in *; subst.
+  Next Obligation. iIntros (fp f ot mt v (? & ? & [=])); subst. iDestruct 1 as (? (? & Hv)) "?". simpl in Hv; subst. iPureIntro; hnf; split; auto. Qed.
+  Next Obligation. iIntros (fp f ot mt v (fn & Htbl & [=])); subst. iDestruct 1 as (??) "(?&%&?)". eapply fntbl_entry_inj in Htbl; eauto; subst. iFrame; eauto. Qed.
+  Next Obligation. iIntros (fp f ot mt v ? (? & Htbl & [=]) ?) "?"; subst. iDestruct 1 as (? (Heq & ?)) "?". simpl in *; subst.
     rewrite Heq in H; rewrite (mapsto_tptr _ _ _ (type_of_function fn)); by iFrame. Qed.
 (*   Next Obligation.
     iIntros (fp f v ot mt st ?). apply mem_cast_compat_loc; [done|].
@@ -195,7 +195,7 @@ Section function.
 
   Global Program Instance copyable_function_ptr p fp : Copyable (p @ function_ptr fp).
   Next Obligation.
-    iIntros (p fp E cty l ? (? & He & ->)). iDestruct 1 as (fn Hl) "(Hl&%He2&#?)".
+    iIntros (p fp E cty l ? (? & He & [=])); subst. iDestruct 1 as (fn Hl) "(Hl&%He2&#?)".
     eapply fntbl_entry_inj in He as <-; last done.
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "(_ & % & Hl)" => //.
      iFrame; iFrame "#". iModIntro. unfold has_layout_loc. do 3 iSplit => //.
@@ -209,6 +209,9 @@ Section function.
     iIntros (??) "(% & (_ & %) & ?)".
     iPureIntro; intros ->; by destruct cty.
   Qed.
+
+  Global Instance function_ptr_objective p fp : ObjectiveTy (p @ function_ptr fp).
+  Proof. constructor; apply _. Qed.
 
   Opaque simple_mapsto.memory_block.
 
@@ -229,8 +232,6 @@ Section function.
   Qed.
 
   Lemma stackframe_of_typed : forall f lv tys
-    (Hcomplete : Forall (λ it, composite_compute.complete_legal_cosu_type it.2 = true) (fn_vars f))
-    (Halign : Forall (λ it, align_mem.LegalAlignasFacts.LegalAlignasDefs.is_aligned cenv_cs ha_env_cs la_env_cs it.2 0 = true) (fn_vars f))
     (Hlen : length (Clight.fn_params f) = length tys),
     stackframe_of0' cenv_cs f (lv ++ repeat Vundef (length (fn_temps f))) -∗
     ([∗ list] v;'(cty,ty) ∈ lv;zip (map snd (Clight.fn_params f)) tys, v ◁ᵥₐₗ|cty| ty) -∗
@@ -239,16 +240,15 @@ Section function.
     intros; rewrite /stackframe_of0' /typed_stackframe.
     iIntros "(H & Hts) Hparams"; iSplitL "H".
     - iApply (big_sepL_mono with "H"); intros ?? H%list_elem_of_lookup_2.
-      rewrite !Forall_forall in Hcomplete Halign.
-      specialize (Hcomplete _ H); specialize (Halign _ H).
       rewrite /var_block0 /typed_var_block.
       iIntros "(% & % & $ & H)"; iSplit; first done.
-      rewrite simple_mapsto.memory_block_weaken uninit_memory_block //; iFrame.
-      iPureIntro.
-      split3; simpl; auto.
+      rewrite simple_mapsto.memory_block_weaken uninit_memory_block /=.
+      rewrite Z2Nat.id; last by pose proof (sizeof_pos y.2); lia.
+      iFrame; iPureIntro.
+      split; simpl; last apply Z.divide_0_r.
       change expr.sizeof with Ctypes.sizeof.
-      rewrite Z.add_0_l; split3; first rep_lia; last done.
-      apply la_env_cs_sound; auto.
+      rewrite Z.add_0_l Z2Nat.id; first rep_lia.
+      pose proof (Ctypes.sizeof_pos y.2); lia.
     - iDestruct (big_sepL2_app_inv with "Hts") as "(Hpvs & Htvs)".
       { rewrite repeat_length; auto. }
       iSplitL "Hpvs Hparams".
@@ -276,7 +276,9 @@ Section function.
       specialize (Hcomplete _ H); specialize (Halign _ H).*)
       rewrite /var_block1 /typed_var_block.
       iIntros "(% & % & $ & H)"; iSplit; first done.
-      iDestruct (uninit_memory_block with "H") as "(_ & $)".
+      iDestruct (uninit_memory_block with "H") as "(_ & ?)".
+      rewrite /= Z2Nat.id //.
+      pose proof (sizeof_pos y.2); lia.
     - rewrite -big_sepL_app.
       forget (Clight.fn_params f ++ fn_temps f) as lx; clear.
       iInduction lx as [|] "IH".
@@ -511,14 +513,14 @@ Section inline_function.
   Next Obligation. iIntros (fn f ot mt l ?). destruct H as (t & ->).
                    rewrite singleton.has_layout_loc_tptr.
                    by iDestruct 1 as "(% & ?)". Qed.
-  Next Obligation. iIntros (fn f ot mt l ?). destruct H as (t & ->).
+  Next Obligation. iIntros (fn f ot mt l ?). destruct H as (t & [=]); subst.
                    simpl; iDestruct 1 as "(-> & _)". iPureIntro; rewrite has_layout_val_by_value //=; intros ?; simpl.
                    rewrite andb_false_r //. Qed.
-  Next Obligation. iIntros (fn f ot mt v ?). destruct H as (t & ->).
+  Next Obligation. iIntros (fn f ot mt v ?). destruct H as (t & [=]); subst.
                    iIntros "(% & (? & ?))".
                    iExists (repinject (tptr t) f).
                    rewrite /heap_mapsto_own_state (mapsto_tptr _ _ _ t). by iFrame. Qed.
-  Next Obligation. iIntros (fn f ot mt l v ? ?) "? (% & ?)". destruct H as (t & ->).
+  Next Obligation. iIntros (fn f ot mt l v ? ?) "? (% & ?)". destruct H as (t & [=]); subst.
                    rewrite -has_layout_loc_tptr /heap_mapsto_own_state (mapsto_tptr _ _ _ tvoid). simpl in *; subst; by iFrame. Qed.
 
   Definition inline_function_ptr (fn : function) : rtype _ :=
@@ -526,7 +528,7 @@ Section inline_function.
 
   Global Program Instance copyable_inline_function_ptr p fn : Copyable (p @ inline_function_ptr fn).
   Next Obligation.
-    iIntros (p fn E ? l ? (t & ->)). iDestruct 1 as "(%&Hl&%)".
+    iIntros (p fn E ? l ? (t & [=])); subst. iDestruct 1 as "(%&Hl&%)".
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[% [% Hl]]" => //.
     rewrite (mapsto_tptr _ _ _ t); iFrame. iModIntro. rewrite has_layout_loc_tptr. do 3 iSplit => //.
     rewrite (mapsto_tptr _ _ _ tvoid).

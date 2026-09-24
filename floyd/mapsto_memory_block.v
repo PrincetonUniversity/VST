@@ -170,6 +170,17 @@ Section COMPSPECS.
 
 Context {cs: compspecs}.
 
+Lemma mapsto__memory_block1:
+  forall sh t p,
+   size_compatible t p ->
+   mapsto_ sh t p ⊢ memory_block sh (sizeof t) p.
+Proof.
+  intros.
+  iIntros "H"; iDestruct (mapsto__local_facts with "H") as %?.
+  destruct p; try done.
+  by iApply mapsto__memory_block1.
+Qed.
+
 Lemma memory_block_mapsto_:
   forall sh t p,
    type_is_by_value t = true ->

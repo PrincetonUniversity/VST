@@ -183,61 +183,60 @@ Global Typeclasses Opaque bytewise.*)
 Section uninit.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
+  Definition heap_memory_block β n v :=
+    match β with
+    | Own => mapsto_memory_block.memory_block Tsh n v
+    | Shr => logic.invariants.inv mtN (∃ q, ⌜readable_share q⌝ ∧ mapsto_memory_block.memory_block q n v)
+    end.
+
   (* RefinedC defines uninit in terms of bytewise, but that's an unnecessary complication when vals aren't
      already at the memval level. *)
-  Program Definition uninit cty : type := {|
-    ty_has_op_type ot mt := ot = cty;
-    ty_own β l := ∃ v, <affine> ⌜l `has_layout_loc` cty⌝ ∗
-           <affine> ⌜v `has_layout_val` cty⌝ ∗
-           l ↦[β]|cty| v;
-    ty_own_val cty' v := (<affine> ⌜cty' = cty⌝ ∗ <affine> ⌜v `has_layout_val` cty'⌝)%I;
+  Program Definition uninit (ly : layout) : type := {|
+    ty_has_op_type ot mt := ot = UntypedOp ly;
+    ty_own β l := <affine> ⌜l `has_layout_loc` ly⌝ ∗
+            ⎡heap_memory_block β (ly_size ly) l⎤;
+    ty_own_val cty v := (<affine> ⌜ty_layout cty = ly⌝ ∗ <affine> ⌜v `has_layout_val` cty⌝)%I;
   |}%I.
   Next Obligation.
-    iIntros (????). iDestruct 1 as (?) "($&$&Hl)".
-    iApply inv_alloc. iModIntro. iExists _. iFrame; auto.
+    iIntros (????). iDestruct 1 as "($&Hl)"; simpl.
+    rewrite -embed_fupd; iStopProof; apply embed_mono.
+    iIntros "?"; iApply logic.invariants.inv_alloc. iModIntro. iExists _. iFrame; auto.
   Qed.
-  Next Obligation. iIntros (????->) "(%&$&_)". Qed.
-  Next Obligation. by iIntros (????-> [??]). Qed.
-  Next Obligation. by iIntros (????->) "(%&%&%&$)". Qed.
-  Next Obligation. iIntros (???? v -> ?) "? [%%]". by iFrame. Qed.
+  Next Obligation. iIntros (????->) "($&%&%&%&_)". Qed.
+  Next Obligation. by iIntros (????? [??]). Qed.
+  Next Obligation. by iIntros (?????). Qed.
+  Next Obligation. by iIntros (?????). Qed.
 
-  Global Instance uninit_affine cty v: Affine (v ◁ᵥ|cty| uninit cty).
+  Global Instance uninit_affine ly cty v: Affine (v ◁ᵥ|cty| uninit ly).
   Proof. apply _. Qed.
 
-  Lemma uninit_own_spec l ly:
+  (*Lemma uninit_own_spec l ly:
     (l ◁ₗ uninit ly)%I ≡ (mapsto_layout l Tsh ly)%I.
   Proof.
     rewrite /ty_own/=; iSplit.
     - iDestruct 1 as (???) "Hl". iExists _; by iFrame.
     - iDestruct 1 as (v ??) "Hl". iExists v; by iFrame.
-  Qed.
+  Qed.*)
 
-  Lemma uninit_memory_block ly l: l ◁ₗ uninit ly ⊣⊢ <affine> ⌜l `has_layout_loc` ly⌝ ∗ ⎡memory_block Tsh (sizeof ly) l⎤.
-  Proof.
-    iSplit.
-    - iIntros "(% & % & % & H)".
-      iSplit => //.
-      iApply data_at_memory_block.
-      rewrite /data_at /field_at /mapsto_memory_block.at_offset /nested_field_offset /= Ptrofs.add_zero /heap_mapsto_own_state /mapsto; by iFrame.
-    - iIntros "(%Hl & ?)".
-      rewrite /uninit /ty_own /= /heap_mapsto_own_state /mapsto /adr2val -(Ptrofs.repr_unsigned l.2) -memory_block_data_at_rec_default_val; first iFrame.
-      + iPureIntro; split; try done.
-        apply default_value_fits.
-      + apply Hl.
-      + destruct Hl as (_ & _ & ? & _); simpl in *; rep_lia.
-      + apply Hl.
-  Qed.
+  Lemma uninit_memory_block ly l: l ◁ₗ uninit ly ⊣⊢ <affine> ⌜l `has_layout_loc` ly⌝ ∗ ⎡memory_block Tsh (ly_size ly) l⎤.
+  Proof. done. Qed.
 
   (* This only works for [Own] since [ty] might have interior mutability. *)
-  Lemma uninit_mono A l ty ly `{!TCDone (ty.(ty_has_op_type) ly MCNone)} T:
-    (∀ v, v ◁ᵥ|ly| ty -∗ ∃ x, T x)
-    ⊢ subsume (l ◁ₗ ty) (λ x : A, l ◁ₗ uninit ly) T.
+  Lemma uninit_mono A l ty cty `{!TCDone (ty.(ty_has_op_type) (TypedOp cty) MCNone)}
+    `{!TCDone (complete_legal_cosu_type cty = true)} `{!TCDone (ty_align_safe cty)} T:
+    (∀ v, v ◁ᵥ|cty| ty -∗ ∃ x, T x)
+    ⊢ subsume (l ◁ₗ ty) (λ x : A, l ◁ₗ uninit (ty_layout cty)) T.
   Proof.
     iIntros "HT Hl".
     iDestruct (ty_aligned with "Hl") as %?; [done|].
     iDestruct (ty_deref with "Hl") as (v) "[Hl Hv]"; [done|].
     iDestruct (ty_size_eq with "Hv") as %?; [done|].
-    iDestruct ("HT" with "Hv") as (?) "?". iExists _. rewrite uninit_own_spec. by iFrame.
+    iDestruct ("HT" with "Hv") as (?) "$".
+    iStopProof; rewrite /mapsto /uninit; simpl_type.
+    rewrite Z2Nat.id; last by pose proof sizeof_pos cty; lia.
+    rewrite -data_at_memory_block /data_at /field_at /mapsto_memory_block.at_offset /nested_field_offset /= Ptrofs.add_zero; iIntros "$"; iPureIntro.
+    split3; auto.
+    by apply has_layout_field_compatible.
   Qed.
   (* This rule is handled with a definition and an [Hint Extern] (not
   with an instance) since this rule should only apply when ty is not uninit
@@ -246,9 +245,9 @@ Section uninit.
   Definition uninit_mono_inst := [instance uninit_mono].
   Global Existing Instance uninit_mono_inst.
 
-  Lemma uninit_mono_v A ty ly v `{!TCDone (ty.(ty_has_op_type) ly MCNone)} T:
-    (∀ v, v ◁ᵥ|ly| ty -∗ ∃ x, T x)
-    ⊢ subsume (v ◁ᵥ|ly| ty) (λ x : A, v ◁ᵥ|ly| uninit ly) T.
+  Lemma uninit_mono_v A ty cty v `{!TCDone (ty.(ty_has_op_type) (TypedOp cty) MCNone)} T:
+    (∀ v, v ◁ᵥ|cty| ty -∗ ∃ x, T x)
+    ⊢ subsume (v ◁ᵥ|cty| ty) (λ x : A, v ◁ᵥ|cty| uninit (ty_layout cty)) T.
   Proof.
     iIntros "HT Hv".
     iDestruct (ty_size_eq with "Hv") as %?; [done|].
@@ -277,26 +276,26 @@ Section uninit.
   Global Program Instance uninit_copyable t: Copyable (uninit t).
   Next Obligation.
   Proof.
-    iIntros (????? [=]) "(% & % & % & Hl)"; subst.
+    iIntros (????? [=]) "(% & % & % & Hl)"; subst. (* currently trivial because ty_has_op_type fails
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[% [% Hl]]" => //.
     iSplitR => //. iExists q, v. iFrame. iModIntro.
     repeat iSplit => //.
     iIntros "↦".
     iMod (heap_mapsto_own_state_from_mt with "↦") as "Hl'"; try done.
-    by iFrame.
+    by iFrame.*)
   Qed.
 
   Global Instance uninit_objective t: ObjectiveTy (uninit t).
   Proof. constructor; apply _. Qed.
 
-  Definition ty_own_var_uninit f x : assert :=
+  (*Definition ty_own_var_uninit f x : assert :=
     match list_assoc x (f.(fn_params) ++ f.(fn_temps)) with
     | Some cty => x ◁ₜ|cty| (uninit cty)
     | None => match list_assoc x f.(fn_vars) with
               | Some cty => x ◁ₗᵥ|cty| uninit cty
               | None => False
               end
-    end.
+    end.*)
 
 End uninit.
 
@@ -314,7 +313,8 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ ?ty) (λ _, _ ◁ₗ (uninit _))%I) =>
 Section void.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  Definition void : type := uninit Tvoid.
+  Definition void_layout : layout := {| ly_size := 0; ly_align := 1 |}.
+  Definition void : type := uninit void_layout.
 
 (*  Lemma type_void T:
     T void ⊢ typed_value tvoid Vundef T.

@@ -86,12 +86,12 @@ Section generic_boolean.
     iIntros (???????) "(%&%&%&%&%)". iPureIntro. done.
   Qed.
   Next Obligation.
-    iIntros (??????->) "(%&%&%&%&%&%&?)".
+    iIntros (??????[=]) "(%&%&%&%&%&%&?)"; subst.
     iFrame. iSplit => //. iExists _; iSplit => //.
     iSplit => //. iPureIntro. rewrite repinject_valinject //. eauto.
   Qed.
   Next Obligation.
-    iIntros (?????? v -> ?) "Hl (%&%n&%&%&%)". iExists (repinject it v), n; rewrite valinject_repinject; eauto with iFrame.
+    iIntros (?????? v [=] ?) "Hl (%&%n&%&%&%)"; subst. iExists (repinject it v), n; rewrite valinject_repinject; eauto with iFrame.
   Qed.
 (*  Next Obligation.
     iIntros (????????). apply: mem_cast_compat_bool; [naive_solver|]. iPureIntro. naive_solver.
@@ -102,8 +102,8 @@ Section generic_boolean.
 
   Global Program Instance generic_boolean_copyable b stn it : Copyable (b @ generic_boolean stn it).
   Next Obligation.
-    iIntros (????????) "(%v&%n&%&%&%&%&Hl)".
-    simpl in *; subst.
+    iIntros (??????? Hcty) "(%v&%n&%&%&%&%&Hl)".
+    simpl in *; inv Hcty.
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[% Hl]" => //.
     iSplitR; first done. iExists q, (valinject it v); iFrame.
     iIntros "!>".
@@ -126,11 +126,14 @@ Section generic_boolean.
   Global Instance boolean_objective b stn it: ObjectiveTy (b @ generic_boolean stn it).
   Proof. constructor; apply _. Qed.
 
-  Global Instance alloc_alive_generic_boolean b stn it: AllocAlive (b @ generic_boolean stn it) Own (sizeof it) True.
+  Global Instance alloc_alive_generic_boolean b stn it `{TCDone (ty_align_safe it)}: AllocAlive (b @ generic_boolean stn it) Own (sizeof it) True.
   Proof.
     constructor. iIntros (l ?) "(%&%&%&%&%&%Hly&Hl)".
-    iApply (data_at_rec_alloc with "Hl"); try done; try apply Hly.
-    destruct Hly as (_ & _ & ? & _); simpl in *; rep_lia.
+    destruct Hly; simpl in *.
+    assert (complete_legal_cosu_type it = true) by by destruct v, it.
+    iApply (data_at_rec_alloc with "Hl"); try done.
+    * rep_lia.
+    * by apply alignof_compatible.
   Qed.
 
   Global Instance generic_boolean_timeless l b stn it:

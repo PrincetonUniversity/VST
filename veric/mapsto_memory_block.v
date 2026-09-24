@@ -234,6 +234,20 @@ Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  | _ => False
  end.
 
+Lemma mapsto__exp_address_mapsto1: forall sh t b i_ofs, readable_share sh ->
+  mapsto_ sh t (Vptr b i_ofs) ⊢ ∃ ch, ⌜access_mode t = By_value ch⌝ ∧ ∃ v2' : val,
+            address_mapsto ch v2' sh (b, (Ptrofs.unsigned i_ofs)).
+Proof.
+  intros.
+  unfold mapsto_, mapsto.
+  destruct (access_mode t); try by iIntros "[]".
+  destruct (type_is_volatile t); try by iIntros "[]".
+  destruct (readable_share_dec sh); last done.
+  rewrite -> bi.pure_False by apply tc_val_Vundef.
+  rewrite bi.False_and bi.False_or bi.pure_True; last done.
+  rewrite bi.True_and; auto.
+Qed.
+
 Lemma mapsto__exp_address_mapsto: forall sh t b i_ofs ch,
   access_mode t = By_value ch ->
   type_is_volatile t = false ->
@@ -271,6 +285,33 @@ Proof.
   intros.
   rewrite exp_address_mapsto_VALspec_range_eq bi.pure_True; last done.
   by rewrite bi.True_and.
+Qed.
+
+Lemma mapsto__memory_block1: forall {cs : compspecs} sh b ofs t,
+  Ptrofs.unsigned ofs + sizeof t < Ptrofs.modulus ->
+  mapsto_ sh t (Vptr b ofs) ⊢ memory_block sh (sizeof t) (Vptr b ofs).
+Proof.
+  intros.
+  unfold memory_block.
+  rewrite memory_block'_eq.
+  2: pose proof Ptrofs.unsigned_range ofs; lia.
+  2: rewrite -> Z2Nat.id by (pose proof sizeof_pos t; lia); lia.
+  rewrite bi.pure_True; last done.
+  rewrite bi.True_and.
+  unfold memory_block'_alt.
+  rewrite -> Z2Nat.id by (pose proof sizeof_pos t; lia).
+  destruct (readable_share_dec sh).
+ * rewrite -> mapsto__exp_address_mapsto1; last done.
+   iIntros "(% & % & H)".
+   rewrite (size_chunk_sizeof _ _ ch); last done.
+   rewrite exp_address_mapsto_VALspec_range_eq.
+   iDestruct "H" as "(_ & $)".
+ * unfold mapsto_, mapsto.
+  destruct (access_mode t) as [ch | | |] eqn: Hch; try by iIntros "[]".
+  destruct (type_is_volatile t); try by iIntros "[]".
+  rewrite (size_chunk_sizeof _ _ ch); last done.
+  rewrite -> if_false by auto.
+  iIntros "(_ & $)".
 Qed.
 
 Lemma mapsto__memory_block: forall sh b ofs t ch,

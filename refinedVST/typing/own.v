@@ -21,8 +21,8 @@ Section own.
     destruct β => //=. by iApply ty_share.
   Qed.
   Next Obligation.
-    iIntros (β ty l ot mt l' ?). destruct ot; try done.
-    rewrite /has_layout_loc !field_compatible_tptr.
+    iIntros (β ty l ot mt l' ?). destruct ot as [ [] |]; try done.
+    rewrite has_layout_loc_tptr.
     by iDestruct 1 as (?) "_". Qed.
   Next Obligation.
     iIntros (β ty l ot mt l' ?) "(%H1 & Hl)".
@@ -45,7 +45,7 @@ Section own.
     iIntros (β ty l ot mt l' v ? ?) "Hl [% Hl']".
     destruct ot; try done. inv H.
     simpl in H1. rewrite H1.
-    unfold has_layout_loc in *. rewrite field_compatible_tptr in H0. unfold heap_mapsto_own_state.
+    rewrite has_layout_loc_tptr in H0. unfold heap_mapsto_own_state.
     erewrite (mapsto_tptr _ _ tvoid ot). by iFrame.
   Qed.
 
@@ -59,7 +59,7 @@ Section own.
   Global Instance frac_ptr_loc_in_bounds l ty β1 β2 : LocInBounds (l @ frac_ptr β1 ty) β2 (Z.to_nat (sizeof (tptr tvoid))).
   Proof.
     constructor. iIntros (?) "(%&Hl)".
-    by iApply has_layout_in_bounds.
+    by iApply (has_layout_in_bounds _ (tptr tvoid)).
   Qed.
 
   Global Instance frac_ptr_defined p β ty: DefinedTy (p @ frac_ptr β ty).
@@ -583,8 +583,7 @@ Section ptr.
   Next Obligation.
     iIntros (??????) "(% & Hl)".
     rewrite /has_layout_loc in H |- *.
-    destruct cty; try done.
-    by rewrite field_compatible_tptr.
+    destruct ot as [[] |]; done.
   Qed.
   Next Obligation.
     iIntros (???????).
@@ -608,10 +607,9 @@ Section ptr.
   Next Obligation.
     iIntros (????????) "Hl".
     iIntros "%".
-    unfold has_layout_loc in *.
     destruct cty; try done; inv H.
     rewrite /= in H1. rewrite H1.
-    unfold has_layout_loc in *. rewrite field_compatible_tptr in H0. unfold heap_mapsto_own_state.
+    rewrite has_layout_loc_tptr in H0. unfold heap_mapsto_own_state.
     erewrite (mapsto_tptr _ _ tvoid cty). by iFrame.
   Qed.
 
@@ -620,7 +618,7 @@ Section ptr.
   Instance ptr_loc_in_bounds l n β : LocInBounds (l @ ptr n) β (Z.to_nat (sizeof (tptr tvoid))).
   Proof.
     constructor. iIntros (?) "(% & ?)".
-    by iApply has_layout_in_bounds.
+    by iApply (has_layout_in_bounds _ (tptr tvoid)).
   Qed.
 
   Lemma simplify_ptr_hyp_place (p:address) l t n T:
@@ -631,7 +629,6 @@ Section ptr.
     rewrite /heap_mapsto_own_state.
     erewrite (mapsto_tptr _ _ tvoid t).
     repeat iSplit => //.
-    { rewrite /has_layout_loc in H |- *. by rewrite field_compatible_tptr. }
     { rewrite /has_layout_loc in H |- *. iPureIntro.
       rewrite has_layout_val_by_value //= /tc_val' /=.
       destruct t; try done.
@@ -699,8 +696,7 @@ Section null.
   Qed.
   Next Obligation.
     iIntros (????) "[% _]".
-    destruct cty; try done; inv H.
-    rewrite /has_layout_loc field_compatible_tptr //.
+    destruct ot as [[] |]; try done; inv H.
   Qed.
   Next Obligation.
     iIntros (?????).
@@ -724,15 +720,13 @@ Section null.
     rewrite /repinject /= in Hl1; subst.
     rewrite /heap_mapsto_own_state.
     erewrite (mapsto_tptr _ _ tvoid cty).
-    iFrame.
-    iPureIntro.
-    by rewrite /has_layout_loc field_compatible_tptr in H0.
+    by iFrame.
   Qed.
 
   Global Instance null_loc_in_bounds β : LocInBounds null β (Z.to_nat (expr.sizeof (tptr tvoid))).
   Proof.
     constructor. iIntros (l) "[% _]".
-    by iApply has_layout_in_bounds.
+    by iApply (has_layout_in_bounds _ (tptr tvoid)).
   Qed.
 
   Lemma type_null cty T :
@@ -746,7 +740,7 @@ Section null.
   Next Obligation.
     iIntros (E ? l ? Hcty) "(% & Hl)".
     hnf in Hcty; destruct cty; inv Hcty.
-    rewrite /has_layout_loc field_compatible_tptr; iSplitR => //.
+    iSplitR => //.
     iInv "Hl" as ">(% & % & Hl)" "Hclose".
     exploit slice.split_readable_share; first done; intros (s & ? & ? & ? & ?).
     rewrite (mapsto_tptr _ _ _ cty) /mapsto.

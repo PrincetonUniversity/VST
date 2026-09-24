@@ -18,11 +18,11 @@ Section value.
   |}.
   Next Obligation. iIntros (?????) "[$ [$ ?]]". by iApply heap_mapsto_own_state_share. Qed.
   Next Obligation. iIntros (ot v ot' mt l [-> ?]) "[% [% ?]]". done. Qed.
-  Next Obligation. intros ot v ot' mt l [-> ?].
+  Next Obligation. intros ot v ot' mt l [[=] ?]; subst.
                    iIntros "[% [% ?]]". done. Qed.
-  Next Obligation. intros ot v ot' mt l [-> ?].
+  Next Obligation. intros ot v ot' mt l [[=] ?]; subst.
                    iIntros "[% [% ?]]". eauto with iFrame. Qed.
-  Next Obligation. iIntros (ot v ot' mt l ? [-> ?]) "% Hl (% & -> & %)".
+  Next Obligation. iIntros (ot v ot' mt l ? [[=] ?]) "% Hl (% & -> & %)"; subst.
                    by iFrame. Qed.
 (*  Next Obligation. iIntros (ot v v' ot' mt st ?). apply: mem_cast_compat_id. iPureIntro.
     move => [?[? ->]]. by destruct ot' => //; simplify_eq/=.
@@ -47,7 +47,7 @@ Section value.
 
   Global Program Instance value_copyable ot v: Copyable (value ot v).
   Next Obligation.
-    iIntros (?????? (-> & ?)) "(% & % & Hl)".
+    iIntros (?????? ([=] & ?)) "(% & % & Hl)"; subst.
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[% [% Hl]]" => //.
     iSplitR => //. iExists q, (valinject ot v). iFrame. iModIntro.
     repeat iSplit => //.
@@ -124,7 +124,7 @@ Section value.
   Definition value_merge_inst := [instance value_merge with 50%N].
   Global Existing Instance value_merge_inst | 20. *)
 
-Lemma type_read_move l ty ot a E `{!TCDone (ty.(ty_has_op_type) ot MCId)} `{!DefinedTy ty}
+Lemma type_read_move l ty (ot : Ctypes.type) a E `{!TCDone (ty.(ty_has_op_type) ot MCId)} `{!DefinedTy ty}
   `{!TCDone (type_is_by_value ot = true)} T:
     (∀ v, T v (value ot v) ty)
     ⊢ typed_read_end a E l Own ty ot T.
@@ -204,10 +204,7 @@ Section at_value.
   Qed.
 
   Lemma has_layout_loc_tptr : forall p a b, p `has_layout_loc` (Tpointer a b) ↔ p `has_layout_loc` (tptr tvoid).
-  Proof.
-    intros.
-    rewrite /has_layout_loc field_compatible_tptr //.
-  Qed.
+  Proof. done. Qed.
 
   Lemma mem_block_mapsto_tptr:
     forall sh t1 t2, mapsto_memory_block.mapsto sh (tptr t1) = mapsto_memory_block.mapsto sh (tptr t2).
@@ -257,16 +254,16 @@ Section at_value.
   |}.
   Next Obligation. by iIntros (??????) "?". Qed.
   Next Obligation. iIntros (cty v ty ot mt l (-> & ?)) "(Hv & ?)". iDestruct (ty_aligned _ _ MCId with "Hv") as %?; done. Qed.
-  Next Obligation. iIntros (cty v ty ot mt l (-> & ?)) "[% [Hl Hv]]".
+  Next Obligation. iIntros (cty v ty ot mt l ([=] & ?)) "[% [Hl Hv]]"; subst.
     iPoseProof (ty_size_eq _ _ mt with "Hl") as "%Hl"; try done.
   Qed.
-  Next Obligation. iIntros (cty v ty ot mt l (-> & ?)) "(Hl & Hv)".
+  Next Obligation. iIntros (cty v ty ot mt l ([=] & ?)) "(Hl & Hv)"; subst.
     rewrite /ty_own_val_at /=.
     iDestruct (ty_deref _ _ MCId with "Hl") as "(% & ↦ & own_vrep)"; try done.
      iFrame. done.
     Qed.
-  Next Obligation. iIntros (cty v ty ot mt l ? ?) "% Hl (% & Hv & $)".
-    iApply (ty_ref _ _ MCId with "[] Hl Hv"); done. Qed.
+  Next Obligation. iIntros (cty v ty ot mt l ? ?) "% Hl (%Hot & Hv & $)".
+    inv Hot. iApply (ty_ref _ _ MCId with "[] Hl Hv"); done. Qed.
 (*   Next Obligation.
     iIntros (v ty v' ot mt st ?) "[Hv ?]".
     iDestruct (ty_memcast_compat with "Hv") as "?"; [done|]. destruct mt => //. iFrame.

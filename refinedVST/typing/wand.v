@@ -103,12 +103,12 @@ Section wand_val.
     iIntros (???????) "(? &?)"; done.
   Qed.
   Next Obligation.
-    iIntros (??????(->&?)) "Hl".
+    iIntros (??????([=]&?)) "Hl"; subst.
     iDestruct "Hl" as (?) "(% & % & Hl & HP)".
     by iFrame.
   Qed.
   Next Obligation.
-    iIntros (???????(-> & ?)?) "Hl".
+    iIntros (???????([=]&?)?) "Hl"; subst.
     iIntros "(% & HP)".
     rewrite /heap_mapsto_own_state.
     iExists v_rep.
