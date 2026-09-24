@@ -109,6 +109,8 @@ Proof.
     apply Forall_singleton. specialize (Hstable l).
     unfold lr_stable_heaps_match in Hstable. rewrite Hload in Hstable.
     tauto.
+  - (* Spawn *)
+    inversion Hspawn; subst. do 3 eexists. apply EctxStep, ForkS.
 Qed.
 
 Lemma lr_stable_not_stuck e t sigma m mu :
@@ -128,7 +130,7 @@ Qed.
 Theorem lr_am_safe_reference_stable rc0 mc0 threads sigma mc :
   lr_stable_configuration_match rc0 mc0 ->
   lr_am_safe mc0 ->
-  lr_steps lr_reference_step rc0 (threads, sigma) ->
+  lr_steps step rc0 (threads, sigma) ->
   lr_stable_configuration_match (threads, sigma) mc ->
   forall e, e ∈ threads -> lr_reference_not_stuck e sigma.
 Proof.
@@ -165,6 +167,10 @@ Proof.
   by inversion H.
 Qed.
 
+Lemma lr_spawn_not_val e e' e_new :
+  lr_spawn e e' e_new -> to_val e = None.
+Proof. intros Hspawn. inversion Hspawn; subst. by apply fill_not_val. Qed.
+
 Lemma lr_value_not_reducible v m mu :
   ~ am_reducible (lr_running (of_val v) []) m mu.
 Proof.
@@ -173,7 +179,8 @@ Proof.
     apply lookup_singleton_Some in Hget as [Hi Hget];
     unfold lr_running in Hget; inversion Hget; subst; try contradiction.
   all: try (apply lr_step_not_val in Hstep0; by rewrite to_of_val in Hstep0).
-  all: apply lr_external_not_val in Hext; by rewrite to_of_val in Hext.
+  all: try (apply lr_external_not_val in Hext; by rewrite to_of_val in Hext).
+  all: apply lr_spawn_not_val in Hspawn; by rewrite to_of_val in Hspawn.
 Qed.
 
 Lemma lr_stuck_term_not_safe sigma :

@@ -97,6 +97,20 @@ Section ClightInstantiation.
         (ACAS Mint32 (b, Ptrofs.unsigned ofs) v_exp v_new)
         (fun ov => Clight_core.Returnstate (force_val ov) k).
 
+  (** Thread creation through the [spawn] external: the new thread calls
+      the given function pointer on the given argument, as in
+      [Clight_core.cl_initial_core]. *)
+  Inductive clight_spawn (ge : Clight.genv)
+      : Clight_core.CC_core -> Clight_core.CC_core -> Clight_core.CC_core -> Prop :=
+  | ClightSpawn sg tyargs tyret cc fptr arg k c_new :
+      Clight_core.cl_initial_core ge fptr [arg] = Some c_new ->
+      clight_spawn ge
+        (Clight_core.Callstate
+          (Ctypes.External (EF_external "spawn" sg) tyargs tyret cc)
+          [fptr; arg] k)
+        (Clight_core.Returnstate Vundef k)
+        c_new.
+
   #[global] Instance clight_mem_mixin :
       Memory (Loc := address) (Val := val)
         (Mem := mem) (Layout := memory_chunk) :=
@@ -123,6 +137,7 @@ Section ClightInstantiation.
       sqlang_false_val := Values.Vfalse;
       sqlang_step := ev_step_with_mem_ev (Clight_evsem.CLC_evsem ge);
       sqlang_at_external := clight_external;
+      sqlang_spawn := clight_spawn ge;
       sqlang_ValEq := clight_ValEq;
       sqlang_ValNEq := clight_ValNEq |}.
 

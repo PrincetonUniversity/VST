@@ -16,9 +16,8 @@
     the reference holds at [WSt], where no other thread can observe them.
 
     [am_safe] is used throughout, not only at the end:
-    - a reference step with no matching machine step (a racy [CAS],
-      [Fork]) is a step to or from a machine configuration that is not
-      safe;
+    - a reference step with no matching machine step (a racy [CAS]) is
+      a step to a machine configuration that is not safe;
     - a pending access never loses its lock (a [Free] of the location or
       an unmatched decrement would leave the pending machine thread unable
       to commit), which keeps the value a pending read has already
@@ -309,61 +308,7 @@ Proof.
   rewrite lookup_free_mem. by case_decide.
 Qed.
 
-(** * Syntax: [Fork] and the machine *)
-
-Lemma lr_head_step_redex_shape e1 m T e2 m' :
-  lr_head_step e1 m T e2 m' -> redex_shape e1.
-Proof.
-  intros Hstep Ki e' Heq.
-  destruct Hstep; destruct Ki; simplify_eq/=; rewrite ?to_of_val; eauto.
-  - by case_decide.
-  - by apply Forall_app, proj2, Forall_cons in H as [? _].
-Qed.
-
-Lemma lr_head_step_not_val e1 m T e2 m' : lr_head_step e1 m T e2 m' -> to_val e1 = None.
-Proof. by destruct 1. Qed.
-
-Lemma lr_head_external_redex_shape e op k : lr_head_external e op k -> redex_shape e.
-Proof. intros Hext Ki e' Heq. destruct Hext; destruct Ki; simplify_eq/=; rewrite ?to_of_val; eauto. Qed.
-
-Lemma lr_head_external_not_val e op k : lr_head_external e op k -> to_val e = None.
-Proof. by destruct 1. Qed.
-
-Lemma fork_redex_shape e : redex_shape (Fork e).
-Proof. intros Ki e' Heq. by destruct Ki. Qed.
-
-Lemma lr_fork_not_reducible K e m mu :
-  ~ am_reducible (lr_running (fill K (Fork e)) []) m mu.
-Proof.
-  intros (tp' & m' & mu' & Hstep). inversion Hstep; subst;
-    unfold lr_tpool, tpool in *;
-    apply lookup_singleton_Some in Hget as [Hi Hget];
-    unfold lr_running in Hget; inversion Hget; subst; try contradiction.
-  1: { change (lr_step (fill K (Fork e)) m T c' m') in Hstep0.
-    inversion Hstep0 as [K' e1 ? ? e2 ? Hhead HK]; subst.
-    destruct (fill_redex_unique K' K e1 (Fork e)
-                (lr_head_step_redex_shape _ _ _ _ _ Hhead) (fork_redex_shape e)
-                (lr_head_step_not_val _ _ _ _ _ Hhead) eq_refl HK) as (_ & ->).
-    inversion Hhead. }
-  all: inversion Hext as [K' e1 op k Hhe HK]; subst;
-    destruct (fill_redex_unique K' K e1 (Fork e)
-                (lr_head_external_redex_shape _ _ _ Hhe) (fork_redex_shape e)
-                (lr_head_external_not_val _ _ _ Hhe) eq_refl HK) as (_ & ->);
-    inversion Hhe.
-Qed.
-
 (** * Reference steps *)
-
-Lemma lr_full_step_inv threads sigma rc' :
-  step (threads, sigma) rc' ->
-  exists i e1 e2 sigma2 spawned,
-    threads !! i = Some e1 /\ prim_step e1 sigma e2 sigma2 spawned /\
-    rc' = (<[i := e2]> threads ++ spawned, sigma2).
-Proof.
-  intros Hstep. inversion Hstep; subst. exists (length t1), e1, e2, sigma2, spawned.
-  unfold thread_pool. rewrite insert_app_r_alt, Nat.sub_diag by lia.
-  eauto using list_lookup_middle.
-Qed.
 
 (** A machine step to a configuration with a [StuckState] thread
     contradicts safety. *)
@@ -399,7 +344,7 @@ Lemma lr_tight_step rc rc' mc :
 Proof.
   destruct rc as (threads, sigma). destruct mc as [tp m mu].
   intros (Hpools & Hheaps) Hsafe Hstep. simpl in Hpools, Hheaps.
-  apply lr_full_step_inv in Hstep as (i & e1 & e2 & sigma2 & spawned & Hi & Hprim & ->).
+  apply lr_reference_step_inv in Hstep as (i & e1 & e2 & sigma2 & spawned & Hi & Hprim & ->).
   destruct (lr_pools_match_lookup_l _ _ _ _ _ Hpools Hi) as (c & Hc & Hthread).
   assert (Hsome : is_Some (threads !! i)) by (by eexists).
   assert (Hdom : forall l, sigma !! l = None -> m !! l = None)
@@ -538,12 +483,17 @@ Proof.
       * eapply lr_machine_pure_steps; [ exact Hc | ]. apply LREctxStep. by eapply LRCaseS.
       * eapply lr_tight_pools_update; [ exact Hpools | apply lr_frame_refl | done | ].
         constructor. by eapply na2_free_fill.
-    + (* Fork: the machine thread cannot step, contradicting safety. *)
-      exfalso.
-      destruct (Hsafe _ _ _ (rtc_refl _ _) i _ Hc) as [(c' & Hc' & [v Hv]) | Hred].
-      * unfold lr_running in Hc'. simplify_eq.
-        rewrite fill_not_val in Hv by done. discriminate.
-      * exact (lr_fork_not_reducible _ _ _ _ Hred).
+    + (* Fork: the machine spawns at the least unused index, which is
+         where the reference appends. *)
+      simpl in Hna2.
+      destruct (tpool_least_free tp) as (j & Hj & Hleast).
+      pose proof (lr_pools_match_least_free _ _ _ _ Hpools Hj Hleast) as ->.
+      eexists. split; [ split | apply lr_steps_one; by eapply lr_machine_spawn ].
+      * simpl. rewrite <- (length_insert threads i (fill K (Lit LitPoison))).
+        apply lr_pools_match_snoc; [ | by constructor ].
+        eapply lr_tight_pools_update; [ exact Hpools | apply lr_frame_refl | done | ].
+        constructor. by eapply na2_free_fill.
+      * exact Hheaps.
   - (* [LRTightRead]: the second half; the machine commits. *)
     inversion Hprim as [K' e1' ? e2' ? ? Hhead HK]; subst.
     destruct (fill_redex_unique K' K e1' (Read Na2Ord (Lit (LitLoc l)))
@@ -667,6 +617,8 @@ Proof.
     exfalso. eapply (lr_safe_no_stuck_step _ (<[i := lr_stuck]> tp) m mu i Hsafe).
     + exact (SC_Cas_Stuck tp m mu i _ ly l v_exp v_new v_cur K Hi Hext Hload Heq Ho).
     + unfold lr_tpool, tpool. apply lookup_insert_eq.
+  - (* Spawn *)
+    inversion Hspawn; subst. do 3 eexists. apply EctxStep, ForkS.
 Qed.
 
 Lemma lr_fin_read_inv (mu mu' : lr_rw_map) l :

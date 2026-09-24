@@ -174,6 +174,12 @@ Section AtomicMachine.
       sqlang_thrd_st -> atomic_op ->
       (option Val -> sqlang_thrd_st) -> Prop;
 
+    (** Thread creation: [sqlang_spawn c c' c_new] means that [c] is
+        about to spawn a new thread starting at [c_new] and continue as
+        [c']. *)
+    sqlang_spawn :
+      sqlang_thrd_st -> sqlang_thrd_st -> sqlang_thrd_st -> Prop;
+
     (** Value (in)equality for CAS *)
     sqlang_ValEq : Mem -> Val -> Val -> Prop;
     sqlang_ValNEq : Mem -> Val -> Val -> Prop;
@@ -257,7 +263,16 @@ Section AtomicMachine.
       (Hload : load m l ly = Some v_cur)
       (Heq : ValEq m v_cur v_exp)
       (Ho : ~ writable μ (layout_to_locs l ly)),
-      at_step tp m μ (<[i := StuckState]> tp) m μ.
+      at_step tp m μ (<[i := StuckState]> tp) m μ
+
+  (** Thread creation.  The new thread gets the least unused index, so
+      a pool whose indices are an initial segment of [nat] stays one. *)
+  | Spawn : forall tp m μ i c c' c_new j
+      (Hget : tp !! i = Some (Running c []))
+      (Hspawn : sqlang_spawn c c' c_new)
+      (Hfree : tp !! j = None)
+      (Hleast : forall k, k < j -> is_Some (tp !! k)),
+      at_step tp m μ (<[j := Running c_new []]> (<[i := Running c' []]> tp)) m μ.
 
   (** ** Safety, parameterized by the sequential language's final states
 
@@ -270,11 +285,34 @@ Section AtomicMachine.
 
   (** A singleton reduction really can be scheduled in any pool containing
       this thread, without changing the memory or reservations beforehand. *)
+  (** Every pool has a least unused index. *)
+  Lemma tpool_least_free (tp : tpool) :
+    exists j, tp !! j = None /\ forall k, k < j -> is_Some (tp !! k).
+  Proof.
+    assert (Hdisj : forall N, (exists j, j <= N /\ tp !! j = None /\
+                                 forall k, k < j -> is_Some (tp !! k)) \/
+                          (forall k, k <= N -> is_Some (tp !! k))).
+    { induction N as [ | N IH ].
+      - destruct (tp !! 0) eqn:H0; [ right | left ].
+        + intros k Hk. assert (k = 0) as -> by lia. by rewrite H0.
+        + exists 0. split; [ lia | ]. split; [ done | ]. lia.
+      - destruct IH as [(j & Hj & Hfree & Hleast) | Hall].
+        + left. exists j. split; [ lia | done ].
+        + destruct (tp !! S N) eqn:HN; [ right | left ].
+          * intros k Hk. destruct (decide (k = S N)) as [-> | ]; [ by rewrite HN | ].
+            apply Hall. lia.
+          * exists (S N). split; [ lia | ]. split; [ done | ].
+            intros k Hk. apply Hall. lia. }
+    destruct (Hdisj (fresh (dom tp))) as [(j & _ & Hj) | Hall]; [ by eexists | ].
+    exfalso. apply (is_fresh (dom tp)), elem_of_dom, Hall. lia.
+  Qed.
+
   Lemma am_reducible_in_pool tp i t m μ :
     tp !! i = Some t -> am_reducible t m μ ->
-    exists t' m' μ', at_step tp m μ (<[i := t']> tp) m' μ'.
+    exists tp' m' μ', at_step tp m μ tp' m' μ'.
   Proof.
     intros Hlookup (tp' & m' & μ' & Hstep).
+    destruct (tpool_least_free tp) as (j & Hfree & Hleast).
     inversion Hstep; subst;
       apply lookup_singleton_Some in Hget as [Hi Hget]; subst t;
       do 3 eexists; eauto using at_step.

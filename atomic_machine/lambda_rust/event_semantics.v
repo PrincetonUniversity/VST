@@ -3,7 +3,7 @@
 
   Sequentially consistent operations are exposed through [lr_external].
   Pure computation, non-atomic accesses, allocation, and deallocation are
-  handled by [lr_step].  [Fork] deliberately has no rule here.
+  handled by [lr_step]; [Fork] by [lr_spawn].
 *)
 
 From Stdlib Require Import ZArith Lia List Bool.
@@ -169,6 +169,12 @@ Inductive lr_external
       (fill K e) op
       (fun ov => fill K (k ov)).
 
+(** [Fork] at the head of an evaluation context: the parent continues
+    with [LitPoison], as in the reference [ForkS]. *)
+Inductive lr_spawn : expr -> expr -> expr -> Prop :=
+| LRSpawn K e :
+    lr_spawn (fill K (Fork e)) (fill K (Lit LitPoison)) e.
+
 #[global] Instance lr_language :
     @sqlang loc val _ _ lr_mem lr_layout lr_memory :=
   {| sqlang_thrd_st := expr;
@@ -176,5 +182,6 @@ Inductive lr_external
      sqlang_false_val := LitV (lit_of_bool false);
      sqlang_step := lr_step;
      sqlang_at_external := lr_external;
+     sqlang_spawn := lr_spawn;
      sqlang_ValEq := lr_val_eq;
      sqlang_ValNEq := lr_val_neq |}.

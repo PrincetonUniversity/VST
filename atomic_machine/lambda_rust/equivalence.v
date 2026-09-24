@@ -7,8 +7,9 @@
   We therefore compare reflexive-transitive reachability between stable
   configurations, where neither representation has an access in flight.
 
-  The atomic machine does not yet provide a thread-spawn rule, so the
-  reference transition below is restricted to steps that spawn no threads.
+  Thread creation is matched by the machine's [Spawn] rule: the reference
+  appends the new thread to its list, and the machine gives it the least
+  unused index, which is the same position.
 *)
 
 From Stdlib Require Import List Lia.
@@ -56,15 +57,6 @@ Definition lr_machine_step
   @at_step loc val _ _ lr_mem lr_layout lr_memory lr_language
     (lr_machine_threads c1) (lr_machine_mem c1) (lr_machine_rw c1)
     (lr_machine_threads c2) (lr_machine_mem c2) (lr_machine_rw c2).
-
-(** The non-spawning fragment of the reference transition relation. *)
-
-Inductive lr_reference_step : configuration -> configuration -> Prop :=
-| LRReferenceStep t1 e1 t2 sigma1 e2 sigma2 :
-    prim_step e1 sigma1 e2 sigma2 [] ->
-    lr_reference_step
-      (t1 ++ e1 :: t2, sigma1)
-      (t1 ++ e2 :: t2, sigma2).
 
 (** Reflexive-transitive closure, used to hide administrative steps. *)
 
@@ -141,11 +133,50 @@ Lemma lr_pools_match_impl R R' threads tp :
   lr_pools_match R threads tp -> lr_pools_match R' threads tp.
 Proof. intros Himpl H i. specialize (H i). destruct (threads !! i), (tp !! i); auto. Qed.
 
-(** A reference step is a primitive step of the thread at some index. *)
+(** Thread creation: the machine's least unused index is the position at
+    which the reference appends. *)
 
-Lemma lr_reference_step_at threads sigma i e1 e2 sigma2 :
-  threads !! i = Some e1 -> prim_step e1 sigma e2 sigma2 [] ->
-  lr_reference_step (threads, sigma) (<[i := e2]> threads, sigma2).
+Lemma lr_pools_match_is_Some R threads tp (k : nat) :
+  lr_pools_match R threads tp -> is_Some (tp !! k) <-> (k < length threads)%nat.
+Proof.
+  intros H. specialize (H k). rewrite <- lookup_lt_is_Some.
+  destruct (threads !! k), (tp !! k); naive_solver.
+Qed.
+
+Lemma lr_pools_match_least_free R threads tp (j : nat) :
+  lr_pools_match R threads tp ->
+  tp !! j = None -> (forall k, (k < j)%nat -> is_Some (tp !! k)) ->
+  j = length threads.
+Proof.
+  intros H Hj Hleast.
+  assert (~ (j < length threads)%nat).
+  { intros Hlt. apply (lr_pools_match_is_Some _ _ _ j H) in Hlt. rewrite Hj in Hlt. by destruct Hlt. }
+  destruct (decide (length threads < j)%nat) as [Hlt | ]; [ | lia ].
+  apply Hleast, (lr_pools_match_is_Some _ _ _ _ H) in Hlt. lia.
+Qed.
+
+Lemma lr_pools_match_snoc R threads tp e c :
+  lr_pools_match R threads tp -> R e c ->
+  lr_pools_match R (threads ++ [e]) (<[length threads := c]> tp).
+Proof.
+  intros H HR k. unfold lr_tpool, tpool in *.
+  destruct (decide (k = length threads)) as [-> | Hne].
+  - rewrite lookup_insert_eq, lookup_app_r, Nat.sub_diag by lia. exact HR.
+  - rewrite lookup_insert_ne by done. specialize (H k).
+    destruct (decide (k < length threads)%nat).
+    + by rewrite lookup_app_l.
+    + rewrite lookup_app_r by lia. rewrite list_lookup_singleton.
+      destruct (k - length threads)%nat eqn:?; [ lia | ].
+      destruct (threads !! k) eqn:Hk; [ apply lookup_lt_Some in Hk; lia | ].
+      by destruct (tp !! k).
+Qed.
+
+(** A reference step is a primitive step of the thread at some index,
+    with the spawned threads appended. *)
+
+Lemma lr_reference_step_at_spawn threads sigma i e1 e2 sigma2 spawned :
+  threads !! i = Some e1 -> prim_step e1 sigma e2 sigma2 spawned ->
+  step (threads, sigma) (<[i := e2]> threads ++ spawned, sigma2).
 Proof.
   intros Hi Hstep.
   assert (Hlen : length (take i threads) = i)
@@ -156,13 +187,21 @@ Proof.
   rewrite <- Hsplit at 1. by constructor.
 Qed.
 
-Lemma lr_reference_step_inv threads sigma rc' :
-  lr_reference_step (threads, sigma) rc' ->
-  exists i e1 e2 sigma2,
-    threads !! i = Some e1 /\ prim_step e1 sigma e2 sigma2 [] /\
-    rc' = (<[i := e2]> threads, sigma2).
+Lemma lr_reference_step_at threads sigma i e1 e2 sigma2 :
+  threads !! i = Some e1 -> prim_step e1 sigma e2 sigma2 [] ->
+  step (threads, sigma) (<[i := e2]> threads, sigma2).
 Proof.
-  intros Hstep. inversion Hstep; subst. exists (length t1), e1, e2, sigma2.
+  intros Hi Hstep. rewrite <- (app_nil_r (<[i := e2]> threads)).
+  by eapply lr_reference_step_at_spawn.
+Qed.
+
+Lemma lr_reference_step_inv threads sigma rc' :
+  step (threads, sigma) rc' ->
+  exists i e1 e2 sigma2 spawned,
+    threads !! i = Some e1 /\ prim_step e1 sigma e2 sigma2 spawned /\
+    rc' = (<[i := e2]> threads ++ spawned, sigma2).
+Proof.
+  intros Hstep. inversion Hstep; subst. exists (length t1), e1, e2, sigma2, spawned.
   unfold thread_pool. rewrite insert_app_r_alt, Nat.sub_diag by lia.
   eauto using list_lookup_middle.
 Qed.
@@ -171,7 +210,7 @@ Lemma lr_reference_two_steps threads sigma i e1 e2 e3 sigma2 sigma3 :
   threads !! i = Some e1 ->
   prim_step e1 sigma e2 sigma2 [] ->
   prim_step e2 sigma2 e3 sigma3 [] ->
-  lr_steps lr_reference_step (threads, sigma) (<[i := e3]> threads, sigma3).
+  lr_steps step (threads, sigma) (<[i := e3]> threads, sigma3).
 Proof.
   intros Hi H12 H23. rewrite <- (list_insert_insert_eq _ i e3 e2).
   eapply lr_steps_two; eapply lr_reference_step_at; eauto.
@@ -841,6 +880,16 @@ Proof.
             Hget Hext _ Hm Hneq). by repeat constructor.
 Qed.
 
+Lemma lr_machine_spawn tp m mu i K e j :
+  tp !! i = Some (lr_running (fill K (Fork e)) []) ->
+  tp !! j = None -> (forall k, (k < j)%nat -> is_Some (tp !! k)) ->
+  lr_machine_step
+    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
+    {| lr_machine_threads :=
+         <[j := lr_running e []]> (<[i := lr_running (fill K (Lit LitPoison)) []]> tp);
+       lr_machine_mem := m; lr_machine_rw := mu |}.
+Proof. intros. eapply Spawn; eauto. constructor. Qed.
+
 (** * Forward simulation: reference steps are matched by machine steps *)
 
 (** Packaging of a forward step: the machine steps come first so that
@@ -869,19 +918,19 @@ Proof. intros. apply lr_pools_match_insert; auto. constructor. eauto using na2_f
 
 Lemma lr_forward_step rc rc' mc :
   lr_forward_configuration_match rc mc ->
-  lr_reference_step rc rc' ->
+  step rc rc' ->
   exists mc', lr_forward_configuration_match rc' mc' /\ lr_steps lr_machine_step mc mc'.
 Proof.
   destruct rc as (threads, sigma). destruct mc as [tp m mu].
   intros (Hpools & Hheaps) Hstep. simpl in Hpools, Hheaps.
-  apply lr_reference_step_inv in Hstep as (i & e1 & e2 & sigma2 & Hi & Hprim & ->).
+  apply lr_reference_step_inv in Hstep as (i & e1 & e2 & sigma2 & spawned & Hi & Hprim & ->).
   destruct (lr_pools_match_lookup_l _ _ _ _ _ Hpools Hi) as (c & Hc & Hthread).
   assert (Hsome : is_Some (threads !! i)) by (by eexists).
   pose proof (lr_forward_heaps_dom _ _ _ Hheaps) as Hdom.
   inversion Hthread; subst.
   - (* [LRForwardSame] *)
     inversion Hprim as [K e1' ? e2' ? ? Hhead HK]; subst.
-    inversion Hhead; subst.
+    inversion Hhead; subst; rewrite ?app_nil_r.
     + (* BinOp *)
       eapply lr_forward_pack; [ | by eapply lr_forward_pools_same; eauto | exact Hheaps ].
       eapply lr_machine_pure_steps; [ exact Hc | ]. apply LREctxStep, LRBinOpS.
@@ -959,12 +1008,22 @@ Proof.
       { eapply forallb_forall; [ done | ]. apply list_elem_of_In. by eapply list_elem_of_lookup_2. }
       eapply lr_forward_pack; [ | by eapply lr_forward_pools_same; eauto | exact Hheaps ].
       eapply lr_machine_pure_steps; [ exact Hc | ]. apply LREctxStep. by eapply LRCaseS.
+    + (* Fork: the machine spawns at the least unused index, which is
+         where the reference appends. *)
+      assert (Hna2 : na2_free (Fork e) = true) by eauto using na2_free_fill_inv.
+      simpl in Hna2.
+      destruct (tpool_least_free tp) as (j & Hj & Hleast).
+      pose proof (lr_pools_match_least_free _ _ _ _ Hpools Hj Hleast) as ->.
+      eexists. split; [ split | apply lr_steps_one; by eapply lr_machine_spawn ].
+      * simpl. rewrite <- (length_insert threads i (fill K (Lit LitPoison))).
+        apply lr_pools_match_snoc; [ by eapply lr_forward_pools_same | by constructor ].
+      * exact Hheaps.
   - (* [LRForwardReadNa2]: the second half; the machine now tries and commits. *)
     inversion Hprim as [K' e1' ? e2' ? ? Hhead HK]; subst.
     destruct (fill_redex_unique K' K e1' (Read Na2Ord (Lit (LitLoc l)))
                 (head_step_redex_shape _ _ _ _ _ Hhead) (na2_read_redex_shape l)
                 (head_step_not_val _ _ _ _ _ Hhead) eq_refl HK) as (-> & ->).
-    inversion Hhead; subst.
+    inversion Hhead; subst; rewrite ?app_nil_r.
     match goal with Hs : sigma !! l = Some (RSt (S _), _) |- _ =>
       destruct (lr_forward_heaps_lookup _ _ _ _ _ _ Hheaps Hs) as (Hm & Hmu & Hv) end.
     destruct (lr_rsv_fin_read mu l Hmu) as (mu' & Hrsv & Hfin).
@@ -977,7 +1036,7 @@ Proof.
     destruct (fill_redex_unique K' K e1' (Write Na2Ord (Lit (LitLoc l)) e)
                 (head_step_redex_shape _ _ _ _ _ Hhead) (na2_write_redex_shape l e v H)
                 (head_step_not_val _ _ _ _ _ Hhead) eq_refl HK) as (-> & ->).
-    inversion Hhead; subst.
+    inversion Hhead; subst; rewrite ?app_nil_r.
     match goal with Hs : sigma !! l = Some (WSt, _) |- _ =>
       destruct (lr_forward_heaps_lookup _ _ _ _ _ _ Hheaps Hs) as (Hm & Hmu & _) end.
     destruct (lr_rsv_fin_write mu l Hmu) as (mu' & Hrsv & Hfin).
@@ -1037,13 +1096,13 @@ Proof.
 Qed.
 
 Lemma lr_backward_pack threads sigma tp' m' mu' i e2 sigma2 :
-  lr_steps lr_reference_step (threads, sigma) (<[i := e2]> threads, sigma2) ->
+  lr_steps step (threads, sigma) (<[i := e2]> threads, sigma2) ->
   lr_pools_match lr_backward_thread_match (<[i := e2]> threads) tp' ->
   lr_backward_heaps_match sigma2 m' ->
   exists rc',
     lr_backward_configuration_match rc'
       {| lr_machine_threads := tp'; lr_machine_mem := m'; lr_machine_rw := mu' |} /\
-    lr_steps lr_reference_step (threads, sigma) rc'.
+    lr_steps step (threads, sigma) rc'.
 Proof. intros. eexists. split; [ | eassumption ]. by split. Qed.
 
 Lemma lr_backward_pack_refl threads sigma tp' m' mu' :
@@ -1052,7 +1111,7 @@ Lemma lr_backward_pack_refl threads sigma tp' m' mu' :
   exists rc',
     lr_backward_configuration_match rc'
       {| lr_machine_threads := tp'; lr_machine_mem := m'; lr_machine_rw := mu' |} /\
-    lr_steps lr_reference_step (threads, sigma) rc'.
+    lr_steps step (threads, sigma) rc'.
 Proof. intros. exists (threads, sigma). split; [ by split | constructor ]. Qed.
 
 (** The machine thread at [i] is running the reference thread at [i]. *)
@@ -1065,7 +1124,7 @@ Ltac lr_backward_thread Hpools Hget He :=
 Lemma lr_backward_step rc mc mc' :
   lr_backward_configuration_match rc mc ->
   lr_machine_step mc mc' ->
-  exists rc', lr_backward_configuration_match rc' mc' /\ lr_steps lr_reference_step rc rc'.
+  exists rc', lr_backward_configuration_match rc' mc' /\ lr_steps step rc rc'.
 Proof.
   destruct rc as (threads, sigma). destruct mc as [tp m mu], mc' as [tp' m' mu'].
   intros (Hpools & Hheaps) Hstep. simpl in Hpools, Hheaps.
@@ -1144,13 +1203,22 @@ Proof.
     apply EctxStep. eapply (CasFailS l 0%nat); eauto. by eapply lit_neq_dom.
   - (* SC_Cas_Stuck: the crashed thread matches anything. *)
     apply lr_backward_pack_refl; [ | exact Hheaps ]. by eapply lr_pools_match_insert_r.
+  - (* Spawn: the reference forks, appending at the machine's new index. *)
+    inversion Hspawn as [K e0 Hc0 Hc1 Hc2]; subst c c' c_new.
+    pose proof (lr_pools_match_least_free _ _ _ _ Hpools Hfree Hleast) as ->.
+    exists (<[i := fill K (Lit LitPoison)]> threads ++ [e0], sigma). split; [ split | ].
+    + simpl. rewrite <- (length_insert threads i (fill K (Lit LitPoison))).
+      apply lr_pools_match_snoc; [ by apply lr_pools_match_insert | done ].
+    + exact Hheaps.
+    + apply lr_steps_one. eapply lr_reference_step_at_spawn; [ exact He | ].
+      apply EctxStep, ForkS.
 Qed.
 
 (** * Reachability *)
 
 Lemma lr_forward_steps rc rc' mc :
   lr_forward_configuration_match rc mc ->
-  lr_steps lr_reference_step rc rc' ->
+  lr_steps step rc rc' ->
   exists mc', lr_forward_configuration_match rc' mc' /\ lr_steps lr_machine_step mc mc'.
 Proof.
   intros Hmatch Hsteps. revert mc Hmatch.
@@ -1162,7 +1230,7 @@ Qed.
 Lemma lr_backward_steps rc mc mc' :
   lr_backward_configuration_match rc mc ->
   lr_steps lr_machine_step mc mc' ->
-  exists rc', lr_backward_configuration_match rc' mc' /\ lr_steps lr_reference_step rc rc'.
+  exists rc', lr_backward_configuration_match rc' mc' /\ lr_steps step rc rc'.
 Proof.
   intros Hmatch Hsteps. revert rc Hmatch.
   induction Hsteps as [ x | x y z Hxy Hyz IH ]; intros rc Hmatch; [ eauto using lr_steps | ].
@@ -1178,7 +1246,7 @@ Qed.
 Theorem lambda_rust_reachability_equivalence rc1 mc1 rc2 mc2 :
   lr_stable_configuration_match rc1 mc1 ->
   lr_stable_configuration_match rc2 mc2 ->
-  (lr_steps lr_reference_step rc1 rc2 <->
+  (lr_steps step rc1 rc2 <->
    lr_steps lr_machine_step mc1 mc2).
 Proof.
   intros Hmatch1 Hmatch2. split; intros Hsteps.
