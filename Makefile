@@ -802,11 +802,16 @@ lambda-rust-equivalence: lambda-rust-reference \
 	atomic_machine/lambda_rust/equivalence.vo
 
 lambda-rust-adequacy: lambda-rust-equivalence \
+	atomic_machine/lambda_rust/safety_reflection.vo \
 	atomic_machine/lambda_rust/adequacy.vo
 
 atomic_machine/lambda_rust/adequacy.vo: \
 	atomic_machine/lambda_rust/adequacy.v \
 	atomic_machine/lambda_rust/equivalence.vo
+
+atomic_machine/lambda_rust/safety_reflection.vo: \
+	atomic_machine/lambda_rust/safety_reflection.v \
+	atomic_machine/lambda_rust/adequacy.vo
 
 # TODO:
 #
