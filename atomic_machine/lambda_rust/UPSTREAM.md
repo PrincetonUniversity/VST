@@ -26,15 +26,52 @@ in the paper, is the equivalence target.
   closure.
 - `event_semantics.v` contains the sequential event semantics used by the
   atomic-machine instantiation.
-- `equivalence.v` states the reachability equivalence theorem between stable
+- `equivalence.v` proves the reachability equivalence theorem between stable
   configurations of the two semantics.
+- `adequacy.v` instantiates generic `am_safe`, defines reference safety, and
+  proves that AM safety implies reference progress at reachable stable
+  configurations in the non-spawning fragment. It also gives a checked
+  counterexample to transporting full safety through the existing forward
+  relation without strengthening it.
 - `races.v` contains the original next-access and non-racing predicates.
 - `LICENSE.lambda-rust` reproduces the upstream license.
 
 The equivalence theorem relates the event semantics and atomic machine to the
-reference transition system. Its proof remains future work. The reference
-transition rules remain frozen; generic definitions used by both semantics
-live in `common.v`.
+non-spawning reference transition system. The reference transition rules
+remain frozen; generic definitions used by both semantics live in `common.v`.
+
+## Safety and adequacy
+
+`atomic_machine.v` defines `am_safe final` for an arbitrary `sqlang`. The
+termination predicate is an explicit parameter, instantiated in `adequacy.v`
+by `is_Some (to_val e)`. In every reachable machine configuration, each thread
+must either have terminated with no pending events or be able to step with
+the current shared memory and reservations. A singleton-pool reduction tests
+the selected thread; `am_reducible_in_pool` proves that such a reduction can
+be scheduled in any pool containing it. `StuckState` is never safe.
+
+`lr_reference_safe` is the safety component of reference RustBelt/Iris
+adequacy: every thread in every reachable reference configuration is a value
+or can take a primitive step. This definition uses the full reference
+semantics, including forks. It does not impose a result postcondition.
+
+`lr_am_safe_reference_stable` is a partial connection to that property. It
+uses `lambda_rust_reachability_equivalence` and a separate local progress
+lemma. Its reference execution must be non-spawning, and the observed
+configuration must have a stable match. It does **not** establish
+`lr_am_safe mc -> lr_reference_safe rc` or the converse.
+
+The existing simulations forget reservations and allow crashed threads to
+match arbitrary thread states. `lr_forward_match_does_not_reflect_safety`
+exhibits a safe AM configuration related to an unsafe reference configuration.
+This witness is not a pair of stable initial states, so it does not refute
+the desired safety correspondence from stable initial states. Proving that
+correspondence requires additional reasoning about intermediate states,
+crashes, and per-thread progress; stable reachability equivalence alone is
+insufficient. Supporting full reference executions also requires a machine
+thread-spawn rule.
+
+Build the safety definitions and proofs with `make lambda-rust-adequacy`.
 
 ## Porting changes
 

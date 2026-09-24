@@ -259,4 +259,94 @@ Section AtomicMachine.
       (Ho : ~ writable μ (layout_to_locs l ly)),
       at_step tp m μ (<[i := StuckState]> tp) m μ.
 
+  (** ** Safety, parameterized by the sequential language's final states
+
+      A singleton pool tests whether this particular thread can step with
+      the current shared memory and reservations.  All [at_step] rules
+      inspect only the selected thread, so this does not ask other threads
+      to finish their pending accesses first. *)
+  Definition am_reducible (t : tstate) (m : Mem) (μ : rw_map) : Prop :=
+    exists tp' m' μ', at_step {[0 := t]} m μ tp' m' μ'.
+
+  (** A singleton reduction really can be scheduled in any pool containing
+      this thread, without changing the memory or reservations beforehand. *)
+  Lemma am_reducible_in_pool tp i t m μ :
+    tp !! i = Some t -> am_reducible t m μ ->
+    exists t' m' μ', at_step tp m μ (<[i := t']> tp) m' μ'.
+  Proof.
+    intros Hlookup (tp' & m' & μ' & Hstep).
+    inversion Hstep; subst;
+      apply lookup_singleton_Some in Hget as [Hi Hget]; subst t;
+      do 3 eexists; eauto using at_step.
+  Qed.
+
+  Definition am_configuration : Type := (tpool * Mem * rw_map)%type.
+
+  Definition am_step (q q' : am_configuration) : Prop :=
+    let '(tp, m, μ) := q in
+    let '(tp', m', μ') := q' in
+    at_step tp m μ tp' m' μ'.
+
+  Definition am_not_stuck (final : C -> Prop)
+      (t : tstate) (m : Mem) (μ : rw_map) : Prop :=
+    (exists c, t = Running c [] /\ final c) \/ am_reducible t m μ.
+
+  (** Every thread has terminated or can step, in every reachable state.
+      In particular, pending events must still be committed even when the
+      underlying sequential state is final, and [StuckState] is an error.
+      [final] is an explicit parameter so no concrete language is needed. *)
+  Definition am_safe (final : C -> Prop) (q : am_configuration) : Prop :=
+    forall tp m μ,
+      rtc am_step q (tp, m, μ) ->
+      forall i t, tp !! i = Some t -> am_not_stuck final t m μ.
+
+  Lemma am_safe_reachable final q q' :
+    am_safe final q -> rtc am_step q q' -> am_safe final q'.
+  Proof.
+    intros Hsafe Hsteps tp m μ Hsteps' i t Hget.
+    eapply Hsafe; [ eapply rtc_trans; eauto | exact Hget ].
+  Qed.
+
+  Lemma am_stuck_not_reducible m μ : ~ am_reducible StuckState m μ.
+  Proof.
+    intros (tp' & m' & μ' & Hstep). inversion Hstep; subst;
+      apply lookup_singleton_Some in Hget as [Hi Hget]; discriminate.
+  Qed.
+
+  Lemma am_stuck_not_safe final q tp m μ i :
+    rtc am_step q (tp, m, μ) -> tp !! i = Some StuckState ->
+    ~ am_safe final q.
+  Proof.
+    intros Hsteps Hget Hsafe.
+    destruct (Hsafe _ _ _ Hsteps _ _ Hget) as [(c & Hc & _) | Hred];
+      [ discriminate | exact (am_stuck_not_reducible _ _ Hred) ].
+  Qed.
+
+  Lemma am_pending_not_stuck final c T m μ :
+    T <> [] ->
+    (am_not_stuck final (Running c T) m μ <-> exists μ', fin T μ = Some μ').
+  Proof.
+    intros Hne. split.
+    - intros [(c' & Heq & _) | (tp' & m' & μ' & Hstep)]; [ congruence | ].
+      inversion Hstep; subst;
+        apply lookup_singleton_Some in Hget as [Hi Hget];
+        inversion Hget; subst; try contradiction. by eexists.
+    - intros (μ' & Hfin). right. do 3 eexists.
+      eapply Core_Commit with (i := 0);
+        [ apply lookup_singleton_eq | exact Hne | exact Hfin ].
+  Qed.
+
+  Lemma am_safe_final_singleton final c m μ :
+    final c -> ~ am_reducible (Running c []) m μ ->
+    am_safe final ({[0 := Running c []]}, m, μ).
+  Proof.
+    intros Hfinal Hnormal tp m' μ' Hsteps i t Hget.
+    inversion Hsteps; subst.
+    - apply lookup_singleton_Some in Hget as [Hi Heq]. subst t.
+      left. by eexists.
+    - exfalso. apply Hnormal.
+      match goal with H : am_step _ ?q |- _ =>
+        destruct q as [[tp1 m1] μ1]; exists tp1, m1, μ1; exact H end.
+  Qed.
+
 End AtomicMachine.

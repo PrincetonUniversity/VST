@@ -801,6 +801,13 @@ lambda-rust-equivalence: lambda-rust-reference \
 	atomic_machine/lambda_rust/event_semantics.vo \
 	atomic_machine/lambda_rust/equivalence.vo
 
+lambda-rust-adequacy: lambda-rust-equivalence \
+	atomic_machine/lambda_rust/adequacy.vo
+
+atomic_machine/lambda_rust/adequacy.vo: \
+	atomic_machine/lambda_rust/adequacy.v \
+	atomic_machine/lambda_rust/equivalence.vo
+
 # TODO:
 #
 # Add conclib_coqlib, conclib_sublist, and conclib_veric to the targets
