@@ -10,7 +10,7 @@ Require Import VST.veric.compcert_rmaps.
 
 (* Lemmas about ghost state and common instances *)
 
-Notation "|==> P" := (own.bupd P) (at level 99, P at level 200): pred.
+Notation "|==> P" := (own.bupd P) (at level 20, P at level 200): pred.
 
 Section ghost.
 

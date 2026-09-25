@@ -132,8 +132,8 @@ Qed.
 Definition fupd E1 E2 P :=
   ((wsat * ghost_set g_en E1) -* |==> |>FF || (wsat * ghost_set g_en E2 * P))%pred.
 
-Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): pred.
-Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): pred.
+Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 20, E1 at level 50, E2 at level 50, P at level 200): pred.
+Notation "|={ E }=> P" := (fupd E E P) (at level 20, E at level 50, P at level 200): pred.
 
 Lemma fupd_mono : forall E1 E2 P Q, (P |-- Q) -> (|={E1, E2}=> P) |-- (|={E1, E2}=> Q).
 Proof.
@@ -532,5 +532,5 @@ Qed.
 
 End Invariants.
 
-Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): pred.
-Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): pred.
+Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 20, E1 at level 50, E2 at level 50, P at level 200): pred.
+Notation "|={ E }=> P" := (fupd E E P) (at level 20, E at level 50, P at level 200): pred.

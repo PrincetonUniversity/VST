@@ -1,5 +1,5 @@
 From iris.bi Require Import interface.
-From iris.proofmode Require Export tactics.
+From iris.proofmode Require Export proofmode.
 
 (* undo some "simpl never" settings from std++ *)
 #[global] Arguments Pos.of_nat : simpl nomatch.
@@ -18,6 +18,17 @@ From iris.proofmode Require Export tactics.
 From VST.veric Require Import compcert_rmaps SeparationLogic.
 
 Notation "'emp'" := seplog.emp.
+
+(* Iris now indexes OFEs by an abstract step-index type [sidx] rather than by [nat].
+   With the finite instance [natSI] the index IS [nat] and [(n <= m)%sidx] is
+   convertible to [(n <= m)%nat], but [lia] does not unfold the [sidx] projections
+   -- see the header comment of iris/algebra/stepindex_finite.v.  The side
+   conditions of [chain_cauchy] are now stated in [%sidx], so peel the projections
+   off before calling [lia]. *)
+Local Ltac sidx_lia :=
+  try change (@sidx_le natSI) with le in *;
+  try change (@sidx_lt natSI) with lt in *;
+  lia.
 
 Section cofe.
   #[local] Instance mpred_equiv : Equiv mpred := eq.
@@ -42,11 +53,14 @@ Section cofe.
       + apply dist_equiv.
     - intros n; split; auto.
       congruence.
-    - intros ? P Q ?; hnf in *.
+    (* Iris renamed the third OfeMixin field [mixin_dist_S] (x ={S n}= y -> x ={n}= y)
+       to [mixin_dist_le] (x ={n}= y -> m <= n -> x ={m}= y), so this now takes two
+       indices and an ordering hypothesis instead of one index. *)
+    - intros n m P Q H Hle; hnf in *.
       apply predicates_hered.pred_ext; intros ? []; split; auto.
-      + assert (approx (S (S n)) P a) as HP by (split; auto; lia).
+      + assert (approx (S n) P a) as HP by (split; auto; lia).
         rewrite H in HP; apply HP.
-      + assert (approx (S (S n)) Q a) as HP by (split; auto; lia).
+      + assert (approx (S n) Q a) as HP by (split; auto; lia).
         rewrite <- H in HP; apply HP.
   Qed.
   Canonical Structure mpredC : ofe := Ofe mpred mpred_ofe_mixin.
@@ -57,20 +71,26 @@ Section cofe.
     split; repeat intro; simpl in *.
     eapply pred_hereditary in H0; eauto.
     assert (approx (S (level a')) (c (level a)) a') as Ha by (split; auto).
-    rewrite chain_cauchy in Ha; [apply Ha | apply age_level in H; lia].
+    rewrite chain_cauchy in Ha; [apply Ha | apply age_level in H; sidx_lia].
 
     eapply pred_upclosed in H0; eauto.
     apply ext_level in H as <-; auto.
   Qed.
-  Global Program Instance mpred_cofe : Cofe mpredC := {| compl := mpred_compl |}.
-  Next Obligation.
+  (* Iris's [Cofe] now also carries the transfinite bounded-limit operator
+     [lbcompl] and its two laws, so it can no longer be built from [compl] alone.
+     [cofe_finite] is iris's own backwards-compatibility constructor for finite
+     (i.e. [nat]) step-indices: it discharges those fields from the fact that no
+     [nat] is a limit index, leaving exactly the old [conv_compl] obligation. *)
+  Lemma mpred_conv_compl : forall n (c : chain mpredC), mpred_compl c ≡{n}≡ c n.
+  Proof.
     intros; hnf.
     apply predicates_hered.pred_ext; intros ? []; split; auto; simpl in *.
     - assert (approx (S (level a)) (c (level a)) a) as Ha by (split; auto).
-      rewrite <- (chain_cauchy c (level a) n) in Ha; [apply Ha | lia].
+      rewrite <- (chain_cauchy c (level a) n) in Ha; [apply Ha | sidx_lia].
     - assert (approx (S (level a)) (c n) a) as Ha by (split; auto).
-      rewrite chain_cauchy in Ha; [apply Ha | lia].
+      rewrite chain_cauchy in Ha; [apply Ha | sidx_lia].
   Qed.
+  Global Instance mpred_cofe : Cofe mpredC := cofe_finite mpred_compl mpred_conv_compl.
 End cofe.
 Arguments mpredC : clear implicits.
 
@@ -136,7 +156,7 @@ Qed.
 
 Lemma mpred_bi_mixin :
   BiMixin
-    derives emp prop andp orp imp (@allp _ _) (@exp _ _) sepcon wand persistently.
+    derives emp prop andp orp imp (@allp _ _) (@exp _ _) sepcon wand.
 Proof.
   split.
   - constructor; auto. intro. apply derives_trans.
@@ -171,8 +191,6 @@ Proof.
     rewrite !approx_sepcon; congruence.
   - intros ? P Q ????; hnf in *.
     rewrite wand_nonexpansive (wand_nonexpansive Q); congruence.
-  - intros ????; hnf in *.
-    rewrite !approx_persistently H; auto.
   - apply prop_right.
   - intros.
     apply prop_left; intro.
@@ -196,6 +214,15 @@ Proof.
   - intros; rewrite sepcon_assoc; auto.
   - intros; rewrite <- wand_sepcon_adjoint; auto.
   - intros; rewrite wand_sepcon_adjoint; auto.
+Qed.
+
+Lemma mpred_bi_persistently_mixin :
+  BiPersistentlyMixin
+    derives emp andp (@exp _ _) sepcon persistently.
+Proof.
+  split.
+  - intros ????; hnf in *.
+    rewrite !approx_persistently H; auto.
   - intros; apply persistently_derives; auto.
   - intros; apply persistently_persists.
   - unfold persistently.
@@ -289,13 +316,18 @@ Qed.
 
 Canonical Structure mpredI : bi :=
   {| bi_ofe_mixin := mpred_ofe_mixin; bi_bi_mixin := mpred_bi_mixin;
+     bi_bi_persistently_mixin := mpred_bi_persistently_mixin;
      bi_bi_later_mixin := mpred_bi_later_mixin |}.
 
 (* an Iris extension that is satisfied by most but not all BI instances *)
 Global Instance mpred_later_contractive : BiLaterContractive mpredI.
 Proof.
   intros ????.
-  unfold dist_later in H; change (approx (S n) (|> x) = approx (S n) (|> y))%logic.
+  (* [dist_later] is now a record quantifying over all smaller step-indices rather
+     than a [match] on the index, so it is no longer unfoldable.  [dist_later_fin]
+     is iris's own backwards-compatible restatement -- definitionally the [match]
+     this proof was written against -- and [dist_later_fin_iff] bridges the two. *)
+  apply dist_later_fin_iff in H; change (approx (S n) (|> x) = approx (S n) (|> y))%logic.
   rewrite !approx_later.
   destruct n.
   - rewrite !approx_0; auto.
