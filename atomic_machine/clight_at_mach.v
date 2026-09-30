@@ -138,6 +138,7 @@ Section ClightInstantiation.
       sqlang_step := ev_step_with_mem_ev (Clight_evsem.CLC_evsem ge);
       sqlang_at_external := clight_external;
       sqlang_spawn := clight_spawn ge;
+      sqlang_final := fun c => Clight_core.cl_halted c <> None;
       sqlang_ValEq := clight_ValEq;
       sqlang_ValNEq := clight_ValNEq |}.
 

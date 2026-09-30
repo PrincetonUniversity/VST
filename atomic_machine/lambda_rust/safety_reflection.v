@@ -319,7 +319,7 @@ Lemma lr_safe_no_stuck_step mc tp' m' mu' i :
 Proof.
   intros Hsafe Hstep Hi.
   pose proof (lr_am_safe_reachable _ _ Hsafe (lr_steps_one _ _ _ Hstep)) as Hsafe'.
-  exact (am_stuck_not_safe _ _ _ _ _ _ (rtc_refl _ _) Hi Hsafe').
+  exact (am_stuck_not_safe _ _ _ _ _ (rtc_refl _ _) Hi Hsafe').
 Qed.
 
 Lemma lr_tight_pack threads tp m mu i e2 sigma2 tp2 m2 mu2 :

@@ -18,14 +18,12 @@ Require Import VST.atomic_machine.lambda_rust.equivalence.
 Import ListNotations.
 Set Default Proof Using "Type".
 
-Definition lr_final (e : expr) : Prop := is_Some (to_val e).
-
 Definition lr_am_configuration (mc : lr_machine_configuration)
     : @am_configuration loc val _ _ lr_mem lr_layout lr_memory lr_language :=
   (lr_machine_threads mc, lr_machine_mem mc, lr_machine_rw mc).
 
 Definition lr_am_safe (mc : lr_machine_configuration) : Prop :=
-  am_safe lr_final (lr_am_configuration mc).
+  am_safe (lr_am_configuration mc).
 
 Definition lr_reference_not_stuck (e : expr) (sigma : state) : Prop :=
   lr_final e \/ reducible e sigma.
@@ -117,7 +115,7 @@ Qed.
 Lemma lr_stable_not_stuck e t sigma m mu :
   lr_stable_heaps_match sigma m mu ->
   lr_stable_thread_match e t ->
-  am_not_stuck lr_final t m mu -> lr_reference_not_stuck e sigma.
+  am_not_stuck t m mu -> lr_reference_not_stuck e sigma.
 Proof.
   intros Hheaps Hthread Hsafe. inversion Hthread; subst.
   destruct Hsafe as [(c & Hc & Hfinal) | Hred].

@@ -175,6 +175,9 @@ Inductive lr_spawn : expr -> expr -> expr -> Prop :=
 | LRSpawn K e :
     lr_spawn (fill K (Fork e)) (fill K (Lit LitPoison)) e.
 
+(** A thread has terminated once it is a value. *)
+Definition lr_final (e : expr) : Prop := is_Some (to_val e).
+
 #[global] Instance lr_language :
     @sqlang loc val _ _ lr_mem lr_layout lr_memory :=
   {| sqlang_thrd_st := expr;
@@ -183,5 +186,6 @@ Inductive lr_spawn : expr -> expr -> expr -> Prop :=
      sqlang_step := lr_step;
      sqlang_at_external := lr_external;
      sqlang_spawn := lr_spawn;
+     sqlang_final := lr_final;
      sqlang_ValEq := lr_val_eq;
      sqlang_ValNEq := lr_val_neq |}.

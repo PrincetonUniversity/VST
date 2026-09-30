@@ -890,7 +890,7 @@ Qed.
 Lemma lr_back_not_stuck rc mc :
   lr_back_configuration_match rc mc -> lr_reference_safe rc ->
   forall i t, lr_machine_threads mc !! i = Some t ->
-  am_not_stuck lr_final t (lr_machine_mem mc) (lr_machine_rw mc).
+  am_not_stuck t (lr_machine_mem mc) (lr_machine_rw mc).
 Proof.
   destruct rc as (threads, sigma), mc as [tp m mu].
   intros (Hpools & Hheaps & Hfrees) Hsafe i t Hi. simpl in *.

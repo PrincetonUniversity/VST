@@ -180,6 +180,10 @@ Section AtomicMachine.
     sqlang_spawn :
       sqlang_thrd_st -> sqlang_thrd_st -> sqlang_thrd_st -> Prop;
 
+    (** Terminal states: a thread in a final state with no pending events
+        has finished, so being unable to step is not an error. *)
+    sqlang_final : sqlang_thrd_st -> Prop;
+
     (** Value (in)equality for CAS *)
     sqlang_ValEq : Mem -> Val -> Val -> Prop;
     sqlang_ValNEq : Mem -> Val -> Val -> Prop;
@@ -274,7 +278,7 @@ Section AtomicMachine.
       (Hleast : forall k, k < j -> is_Some (tp !! k)),
       at_step tp m μ (<[j := Running c_new []]> (<[i := Running c' []]> tp)) m μ.
 
-  (** ** Safety, parameterized by the sequential language's final states
+  (** ** Safety
 
       A singleton pool tests whether this particular thread can step with
       the current shared memory and reservations.  All [at_step] rules
@@ -325,21 +329,19 @@ Section AtomicMachine.
     let '(tp', m', μ') := q' in
     at_step tp m μ tp' m' μ'.
 
-  Definition am_not_stuck (final : C -> Prop)
-      (t : tstate) (m : Mem) (μ : rw_map) : Prop :=
-    (exists c, t = Running c [] /\ final c) \/ am_reducible t m μ.
+  Definition am_not_stuck (t : tstate) (m : Mem) (μ : rw_map) : Prop :=
+    (exists c, t = Running c [] /\ sqlang_final c) \/ am_reducible t m μ.
 
   (** Every thread has terminated or can step, in every reachable state.
       In particular, pending events must still be committed even when the
-      underlying sequential state is final, and [StuckState] is an error.
-      [final] is an explicit parameter so no concrete language is needed. *)
-  Definition am_safe (final : C -> Prop) (q : am_configuration) : Prop :=
+      underlying sequential state is final, and [StuckState] is an error. *)
+  Definition am_safe (q : am_configuration) : Prop :=
     forall tp m μ,
       rtc am_step q (tp, m, μ) ->
-      forall i t, tp !! i = Some t -> am_not_stuck final t m μ.
+      forall i t, tp !! i = Some t -> am_not_stuck t m μ.
 
-  Lemma am_safe_reachable final q q' :
-    am_safe final q -> rtc am_step q q' -> am_safe final q'.
+  Lemma am_safe_reachable q q' :
+    am_safe q -> rtc am_step q q' -> am_safe q'.
   Proof.
     intros Hsafe Hsteps tp m μ Hsteps' i t Hget.
     eapply Hsafe; [ eapply rtc_trans; eauto | exact Hget ].
@@ -351,18 +353,18 @@ Section AtomicMachine.
       apply lookup_singleton_Some in Hget as [Hi Hget]; discriminate.
   Qed.
 
-  Lemma am_stuck_not_safe final q tp m μ i :
+  Lemma am_stuck_not_safe q tp m μ i :
     rtc am_step q (tp, m, μ) -> tp !! i = Some StuckState ->
-    ~ am_safe final q.
+    ~ am_safe q.
   Proof.
     intros Hsteps Hget Hsafe.
     destruct (Hsafe _ _ _ Hsteps _ _ Hget) as [(c & Hc & _) | Hred];
       [ discriminate | exact (am_stuck_not_reducible _ _ Hred) ].
   Qed.
 
-  Lemma am_pending_not_stuck final c T m μ :
+  Lemma am_pending_not_stuck c T m μ :
     T <> [] ->
-    (am_not_stuck final (Running c T) m μ <-> exists μ', fin T μ = Some μ').
+    (am_not_stuck (Running c T) m μ <-> exists μ', fin T μ = Some μ').
   Proof.
     intros Hne. split.
     - intros [(c' & Heq & _) | (tp' & m' & μ' & Hstep)]; [ congruence | ].
@@ -374,9 +376,9 @@ Section AtomicMachine.
         [ apply lookup_singleton_eq | exact Hne | exact Hfin ].
   Qed.
 
-  Lemma am_safe_final_singleton final c m μ :
-    final c -> ~ am_reducible (Running c []) m μ ->
-    am_safe final ({[0 := Running c []]}, m, μ).
+  Lemma am_safe_final_singleton c m μ :
+    sqlang_final c -> ~ am_reducible (Running c []) m μ ->
+    am_safe ({[0 := Running c []]}, m, μ).
   Proof.
     intros Hfinal Hnormal tp m' μ' Hsteps i t Hget.
     inversion Hsteps; subst.
