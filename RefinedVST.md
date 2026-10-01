@@ -41,7 +41,7 @@ RefinedCC's frontend is modified from RefinedC's frontend and CompCert.
 It parses annotations and emits the spec & proof files similar to RefinedC, but emits a Clight AST with syntactic sugars that also holds annotations.
 
 Clone the frontend from
-[compcert-mod](https://github.com/UIC-verif-group/compcert-mod/tree/modular) to any location, and follow the build instruction there.
+[compcert-mod](https://github.com/UIC-verif-group/compcert-mod) to any location, and follow the build instructions there.
 
 ### Check a file with RefinedCC
 Once both frontend and backend of RefinedCC are installed, we can use the frontend binary `refinedcc` to check an annotated program. 
