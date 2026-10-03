@@ -6,99 +6,6 @@ Require Import VST.floyd.computable_theorems.
 Require Export stdpp.hlist. (* use this instead of ListType to avoid universe inconsistencies? *)
 Open Scope nat.
 
-(*Inductive ListType: list Type -> Type :=
-  | Nil: ListType nil
-  | Cons: forall {A B} (a: A) (b: ListType B), ListType (A :: B).
-
-Fixpoint ListTypeGen {A} (F: A -> Type) (f: forall A, F A) (l: list A) : ListType (map F l) :=
-  match l with
-  | nil => Nil
-  | cons h t => Cons (f h) (ListTypeGen F f t)
-  end.
-
-Lemma ListTypeGen_preserve: forall A F f1 f2 (l: list A),
-  (forall a, In a l -> f1 a = f2 a) ->
-  ListTypeGen F f1 l = ListTypeGen F f2 l.
-Proof.
-  intros.
-  induction l.
-  + reflexivity.
-  + simpl.
-    rewrite H; first rewrite IHl.
-    - reflexivity.
-    - intros; apply H; simpl; tauto.
-    - simpl; left; auto.
-Defined.
-
-Definition decay' {X} {F: Type} {l: list X} (v: ListType (map (fun _ => F) l)): list F.
-  remember (map (fun _ : X => F) l) eqn:E.
-  revert l E.
-  induction v; intros.
-  + exact nil.
-  + destruct l; inversion E.
-    specialize (IHv l H1).
-    rewrite H0 in a.
-    exact (a :: IHv).
-Defined.
-
-Fixpoint decay'' {X} {F: Type} (l0 : list Type) (v: ListType l0) :
-  forall (l: list X), l0 = map (fun _ => F) l -> list F :=
-  match v in ListType l1
-    return forall l2, l1 = map (fun _ => F) l2 -> list F
-  with
-  | Nil => fun _ _ => nil
-  | Cons A B a b =>
-    fun (l1 : list X) (E0 : A :: B = map (fun _ : X => F) l1) =>
-    match l1 as l2 return (A :: B = map (fun _ : X => F) l2 -> list F) with
-    | nil => fun _ => nil (* impossible case *)
-    | x :: l2 =>
-       fun E1 : A :: B = map (fun _ : X => F) (x :: l2) =>
-       (fun
-          X0 : map (fun _ : X => F) (x :: l2) =
-               map (fun _ : X => F) (x :: l2) -> list F =>
-        X0 eq_refl)
-         match
-           E1 in (_ = y)
-           return (y = map (fun _ : X => F) (x :: l2) -> list F)
-         with
-         | eq_refl =>
-             fun H0 : A :: B = map (fun _ : X => F) (x :: l2) =>
-              (fun (H3 : A = F) (H4 : B = map (fun _ : X => F) l2) =>
-                  (eq_rect A (fun A0 : Type => A0) a F H3) :: (decay'' B b l2 H4))
-                 (f_equal
-                    (fun e : list Type =>
-                     match e with
-                     | nil => A
-                     | T :: _ => T
-                     end) H0)
-                (f_equal
-                   (fun e : list Type =>
-                    match e with
-                    | nil => B
-                    | _ :: l3 => l3
-                    end) H0)
-         end
-    end E0
-  end.
-
-Definition decay {X} {F: Type} {l: list X} (v: ListType (map (fun _ => F) l)): list F :=
-  let l0 := map (fun _ => F) l in
-  let E := @eq_refl _ (map (fun _ => F) l) : l0 = map (fun _ => F) l in
-  decay'' l0 v l E.
-
-Lemma decay_spec: forall A F f l,
-  decay (ListTypeGen (fun _: A => F) f l) = map f l.
-Proof.
-  intros.
-  unfold decay.
-  induction l.
-  + simpl.
-    reflexivity.
-  + simpl.
-    f_equal.
-    auto.
-Defined.*)
-
 Fixpoint tmap {A} (f : A -> Type) l : tlist :=
   match l with
   | [] => tnil
@@ -135,6 +42,9 @@ Definition decay' {X} {F: Type} {l: list X} (v: hlist (tmap (fun _ => F) l)): li
     rewrite H0 in a.
     exact (a :: IHv).
 Defined.
+
+(* hack for compatibility with 9.3alpha *)
+Arguments hcons : clear implicits.
 
 Fixpoint decay'' {X} {F: Type} (l0 : tlist) (v: hlist l0) :
   forall (l: list X), l0 = tmap (fun _ => F) l -> list F :=
@@ -175,6 +85,8 @@ Fixpoint decay'' {X} {F: Type} (l0 : tlist) (v: hlist l0) :
          end
     end E0
   end.
+
+Arguments hcons {_} {_} _ _.
 
 Definition decay {X} {F: Type} {l: list X} (v: hlist (tmap (fun _ => F) l)): list F :=
   let l0 := tmap (fun _ => F) l in

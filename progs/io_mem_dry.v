@@ -142,7 +142,7 @@ Proof.
       iSplit.
       { iPureIntro; destruct ty; done. }
       iFrame.
-      iExists (k msg); iSplit; done.
+      (*iExists (k msg);*) iSplit; done.
 Qed.
 
 End IO_Dry.

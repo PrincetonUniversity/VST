@@ -1,6 +1,3 @@
-[submodule "InteractionTrees"]
-	path = InteractionTrees
-	url = https://github.com/DeepSpec/InteractionTrees
 [submodule "fcf"]
 	path = fcf
 	url = https://github.com/adampetcher/fcf.git

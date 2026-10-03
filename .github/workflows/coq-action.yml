@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - vst_on_iris
     paths-ignore:
       - 'lib/**'
   pull_request:
@@ -54,8 +55,8 @@ jobs:
               opam install -y coq-flocq
               opam install -y ${{ matrix.coq_version == '9.0' && matrix.bit_size == 64 && 'coq-compcert.3.16' }} || exit_code=$?
               # Required by test2
-              opam install -y coq-ext-lib
-              opam install -y rocq-vst-ora.1.2
+              opam install -y coq-ext-lib coq-itree
+              opam install -y rocq-vst-ora.1.2.1
               # can simplify next line once the coq-paco opam package is available for rocq 9.1 
               opam install -y ${{ matrix.coq_version != '9.1' && 'coq-paco' }} || exit_code=$?
             endGroup
@@ -118,11 +119,6 @@ jobs:
             make_target: test4
           - bit_size: 32
             make_target: test5
-          # avoid Coq issue https://github.com/coq/coq/issues/18126
-#          - coq_version: 8.18
-#            make_target: test
-#          - coq_version: 8.18
-#            make_target: test4
 
     steps:
       - name: 'Download archive'

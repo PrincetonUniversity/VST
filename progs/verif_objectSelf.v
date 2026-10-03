@@ -1,4 +1,3 @@
-Require Import iris.bi.lib.fixpoint.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.progs.objectSelf.

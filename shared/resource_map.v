@@ -608,7 +608,7 @@ Section lemmas.
     assert (k ∈ dom m1) as (v1 & Hm1)%elem_of_dom by set_solver.
     iMod (resource_map_update with "Hm Hk") as (?? (? & ? & Hmk)) "(Hm & Hk)"; first done.
     iCombine "Hk Hrest" as "Hm1".
-    rewrite -(big_sepM_insert_delete (λ k v, k ↪[γ]{#sh} v))%I insert_id //; iFrame.
+    rewrite -(big_sepM_insert_delete (λ k v, k ↪[γ]{#sh} v))%I (insert_id m1) //; iFrame.
     rewrite -{2}(insert_delete_id _ _ _ Hm1) map_imap_insert.
     rewrite lookup_union map_lookup_imap lookup_delete_eq left_id in Hmk.
     inversion Hmk as [?? Heq Hk|]; subst; rewrite -Hk.
