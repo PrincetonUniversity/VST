@@ -26,13 +26,15 @@ in the paper, is the equivalence target.
   closure.
 - `event_semantics.v` contains the sequential event semantics used by the
   atomic-machine instantiation.
+- `lang_facts.v` contains syntactic and heap facts used by the correspondence:
+  unique decomposition around a redex, `na2_free`, and heap ranges.
+- `machine.v` specializes the atomic machine to lambda-Rust and contains the
+  infrastructure shared by all correspondence proofs, including stably
+  matched configurations.
 - `equivalence.v` proves the reachability equivalence theorem between stable
   configurations of the two semantics.
-- `adequacy.v` instantiates generic `am_safe`, defines reference safety, and
-  proves that AM safety implies reference progress at reachable stable
-  configurations. It also gives a checked counterexample to transporting full
-  safety through the forward relation of `equivalence.v`. Both are superseded
-  by the next two files.
+- `safety.v` defines machine and reference safety, and the simulation relation
+  used by both safety proofs.
 - `safety_reflection.v` proves that AM safety implies reference safety from
   stably matched initial configurations.
 - `machine_safety.v` proves the converse, and states the equivalence
@@ -48,9 +50,8 @@ definitions used by both semantics live in `common.v`.
 
 ## Safety and adequacy
 
-`atomic_machine.v` defines `am_safe final` for an arbitrary `sqlang`. The
-termination predicate is an explicit parameter, instantiated in `adequacy.v`
-by `is_Some (to_val e)`. In every reachable machine configuration, each thread
+`atomic_machine.v` defines `am_safe` for an arbitrary `sqlang`, using the
+language's `sqlang_final` (for lambda-Rust, `is_Some (to_val e)`). In every reachable machine configuration, each thread
 must either have terminated with no pending events or be able to step with
 the current shared memory and reservations. A singleton-pool reduction tests
 the selected thread; `am_reducible_in_pool` proves that such a reduction can
@@ -63,7 +64,7 @@ semantics, including forks. It does not impose a result postcondition.
 
 `lr_safety_equivalence` states that, from stably matched initial
 configurations, `lr_am_safe mc <-> lr_reference_safe rc`. Both directions are
-simulations whose relation matches in-flight accesses: a reference thread
+simulations using the relation of `safety.v`, which matches in-flight accesses: a reference thread
 after its first (`Na1Ord`) half corresponds to a machine thread after
 `Core_Try` with the pending event, and the reader/writer map mirrors the
 reference lock states. The machine performs a non-atomic write at `Core_Try`
@@ -76,7 +77,7 @@ its lock (otherwise its thread could not finish), and a step without a
 counterpart on the other side (a racy `CAS`) leads to an unsafe
 configuration.
 
-Build the safety definitions and proofs with `make lambda-rust-adequacy`.
+Build the safety definitions and proofs with `make lambda-rust-safety`.
 
 ## Porting changes
 

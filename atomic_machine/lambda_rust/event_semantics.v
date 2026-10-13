@@ -36,17 +36,12 @@ Definition lr_layout : Type := unit.
 
 Local Notation lr_mem_ev := (@mem_ev loc).
 
-Definition lr_read_event (l : loc) : lr_mem_ev :=
-  VST.atomic_machine.atomic_machine.Read l.
-
-Definition lr_write_event (l : loc) : lr_mem_ev :=
-  VST.atomic_machine.atomic_machine.Write l.
-
-Definition lr_alloc_event (l : loc) : lr_mem_ev :=
-  VST.atomic_machine.atomic_machine.Alloc l.
-
-Definition lr_free_event (l : loc) : lr_mem_ev :=
-  VST.atomic_machine.atomic_machine.Free l.
+(** The machine's event constructors, renamed because lambda-Rust's [Read],
+    [Write], [Alloc] and [Free] are expression constructors. *)
+Notation lr_read_event := (@VST.atomic_machine.atomic_machine.Read loc).
+Notation lr_write_event := (@VST.atomic_machine.atomic_machine.Write loc).
+Notation lr_alloc_event := (@VST.atomic_machine.atomic_machine.Alloc loc).
+Notation lr_free_event := (@VST.atomic_machine.atomic_machine.Free loc).
 
 (** The locations in the half-open range starting at [l] with length [n]. *)
 Fixpoint lr_locs (l : loc) (n : nat) : list loc :=

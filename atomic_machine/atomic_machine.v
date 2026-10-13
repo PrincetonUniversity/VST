@@ -98,16 +98,6 @@ Section RWMap.
     | _ => None
     end.
 
-  Lemma rsv_Write_fin_Write μ l :
-    (μ' ← rsv_Write μ l;
-    fin_Write μ' l) = Some μ.
-  Proof. Admitted.
-
-  Lemma rsv_Read_fin_Read μ l :
-    (μ' ← rsv_Read μ l;
-    fin_Read μ' l) = Some μ.
-  Proof. Admitted.
-
   Definition rsv_ev ev oμ : option rw_map :=
     μ ← oμ;
     match ev with
@@ -133,6 +123,72 @@ Section RWMap.
   (* some memory events release permission after completion. *)
   Definition fin evs μ : option rw_map :=
     foldr fin_ev (Some μ) evs.
+
+  (** *** Single non-atomic accesses *)
+
+  Lemma rsv_read μ l n :
+    μ !! l = Some (Rst n) -> rsv [Read l] μ = Some (<[l := Rst (S n)]> μ).
+  Proof. intros Hl. unfold rsv, rw_map in *. simpl. unfold rsv_Read. by setoid_rewrite Hl. Qed.
+
+  Lemma fin_read μ l n :
+    μ !! l = Some (Rst (S n)) -> fin [Read l] μ = Some (<[l := Rst n]> μ).
+  Proof. intros Hl. unfold fin, rw_map in *. simpl. unfold fin_Read. by setoid_rewrite Hl. Qed.
+
+  Lemma rsv_write μ l :
+    μ !! l = Some (Rst 0) -> rsv [Write l] μ = Some (<[l := Wst]> μ).
+  Proof. intros Hl. unfold rsv, rw_map in *. simpl. unfold rsv_Write. by setoid_rewrite Hl. Qed.
+
+  Lemma fin_write μ l :
+    μ !! l = Some Wst -> fin [Write l] μ = Some (<[l := Rst 0]> μ).
+  Proof. intros Hl. unfold fin, rw_map in *. simpl. unfold fin_Write. by setoid_rewrite Hl. Qed.
+
+  Lemma rsv_read_inv μ μ' l :
+    rsv [Read l] μ = Some μ' -> exists n, μ !! l = Some (Rst n).
+  Proof.
+    unfold rsv, rw_map in *. simpl. unfold rsv_Read.
+    destruct (_ !! l) as [[n | ] | ] eqn:Hl; simpl; intros Hf; try discriminate Hf; eauto.
+  Qed.
+
+  Lemma rsv_write_inv μ μ' l :
+    rsv [Write l] μ = Some μ' -> μ !! l = Some (Rst 0).
+  Proof.
+    unfold rsv, rw_map in *. simpl. unfold rsv_Write.
+    destruct (_ !! l) as [[[ | n] | ] | ] eqn:Hl; simpl; intros Hf; try discriminate Hf; reflexivity.
+  Qed.
+
+  Lemma fin_read_inv μ μ' l :
+    fin [Read l] μ = Some μ' -> exists n, μ !! l = Some (Rst (S n)).
+  Proof.
+    unfold fin, rw_map in *. simpl. unfold fin_Read.
+    destruct (_ !! l) as [[[ | n] | ] | ] eqn:Hl; simpl; intros Hf; try discriminate Hf; eauto.
+  Qed.
+
+  Lemma fin_write_inv μ μ' l :
+    fin [Write l] μ = Some μ' -> μ !! l = Some Wst.
+  Proof.
+    unfold fin, rw_map in *. simpl. unfold fin_Write.
+    destruct (_ !! l) as [[[ | n] | ] | ] eqn:Hl; simpl; intros Hf; try discriminate Hf; reflexivity.
+  Qed.
+
+  (** Reserving and immediately finishing an access returns the map to its
+      starting point. *)
+  Lemma rsv_fin_read μ l n :
+    μ !! l = Some (Rst n) ->
+    exists μ', rsv [Read l] μ = Some μ' /\ fin [Read l] μ' = Some μ.
+  Proof.
+    intros Hl. eexists. split; [ by apply rsv_read | ].
+    rewrite (fin_read _ _ n); [ | unfold rw_map; by rewrite lookup_insert_eq ].
+    unfold rw_map. by rewrite insert_insert_eq, insert_id.
+  Qed.
+
+  Lemma rsv_fin_write μ l :
+    μ !! l = Some (Rst 0) ->
+    exists μ', rsv [Write l] μ = Some μ' /\ fin [Write l] μ' = Some μ.
+  Proof.
+    intros Hl. eexists. split; [ by apply rsv_write | ].
+    rewrite fin_write; [ | unfold rw_map; by rewrite lookup_insert_eq ].
+    unfold rw_map. by rewrite insert_insert_eq, insert_id.
+  Qed.
 
 End RWMap.
 
