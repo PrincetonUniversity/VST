@@ -1,4 +1,5 @@
 From VST.lithium Require Import simpl_classes.
+From VST.veric Require Import make_compspecs.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export base annotations.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
@@ -314,10 +315,45 @@ Section Layout.
   Definition composite_align_safe c := align_safe (co_attr c) (alignof_composite cenv_cs (co_members c)) /\
     forall i, ty_align_safe (field_type i (co_members c)).
 
+  Definition composite_align_safe' c := align_safe (co_attr c) (alignof_composite cenv_cs (co_members c)) /\
+    Forall ty_align_safe (map type_member (co_members c)).
+
+  Lemma composite_align_safe_eq c : composite_align_safe' c → composite_align_safe c.
+  Proof.
+    intros [Ha Hb]; split => //.
+    clear Ha; induction (co_members c); first done; simpl; intros.
+    inv Hb.
+    destruct (ident_eq _ _); first done.
+    by apply IHm.
+  Qed.
+
 End Layout.
 
 Class compspecs := Build_compspecs { cs_compspecs :: compspecs.compspecs;
   cs_align_safe : forall j, composite_align_safe (get_co j) }.
+
+Lemma cs_align_safe_i (cs : compspecs.compspecs) : Forall (fun idco => composite_align_safe' (snd idco)) (PTree.elements cenv_cs) →
+  forall j, composite_align_safe (get_co j).
+Proof.
+  intros; rewrite /get_co.
+  destruct (cenv_cs !! j)%maps eqn: Hj; last done.
+  eapply composite_env_consistent_i', Hj.
+  eapply Forall_impl; first apply H.
+  intros ?; apply composite_align_safe_eq.
+Qed.
+
+Ltac make_compspecs_cenv cenv :=
+  unshelve eapply Build_compspecs; [make_compspecs.make_compspecs_cenv cenv|];
+    apply cs_align_safe_i; repeat constructor.
+
+Ltac make_compspecs prog :=
+  tryif lazymatch type of prog with
+  | Clight.program => idtac 
+  | ?t => fail 1 "Expected a Clight.program, but "prog" has type" t
+ end then idtac 
+  else fail "Expected a Clight.program, but "prog" is undefined; did you forget to import the result of clightgen?";
+  let cenv := make_composite_env0 prog in
+  make_compspecs_cenv cenv.
 
 Section CompatRefinedC.
   Context `{!typeG OK_ty Σ} `{cs : compspecs}.
