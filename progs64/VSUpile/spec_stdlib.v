@@ -50,7 +50,7 @@ Definition malloc_spec' :=
        SEP (mem_mgr M gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
-       LOCAL (temp ret_temp p)
+       RETURN (p)
        SEP (mem_mgr M gv;
              if eq_dec p nullval then emp
             else (malloc_token' M Ews n p * memory_block Ews n p)).
@@ -66,7 +66,7 @@ Definition free_spec' :=
               else (malloc_token' M Ews n p * memory_block Ews n p))
     POST [ Tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP (mem_mgr M gv).
 
 Definition exit_spec :=
@@ -75,7 +75,7 @@ Definition exit_spec :=
  PRE [tint]
    PROP () PARAMS (Vint (Int.repr i)) GLOBALS () SEP()
  POST [ tvoid ]
-   PROP(False) LOCAL() SEP().
+   PROP(False) RETURN() SEP().
 
 Definition malloc_spec  {cs: compspecs} (t: type) :=
  DECLARE _malloc
@@ -88,7 +88,7 @@ Definition malloc_spec  {cs: compspecs} (t: type) :=
        SEP (mem_mgr M gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
-       LOCAL (temp ret_temp p)
+       RETURN (p)
        SEP (mem_mgr M gv;
              if eq_dec p nullval then emp
             else (malloc_token M Ews t p * data_at_ Ews t p)).
@@ -104,7 +104,7 @@ Definition free_spec  {cs: compspecs} (t: type) :=
               else (malloc_token M Ews t p * data_at_ Ews t p))
     POST [ Tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP (mem_mgr M gv).
 
 Lemma malloc_spec_sub:
@@ -114,11 +114,11 @@ Proof.
 do_funspec_sub. rename w into gv. clear H.
 rewrite <- fupd_intro.
 Exists (sizeof t, gv) (emp: mpred). simpl; entailer!.
-intros tau ? ?. Exists (eval_id ret_temp tau).
+Exists a.
 entailer!.
 if_tac; auto.
 unfold malloc_token.
-assert_PROP (field_compatible t [] (eval_id ret_temp tau)).
+assert_PROP (field_compatible t [] a).
 { entailer!.
   apply malloc_compatible_field_compatible; auto. }
 entailer!.
@@ -131,7 +131,7 @@ Lemma free_spec_sub:
 Proof.
 do_funspec_sub. destruct w as [p gv]. clear H.
 rewrite <- fupd_intro.
-Exists (sizeof t, p, gv) (emp:mpred). simpl; entailer!.
+Exists (sizeof t, p, gv) (emp:mpred). simpl; repeat entailer!.
 if_tac; trivial.
 sep_apply data_at__memory_block_cancel.
 unfold malloc_token; entailer!.

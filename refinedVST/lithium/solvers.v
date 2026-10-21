@@ -1,6 +1,7 @@
 From lithium Require Export base.
-From lithium Require Import hooks simpl_classes pure_definitions normalize.
-
+From lithium Require Import hooks pure_definitions normalize.
+From VST.lithium Require Import simpl_classes.
+From iris.bi Require Import monpred.
 (** This file provides various pure solvers. *)
 
 (** * [refined_solver]
@@ -71,6 +72,11 @@ Ltac normalize_and_simpl_impl handle_exist :=
         | true => case
         | false => fail 1 "exist not handled"
         end
+    | |- (monPred_exist _, _) → _ =>
+        lazymatch handle_exist with
+        | true => case
+        | false => fail 1 "monPred_exist not handled"
+        end
     | |- (_ ∧ _) → _ => case
     | |- (_ = _) → _ =>
         check_injection_hook;
@@ -116,6 +122,9 @@ Ltac normalize_and_simpl_goal_step :=
     | progress normalize_goal; simpl
     | lazymatch goal with
       | |- ∃ _, _ => fail 1 "normalize_and_simpl_goal stop in exist"
+      end
+    | lazymatch goal with
+      | |- monPred_exist _ _ => fail 1 "normalize_and_simpl_goal stop in monPred_exist"
       end
     | lazymatch goal with
       | |- _ ∧ _ => split
@@ -233,7 +242,7 @@ Ltac reduce_closed_Z :=
 
 
 Ltac solve_goal :=
-  simpl;
+  simpl in *;
   try fast_done;
   solve_goal_prepare_hook;
   normalize_and_simpl_goal;

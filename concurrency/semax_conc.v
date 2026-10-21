@@ -68,7 +68,7 @@ Proof.
 Defined.
 
 Program Definition spawn_post : @dtfr Σ (AssertTT spawn_arg_type) := λne x,
-  let '(f, b, fs) := x in PROP () LOCAL () SEP ().
+  let '(f, b, fs) := x in PROP () RETURN () SEP ().
 Next Obligation.
 Proof.
   intros ? ((f, b), ?) ((?, ?), ?) ?.

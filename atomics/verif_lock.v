@@ -193,7 +193,7 @@ Program Definition freelock_spec_self :=
      SEP (lock_inv sh1 h (self_part sh2 h ∗ R); self_part sh2 h)
   POST [ tvoid ]
      PROP ()
-     LOCAL ()
+     RETURN ()
      SEP ().
 Next Obligation.
 Proof.
@@ -215,7 +215,7 @@ Program Definition release_spec_self :=
      SEP (<affine> (R ∗ R -∗ False); lock_inv sh h (self_part sh h ∗ R); R)
   POST [ tvoid ]
      PROP ()
-     LOCAL ()
+     RETURN ()
      SEP ().
 Next Obligation.
 Proof.

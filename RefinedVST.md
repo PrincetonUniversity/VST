@@ -1,36 +1,60 @@
 # RefinedVST
-The refinedVST project is adapted from [RefinedC](https://gitlab.mpi-sws.org/iris/refinedc).
+
+The RefinedVST project is adapted from [RefinedC](https://gitlab.mpi-sws.org/iris/refinedc/-/commits/ea6be6de7f27855a79c9ca18e6a54ba3bd5ed883).
 
 This is still work in progress.
 
-## Build Instruction
-We will need VST, Cerberus, and CompCert 3.15 to generate the frontend. We assume the dependency of VST is installed and an opam switch is set up.
+## Build Instructions
 
-TODO fix VST build instruction
+RefinedVST is installed in two parts: the backend is in the VST repository, and the frontend is a fork of CompCert. We will first install the backend.
 
-### VST
-The interface of the backend of RefinedVST is refinedVST/typing/typing.v:
-```
-make refinedVST/typing/typing.vo -j <jobs>
-```
+Install VST builddep (VST project root directory):
 
-### Cerberus
-You can either install Cerberus by installing [RefinedC](https://gitlab.mpi-sws.org/iris/refinedc), or by following the Cerberus-specific lines of RefinedC's installation instructions, namely:
-```
-opam pin add -n -y cerberus-lib "git+https://github.com/rems-project/cerberus.git#57c0e80af140651aad72e3514133229425aeb102"
-opam pin add -n -y cerberus "git+https://github.com/rems-project/cerberus.git#57c0e80af140651aad72e3514133229425aeb102"
+```[bash]
+opam repo add rocq-released "https://rocq-prover.org/opam/released"
+opam repo add iris-dev "https://gitlab.mpi-sws.org/iris/opam.git"
+opam update
+opam pin add builddep/
 ```
 
-## Running the frontend
-The entry point for the frontend is in [./refinedVST/typing/frontend_stuff/Makefile](./refinedVST/typing/frontend_stuff/Makefile), adapted from the RefinedC frontend.
+Then clone our fork of RefinedC to any directory and install Lithium:
 
-However the best way to use the frontend is to use the script [RefinedVST.sh](RefinedVST.sh):
+```[bash]
+git clone https://github.com/UIC-verif-group/refinedC refinedc
+opam pin coq-lithium ./refinedc
 ```
-./RefinedVST.sh
-```
- The script checks [./refinedVST/typing/frontend_stuff/examples/test_f_temps.c](./refinedVST/typing/frontend_stuff/examples/test_f_temps.c) and generates proofs in [./refinedVST/typing/frontend_stuff/examples/proofs](./refinedVST/typing/frontend_stuff/examples/proofs).
 
-To delete generated files:
+Now we use the VST makefile to compile and install the RefinedVST files:
+
+```[bash]
+make refinedVST
+make install_rc
 ```
-make clean-refinedVST-frontend
+This should install, for example, refinedVST/typing/typing.vo in the switch:
+```[bash]
+$ ls ${OPAM_SWITCH_PREFIX}/lib/coq/user-contrib/VST/typing/
+... automation.vo ... typing.vo ...
 ```
+
+### Install the Frontend
+RefinedCC's frontend is modified from RefinedC's frontend and CompCert.
+It parses annotations and emits the spec & proof files similar to RefinedC, but emits a Clight AST with syntactic sugars that also holds annotations.
+
+Clone the frontend from
+[compcert-mod](https://github.com/UIC-verif-group/compcert-mod) to any location, and follow the build instructions there.
+
+### Check a file with RefinedCC
+Once both frontend and backend of RefinedCC are installed, we can use the frontend binary `refinedcc` to check an annotated program. 
+
+`refinedcc` will need to create a new Coq project, so we recommend doing it in an empty folder. Assuming `refinedcc` is already in the PATH:
+```[bash]
+mkdir check_progs; cd check_progs
+refinedcc init
+```
+
+Then copy your C programs under this folder, and run
+```
+refinedcc check prog.c
+```
+
+The usage is the same as in RefinedC; for details, refer to the [RefinedC repository](https://github.com/PrincetonUniversity/VST/blob/92867829a0ac2a8b9ecfdd1b75cc3bffe085f4f5/RefinedVST.md).

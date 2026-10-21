@@ -4,8 +4,10 @@ Require Import VST.veric.res_predicates.
 Require Import VST.veric.tycontext.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.Clight_lemmas.
+Require Export VST.veric.lifting_expr.
 Require Export VST.veric.expr.
 Require Import VST.veric.mpred.
+Require Export VST.veric.env.
 Import LiftNotation.
 
 Transparent intsize_eq.
@@ -146,9 +148,7 @@ Qed.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
-
-Open Scope bi_scope.
+Context `{!heapGS Σ} `{!envGS Σ}.
 
 (** Denotation functions for each of the assertions that can be produced by the typechecker **)
 
@@ -258,7 +258,7 @@ Definition denote_tc_nosignedover (op: Z->Z->Z) (s: signedness) v1 v2 : mpred :=
  end.
 
 Definition denote_tc_initialized id ty rho : mpred :=
-    ⌜exists v, Map.get (te_of rho) id = Some v
+    ⌜exists v, (te_of rho) !! id = Some v
                /\ tc_val ty v⌝.
 
 Definition denote_tc_isptr v : mpred :=
@@ -310,7 +310,10 @@ Definition denote_tc_test_order v1 v2 : mpred :=
 
 Definition typecheck_error (e: tc_error) : Prop := False.
 
-Fixpoint denote_tc_assert {CS: compspecs}(a: tc_assert) : environ -> mpred :=
+(* One might imagine switching this function to use wp_expr, but its point is to
+   use eval_expr to compute simple conditions on memory, which wp_expr does not do.
+   For now, assume we can extract the necessary environ from the state. *)
+Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   match a with
   | tc_FF msg => `(⌜typecheck_error msg⌝)
   | tc_TT => `True
@@ -359,8 +362,8 @@ intros; apply Axioms.prop_ext; intuition.
 Qed.
 
 Lemma tc_andp_sound : forall {CS: compspecs} a1 a2 rho,
-    denote_tc_assert  (tc_andp a1 a2) rho ⊣⊢
-    denote_tc_assert  (tc_andp' a1 a2) rho.
+    denote_tc_assert (tc_andp a1 a2) rho ⊣⊢
+    denote_tc_assert (tc_andp' a1 a2) rho.
 Proof.
 intros.
  unfold tc_andp.

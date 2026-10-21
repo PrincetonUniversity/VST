@@ -1,7 +1,6 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Import VST.floyd.base2.
+Require Import VST.floyd.base.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.fieldlist.
 Open Scope Z.

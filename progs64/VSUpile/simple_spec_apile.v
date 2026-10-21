@@ -20,7 +20,7 @@ Definition Apile_add_spec :=
     PARAMS (Vint (Int.repr n)) GLOBALS (gv)
     SEP(apile sigma gv; mem_mgr gv)
  POST[ tvoid ]
-    PROP() LOCAL()
+    PROP() RETURN()
     SEP(apile (n::sigma) gv; mem_mgr gv).
 
 Definition Apile_count_spec :=
@@ -32,7 +32,7 @@ Definition Apile_count_spec :=
     SEP(apile sigma gv; mem_mgr gv)
  POST[ tint ]
       PROP() 
-      LOCAL(temp ret_temp (Vint (Int.repr (sumlist sigma))))
+      RETURN(Vint (Int.repr (sumlist sigma)))
       SEP(apile sigma gv; mem_mgr gv).
 
 Definition ApileASI:funspecs := [ Apile_add_spec; Apile_count_spec].

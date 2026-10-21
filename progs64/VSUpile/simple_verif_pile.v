@@ -18,7 +18,7 @@ Definition surely_malloc_spec :=
        SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
-       LOCAL (temp ret_temp p)
+       RETURN (p)
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
 

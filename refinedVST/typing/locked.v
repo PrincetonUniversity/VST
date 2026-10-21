@@ -1,15 +1,19 @@
 From iris.algebra Require Import csum excl auth cmra_big_op.
 From iris.algebra Require Import big_op gset frac agree.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Import programs.
 From VST.typing Require Import type_options.
-From iris_ora.algebra Require Import frac_auth ext_order.
+From iris_ora.algebra Require Import frac_auth ext_order excl.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
+From lithium Require Import hooks.
 
 Definition lockN : namespace := nroot.@"lockN".
 Definition lock_id := gname.
 
 (** Registering the necessary ghost state. *)
-
+Set Warnings "-redundant-canonical-projection".
 Canonical Structure gset_disjUR_authR := inclR(iris.algebra.auth.authR (gset_disjUR string)).
+Set Warnings "redundant-canonical-projection".
 
 Class lockG Σ := LockG {
    lock_inG :: inG Σ (gset_disjUR_authR);
@@ -23,10 +27,10 @@ Global Instance subG_lockG {Σ} : subG lockΣ Σ → lockG Σ.
 Proof. solve_inG. Qed.
 
 Section type.
-  Context `{!lockG Σ} `{!typeG Σ} {cs : compspecs} .
+  Context `{!lockG Σ} `{!typeG OK_ty Σ} {cs : compspecs} (ge : Genv.t Clight.fundef Ctypes.type).
 
-  Definition lock_token (γ : lock_id) (l : list string) : mpred :=
-    ∃ s : gset string, ⌜l ≡ₚ elements s⌝ ∧ own  γ (● (GSet s) : gset_disjUR_authR).
+  Definition lock_token (γ : lock_id) (l : list string) : assert :=
+    ∃ s : gset string, ⌜l ≡ₚ elements s⌝ ∧ ⎡own (inG0 := lock_inG) γ (●{dfrac.DfracOwn 1} (GSet s) : gset_disjUR_authR)⎤.
 
   Global Instance lock_token_timeless γ l : Timeless (lock_token γ l).
   Proof. apply _. Qed.
@@ -44,7 +48,7 @@ Section type.
   Theorem alloc_lock_token :
     ⊢ |==> ∃ γ, lock_token γ [].
   Proof.
-    iMod (own_alloc (● (GSet ∅): gset_disjUR_authR)) as (γ) "Hγ"; first by apply auth_auth_valid.
+    iMod (own_alloc (●{dfrac.DfracOwn 1} (GSet ∅): gset_disjUR_authR)) as (γ) "Hγ"; first by apply auth_auth_valid.
     iModIntro. iExists γ, ∅. by iFrame.
   Qed.
 
@@ -53,17 +57,21 @@ Section type.
     ty_own β l := (match β return _ with
                   | Own => l ◁ₗ ty x
                   | Shr => ∃ γ', inv lockN ((∃ x', l ◁ₗ ty x' ∗
-                                                    own γ' (Excl ())) ∨ own γ (◯ (GSet {[ n ]}): gset_disjUR_authR))
+                                                    ⎡own γ' (Excl ())⎤) ∨ ⎡own γ (◯ (GSet {[ n ]}): gset_disjUR_authR)⎤)
                   end)%I;
-    ty_own_val v := (v ◁ᵥ (ty x))%I;
+    ty_own_val cty v := (v ◁ᵥ|cty| (ty x))%I;
   |}.
   Next Obligation.
-    iIntros (A γ n x ty l E HE) "Hl".
+    iIntros (A???????) "H".
     iMod (own_alloc (Excl ())) as (γ') "Hown" => //.
     iExists _. iApply inv_alloc. iIntros "!#". iLeft. iExists _. by iFrame.
   Qed.
-  Next Obligation. iIntros (A γ n x ty ot mt v ?) "Hl". by iApply ty_aligned. Qed.
-  Next Obligation. iIntros (A γ n x ty ot mt v ?) "Hl". by iApply ty_deref. Qed.
+  Next Obligation.
+    iIntros (A γ n x ty ot mt v ?) "Hl". by iApply ty_aligned. Qed.
+  Next Obligation.
+    iIntros (A γ n x ty ot mt v ?) "Hl". by iApply ty_size_eq. Qed.
+  Next Obligation.
+    iIntros (A γ n x ty ot mt v ?) "Hl". by iApply ty_deref. Qed.
   Next Obligation. iIntros (A γ n x ty ot mt l ? ?) "Hl". by iApply ty_ref. Qed.
 
   Lemma tylocked_simplify_hyp_place A γ n x (ty : A → type) l T:
@@ -92,7 +100,7 @@ Section type.
 
   Definition tylocked_ex_token {A} (γ : lock_id) (n : string) (l : address) (β : own_state) (ty : A → type):=
     (∀ E x, <affine> ⌜↑lockN ⊆ E⌝ -∗ l ◁ₗ ty x ={E}=∗ l ◁ₗ{β} tylocked_ex γ n x ty ∗
-                                                      own γ (◯ (GSet {[ n ]}) : gset_disjUR_authR))%I.
+                                                      ⎡own γ (◯ (GSet {[ n ]}) : gset_disjUR_authR)⎤)%I.
 
   Lemma locked_open A n s l γ (x : A) ty β E:
     n ∉ s → ↑lockN ⊆ E →
@@ -138,7 +146,8 @@ Section type.
     iMod ("Hlocked" with "[//] Hl") as "[$ Hn]".
     iDestruct "Hlock" as (st Hst) "Htok".
     iExists (st ∖ {[n]}).
-    iMod (own_update γ (● GSet st ⋅ ◯ GSet {[n]} : gset_disjUR_authR) (● GSet (st ∖ {[n]}))
+    iMod (own_update γ (●{dfrac.DfracOwn 1} GSet st ⋅ ◯ GSet {[n]} : gset_disjUR_authR)
+            (●{dfrac.DfracOwn 1} GSet (st ∖ {[n]}))
            with "[Htok Hn]") as "H".
     - eapply auth_update_dealloc, gset_disj_dealloc_local_update.
     - rewrite own_op. iFrame.
@@ -163,7 +172,7 @@ Section type.
   Qed. 
   
   Definition annot_unlock_inst := [instance annot_unlock].
-  Global Existing Instance annot_unlock_inst.
+  (* Global Existing Instance annot_unlock_inst. *)
 
   Class WithLockId (ty : type) (γ : lock_id) := with_lock_id : True.
 
@@ -183,7 +192,7 @@ Section type.
     iApply ("IH" with "Htok [HT Hl] Hty"). by iApply "HT".
   Qed.
   Definition type_annot_lock_inst := [instance type_annot_lock].
-  Global Existing Instance type_annot_lock_inst.
+  (* Global Existing Instance type_annot_lock_inst. *)
 End type.
 
 (* TODO: Do something stronger, e.g. sealing? *)

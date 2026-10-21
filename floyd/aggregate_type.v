@@ -1,6 +1,5 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Import VST.floyd.base2.
-Require Import VST.floyd.assert_lemmas.
+Require Import VST.floyd.base.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.jmeq_lemmas.
@@ -83,8 +82,7 @@ Proof.
     apply H.
     apply List.in_map with (f := name_member) in H1.
     auto.
-  +
-   apply in_get_member; auto.
+  + apply in_get_member; auto.
 Qed.
 
 Lemma members_union_inj_JMeq: forall (m : members) 
@@ -99,10 +97,8 @@ Proof.
   intros a ?.
   specialize (H (name_member a)).
   spec H.
-  + 
-    apply in_map; auto.
-  +
-     rewrite <- (get_member_name a m); auto.
+  + apply in_map; auto.
+  + rewrite <- (get_member_name a m); auto.
 Qed.
 
 Lemma proj_union_JMeq: forall (i: ident) (m : members)
@@ -122,5 +118,3 @@ Proof.
     apply List.in_map with (f := name_member) in H1.
     auto.
 Qed.
-
-

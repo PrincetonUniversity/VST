@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Export VST.veric.slice.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.concurrency.semax_conc_pred.
 Require Export VST.concurrency.semax_conc.
 Require Export VST.floyd.proofauto.
@@ -179,7 +181,6 @@ Corollary data_at__exclusive : forall (cs : compspecs) (sh : Share.t) (t : type)
 Proof.
   intros; eapply derives_exclusive, data_at_exclusive; eauto.
 Qed.
-
 
 Lemma func_ptr_pre : forall sig cc A P1 P2 Q p, (forall a, P1 a ≡ P2 a) ->
   func_ptr (NDmk_funspec sig cc A P1 Q) p ⊢ func_ptr (NDmk_funspec sig cc A P2 Q) p.

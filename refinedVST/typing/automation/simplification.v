@@ -1,14 +1,20 @@
-(** This file collects simplification instances specific to RefinedC *)
-From lithium Require Import simpl_classes.
-From refinedc.typing Require Import type.
+(** This file collects simplification instances specific to RefinedCC *)
+From VST.lithium Require Import simpl_classes.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
+From VST.typing Require Import programs int.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
-(** * int_type *)
-Global Instance simpl_it_elem_of (z : Z) (it : int_type) :
+Global Instance simpl_it_elem_of (z : Z) (it : Ctypes.type) :
   SimplBoth (z ∈ it) (min_int it ≤ z ∧ z ≤ max_int it).
-Proof. done. Qed.
+Proof.
+  rewrite /elem_of /elem_of_type /in_range.
+  split.
+  - destruct it; simpl; try done; try destruct i; destruct s; simpl; rep_lia.
+  - destruct it; simpl; try lia; try destruct i; destruct s; simpl; rep_lia.
+Qed.
 
 (** * layout *)
-Global Instance simpl_layout_eq ly1 ly2 : SimplAndRel (=) ly1 ly2 (ly1.(ly_size) = ly2.(ly_size) ∧ ly_align ly1 = ly_align ly2).
+(* Global Instance simpl_layout_eq ly1 ly2 : SimplAndRel (=) ly1 ly2 (ly1.(ly_size) = ly2.(ly_size) ∧ ly_align ly1 = ly_align ly2).
 Proof. split; rewrite -ly_align_log_ly_align_eq_iff; destruct ly1,ly2; naive_solver. Qed.
 
 Global Instance simpl_layout_leq ly1 ly2 : SimplBoth (ly1 ⊑ ly2) (ly1.(ly_size) ≤ ly2.(ly_size) ∧ ly_align ly1 ≤ ly_align ly2)%nat.
@@ -42,15 +48,21 @@ Global Instance simpl_offset_inj l1 l2 sl n : SimplBothRel (=) (l1 at{sl}ₗ n) 
 Proof. unfold GetMemberLoc. split; [apply shift_loc_inj1| naive_solver]. Qed.
 
 Global Instance simpl_shift_loc_eq l n : SimplBothRel (=) l (l +ₗ n) (n = 0).
-Proof. split; [by rewrite -{1}(shift_loc_0 l)=> /shift_loc_inj2 | move => ->; by rewrite shift_loc_0 ]. Qed.
+Proof. split; [by rewrite -{1}(shift_loc_0 l)=> /shift_loc_inj2 | move => ->; by rewrite shift_loc_0 ]. Qed. *)
 
 (** * NULL *)
 
-Global Instance simpl_to_NULL_val_of_loc (l : loc):
+(* Global Instance simpl_to_NULL_val_of_loc (l : address):
   SimplAndRel (=) NULL (l) (l = NULL_loc).
-Proof. split; unfold NULL; naive_solver. Qed.
+Proof. split; unfold NULL; naive_solver. Qed. *)
 
 (** * value representation *)
 Global Instance simpl_and_eq_val_of_loc l1 l2:
-  SimplAnd (val_of_loc l1 = val_of_loc l2) (l1 = l2).
-Proof. split; naive_solver. Qed.
+  SimplBoth (adr2val l1 = adr2val l2) (l1 = l2).
+Proof. rewrite /adr2val; split; try naive_solver. destruct l1, l2; by inversion 1. Qed.
+
+(* don't do injection on address*)
+Ltac hooks.check_injection_hook ::= lazymatch goal with
+        | |- ((?x = _) → ?Q)%type => match type of x with address => fail
+            | _ => idtac end
+        | _ => idtac end.

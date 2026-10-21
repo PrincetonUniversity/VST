@@ -51,7 +51,7 @@ Definition surely_malloc_spec :=
        SEP (mem_mgr M gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
-       LOCAL (temp ret_temp p)
+       RETURN (p)
        SEP (mem_mgr M gv; malloc_token M Ews t p * data_at_ Ews t p).
 
 Definition Pile_ASI: funspecs := PileASI M PILE.

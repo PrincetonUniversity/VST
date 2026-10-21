@@ -1,4 +1,4 @@
-From iris.proofmode Require Export tactics.
+From iris.proofmode Require Export proofmode.
 From lithium Require Export base pure_definitions.
 
 (** Definitions that are used by the Lithium automation. *)
@@ -78,6 +78,14 @@ Class SimplifyGoal {PROP : bi} (P : PROP) (n : option N) : Type :=
 Global Hint Mode SimplifyHyp + + - : typeclass_instances.
 Global Hint Mode SimplifyGoal + ! - : typeclass_instances.
 
+(* prevent being converted to a simplify_hyp instance *)
+Definition do_not_simplify_def {prop:bi} (P:prop) : prop := P.
+Definition do_not_simplify_aux : seal (@do_not_simplify_def). Proof . by eexists. Qed. 
+Definition do_not_simplify {prop:bi} (P:prop) := do_not_simplify_aux.(unseal) prop P.
+Definition do_not_simplify_eq {prop:bi} P : @do_not_simplify prop P = P.
+  rewrite /do_not_simplify do_not_simplify_aux.(seal_eq) //. Defined.
+Notation "'⟦' P '⟧'" := (do_not_simplify P) (at level 100) : bi_scope.
+
 (** * Subsumption *)
 Definition subsume {PROP : bi} {A} (P1 : PROP) (P2 T : A → PROP) : PROP :=
   P1 -∗ ∃ x, P2 x ∗ T x.
@@ -139,7 +147,7 @@ Record sep_list_id : Set := { sep_list_len : nat }.
 Z.to_nat Z.of_nat roundtrip? It is a bit annoying since one needs to
 introduce Z.of_nat for the list insert. *)
 Definition sep_list {PROP : bi} (id : sep_list_id) A (ig : list nat) (l : list A) (f : nat → A → PROP) : PROP :=
-  <affine>⌜length l = sep_list_len id⌝ ∗ ([∗ list] i↦x∈l, if bool_decide (i ∈ ig) then <affine> True%I else <affine> f i x).
+  <affine>⌜length l = sep_list_len id⌝ ∗ ([∗ list] i↦x∈l, if bool_decide (i ∈ ig) then emp%I else f i x).
 Global Typeclasses Opaque sep_list.
 
 Definition FindSepList {PROP : bi} (id : sep_list_id) := {| fic_A := PROP; fic_Prop P := P; |}.

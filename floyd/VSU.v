@@ -88,7 +88,7 @@ Proof.
   + intros j; rewrite GG'. apply subsumespec_refl.
 Qed.
 
-Definition keep_fun {F} (externs: list ident) (ig: ident * globdef (fundef F) type) : bool :=
+Definition keep_fun {F} (externs: list ident) (ig: ident * globdef (Ctypes.fundef F) type) : bool :=
  match ig with
  | (_,Gvar _) => true 
  | (i, Gfun (Internal _)) => true
@@ -261,7 +261,7 @@ end.
 Notation funspec := (@funspec Σ).
 Notation funspecs := (@funspecs Σ).
 
-Definition isSomeGfunExternal {F V} (d: option(globdef (fundef F) V)) : bool :=
+Definition isSomeGfunExternal {F V} (d: option(globdef (Ctypes.fundef F) V)) : bool :=
  match d with Some(Gfun(External _ _ _ _)) => true | _ => false end.
 Definition Comp_Externs_OK (E: funspecs) (p: QP.program Clight.function) :=
   Forall (fun i => (isSomeGfunExternal ((QP.prog_defs p) !! i)) = true) (map fst E).
@@ -287,7 +287,7 @@ Definition compute_missing_Comp_Externs (E: funspecs) (p: QP.program Clight.func
  filter (fun i => negb(isSomeGfunExternal ((QP.prog_defs p)!!i))) (map fst E).
 
 Lemma forallb_isSomeGfunExternal_e:
-  forall {F} (defs: PTree.t (globdef (fundef F) type)) (ids: list ident),
+  forall {F} (defs: PTree.t (globdef (Ctypes.fundef F) type)) (ids: list ident),
    forallb (fun i => isSomeGfunExternal (defs !! i)) ids = true ->
   forall i : ident,
   In i ids ->
@@ -355,7 +355,7 @@ auto.
 Qed.
 
 Definition internalFunctions (p: QP.program function) : list (ident*function) :=
- let fix g (dl: list (ident * globdef (fundef function) Ctypes.type)) := 
+ let fix g (dl: list (ident * globdef (Ctypes.fundef function) Ctypes.type)) := 
     match dl with
     | (i, Gfun (Internal f))::dl' => (i,f)::g dl'
     | _::dl' => g dl'
@@ -428,7 +428,7 @@ f_equal.
 auto.
 Qed.
 
-Fixpoint FDM_entries (funs1 funs2 : list (ident * fundef function)): option (list (ident * fundef function * fundef function)) :=
+Fixpoint FDM_entries (funs1 funs2 : list (ident * Ctypes.fundef function)): option (list (ident * Ctypes.fundef function * Ctypes.fundef function)) :=
   match funs1 with
     nil => Some nil
   | (i, fd1) :: funs => match find_id i funs2 with 
@@ -611,7 +611,7 @@ apply SC_lemma; auto.
 Qed.
 
 Definition compute_FDM_entry (Imports1 Imports2 : funspecs)
-     (x : ident * fundef function * fundef function) : bool :=
+     (x : ident * Ctypes.fundef function * Ctypes.fundef function) : bool :=
  match x with ((i,fd1),fd2) =>
   match fd1 with
   | Internal _ =>
@@ -986,7 +986,7 @@ apply (@Build_Component _ _ _ _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try first [appl
     apply list_norepet_append; trivial.
     + rewrite map_app. apply (list_norepet_append_commut). rewrite <- map_app; trivial.
     + eapply list_disjoint_mono; eauto.
-      intros. rewrite map_app. rewrite map_app in H6.  apply in_or_app. apply in_app_or in H6. apply or_comm; trivial. }
+      intros. rewrite map_app. rewrite map_app in H6.  apply in_or_app. apply in_app_or in H6. apply Logic.or_comm; trivial. }
   eapply SF_ctx_subsumption.
   - eapply (Comp_G_justified c); eassumption.
   - apply (Comp_ctx_LNR c). 
@@ -1226,12 +1226,12 @@ Qed.
 
 Definition main_pre (prog: QP.program function) (ora: OK_ty) : globals -> argsassert :=
  (fun gv => argsassert_of (fun rho =>
-  ⌜gv = initialize.genviron2globals (fst rho) /\ snd rho = []⌝ ∧
+  <affine> ⌜gv = globals_of_genv (fst rho) /\ snd rho = []⌝ ∗
    (globvars2pred gv (QPprog_vars prog) ∗ has_ext ora))).
 
 Definition main_pre_old (prog : QP.program function) (ora : OK_ty)
   (gv : globals) (rho : environ) :=
- ⌜gv = globals_of_env rho⌝ ∧
+ <affine> ⌜gv = globals_of_env rho⌝ ∗
    (globvars2pred gv (QPprog_vars prog) ∗ has_ext ora).
 
 Lemma main_pre_InitGpred:
@@ -1249,16 +1249,17 @@ unfold main_pre, PROPx, LOCALx, SEPx, local, lift1.
 split => rho; monPred.unseal.
 unfold close_precondition.
 simpl. unfold_lift.
+setoid_rewrite <- bi.persistent_and_affinely_sep_l; [|apply _..].
 normalize.
 clear H2 H3.
 rewrite prop_true_andp.
-2:{ split; auto. hnf. reflexivity. }
+2:{ split3; auto. hnf. reflexivity. }
 apply bi.sep_mono; auto.
 apply bi.sep_mono; auto.
 eapply derives_trans; [ | apply H]; clear H.
 2:{
 clear. intro i.
-unfold initialize.genviron2globals.
+unfold globals_of_genv.
 destruct (Map.get (ge_of rho) i); auto.
 left; eexists; eauto.
 }
@@ -1279,7 +1280,7 @@ simpl in *.
 specialize (H p).
 destruct ((glob_types Delta) !! p); inv H3.
 specialize (H _ (eq_refl _)) as [b ?].
-unfold initialize.genviron2globals.
+unfold globals_of_genv.
 rewrite H.
 exists b; auto.
 Qed.
@@ -1294,7 +1295,7 @@ intros. destruct vsu as [G comp].
 apply (Comp_MkInitPred comp); auto.
 Qed.
 
-Fixpoint vardefs_to_globvars (vdefs: list (ident * globdef (fundef function) type)) :
+Fixpoint vardefs_to_globvars (vdefs: list (ident * globdef (Ctypes.fundef function) type)) :
     list (ident * globvar type) :=
  match vdefs with
  | (i, Gfun _)::r => vardefs_to_globvars r
@@ -1302,7 +1303,7 @@ Fixpoint vardefs_to_globvars (vdefs: list (ident * globdef (fundef function) typ
  | nil => nil
  end.
 
-Definition vardefs_tycontext (vdefs: list (ident * globdef (fundef function) type)) : tycontext :=
+Definition vardefs_tycontext (vdefs: list (ident * globdef (Ctypes.fundef function) type)) : tycontext :=
   make_tycontext nil nil nil Tvoid 
    (map (fun iv => (fst iv, gvar_info (snd iv))) (vardefs_to_globvars vdefs))
   nil nil.
@@ -1323,8 +1324,8 @@ rewrite !emp_sep in H0.
 pose (rho :=
  mkEnviron
   (fun i => match gv i with Vptr b _ => Some b | _ => None end)
-  (Map.empty (block * type))
-  (Map.empty val)).
+  (empty)
+  (empty)).
 generalize (monPred_in_entails _ _ H0 rho); monPred.unseal; intros <-.
 clear R H0; subst Delta.
 unfold local, lift1.
@@ -1338,7 +1339,7 @@ rewrite prop_true_andp.
 apply bi.and_intro.
 *
 apply derives_trans with
-(⌜Forall (fun x : (ident * globdef (fundef function) type) => let (i, d) := x in
+(⌜Forall (fun x : (ident * globdef (Ctypes.fundef function) type) => let (i, d) := x in
       match d with Gfun _ => True | Gvar v => headptr (gv i) end) al⌝).
 +
 apply derives_trans with (True ∗ InitGPred al gv). cancel.
@@ -1429,7 +1430,7 @@ Lemma globals_ok_genviron2globals:
   forall g,  globals_ok (initialize.genviron2globals g).
 Proof.
 intros. intro i; simpl. unfold initialize.genviron2globals.
-destruct (Map.get g i); auto.
+destruct (Genv.find_symbol g); auto.
 left; eexists; eauto.
 Qed.
 
@@ -1767,14 +1768,14 @@ Qed.
 Definition not_builtin' ix := @not_builtin function (fst ix, Gfun (snd ix)).
 
 Definition just_the_right_funspec (G: funspecs)
-  (ix: ident * fundef Clight.function) : ident * funspec :=
+  (ix: ident * Ctypes.fundef Clight.function) : ident * funspec :=
  (fst ix, match find_id (fst ix) G with
          | Some fs => fs
          | None => vacuous_funspec (snd ix)
          end).
 
 
-Definition isGfun (ix: ident * globdef (fundef function) type) := match snd ix with Gfun _ => true | _ => false end.
+Definition isGfun (ix: ident * globdef (Ctypes.fundef function) type) := match snd ix with Gfun _ => true | _ => false end.
 
 Definition QPall_initializers_aligned (p: QP.program Clight.function) : bool :=
   forallb
@@ -1784,7 +1785,7 @@ Definition QPall_initializers_aligned (p: QP.program Clight.function) : bool :=
   (QPprog_vars p).
 
 Definition QPmain_spec_ext' (prog: QP.program function) (ora: OK_ty)
-(post: (ident->val) -> assert): funspec :=
+(post: (ident->val) -> postassert): funspec :=
 NDmk_funspec (nil, tint) cc_default (ident->val) (main_pre prog ora) post.
 
 Definition wholeprog_of_QPprog (p: QP.program function) 
@@ -1919,7 +1920,7 @@ Proof.
 Qed.
 
 Lemma augment_funspecs'_exists:
- forall G (builtins : list (ident * QP.builtin)) (fs : list (ident * fundef function))
+ forall G (builtins : list (ident * QP.builtin)) (fs : list (ident * Ctypes.fundef function))
   (B_LNR : list_norepet (map fst builtins))
   (H0 : list_norepet (map fst fs))
   (H2 : list_disjoint (map fst builtins) (map fst fs))
@@ -1993,7 +1994,7 @@ Proof.
   intros. subst. 
   unfold QPprog_funct, prog_funct.
   simpl.
-  replace  (@QPprog_funct' function) with (@prog_funct' (fundef function) type)
+  replace  (@QPprog_funct' function) with (@prog_funct' (Ctypes.fundef function) type)
        by (extensionality dl; induction dl as [|[i[|]]]; simpl; f_equal; auto).
   rewrite prog_funct'_app. auto.
 Qed.
@@ -2034,8 +2035,8 @@ Proof.
  induction dl as [|[i[]]]; simpl; auto; f_equal; auto.
 Qed.
 
-Definition unspecified_info (ge: Genv.t (fundef function) type)
-    (ix: ident * fundef function) : Prop :=
+Definition unspecified_info (ge: Genv.t (Ctypes.fundef function) type)
+    (ix: ident * Ctypes.fundef function) : Prop :=
  let (id, g) := ix in
         match g with
         | Internal f => True
@@ -2053,7 +2054,7 @@ Lemma SF_semax_func:
   forall (Espec : ext_spec OK_ty)
      (V: varspecs)
      (cs : compspecs)
-     (ge: Genv.t (fundef function) type)
+     (ge: Genv.t (Ctypes.fundef function) type)
      (i : ident)
     (fd : Clight.fundef)
     (fds' : list (ident * Clight.fundef))
@@ -2088,7 +2089,7 @@ Definition of_builtin' (ix: ident * QP.builtin) :=
   match b with QP.mk_builtin ef params ty cc => (i, @External function ef params ty cc) end.
 
 
-Definition builtin_unspecified_OK (ge : Genv.t (fundef function) type)
+Definition builtin_unspecified_OK (ge : Genv.t (Ctypes.fundef function) type)
    (ib: ident * QP.builtin) :=
  let (i,builtin) := ib in
   match Genv.find_symbol ge i with None => false
@@ -2108,8 +2109,8 @@ Definition builtin_unspecified_OK (ge : Genv.t (fundef function) type)
    end
   end.
 
-Definition funct_unspecified_OK (ge : Genv.t (fundef function) type)
-   (ib: ident * fundef function) :=
+Definition funct_unspecified_OK (ge : Genv.t (Ctypes.fundef function) type)
+   (ib: ident * Ctypes.fundef function) :=
  let (i,g) := ib in
         match g with
      | Internal _ => true
@@ -2191,15 +2192,15 @@ Lemma augment_funspecs_semax_func:
 forall (Espec : ext_spec OK_ty)
   (G : funspecs)
   (V : varspecs)
-  (fds : list (ident * fundef function))
-  (ge : Genv.t (fundef function) type)
-  (EXT_OK : forall (i : ident) (fd : fundef function),
+  (fds : list (ident * Ctypes.fundef function))
+  (ge : Genv.t (Ctypes.fundef function) type)
+  (EXT_OK : forall (i : ident) (fd : Ctypes.fundef function),
                In (i, fd) fds -> unspecified_info ge (i, fd))
-  (GFF : forall (i : ident) (fd : fundef function),
+  (GFF : forall (i : ident) (fd : Ctypes.fundef function),
           find_id i fds = Some fd -> genv_find_func ge i fd)
   (cs : compspecs)
   (H : forall i phi, find_id i G = Some phi ->
-         exists fd : fundef function, In (i, fd) fds /\ SF (Espec := Espec) (cs := cs) (V := V) (ge := ge) G i fd phi)
+         exists fd : Ctypes.fundef function, In (i, fd) fds /\ SF (Espec := Espec) (cs := cs) (V := V) (ge := ge) G i fd phi)
   (V_FDS_LNR : list_norepet (map fst V ++ map fst fds))
   (VG_LNR : list_norepet (map fst V ++ map fst G))
   (G' : funspecs)
@@ -2301,7 +2302,7 @@ intros.
 clearbody G0.
 assert (H0': forall (i : ident) (phi : funspec),
      find_id i G' = Some phi ->
-     exists fd : fundef function,
+     exists fd : Ctypes.fundef function,
        In (i, fd) fds /\
        (SF (Espec := Espec) (cs := cs) (V := V) (ge := ge) G0 i fd phi \/
         ~ In i (map fst G) /\
@@ -2599,7 +2600,7 @@ assert (VG_LNR: list_norepet (map fst (QPvarspecs p) ++ map fst  G)). {
 }
 forget (filter isGfun (PTree.elements (QP.prog_defs p))) as fs.
 forget (QP.prog_builtins p) as builtins.
-replace (@QPprog_funct' function) with (@prog_funct' (fundef function) type) in *
+replace (@QPprog_funct' function) with (@prog_funct' (Ctypes.fundef function) type) in *
   by (clear; extensionality al; induction al as [|[i[|]]]; simpl; auto; f_equal; auto).
 forget (prog_funct' (map of_builtin builtins) ++ prog_funct' fs) as fds.
 forget (QPvarspecs p) as V.
@@ -2763,10 +2764,12 @@ Proof.
    unfold QPprog_vars.
    replace  (prog_vars'
      (map of_builtin (QP.prog_builtins p) ++ PTree.elements (QP.prog_defs p)))
-    with  (prog_vars'(PTree.elements (QP.prog_defs p)))
+    with  (prog_vars' (PTree.elements (QP.prog_defs p)))
        by (clear; induction (QP.prog_builtins p) as [|[i ?]]; try destruct b; simpl; auto).
    extensionality gv; f_equal; extensionality rho.
-   normalize. f_equal. f_equal. f_equal. f_equal.
+   normalize.
+   replace (QPprog_vars' (PTree.elements (QP.prog_defs p))) with
+     (prog_vars' (PTree.elements (QP.prog_defs p))); first done.
   clear.
   induction (PTree.elements (QP.prog_defs p)) as [|[i?]]; auto.
   simpl.
@@ -3097,7 +3100,7 @@ Ltac solve_SF_external B :=
                 | reflexivity
                 | split3;
                    [ left; trivial
-                   | clear; intros ? ? ?; cbv [ofe_mor_car]; 
+                   | clear; intros ? ?; cbv [ofe_mor_car]; 
                      try solve [entailer!]; try apply TT_right;
                      repeat match goal with |- (let (y, z) := ?x in _) _ ∧ _ ⊢ _ =>
                                      destruct x as [y z]

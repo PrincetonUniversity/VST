@@ -1,9 +1,15 @@
-From VST.typing Require Export type.
-From VST.typing Require Import programs.
-From VST.typing Require Import type_options.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
+From iris_ora.algebra Require Import frac_auth ext_order excl.
+From VST.veric Require Import lifting.
+From compcert.cfrontend Require Import Clight.
+From VST.lithium Require Export proof_state.
+From lithium Require Import hooks definitions.
+From VST.typing Require Export type type_options programs.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
 (** A [Strict] boolean can only have value 0 (false) or 1 (true). A [Relaxed]
     boolean can have any value: 0 means false, anything else means true. *)
+
 Inductive bool_strictness := StrictBool | RelaxedBool.
 
 Definition represents_boolean (stn: bool_strictness) (n: Z) (b: bool) : Prop :=
@@ -22,7 +28,7 @@ Definition is_bool_ot (ot : op_type) (it : int_type) (stn : bool_strictness) : P
   end.*)
 
 Section is_bool_ot.
-  Context `{!typeG OK_ty Σ}.
+  Context `{!typeG OK_ty Σ} `{cs :compspecs}.
 
   Lemma represents_boolean_eq stn n b :
     represents_boolean stn n b → bool_decide (n ≠ 0) = b.
@@ -50,15 +56,24 @@ End is_bool_ot.
 Section generic_boolean.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
+  Lemma val_to_Z_by_value (v : val) (t : Ctypes.type) z :
+    val_to_Z v t = Some z -> type_is_by_value t = true.
+  Proof.
+    destruct v, t; done.
+  Qed.
+  Hint Resolve val_to_Z_by_value : core.
+
   Program Definition generic_boolean_type (stn: bool_strictness) (it: Ctypes.type) (b: bool) : type := {|
-    ty_has_op_type ot mt := (*is_bool_ot ot it stn*) ot = it;
+    ty_has_op_type cty mt := cty = it%type;
     ty_own β l :=
-      ∃ v n, ⌜tc_val it v⌝ ∧
+      ∃ (v:val) n, ⌜(valinject it v) `has_layout_val` it⌝ ∧
              ⌜val_to_Z v it = Some n⌝ ∧
              ⌜represents_boolean stn n b⌝ ∧
-             ⌜field_compatible it [] l⌝ ∧
-             l ↦_it[β] v;
-      ty_own_val v := ∃ n, <affine> ⌜tc_val it v ∧ val_to_Z v it = Some n⌝ ∗ <affine> ⌜represents_boolean stn n b⌝;
+             ⌜l `has_layout_loc` it⌝ ∧
+             l ↦[β]|it| (valinject it v);
+      ty_own_val cty v_rep := <affine> ⌜cty = it⌝ ∗ 
+                          ∃ n, <affine> ⌜v_rep `has_layout_val` cty⌝ ∗ <affine> ⌜val_to_Z (repinject cty v_rep) it = Some n⌝ ∗
+                          <affine> ⌜represents_boolean stn n b⌝;
   |}%I.
   Next Obligation.
     iIntros (??????) "(%v&%n&%&%&%&%&Hl)". iExists v, n.
@@ -68,15 +83,15 @@ Section generic_boolean.
     iIntros (??????->) "(%&%&_&_&_&H&_)" => //.
   Qed.
   Next Obligation.
-    iIntros (??????->) "(%&(%&%)&%)". iPureIntro. destruct v; try done.
-    - rewrite /has_layout_val /tc_val' =>?. destruct it; done.
-    - rewrite /has_layout_val /tc_val' =>?. destruct it; done.
+    iIntros (???????) "(%&%&%&%&%)". iPureIntro. done.
   Qed.
   Next Obligation.
-    iIntros (??????->) "(%&%&%&%&%&%&?)". eauto with iFrame.
+    iIntros (??????[=]) "(%&%&%&%&%&%&?)"; subst.
+    iFrame. iSplit => //. iExists _; iSplit => //.
+    iSplit => //. iPureIntro. rewrite repinject_valinject //. eauto.
   Qed.
   Next Obligation.
-    iIntros (?????? v -> ?) "Hl (%n&(%&%)&%)". iExists v, n; eauto with iFrame.
+    iIntros (?????? v [=] ?) "Hl (%&%n&%&%&%)"; subst. iExists (repinject it v), n; rewrite valinject_repinject; eauto with iFrame.
   Qed.
 (*  Next Obligation.
     iIntros (????????). apply: mem_cast_compat_bool; [naive_solver|]. iPureIntro. naive_solver.
@@ -87,18 +102,39 @@ Section generic_boolean.
 
   Global Program Instance generic_boolean_copyable b stn it : Copyable (b @ generic_boolean stn it).
   Next Obligation.
-    iIntros (????????) "(%v&%n&%&%&%&%&Hl)".
-    simpl in *; subst.
-    iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //.
-    iSplitR; first done; iExists q, v; eauto 9 with iFrame.
+    iIntros (??????? Hcty) "(%v&%n&%&%&%&%&Hl)".
+    simpl in *; inv Hcty.
+    iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[% Hl]" => //.
+    iSplitR; first done. iExists q, (valinject it v); iFrame.
+    iIntros "!>".
+    rewrite /ty_own_val /= repinject_valinject.
+    - iDestruct "Hl" as "(% & $)"; iSplit; first done; iSplit; first eauto.
+      rewrite /ty_own /=.
+      iIntros "Hl"; iMod (heap_mapsto_own_state_from_mt with "Hl") as "$"; [done..|].
+      auto.
+    - by eapply val_to_Z_by_value.
   Qed.
 
-(*  Global Instance alloc_alive_generic_boolean b stn it β: AllocAlive (b @ generic_boolean stn it) β True.
+  Global Instance generic_boolean_defined stn it : DefinedTy (generic_boolean stn it).
   Proof.
-    constructor. iIntros (l ?) "(%&%&%&%&%&Hl)".
-    iApply (heap_mapsto_own_state_alloc with "Hl").
-    erewrite val_to_Z_length; [|done]. have := bytes_per_int_gt_0 it. lia.
-  Qed.*)
+    iIntros (??).
+    rewrite /ty_own_val_at /ty_own_val /= /ty_own_val /=.
+    iIntros "(%&<-&%&%&%&%)".
+    destruct cty; try done; destruct v; try done.
+  Qed.
+
+  Global Instance boolean_objective b stn it: ObjectiveTy (b @ generic_boolean stn it).
+  Proof. constructor; apply _. Qed.
+
+  Global Instance alloc_alive_generic_boolean b stn it `{TCDone (ty_align_safe it)}: AllocAlive (b @ generic_boolean stn it) Own (sizeof it) True.
+  Proof.
+    constructor. iIntros (l ?) "(%&%&%&%&%&%Hly&Hl)".
+    destruct Hly; simpl in *.
+    assert (complete_legal_cosu_type it = true) by by destruct v, it.
+    iApply (data_at_rec_alloc with "Hl"); try done.
+    * rep_lia.
+    * by apply alignof_compatible.
+  Qed.
 
   Global Instance generic_boolean_timeless l b stn it:
     Timeless (l ◁ₗ b @ generic_boolean stn it)%I.
@@ -112,12 +148,54 @@ Notation boolean := (generic_boolean StrictBool).
 Notation "boolean< it >" := (boolean it)
   (only printing, format "'boolean<' it '>'") : printing_sugar.
 
-(* Type corresponding to [_Bool] (https://en.cppreference.com/w/c/types/boolean). *)
-Notation u8 := (Tint I8 Unsigned noattr).
-Notation builtin_boolean := (generic_boolean StrictBool u8).
+Notation builtin_boolean := (generic_boolean StrictBool tbool).
 
 Section generic_boolean.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
+
+  Lemma val_to_Z_inv v t n: val_to_Z v t = Some n → v = i2v n t.
+  Proof.
+    destruct v => //; destruct t => //; destruct s => //=; inversion 1.
+    - by rewrite Int.repr_signed.
+    - by rewrite Int.repr_unsigned.
+    - by rewrite Int64.repr_signed.
+    - by rewrite Int64.repr_unsigned.
+  Qed.
+
+  Lemma simplify_strict_bool it v b T:
+    (<affine> ⌜v = valinject it (i2v (bool_to_Z b) it)⌝ -∗ T)
+      ⊢ simplify_hyp (v ◁ᵥ|it| b @ generic_boolean StrictBool it) T.
+  Proof.  iIntros "HT (_ & % & % & % & ->)".
+          iApply "HT"; iPureIntro.
+          destruct it; try done; destruct v; try done; unfold repinject, valinject in *;
+            by apply val_to_Z_inv.
+  Qed.
+  Definition simplify_strict_bool_inst := [instance simplify_strict_bool with 0%N].
+  Global Existing Instance simplify_strict_bool_inst.
+
+  Lemma in_range_bool b it: is_int_type it = true → in_range (bool_to_Z b) it.
+  Proof.
+    destruct it; try done; simpl.
+    destruct i, s, b; done.
+  Qed.
+
+  Lemma simplify_goal_strict_bool it v b T:
+    (<affine> ⌜is_int_type it = true⌝ ∗ <affine> ⌜type_is_volatile it = false⌝ ∗
+     <affine> ⌜∃ n, val_to_Z (repinject it v) it = Some n ∧ if decide (n = 0) then b = false else n = 1 ∧ b = true⌝ ∗ T)
+      ⊢ simplify_goal (v ◁ᵥ|it| b @ generic_boolean StrictBool it) T.
+  Proof.  iIntros "(%Hit & %Hvol & (% & %Hv & %Hb) & $)".
+          iPureIntro; split; first done.
+          pose proof (in_range_bool b _ Hit).
+          assert (n = bool_to_Z b) as ->.
+          { destruct (decide (n = 0)); last destruct Hb; subst; done. }
+          exists (bool_to_Z b); split3; try done.
+          destruct it; try done; rewrite /has_layout_val value_fits_eq //; simpl in *.
+          rewrite Hvol.
+          apply val_to_Z_inv in Hv as ->.
+          intros ?; by apply in_range_i2v.
+  Qed.
+  Definition simplify_goal_strict_bool_inst := [instance simplify_goal_strict_bool with 0%N].
+  Global Existing Instance simplify_goal_strict_bool_inst.
 
   Inductive trace_if_bool :=
   | TraceIfBool (b : bool).
@@ -125,31 +203,33 @@ Section generic_boolean.
   Lemma type_if_generic_boolean stn it (b : bool) v T1 T2 :
      case_destruct b (λ b' _,
      li_trace (TraceIfBool b, b') (if b' then T1 else T2))
-    ⊢ typed_if it v (v ◁ᵥ b @ generic_boolean stn it) T1 T2.
+    ⊢ typed_if it v (v ◁ᵥₐₗ|it| b @ generic_boolean stn it) ⎡valid_val v⎤ T1 T2.
   Proof.
-    unfold case_destruct, li_trace. iIntros "[% Hs] (%n&(%Hv&%)&%Hb)".
+    unfold case_destruct, li_trace. iIntros "[% Hs] (%n&%&%&%Hval_to_Z&%Hb)".
+    apply val_to_Z_by_value in Hval_to_Z as Hit.
+    rewrite /val_type Hit in H Hval_to_Z.
+    rewrite repinject_valinject // in Hval_to_Z.
     apply represents_boolean_eq in Hb as <-.
     destruct it, v; try discriminate; eauto.
   Qed.
   Definition type_if_generic_boolean_inst := [instance type_if_generic_boolean].
   Global Existing Instance type_if_generic_boolean_inst.
 
-(*  Lemma type_assert_generic_boolean v stn it (b : bool) s fn ls R Q :
-    (<affine> ⌜b⌝ ∗ typed_stmt s fn ls R Q)
-    ⊢ typed_assert it v (v ◁ᵥ b @ generic_boolean stn it) s fn ls R Q.
+  Lemma type_assert_generic_boolean v stn it (b : bool) R :
+    (<affine> ⌜b⌝ ∗ T_normal R)
+    ⊢ typed_assert it v (v ◁ᵥₐₗ|it| b @ generic_boolean stn it) R.
   Proof.
-    iIntros "[% [% ?]] (%n&%&%Hb)". destruct b; last by exfalso.
-    destruct ot; destruct_and? => //; simplify_eq/=.
-    - iExists true. iFrame. iPureIntro. split; [|done]. by apply val_to_bool_iff_val_to_Z.
-    - iExists n. iFrame. iSplit; first done. iPureIntro.
-      by apply represents_boolean_eq, bool_decide_eq_true in Hb.
+    iIntros "[% ?] (%n&%&%&%&%Hb)". destruct b; last by exfalso.
+    destruct it; destruct_and? => //; simplify_eq/=; try (by destruct v); iFrame.
+    - iFrame "%". by apply represents_boolean_eq, bool_decide_eq_true in Hb.
+    - iFrame "%". by apply represents_boolean_eq, bool_decide_eq_true in Hb.
   Qed.
   Definition type_assert_generic_boolean_inst := [instance type_assert_generic_boolean].
-  Global Existing Instance type_assert_generic_boolean_inst.*)
+  Global Existing Instance type_assert_generic_boolean_inst.
 End generic_boolean.
 
 Section boolean.
-  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} `{cs :compspecs} (ge : Genv.t Clight.fundef Ctypes.type).
 
   Lemma type_relop_boolean b1 b2 op b it v1 v2
     (Hop : match op with
@@ -158,10 +238,10 @@ Section boolean.
            | _ => None
            end = Some b) T:
     T (i2v (bool_to_Z b) tint) (b @ boolean tint)
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b1 @ boolean it⎤
-                 v2 ⎡v2 ◁ᵥ b2 @ boolean it⎤ op it it T.
+    ⊢ typed_bin_op ge v1 (v1 ◁ᵥₐₗ|it| b1 @ boolean it)
+                 v2 (v2 ◁ᵥₐₗ|it| b2 @ boolean it) op it it tint T.
   Proof.
-    iIntros "HT (%n1&(%Hty1&%Hv1)&%Hb1) (%n2&(%Hty2&%Hv2)&%Hb2) %Φ HΦ".
+    iIntros "HT (_&%n1&%Hty1&%Hv1&%Hb1) (_&%n2&%Hty2&%Hv2&%Hb2) %Φ HΦ".
     rewrite /wp_binop.
     (* some of this should move up to a wp rule in lifting_expr *)
     iIntros "!>" (?) "$ !>".
@@ -193,7 +273,11 @@ Section boolean.
       + destruct it; try by destruct v1; simpl.
         * destruct i, v1; try done; destruct v2; try done; destruct s; done.
         * destruct v1; try done; destruct v2; try done; destruct s; done.
-    - iApply "HΦ"; last done. iExists (bool_to_Z b).
+    - iApply "HΦ"; last done.
+      rewrite /ty_own_val_at /ty_own_val /=.
+      iSplit => //.
+      iExists (bool_to_Z b).
+      iSplit => //.
       iSplit; [by destruct b | done].
   Qed.
   Definition type_eq_boolean_inst b1 b2 :=
@@ -270,14 +354,19 @@ Section builtin_boolean.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Lemma type_val_builtin_boolean b T:
-    (T (b @ builtin_boolean)) ⊢ typed_value (Val.of_bool b) T.
+    (T (b @ builtin_boolean)) ⊢ typed_value tbool (Val.of_bool b) T.
   Proof.
-    iIntros "HT". iExists _. iFrame. iPureIntro. exists (if b then 1 else 0); destruct b; simpl; done.
+    iIntros "HT". iExists _. iFrame. iPureIntro. split; first done. exists (if b then 1 else 0); destruct b; simpl.
+    - repeat split; auto.
+      intros _; simpl; auto.
+    - repeat split; auto.
+      intros _; simpl; auto.
   Qed.
   Definition type_val_builtin_boolean_inst := [instance type_val_builtin_boolean].
   Global Existing Instance type_val_builtin_boolean_inst.
 
-(*  Lemma type_cast_boolean_builtin_boolean b it v T:
+  (*
+  Lemma type_cast_boolean_builtin_boolean b it v T:
     (∀ v, T v (b @ builtin_boolean))
     ⊢ typed_un_op v (v ◁ᵥ b @ boolean it)%I (CastOp BoolOp) (IntOp it) T.
   Proof.
@@ -303,3 +392,5 @@ Section builtin_boolean.
 
 End builtin_boolean.
 Global Typeclasses Opaque generic_boolean_type generic_boolean.
+
+Global Hint Resolve val_to_Z_by_value : core.

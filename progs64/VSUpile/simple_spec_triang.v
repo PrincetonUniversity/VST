@@ -17,7 +17,7 @@ Definition Triang_nth_spec :=
     SEP(mem_mgr gv)
  POST[ tint ]
     PROP()
-    LOCAL(temp ret_temp (Vint (Int.repr (triang (Z.to_nat n)))))
+    RETURN(Vint (Int.repr (triang (Z.to_nat n))))
     SEP(mem_mgr gv).
 
 Definition TriangASI:funspecs := [Triang_nth_spec].

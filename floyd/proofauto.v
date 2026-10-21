@@ -128,6 +128,8 @@ Global Arguments Qp.mul : simpl nomatch.
 Global Arguments Qp.inv : simpl nomatch.
 Global Arguments Qp.div : simpl nomatch.
 
+Global Transparent gmap_empty.
+
 Global Instance inhabitant_inhabited `{Inhabitant A} : Inhabited A := populate default.
 
 (*funspec scope is the default, so remains open.

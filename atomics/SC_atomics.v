@@ -60,7 +60,7 @@ Definition free_atomic_ptr_spec :=
     SEP (∃ v : val, atomic_ptr_at Ews v p)
   POST[ tvoid ]
     PROP ()
-    LOCAL ()
+    RETURN ()
     SEP ().
 
 Definition free_atomic_int_spec :=
@@ -71,7 +71,7 @@ Definition free_atomic_int_spec :=
     SEP (∃ v : val, atomic_int_at Ews v p)
   POST[ tvoid ]
     PROP ()
-    LOCAL ()
+    RETURN ()
     SEP ().
 
 Definition AL_type := ProdType (ProdType (ProdType (ConstType val)
@@ -112,7 +112,7 @@ Program Definition atomic_store_spec := TYPE AS_type
       (atomic_int_at sh v p -∗ |={Ei,Eo}=> Q))
   POST [ tvoid ]
    PROP ()
-   LOCAL ()
+   RETURN ()
    SEP (Q).
 Next Obligation.
 Proof.
@@ -139,7 +139,7 @@ Program Definition atomic_CAS_spec := TYPE ACAS_type
   POST [ tint ]
    ∃ v' : val,
    PROP ()
-   LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
+   RETURN (vint (if eq_dec v' c then 1 else 0))
    SEP (data_at shc tint v' pc; Q v').
 Next Obligation.
 Proof.
@@ -166,7 +166,7 @@ Program Definition atomic_exchange_spec := TYPE AEX_type
   POST [ tint ]
    ∃ v' : int,
    PROP ()
-   LOCAL (temp ret_temp (Vint v'))
+   RETURN (Vint v')
    SEP (Q (Vint v')).
 Next Obligation.
 Proof.
@@ -193,7 +193,7 @@ Program Definition atomic_load_int_spec := TYPE ALI_type
   POST [ tint ]
    ∃ v : Z,
    PROP (repable_signed v)
-   LOCAL (temp ret_temp (vint v))
+   RETURN (vint v)
    SEP (Q v).
 Next Obligation.
 Proof.
@@ -222,14 +222,12 @@ Proof.
     iExists sh, (vint v); iFrame.
     rewrite Int.signed_repr; auto.
   - iPureIntro.
-    iIntros (?) "(_ & _ & H)".
-    unfold PROPx, LOCALx, SEPx; simpl.
-    iDestruct "H" as (r) "(_ & % & Q & _)".
-    destruct H, r; try done.
-    iExists (Int.signed i); iSplit; auto.
+    iIntros (?) "(_ & % & _ & (-> & _) & H & _)".
+    destruct v; try done.
+    iExists (Int.signed i); iSplit; simpl.
     { iPureIntro; split; auto.
       apply Int.signed_range. }
-    iSplit; [iSplit|]; auto.
+    iFrame.
     rewrite Int.repr_signed; auto.
 Qed.
 
@@ -245,7 +243,7 @@ Program Definition atomic_store_int_spec := TYPE ASI_type
       (atomic_int_at sh (vint v) p -∗ |={Ei,Eo}=> Q))
   POST [ tvoid ]
    PROP ()
-   LOCAL ()
+   RETURN ()
    SEP (Q).
 Next Obligation.
 Proof.
@@ -288,7 +286,7 @@ Program Definition atomic_CAS_int_spec := TYPE ACASI_type
   POST [ tint ]
    ∃ v' : Z,
    PROP (repable_signed v')
-   LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
+   RETURN (vint (if eq_dec v' c then 1 else 0))
    SEP (data_at shc tint (vint v') pc; Q v').
 Next Obligation.
 Proof.
@@ -324,18 +322,15 @@ Proof.
     iDestruct "H" as "[% _]".
     destruct H as [Hc _].
     iPureIntro.
-    iIntros (?) "(_ & _ & H)".
-    iDestruct "H" as (r) "(_ & % & ? & Q & _)".
-    destruct H, r; try done.
-    iExists (Int.signed i); iSplit; auto.
-    { iPureIntro; split; auto.
-      apply Int.signed_range. }
-    iSplit; [iSplit; auto|].
-    { if_tac; if_tac in H; auto; subst.
-      + rewrite Int.repr_signed in H2; contradiction.
-      + apply Vint_inj in H2; subst.
-        rewrite -> Int.signed_repr in H1 by auto; contradiction. }
-    rewrite Int.repr_signed; iFrame.
+    iIntros (?) "(_ & % & _ & (-> & _) & H & ? & _)".
+    destruct v'; try done.
+    iExists (Int.signed i); rewrite Int.repr_signed; iFrame.
+    iPureIntro; split3; auto.
+    { split; auto; apply Int.signed_range. }
+    { if_tac; if_tac; auto; subst.
+      + apply Vint_inj in H as ->.
+        rewrite -> Int.signed_repr in H0 by auto; contradiction.
+      + rewrite Int.repr_signed in H; contradiction. }
 Qed.
 
 Definition AEXI_type := ProdType (ProdType (ProdType (ConstType (val * Z))
@@ -353,7 +348,7 @@ Program Definition atomic_exchange_int_spec := TYPE AEXI_type
   POST [ tint ]
    ∃ v' : Z,
    PROP (repable_signed v')
-   LOCAL (temp ret_temp (vint v'))
+   RETURN (vint v')
    SEP (Q v').
 Next Obligation.
 Proof.
@@ -382,16 +377,13 @@ Proof.
     rewrite -> Int.signed_repr; auto.
   - unfold PROPx, LOCALx, SEPx; simpl.
     iPureIntro.
-    iIntros (?) "(_ & _ & H)".
-    iDestruct "H" as (r) "(_ & % & Q & _)".
-    destruct H; try done.
+    iIntros (?) "(_ & % & _ & (-> & _) & H & _)".
     monPred.unseal.
-    iExists (Int.signed r); iSplit; auto.
+    iExists (Int.signed v'); iSplit; auto.
     { iPureIntro; split; auto.
       apply Int.signed_range. }
-    iSplit; [iSplit; auto|].
-    { rewrite Int.repr_signed; auto. }
-    iFrame.
+    iFrame; iPureIntro.
+    rewrite Int.repr_signed; auto.
 Qed.
 
 (* specs for pointer operations *)
@@ -410,7 +402,7 @@ Program Definition atomic_load_ptr_spec := TYPE ALI_ptr_type
   POST [ tptr Tvoid ]
    ∃ v : val,
    PROP ()
-   LOCAL (temp ret_temp v)
+   RETURN (v)
    SEP (Q v).
 Next Obligation.
 Proof.
@@ -434,7 +426,7 @@ Program Definition atomic_store_ptr_spec := TYPE ASI_ptr_type
       (atomic_ptr_at sh v p -∗ |={Ei,Eo}=> Q))
   POST [ tvoid ]
    PROP ()
-   LOCAL ()
+   RETURN ()
    SEP (Q).
 Next Obligation.
 Proof.
@@ -461,7 +453,7 @@ Program Definition atomic_CAS_ptr_spec := TYPE ACASI_ptr_type
   POST [ tint ]
    ∃ v' : val,
    PROP ()
-   LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
+   RETURN (vint (if eq_dec v' c then 1 else 0))
    SEP (data_at shc (tptr Tvoid) c pc; Q v').
 Next Obligation.
 Proof.
@@ -488,7 +480,7 @@ Program Definition atomic_exchange_ptr_spec := TYPE AEXI_ptr_type
   POST [ tint ]
    ∃ v' : val,
    PROP ()
-   LOCAL (temp ret_temp v')
+   RETURN (v')
    SEP (Q v').
 Next Obligation.
 Proof.

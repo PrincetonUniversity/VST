@@ -1,9 +1,9 @@
 From iris.algebra Require Export excl auth.
-Set Warnings "-notation-overridden".
+Set Warnings "-notation-overridden,-hiding-delimiting-key".
 From iris_ora.algebra Require Export excl_auth.
 From iris_ora.logic Require Export own.
+Set Warnings "notation-overridden,hiding-delimiting-key".
 From iris.proofmode Require Import proofmode.
-Set Warnings "notation-overridden".
 
 Class externalGS (Z : Type) (Σ : gFunctors) := ExternalGS {
   external_inG : inG Σ (excl_authR (leibnizO Z));

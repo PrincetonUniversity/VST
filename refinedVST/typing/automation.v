@@ -1,13 +1,17 @@
 (* refinedC/typing/automation.v *)
 From iris.proofmode Require Import coq_tactics reduction.
 From lithium Require Import hooks normalize.
-From VST.floyd Require Import forward.
 From VST.lithium Require Export all.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
-From VST.typing.automation Require Export proof_state (* solvers simplification  loc_eq. *).
-From VST.typing Require Import programs function singleton own (* struct *) bytes int.
+From VST.typing.automation Require Export proof_state (* solvers *) simplification (* loc_eq. *).
+From VST.typing Require Import programs function singleton array struct union bytes own int.
+From VST.typing Require Import ClightSugar.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Set Default Proof Using "Type".
-Set Nested Proofs Allowed.
+From Ltac2 Require Import Ltac2.
+Set Default Proof Mode "Classic".
+
 (** * Defining extensions *)
 (** The [sidecond_hook] and [unsolved_sidecond_hook] hooks that get
 called for all sideconditions resp. all sideconditions that are not
@@ -16,12 +20,110 @@ Ltac sidecond_hook := idtac.
 Ltac unsolved_sidecond_hook := idtac.
 
 (** * Registering extensions *)
-(** We use autorewrite for the moment. *)
-Ltac normalize_hook ::= normalize_autorewrite.
+Ltac2 Set lock_terms_hook as old_hook :=
+  fun _ =>
+  try_rewrite_locks [ty_own_val_at, ty_own_val, ty_own];
+  old_hook ().
+
+(* TODO these should be part of CCris, not specific to RefinedCC. *)
+Create HintDb ccris_rewrite.
+
+Create HintDb refinedcc_unfold.
+#[export] Hint Unfold bitsize_intsize : refinedcc_unfold.
+
+Ltac solver_reduce_step := 
+  first
+  [ progress simpl
+   (* do not use split here; if it solves the goal, rewrites won't happen *)
+  | notypeclasses refine (conj _ _)
+  | progress autounfold with refinedcc_unfold
+  | progress autorewrite with ccris_rewrite lithium_rewrite
+  ]
+.
+
+Ltac wand_simpl_hook ::= repeat solver_reduce_step.
+
+(* solver for Prop. also used in TCSolve.
+   reduces the goal, and then try to solve it; does not fail if not solved. *)
+(* FIXME should be repeat solver_reduce_step? *)
+Ltac solver :=
+  repeat solver_reduce_step;
+  try (done || rep_lia).
+
+(* for solving goals like (Vint $ Int.repr 2*x = Vint $ Int.repr x*2),
+  solver can make the goal into TCEq, which may find TCSolve;
+  but it is crucial that TCSolve only calls solver and does not make
+  it into a TCEq again.
+  TODO is can_solve related to this?*)
+Ltac solver_with_TCEq :=
+  first
+    [ solve [solver]
+    | match goal with
+      | |- ?P = ?Q => apply (TCEq_eq P Q); apply _
+      end
+  ].
+
+
+#[export] Hint Rewrite Ptrofs.repr_signed : ccris_rewrite.
+#[export] Hint Rewrite Ptrofs.repr_unsigned : ccris_rewrite.
+#[export] Hint Rewrite Int.repr_signed : ccris_rewrite.
+#[export] Hint Rewrite Int.repr_unsigned : ccris_rewrite.
+#[export] Hint Rewrite Ptrofs.signed_repr using solver : ccris_rewrite.
+(* we need solver because, e.g. applying `Ptrofs.unsigned_repr`
+  to `Int.unsigned (Int.repr (Int.unsigned (Int.repr x) * 2)` generates
+  a side condition `0 ≤ Int.unsigned (Int.repr x) * 2 ≤ Int.max_unsigned`
+  which is not solvable by just lia.
+  *)
+#[export] Hint Rewrite Ptrofs.unsigned_repr using solver : ccris_rewrite.
+#[export] Hint Rewrite Int.signed_repr using solver : ccris_rewrite.
+#[export] Hint Rewrite Int.unsigned_repr using solver : ccris_rewrite.
+#[export] Hint Rewrite Z.shiftr_div_pow2 using solver : ccris_rewrite.
+#[export] Hint Rewrite Z.shiftl_mul_pow2 using solver : ccris_rewrite.
+#[export] Hint Rewrite Z.pow_1_r using solver : ccris_rewrite.
+
+(* Typeclasses for proving equality of CCris values. *)
+Class TCSolve (P : Prop) : Prop := tc_rep_lia_proof: P.
+#[export] Hint Extern 10 (TCSolve ?P) => (change P; solver) : typeclass_instances.
+
+#[export] Instance TCDone_TCEq (z1 z2 : Z):
+  TCDone (z1 = z2) -> TCEq (Int.repr z1) (Int.repr z2) | 1.
+Proof. by intros ->. Qed.
+
+#[export] Instance int_repr_inj_inst (z1 z2 : Z):
+  TCSolve (z1 = z2) -> TCEq (Int.repr z1) (Int.repr z2) | 10.
+Proof. by intros ->. Qed.
+
+#[export] Instance vint_inj_inst i1 i2:
+  TCEq i1 i2 -> TCEq (Vint i1) (Vint i2) | 0.
+Proof. by intros ->. Qed.
+
+(* combines the original solver `autorewrite with lithium_rewrite; exact: eq_refl` with more automation. *)
+Ltac normalize_hook ::= solve [repeat solver_with_TCEq].
+
 (* Goal ∀ l i (x : Z), *)
 (*     0 < length (<[i:=x]> $ <[i:=x]> (<[length (<[i:=x]>l) :=x]> l ++ <[length (<[i:=x]>l) :=x]> l)). *)
 (*   move => ???. normalize_goal. *)
 (* Abort. *)
+
+(* Maybe eventually we should always rewrite with signed_repr and unsigned_repr,
+   but adding these for now. *)
+Lemma signed_bool_to_Z_neq_0_bool_decide b :
+  bool_decide (Int.signed (Int.repr (bool_to_Z b)) ≠ 0) = b.
+Proof. by destruct b. Qed.
+
+Lemma unsigned_bool_to_Z_neq_0_bool_decide b :
+  bool_decide (Int.unsigned (Int.repr (bool_to_Z b)) ≠ 0) = b.
+Proof. by destruct b. Qed.
+
+Lemma signed_bool_to_Z_eq_0_bool_decide b :
+  bool_decide (Int.signed (Int.repr (bool_to_Z b)) = 0) = negb b.
+Proof. by destruct b. Qed.
+
+Lemma unsigned_bool_to_Z_eq_0_bool_decide b :
+  bool_decide (Int.unsigned (Int.repr (bool_to_Z b)) = 0) = negb b.
+Proof. by destruct b. Qed.
+
+#[export] Hint Rewrite signed_bool_to_Z_neq_0_bool_decide unsigned_bool_to_Z_eq_0_bool_decide signed_bool_to_Z_neq_0_bool_decide unsigned_bool_to_Z_eq_0_bool_decide : lithium_rewrite.
 
 Ltac solve_protected_eq_hook ::=
   lazymatch goal with
@@ -49,35 +151,37 @@ Ltac liTrace_hook info ::= add_case_distinction_info info.
 
 Ltac liExtensible_to_i2p_hook P bind cont ::=
   lazymatch P with
-  | typed_value ?v ?T =>
+  | <obj> _ => iModIntro
+  | up1 _ => iModIntro
+  | typed_value ?cty ?v ?T =>
       (* One could introduce more let-bindings as follows, but too
       many let-bindings seem to hurt performance. *)
       (* bind T ltac:(fun H => uconstr:(typed_value v H)); *)
-      cont uconstr:(((_ : TypedValue _) _))
-  | typed_bin_op ?v1 ?ty1 ?v2 ?ty2 ?o ?ot1 ?ot2 ?T =>
-      cont uconstr:(((_ : TypedBinOp _ _ _ _ _ _ _) _))
-  | typed_un_op ?v ?ty ?o ?ot ?T =>
-      cont uconstr:(((_ : TypedUnOp _ _ _ _) _))
-  (*
-  | typed_call ?v ?P ?vl ?tys ?T =>
-      cont uconstr:(((_ : TypedCall _ _ _ _) _))
-  | typed_copy_alloc_id ?v1 ?ty1 ?v2 ?ty2 ?ot ?T =>
-      cont uconstr:(((_ : TypedCopyAllocId _ _ _ _ _) _))
-  | typed_place ?P ?l1 ?β1 ?ty1 ?T =>
-      cont uconstr:(((_ : TypedPlace _ _ _ _) _))
-  *)    
-  | typed_if ?ot ?v ?P ?T1 ?T2 =>
-      cont uconstr:(((_ : TypedIf _ _ _) _ _))
-  (*
-  | typed_switch ?v ?ty ?it ?m ?ss ?def ?fn ?ls ?fr ?Q =>
-      cont uconstr:(((_ : TypedSwitch _ _ _) _ _ _ _ _ _ _))
-  | typed_assert ?ot ?v ?ty ?s ?fn ?ls ?fr ?Q =>
-      cont uconstr:(((_ : TypedAssert _ _ _) _ _ _ _ _))
-      *)
-  | typed_read_end ?a ?E ?l ?β ?ty ?ly ?mc ?T =>
-      cont uconstr:(((_ : TypedReadEnd _ _ _ _ _ _ _) _))
+      cont uconstr:(((_ : TypedValue _ _) _))
+  | typed_bin_op ?ge ?v1 ?ty1 ?v2 ?ty2 ?o ?ot1 ?ot2 ?ot ?T =>
+      cont uconstr:(((_ : TypedBinOp _ _ _ _ _ _ _ _ _) _))
+  | typed_un_op ?v ?ty ?o ?ot1 ?ot ?T =>
+      cont uconstr:(((_ : TypedUnOp _ _ _ _ _) _))
+  | typed_call _ _ _ _ _ _ _ _ _ _ _ =>
+      cont uconstr:(((_ : TypedCall _ _ _ _ _ _ _ _ _ _) _))
+  (*| typed_copy_alloc_id ?v1 ?ty1 ?v2 ?ty2 ?ot ?T =>
+      cont uconstr:(((_ : TypedCopyAllocId _ _ _ _ _) _))  *)
+  | typed_place ?genv_t ?P ?l1 ?β1 ?ty1 ?T =>
+      cont uconstr:(((_ : TypedPlace _ _ _ _ _) _))
+  | typed_if ?ot ?v ?P ?F ?T1 ?T2 =>
+      cont uconstr:(((_ : TypedIf _ _ _ _) _ _))
+  | typed_switch _ _ _ _ _ _ =>
+      cont uconstr:(((_ : TypedSwitch _ _ _) _ _ _))
+  | typed_assert _ _ _ _ =>
+      cont uconstr:(((_ : TypedAssert _ _ _) _))
+  | typed_read_end ?a ?E ?l ?β ?ty ?ly ?T =>
+      cont uconstr:(((_ : TypedReadEnd _ _ _ _ _ _) _))
   | typed_write_end ?a ?E ?ot ?v1 ?ty1 ?l2 ?β2 ?ty2 ?T =>
       cont uconstr:(((_ : TypedWriteEnd _ _ _ _ _ _ _ _) _))
+  | typed_temp _ _ _ ?T =>
+      cont uconstr:(((_ : TypedTemp _ _ _) _))
+  | typed_lvalue _ _ _ ?T =>
+      cont uconstr:(((_ : TypedLvalue _ _ _) _))
   | typed_addr_of_end ?l ?β ?ty ?T =>
       cont uconstr:(((_ : TypedAddrOfEnd _ _ _) _))
   (*
@@ -97,21 +201,21 @@ Ltac liExtensible_to_i2p_hook P bind cont ::=
 Ltac liToSyntax_hook ::=
   unfold pop_location_info(*, LocInfoE*);
   change (typed_value ?x1 ?x2) with (li.bind1 (typed_value x1 x2));
-  change (typed_bin_op ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind2 (typed_bin_op x1 x2 x3 x4 x5 x6 x7));
-  change (typed_un_op ?x1 ?x2 ?x3 ?x4) with (li.bind2 (typed_un_op x1 x2 x3 x4));
+  change (typed_bin_op ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8) with (li.bind2 (typed_bin_op x1 x2 x3 x4 x5 x6 x7 x8));
+  change (typed_un_op ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind2 (typed_un_op x1 x2 x3 x4 x5));
   (* change (typed_call ?x1 ?x2 ?x3 ?x4) with (li.bind2 (typed_call x1 x2 x3 x4)); *)
   (* change (typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind2 (typed_copy_alloc_id x1 x2 x3 x4 x5)); *)
-  (* change (typed_place ?x1 ?x2 ?x3 ?x4) with (li.bind5 (typed_place x1 x2 x3 x4)); *)
+  change (typed_place ?x1 ?x2 ?x3 ?x4 ?x5 ?x6) with (li.bind5 (typed_place x1 x2 x3 x4 x5 x6));
   change (typed_read ?x1 ?x2 ?x3 ?x4) with (li.bind2 (typed_read x1 x2 x3 x4));
-  change (typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind3 (typed_read_end x1 x2 x3 x4 x5 x6 x7));
-  change (typed_write ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind0 (typed_write x1 x2 x3 x4 x5));
+  change (typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6) with (li.bind3 (typed_read_end x1 x2 x3 x4 x5 x6));
+  change (typed_write ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind0 (typed_write x1 x2 x3 x4 x5 x6 x7));
   change (typed_write_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8) with (li.bind1 (typed_write_end x1 x2 x3 x4 x5 x6 x7 x8));
-  change (typed_addr_of ?x1) with (li.bind3 (typed_addr_of x1));
+  change (typed_addr_of ?x1 ?x2 ?x3) with (li.bind3 (typed_addr_of x1 x2 x3));
   change (typed_addr_of_end ?x1 ?x2 ?x3) with (li.bind3 (typed_addr_of_end x1 x2 x3));
   (* change (typed_cas ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind2 (typed_cas x1 x2 x3 x4 x5 x6 x7)); *)
   (* change (typed_annot_expr ?x1 ?x2 ?x3 ?x4) with (li.bind0 (typed_cas x1 x2 x3 x4)); *)
   (* change (typed_macro_expr ?x1 ?x2) with (li.bind2 (typed_macro_expr x1 x2)); *)
-  change (typed_val_expr ?x1) with (li.bind2 (typed_val_expr x1))
+  change (typed_val_expr ?x1 ?x2 ?x3) with (li.bind2 (typed_val_expr x1 x2 x3))
   (* no typed_if, typed_switch, typed_assert, typed_stmt, typed_annot_stmt *)
 .
 
@@ -141,14 +245,14 @@ Ltac liRIntroduceLetInGoal :=
   lazymatch goal with
   | |- @envs_entails ?prop ?Δ ?P =>
     lazymatch P with
-    | @typed_val_expr ?Σ ?tG ?cs ?e ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_val_expr Σ tG cs e H)))
-    | @typed_write ?Σ ?tG ?cs ?b ?e ?ot ?v ?ty ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_write Σ tG cs b e ot v ty H)))
-    (* | @typed_place ?Σ ?tG ?P ?l1 ?β1 ?ty1 ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_place Σ tG P l1 β1 ty1 H))) *)
-    | @typed_bin_op ?Σ ?tG ?cs ?v1 ?P1 ?v2 ?P2 ?op ?ot1 ?ot2 ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_bin_op Σ tG cs v1 P1 v2 P2 op ot1 ot2 H)))
+    | @typed_val_expr ?OK_ty ?Σ ?tG ?cs ?ge ?f ?e ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_val_expr OK_ty Σ tG cs ge f e H)))
+    | @typed_write ?OK_ty ?Σ ?tG ?cs ?ge ?f ?b ?e ?ot ?v ?ty ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_write OK_ty Σ tG cs ge f b e ot v ty H)))
+    | @typed_place ?OK_ty ?Σ ?tG ?cs ?ge ?P ?l1 ?β1 ?ty1 ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_place OK_ty Σ tG cs ge P l1 β1 ty1 H)))
+    | @typed_bin_op ?OK_ty ?Σ ?tG ?cs ?ge ?v1 ?P1 ?v2 ?P2 ?op ?ot1 ?ot2 ?ot ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_bin_op OK_ty Σ tG cs ge v1 P1 v2 P2 op ot1 ot2 ot H)))
     end
   end.
 
@@ -172,11 +276,37 @@ Ltac liRStmt :=
     | _ =>
       let s' := s in
       lazymatch s' with
-      | Sassign _ _ => notypeclasses refine (tac_fast_apply (type_assign _ _ _ _ _ _) _)
-      | Sset _ _ => notypeclasses refine (tac_fast_apply (type_set _ _ _ _ _ _) _)
+      | Sassign _ _ => notypeclasses refine (tac_fast_apply (type_assign _ _ _ _ _ _ ) _); [done..|]
+      | Sset _ _ => notypeclasses refine (tac_fast_apply (type_set _ _ _ _ _ _ _ _) _)
       | Ssequence _ _ => notypeclasses refine (tac_fast_apply (type_seq _ _ _ _ _ _) _)
       | Sreturn $ Some _ => notypeclasses refine (tac_fast_apply (type_return_some _ _ _ _ _) _)
       | Sreturn None => notypeclasses refine (tac_fast_apply (type_return_none _ _ _ _ _) _)
+      (* need to use hints *)
+      | Sannot (ExprAnnot_assert ?id) =>
+        lazymatch goal with
+        | H : IPROP_HINT (ASSERT_COND id) ?P |- _ =>
+            notypeclasses refine (tac_fast_apply (type_annot_stmt_assert P _ _ _ _ _) _)
+        end
+      | Sannot _ => notypeclasses refine (tac_fast_apply (type_annot_stmt _ _ _ _ _) _)
+      | Sassert _ => notypeclasses refine (tac_fast_apply (type_assert _ _ _ _ _) _)
+      | Sskip => notypeclasses refine (tac_fast_apply (type_skips _ _ _ _) _)
+      | Scall _ _ _ => notypeclasses refine (tac_fast_apply (type_call_syn _ _ _ _ _ _ _ _ _ _) _)
+      | Sifthenelse _ _ _ => notypeclasses refine (tac_fast_apply (type_if _ _ _ _ _ _ _) _)
+      (* need to use hints *)
+      | Swhile ?id _ _ =>
+        lazymatch goal with
+        | H : IPROP_HINT (LOOP_INV id) (λ _, ?P) |- _ =>
+            notypeclasses refine (tac_fast_apply (type_inv_loop _ _ _ P _ _ _ _) _)
+        end
+      | Sloop ?id _ _ =>
+        lazymatch goal with
+        | H : IPROP_HINT (LOOP_INV id) (λ _, ?P) |- _ =>
+            notypeclasses refine (tac_fast_apply (type_inv_loop _ _ _ P _ _ _ _) _)
+        end
+      | Sbreak => notypeclasses refine (tac_fast_apply (type_break _ _ _ _) _)
+      | Scontinue => notypeclasses refine (tac_fast_apply (type_continue _ _ _ _) _)
+      | Sswitch _ _ => notypeclasses refine (tac_fast_apply (type_switch _ _ _ _ _ _) _)
+      | Slabel _ _ => notypeclasses refine (tac_fast_apply (type_label _ _ _ _ _ _) _)
       | _ => fail "do_stmt: unknown stmt" s
       end
     end
@@ -216,53 +346,61 @@ Ltac liRExpr :=
     end
   end; *)
   lazymatch goal with
-  | |- envs_entails ?Δ (typed_val_expr ?e ?T) =>
+  | |- envs_entails ?Δ (typed_val_expr _ _ ?e ?T) =>
     lazymatch e with
-    | Ecast _ _ => notypeclasses refine (tac_fast_apply (type_Ecast_same_val _ _ _) _)
-    | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _) _)
-    | Ebinop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_bin_op _ _ _ _ _) _)
+    | Ecast _ (tptr _) => notypeclasses refine (tac_fast_apply (type_cast_to_ptr _ _ _ _ _ _) _); [done|]
+    | Ecast _ _ => first [notypeclasses refine (tac_fast_apply (type_cast_int_same _ _ _ _) _) |
+                          notypeclasses refine (tac_fast_apply (type_cast_int _ _ _ _ _) _)]
+    | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _ _ _) _)
+    | Econst_float _ _ => notypeclasses refine (tac_fast_apply (type_const_float _ _ _ _ _) _)
+    | Econst_single _ _ => notypeclasses refine (tac_fast_apply (type_const_single _ _ _ _ _) _)
+    | Econst_long _ _ => notypeclasses refine (tac_fast_apply (type_const_long _ _ _ _ _) _)
+    | Ebinop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_bin_op _ _ _ _ _ _ _) _)
+    | Eunop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_un_op _ _ _ _ _ _) _)
+    | Ederef _ _ => notypeclasses refine (tac_fast_apply (type_read_lvalue _ _ _ _ _ _) _);[done|done|]
+    | Efield _ _ _ => notypeclasses refine (tac_fast_apply (type_read_lvalue _ _ _ _ _ _) _);[done|done|]
     | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _) _)
+    | Evar _ _ => first [notypeclasses refine (tac_fast_apply (type_read_lvalue _ _ _ _ _ _) _);[done|done|] |
+                         notypeclasses refine (tac_fast_apply (type_var _ _ _ _ _ _) _);[done|] ]
+    | Eaddrof _ _ => notypeclasses refine (tac_fast_apply (type_addrof _ _ _ _ _) _)
+    | Esizeof _ _ => notypeclasses refine (tac_fast_apply (type_sizeof _ _ _ _ _) _)
+    | Ealignof _ _ => notypeclasses refine (tac_fast_apply (type_alignof _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
-  | |- envs_entails ?Δ (typed_lvalue ?β ?e ?T) =>
+  (*| |- envs_entails ?Δ (typed_lvalue _ _ ?β ?e ?T) =>
     lazymatch e with
-    | Evar _ _ => notypeclasses refine (tac_fast_apply (type_var_local _ _ _ _ _ _) _)
+    | Evar _ _ => first [notypeclasses refine (tac_fast_apply (type_var_global _ _ _ _ _ _ _ _ _) _); first by simpl; congruence |
+                         notypeclasses refine (tac_fast_apply (type_var_local _ _ _ _ _ _ _ _) _)]
     | _ => fail "do_expr: unknown expr" e
-    end
+    end*)
   end.
 
 Ltac liRJudgement :=
   lazymatch goal with
-    | |- envs_entails _ (typed_write _ _ _ _ _ _) => 
-      notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _) _)
-    | |- envs_entails _ (typed_read _ _ _ _ _) =>
-      fail "liRJudgement: type_read not implemented yet"
-      (* notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _) _); [ solve [refine _ ] |] *)
-    | |- envs_entails _ (typed_addr_of _ _) =>
+    | |- envs_entails _ (typed_write _ _ _ ?e _ _ _ _) =>
+      first [ notypeclasses refine (tac_fast_apply (type_write_lvalue _ _ _ _ _ _ _ _ _ _ _) _); [ solve [refine _ ] | reflexivity |]
+            (*| notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _ _ _) _)*) ]
+    | |- envs_entails _ (typed_read _ _ _ _ _ _) =>
+      notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _) _); [ solve [refine _ ] |]
+    | |- envs_entails _ (typed_addr_of _ _ _ _) =>
       fail "liRJudgement: type_addr_of not implemented yet"
       (* notypeclasses refine (tac_fast_apply (type_addr_of_place _ _ _ _) _); [solve [refine _] |] *)
   end.
 
-(* deal with objective modalities. This is ad-hoc for now *)
-Ltac liObj :=
-  match goal with
-  | |- envs_entails _ (<obj> _) =>
-    iModIntro
-  end.
-
 (* This does everything *)
 Ltac liRStep :=
- liEnsureInvariant;
- try liRIntroduceLetInGoal;
- first [
-   liRPopLocationInfo
- | liRStmt
- (* | liRIntroduceTypedStmt *)
- | liRExpr
- | liRJudgement
- | liObj
- | liStep
-]; liSimpl.
+  liEnsureInvariant;
+  try liRIntroduceLetInGoal;
+  first
+    [ progress liNormalize
+    | liRPopLocationInfo
+    | liRStmt
+    (* | liRIntroduceTypedStmt *)
+    | liRExpr
+    | liRJudgement
+    | liStep
+    ];
+  liSimpl.
 
 Tactic Notation "liRStepUntil" open_constr(id) :=
   repeat lazymatch goal with
@@ -309,25 +447,36 @@ End coq_tactics.
 in the number of blocks! *)
 (* TODO: don't use i... tactics here *)
 (* FIXME for now the intropattern is just x for the entire array of arguments. *)
-(* was start_function in refinedc; name conflict with the floyd tactic *)
-Tactic Notation "type_function" constr(fnname) "(" simple_intropattern(x) ")" :=
+  
+Tactic Notation "start_function" constr(fnname) "(" simple_intropattern(x) ")" :=
   intros;
-  repeat iIntros "#?";
-  rewrite /typed_function;
-  iIntros ( x );
-  (* computes the ofe_car in introduced arguments *)
-  match goal with | H: ofe_car _ |- _ => hnf in H; destruct H end;
-  iSplit; [iPureIntro; simpl; by [repeat constructor] || fail "in" fnname "argument types don't match layout of arguments" |];
-  let lsa := fresh "lsa" in let lsb := fresh "lsb" in
-  iIntros "!#" (lsa lsb); inv_vec lsb; inv_vec lsa;
-  iPureIntro;
-  iIntros "(?&?&?&?)";
-  cbn.
+  iStartProof; repeat iIntros "#?"; iStopProof;
+  apply prove_typed_function; [apply _..|];
+  intros x;
+  split; [simpl; by reflexivity || fail "in" fnname "argument types don't match layout of arguments" |].
 
-Tactic Notation "prepare_parameters" "(" ident_list(i) ")" :=
-  revert i; repeat liForall.
+Tactic Notation "start_function2" :=
+  iStartProof; rewrite /typed_stackframe /typed_var_block.
 
-Ltac liRSplitBlocksIntro :=
+(*Ltac type_function_end :=
+  match goal with |- envs_entails _ (typed_stackframe1 _) =>
+  (*iExists (li_pair _ tt) => /=; liShow;
+  rewrite /stackframe_of0' /stackframe_of1'; cbn;*)
+  repeat match goal with
+  | |- context [ [∗ list] _;_ ∈ (cons _ _); _ , _ ] =>
+    setoid_rewrite big_sepL2_cons; iFrame
+  | |- context [ [∗ list] _;_ ∈ []; ?l , _] =>
+    setoid_rewrite big_sepL2_nil
+   end;
+  try done
+  end.*)
+
+Ltac type_function_end := rewrite /typed_stackframe1 /typed_var_block /=; repeat liRStep.
+
+(*Tactic Notation "prepare_parameters" "(" ident_list(i) ")" :=
+  revert i; repeat liForall.*)
+
+(*Ltac liRSplitBlocksIntro :=
   repeat (
       liEnsureInvariant;
       first [
@@ -337,10 +486,10 @@ Ltac liRSplitBlocksIntro :=
         | liForall
         | liExist
         | liUnfoldLetGoal]; liSimpl);
-        li_unfold_lets_in_context.
-(*
+        li_unfold_lets_in_context.*)
+
 (* TODO: don't use i... tactics here *)
-Ltac split_blocks Pfull Ps :=
+Ltac prepare_hints Ps :=
   (* cbn in *|- is important here to simplify the types of local
   variables, otherwise unification gets confused later *)
   cbn -[union] in * |-;
@@ -353,7 +502,7 @@ Ltac split_blocks Pfull Ps :=
       | nil => idtac
       end
   in
-  pose_Ps Ps;
+  pose_Ps Ps(*;
   let Hfull := fresh "Hfull" in
   (* We must do this pose first since do_split_block_intro might call
   subst and we want to subst in Ps as well. *)
@@ -363,127 +512,71 @@ Ltac split_blocks Pfull Ps :=
   iApply (typed_block_rec Hfull); unfold Hfull; clear Hfull; last first; [|
   repeat (iApply big_sepM_insert; [reflexivity|]; iSplitL); last by [iApply big_sepM_empty];
   iExists _; (iSplitR; [iPureIntro; unfold_code_marker_and_compute_map_lookup|]); iModIntro ];
-  repeat (iApply tac_split_big_sepM; [reflexivity|]; iIntros "?"); iIntros "_".
-*)
+  repeat (iApply tac_split_big_sepM; [reflexivity|]; iIntros "?"); iIntros "_"*).
 
+Ltac repeat' tac :=
+  let rec aux n :=
+    tryif tac
+    then (idtac "Step" n; aux (S n))
+    else idtac "Repeated" n "times"
+  in aux 0%nat.
 
-Section automation_tests.
+(* TODO move these to programs.v *)
+Section additional_instances.
+
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  (*Global Instance related_to_val_embed A v cty ty : RelatedTo (λ x : A, (⎡v ◁ᵥₐₗ|cty| ty x⎤))%I | 100
+  := {| rt_fic := FindVal cty v |}.
+  Global Instance related_to_val_embed2 A v cty ty : RelatedTo (λ x : A, (⎡v ◁ᵥₐₗ|cty| ty⎤))%I | 100
+  := {| rt_fic := FindVal cty v |}.
+  Global Instance related_to_val_rep_v A cty v_rep ty :  RelatedTo (λ x : A, ⎡ v_rep ◁ᵥ|cty| ty x⎤:assert)%I | 100
+  := {| rt_fic := FindValP (repinject cty v_rep) |}.*)
+  
+  (*Lemma find_in_context_type_val_P_id  cty v (T:assert->assert):
+    (∃ ty , v ◁ᵥ|cty| ty ∗ T (v ◁ᵥ|cty| ty))
+    ⊢ find_in_context (FindValP (repinject cty v)) T.
+  Proof. intros. iDestruct 1 as "(% & ? & ?)". iExists (ty_own_val ty _ _) => /=. iFrame. Qed.
+  Definition find_in_context_type_val_P_id_inst :=
+    [instance find_in_context_type_val_P_id with FICSyntactic].
+  Global Existing Instance find_in_context_type_val_P_id_inst | 1.*)
 
-  Opaque local locald_denote.
-
-   Set Ltac Backtrace.
-
-  Goal forall Espec ge f (_x:ident) (x:val),
-  <affine> (local $ locald_denote $ temp _x x)
-  ⊢ typed_stmt Espec ge (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint) (Econst_int (Int.repr 1) tint) tint)) f
-                           (λ v t, <affine> local (locald_denote (temp _x (Vint (Int.repr 42))))
-                                   ∗ ⎡ Vint (Int.repr 42) ◁ᵥ 42 @ int tint ⎤).
+  (*Lemma simple_subsume_val_to_subsume_embed (A:Type) cty (v : reptype cty)  (ty1 : type) (ty2 : A → type) (P:A->mpred)
+    `{!∀ (x:A), SimpleSubsumeVal cty ty1 (ty2 x) (P x)} (T: A-> assert) :
+    (∃ x, (@embed mpred assert _ $ P x) ∗ T x) ⊢@{assert} subsume (⎡v ◁ᵥ|cty| ty1⎤) (λ x : A, ⎡v ◁ᵥ|cty| ty2 x⎤) T.
   Proof.
-    iIntros.
-    repeat liRStep.
-    liShow; try done.
+    iIntros "H".
+    iDestruct "H" as (x) "[HP HT]".
+    unfold subsume. iIntros. iExists x. iFrame.
+    iApply (@simple_subsume_val with "[$HP] [$]").
   Qed.
+  Definition simple_subsume_val_to_subsume_embed_inst := [instance simple_subsume_val_to_subsume_embed].
+  Global Existing Instance simple_subsume_val_to_subsume_embed_inst.*)
 
-  Goal forall Espec ge f (_x:ident) b o (l:address) ty,
-  TCDone (ty_has_op_type ty tint MCNone) ->
-  ⊢ <affine> (local $ locald_denote $ lvar _x tint $ Vptr b o) -∗
-    ⎡ ty_own ty Own (b, Ptrofs.signed o) ⎤ -∗
-    typed_stmt Espec ge (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) f
-               (λ v t, ⎡ (b, Ptrofs.signed o) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True).
-  Proof.
-  iIntros.
-  liRStep.
-  liRStep.
-  liRStep.
-  (* usually Info level 0 is able to see the tactic applied *)
-  Info 0 liRStep. (* type_assign *)
+End additional_instances.
 
-  Info 0 liRStep. (* type_Ecast_same_val *)
-  Info 0 liRStep. (* type_const_int *)
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
 
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
+#[export] Typeclasses Opaque adr2val.
 
-  liRStep.
-  liRStep.
-Qed.
-End automation_tests.
+Arguments find_in_context: simpl never.
+Arguments subsume: simpl never.
+Arguments FindVal: simpl never.
+Arguments case_destruct: simpl never.
+Arguments typed_if: simpl never.
+(* for triggering related_to_val_rep_v *)
+Arguments repinject: simpl never.
+Arguments sep_list: simpl never.
 
-From VST.typing Require Import automation_test.
-
-Global Instance related_to_val_embed `{!typeG OK_ty Σ} {cs : compspecs} A v ty : RelatedTo (λ x : A, (⎡v ◁ᵥ ty x⎤:(monPredI environ_index (ouPredI (iResUR Σ)))))%I | 100
-:= {| rt_fic := FindVal v |}.
-Global Instance related_to_val_embed2 `{!typeG OK_ty Σ} {cs : compspecs} A v ty : RelatedTo (λ x : A, (⎡v ◁ᵥ ty⎤:(monPredI environ_index (ouPredI (iResUR Σ)))))%I | 100
-:= {| rt_fic := FindVal v |}.
-
-Arguments find_in_context : simpl never.
-Arguments subsume : simpl never.
-Arguments FindVal  : simpl never.
-Arguments local : simpl never.
-Arguments locald_denote : simpl never.
-
-Lemma simple_subsume_val_to_subsume_embed `{!typeG OK_ty Σ} `{compspecs} (A:Type) (v : val) (ty1 : type) (ty2 : A → type) (P:A->mpred)
-  `{!∀ (x:A), SimpleSubsumeVal ty1 (ty2 x) (P x)} (T: A-> assert) :
-   (∃ x, (@embed mpred assert _ $ P x) ∗ T x) ⊢@{assert} subsume (⎡v ◁ᵥ ty1⎤) (λ x : A, ⎡v ◁ᵥ ty2 x⎤) T.
-Proof.
-  iIntros "H".
-  iDestruct "H" as (x) "[HP HT]".
-  unfold subsume. iIntros. iExists x. iFrame.
-  iStopProof; go_lowerx.
-  iIntros "[HP Hv]".
-  iApply (@simple_subsume_val with "HP Hv").
-Qed.
-
-Definition simple_subsume_val_to_subsume_embed_inst `{!typeG OK_ty Σ} `{compspecs} := [instance simple_subsume_val_to_subsume_embed].
-Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
-
-  Module f_test1.
-  Section f_test1.
-    Context `{!typeG OK_ty Σ} {cs : compspecs}.
-
-    Definition spec_f_ret_expr :=
-      fn(∀ () : (); emp) → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
-    Local Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-    Local Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
-    Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_ret_expr spec_f_ret_expr.
-    Proof.
-      type_function "f_ret_expr" ( x ).
-      repeat liRStep.
-    Qed.
-  End f_test1.
-  End f_test1.
-
-  Module f_test2.
-  Section f_test2.
-    Context `{!typeG OK_ty Σ} {cs : compspecs}.
-
-    Definition spec_f_temps :=
-      fn(∀ () : (); emp) → ∃ z : Z, (z @ (int tint)) ; ⌜z=42⌝.
-
-    Local Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-    Local Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
-    Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_temps spec_f_temps.
-    Proof.
-      type_function "f_ret_expr" ( x ).
-      repeat liRStep.
-  Qed.
-
-  End f_test2.
-  End f_test2.
+(* overwriting the solver in lithium base. 
+  This is to make `assert_is_trivial P` succeed when P is like
+  `Int.unsigned (Int.repr 1) ∈ tuint` so that when the goal is `P -> Q`,
+  we can throw P away. *)
+Ltac splitting_fast_done ::=
+    solve
+[ repeat first
+  [ fast_done
+  (* All the tactics below will introduce themselves anyway, or make no sense
+    for goals of product type. So this is a good place for us to do it. *)
+  | progress intros
+  | split ]
+| rep_lia
+].

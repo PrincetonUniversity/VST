@@ -5,6 +5,7 @@ Require Import VST.veric.res_predicates.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
+Require Import VST.veric.valid_pointer.
 Require Import VST.veric.expr2.
 Require Export VST.veric.environ_lemmas.
 Require Import VST.veric.binop_lemmas2.
@@ -143,7 +144,7 @@ unfold Clight_Cop2.sem_cmp, Clight_Cop2.sem_cmp_pl, Clight_Cop2.sem_cmp_lp, Clig
 Lemma eval_binop_relate:
  forall {CS: compspecs} Delta (ge: genv) te ve rho b e1 e2 t m
         (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge)),
-    rho = construct_rho (filter_genv ge) ve te ->
+    (* Do we actually need this? *)
     typecheck_environ Delta rho ->
     (mem_auth m ∗ denote_tc_assert (typecheck_expr Delta e1) rho ⊢
       ⌜Clight.eval_expr ge ve te m e1 (eval_expr e1 rho)⌝) ->
@@ -158,24 +159,14 @@ unfold typecheck_expr; fold typecheck_expr.
 simpl in *. super_unfold_lift.
 rewrite !denote_tc_assert_andp.
 iIntros "[Hm H]".
-iDestruct (H1 with "[$Hm H]") as %?.
+iDestruct (H0 with "[$Hm H]") as %?.
 { iDestruct "H" as "((_ & $) & _)". }
-iDestruct (H2 with "[$Hm H]") as %?.
+iDestruct (H1 with "[$Hm H]") as %?.
 { iDestruct "H" as "(_ & $)". }
 rewrite !typecheck_expr_sound; try assumption.
 iDestruct "H" as "[[H %] %]".
 by iApply (eval_binop_relate' with "[$]").
 Qed.
-
-Lemma valid_pointer_dry0:
-  forall m b ofs, mem_auth m ∗ valid_pointer (Vptr b ofs) ⊢
-           ⌜Mem.valid_pointer m b (Ptrofs.unsigned ofs) = true⌝.
-Proof.
-intros.
-rewrite <- (Z.add_0_r (Ptrofs.unsigned ofs)).
-apply valid_pointer_dry; auto.
-Qed.
-
 
 
 Definition some_pt_type := Tpointer Tvoid noattr.
@@ -211,7 +202,7 @@ forall {CS: compspecs} (Delta : tycontext) (rho : environ) (b : binary_operation
   (e1 e2 : expr) (t : type) m,
 typecheck_environ  Delta rho ->
 forall (ge : genv) te ve,
-rho = construct_rho (filter_genv ge) ve te ->
+(*rho = construct_rho (filter_genv ge) ve te ->*)
 denote_tc_assert (typecheck_expr Delta e2) rho ∧
 denote_tc_assert (isBinOpResultType b e1 e2 t) rho ∧
 denote_tc_assert (typecheck_expr Delta e1) rho ⊢
@@ -305,113 +296,6 @@ try rewrite (proj2 (eqb_type_false _ _) H);
 reflexivity.
 Qed.
 
-Definition cast_pointer_to_bool t1 t2 :=
- match t1 with (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
-           match t2 with Tint IBool _ _ => true | _ => false end
- | _ => false
-end.
-
-Lemma sem_cast_e1:
- forall t t1 v1 v m,
-   sem_cast t t1 v = Some v1 ->
-   cast_pointer_to_bool t t1 = false ->
-   tc_val t v ->
-   Cop.sem_cast v t t1 m = Some v1.
-Proof.
-intros.
-destruct (eqb_type t int_or_ptr_type) eqn:J;
- [apply eqb_type_true in J; subst t
- | apply eqb_type_false in J];
-(destruct (eqb_type t1 int_or_ptr_type) eqn:J0;
- [apply eqb_type_true in J0; subst t1
- | apply eqb_type_false in J0]).
-* unfold sem_cast, sem_cast_pointer in H; simpl in *.
-  rewrite -> N.eqb_refl in *.
-  simpl in H.
-  inv H.
-  destruct v1; auto; inv H1.
-*
-unfold sem_cast, classify_cast in H.
-destruct t1; [auto | | | auto ..].
-+
-destruct i,s; auto; try solve [destruct v; inv H]; try solve [inv H0];
-simpl in H;
-simpl;
-destruct Archi.ptr64; auto;
-destruct v; inv H1; inv H; auto.
-+ rewrite <- H; clear H.
-  unfold tc_val in H1.
-  rewrite eqb_type_refl in H1.
-  simpl in H1.
-  simpl in *.
-  solve [auto | destruct Archi.ptr64 eqn:?Hp; auto; destruct v; inv H1; auto].
-+
-destruct f; inv H.
-+
-clear H0.
-unfold int_or_ptr_type at 1 in H.
-inv H.
-simpl.
-destruct v1; inv H1; auto.
-*
-unfold sem_cast in H.
-destruct t; try solve [inv H].
-{
-  simpl in H.
-  rewrite N.eqb_refl in H.
-  simpl in H1.
-  destruct v; try inv H1.
-  simpl.
-  destruct Archi.ptr64 eqn:Hp; auto; inv Hp.
-}
-{
-unfold classify_cast in H.
-unfold int_or_ptr_type at 1 in H.
-inv H.
-simpl.
-unfold tc_val in H1.
-rewrite <- eqb_type_spec in J.
-destruct (eqb_type (Tpointer t a) int_or_ptr_type); [congruence |].
-hnf in H1.
-destruct v1; tauto.
-}
-{
-unfold classify_cast in H.
-unfold int_or_ptr_type at 1 in H.
-inv H.
-simpl.
-unfold tc_val in H1.
-hnf in H1.
-destruct v1; tauto.
-}
-{
-unfold classify_cast in H.
-unfold int_or_ptr_type at 1 in H.
-inv H.
-simpl.
-unfold tc_val in H1.
-hnf in H1.
-destruct v1; tauto.
-}
-*
-revert H.
-clear - J J0 H0 H1.
-unfold Cop.sem_cast, sem_cast.
-unfold Cop.classify_cast, classify_cast, sem_cast_pointer, 
- sem_cast_l2bool, sem_cast_i2bool.
-rewrite ?(proj2 (eqb_type_false _ _) J);
-rewrite ?(proj2 (eqb_type_false _ _) J0).
-destruct t1   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto;
-destruct t   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto; try discriminate H0;
- auto;
- destruct Archi.ptr64 eqn:Hp; auto;
- destruct v; auto; try contradiction;
- try solve [simpl in H1; rewrite Hp in H1; inv H1];
- try solve [simpl in H1; revert H1; simple_if_tac; intros []].
- 
- simpl in H1; revert H1; simple_if_tac; simpl; rewrite Hp; intros [].
-Qed.
-
 Lemma cop2_sem_cast' :
     forall {CS: compspecs} t2 e rho m,
   tc_val (typeof e) (eval_expr e rho) ->
@@ -501,7 +385,7 @@ Qed.
 Lemma eval_unop_relate:
  forall {CS: compspecs} Delta (ge: genv) te ve rho u e t m
  (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge))
- (H : rho = construct_rho (filter_genv ge) ve te)
+(* (H : matches_env rho ge ve te) *)
  (H0 : typecheck_environ Delta rho)
  (H1 : mem_auth m ∗ denote_tc_assert (typecheck_expr Delta e) rho ⊢
      ⌜Clight.eval_expr ge ve te m e (eval_expr e rho)⌝)
@@ -533,7 +417,7 @@ destruct u; simpl; destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | 
   unfold bool_val, bool_val_p in *;
   destruct (eval_expr e rho) eqn:He'; inversion Heqo; auto;
   try (iDestruct "H" as "[%Hptr H]"; rewrite -> Hptr in *; try contradiction).
-- by destruct Archi.ptr64; inv H4.
+- by destruct Archi.ptr64; inv H3.
 - rewrite denote_tc_assert_test_eq' /=; unfold_lift; rewrite /denote_tc_test_eq He'.
   destruct Archi.ptr64 eqn: Hp; try discriminate; simpl.
   iDestruct "H" as "(% & _ & H)".
@@ -567,7 +451,7 @@ Qed.
 Lemma eval_both_relate:
   forall {CS: compspecs} Delta ge te ve rho e m
            (Hcenv : cenv_sub (@cenv_cs CS) (genv_cenv ge)),
-           rho = construct_rho (filter_genv ge) ve te ->
+           env_matches rho ge ve te ->
            typecheck_environ Delta rho ->
            (mem_auth m ∗ denote_tc_assert (typecheck_expr Delta e) rho ⊢
              ⌜Clight.eval_expr ge ve te m e (eval_expr e rho)⌝)
@@ -585,7 +469,7 @@ simpl in *.
 unfold typecheck_expr.
 destruct (access_mode t) eqn:MODE; try iDestruct "H" as "[]".
 unfold get_var_type, eval_var in *.
-remember (Map.get (ve_of rho) i) as o; destruct o as [(?, ?)|];
+remember (lookup i (ve_of rho)) as o; destruct o as [(?, ?)|];
 try rewrite eqb_type_eq in *; simpl in *.
 rewrite eqb_type_eq in TC |- *; destruct (type_eq t t0); [|apply tc_val_Vundef in TC; contradiction].
 subst t0.
@@ -593,9 +477,7 @@ iPureIntro.
 apply Clight.eval_Elvalue with b Ptrofs.zero Full;
   [ | constructor; simpl; rewrite MODE; auto].
 apply eval_Evar_local.
-subst rho.
-simpl in Heqo. symmetry in Heqo; apply Heqo.
-subst rho.
+destruct H as (_ & -> & _). symmetry in Heqo; apply Heqo.
 unfold typecheck_environ in *.
 destruct H0 as [? [Hve Hge]].
 hnf in Hve,Hge.
@@ -607,12 +489,13 @@ destruct (Hge _ _ Hg) as [b Hfind]; rewrite Hfind.
 iPureIntro.
 apply Clight.eval_Elvalue with b Ptrofs.zero Full; [  | econstructor 2; apply MODE].
 apply Clight.eval_Evar_global; auto.
+{ by destruct H as (_ & -> & _). }
+{ by destruct H as (-> & _). }
 
 * (* eval_lvalue Evar *)
  unfold typecheck_lvalue.
  unfold get_var_type.
- subst rho; simpl in *.
- unfold eval_var.
+ unfold eval_lvalue, eval_var.
  destruct_var_types i eqn:HH1&HH2; rewrite -> ?HH1, ?HH2 in *;
   [| destruct_glob_types i eqn:HH3&HH4; rewrite -> ?HH3, ?HH4 in *; [| iDestruct "H" as "[]"]].
  +
@@ -621,18 +504,22 @@ apply Clight.eval_Evar_global; auto.
  apply eqb_type_true in Heqb0; subst t0.
  exists b; exists Ptrofs.zero; split; auto.
  constructor; auto.
+ by destruct H as (_ & -> & _).
  +
  iPureIntro.
  exists b; exists Ptrofs.zero; split; auto.
  constructor 2; auto.
+ { by destruct H as (_ & -> & _). }
+ { by destruct H as (-> & _ & _). }
 
 * (*temp*)
 iDestruct (typecheck_expr_sound with "H") as %TC; first done.
 simpl in *.
 iPureIntro.
-constructor. unfold eval_id in *. remember (Map.get (te_of rho) i);
+constructor. unfold eval_id in *. remember (lookup i (te_of rho));
 destruct o; subst; auto.
-apply tc_val_Vundef in TC; contradiction.
+{ by destruct H as (_ & _ & ->). }
+{ apply tc_val_Vundef in TC; contradiction. }
 
 * (*deref*)
 unfold typecheck_expr; fold typecheck_expr.
@@ -791,7 +678,7 @@ Qed.
 Lemma eval_expr_relate:
   forall {CS: compspecs} Delta ge te ve rho e m,
            cenv_sub (@cenv_cs CS) (genv_cenv ge) ->
-           rho = construct_rho (filter_genv ge) ve te ->
+           env_matches rho ge ve te ->
            typecheck_environ Delta rho ->
            mem_auth m ∗ denote_tc_assert (typecheck_expr Delta e) rho ⊢
              ⌜Clight.eval_expr ge ve te m e (eval_expr e rho)⌝.
@@ -803,7 +690,7 @@ Qed.
 Lemma eval_lvalue_relate:
   forall {CS: compspecs} Delta ge te ve rho e m,
            cenv_sub (@cenv_cs CS) (genv_cenv ge) ->
-           rho = construct_rho (filter_genv ge) ve te->
+           env_matches rho ge ve te ->
            typecheck_environ Delta rho ->
            mem_auth m ∗ denote_tc_assert (typecheck_lvalue Delta e) rho ⊢
              ⌜exists b, exists ofs,

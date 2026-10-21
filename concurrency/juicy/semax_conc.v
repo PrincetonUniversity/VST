@@ -1,16 +1,17 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.SeparationLogic.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.expr.
 Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.juicy.semax_conc_pred.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.field_at.
-(*Require Import VST.concurrency.conclib.*)
 Import Clightdefs.
 Import String.
 
-Definition voidstar_funtype := Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default.
+Definition voidstar_funtype := Tfunction (tptr tvoid :: nil) (tptr tvoid) cc_default.
 (* Definition tlock := Tstruct _lock_t noattr. *)
 Definition tlock := (Tarray (Tpointer Ctypes.Tvoid noattr) 2 noattr).
 
@@ -109,10 +110,13 @@ Qed.*)
 Definition acquire_arg_type: TypeTree := ProdType (ConstType (val * share)) Mpred.
 
 (* up *)
-#[export] Instance monPred_at_ne : NonExpansive (@monPred_at environ_index mpred : _ -> _ -d> _).
+#[export] Instance monPred_at_ne : NonExpansive (@monPred_at env_index mpred : _ -> _ -d> _).
 Proof. solve_proper. Qed.
 
 #[export] Instance monPred_at_args_ne : NonExpansive (@monPred_at argsEnviron_index mpred : _ -> _ -d> _).
+Proof. solve_proper. Qed.
+
+#[export] Instance monPred_at_post_ne : NonExpansive (@monPred_at post_index mpred : _ -> _ -d> _).
 Proof. solve_proper. Qed.
 
 Program Definition acquire_spec :=
@@ -123,7 +127,7 @@ Program Definition acquire_spec :=
      SEP (lock_inv sh v R)
   POST [ tvoid ]
      PROP ()
-     LOCAL ()
+     RETURN ()
      SEP (lock_inv sh v R; R).
 Next Obligation.
 Proof.
@@ -146,7 +150,7 @@ Program Definition release_spec :=
      SEP (<affine> exclusive_mpred R; lock_inv sh v R; R)
   POST [ tvoid ]
      PROP ()
-     LOCAL ()
+     RETURN ()
      SEP (lock_inv sh v R).
 Next Obligation.
 Proof.
@@ -167,7 +171,7 @@ Program Definition makelock_spec (cs : compspecs) : funspec :=
     SEP (data_at_ sh tlock v)
   POST [ tvoid ]
     PROP ()
-    LOCAL ()
+    RETURN ()
     SEP (lock_inv sh v R).
 Next Obligation.
 Proof.
@@ -187,7 +191,7 @@ Program Definition freelock_spec (cs : compspecs) : funspec :=
     SEP (exclusive_mpred R; lock_inv sh v R; R)
   POST [ tvoid ]
     PROP ()
-    LOCAL ()
+    RETURN ()
     SEP (data_at_ sh tlock v; R).
 Next Obligation.
 Proof.
@@ -218,7 +222,7 @@ Program Definition freelock2_spec (cs : compspecs) : funspec :=
     SEP (exclusive_mpred R; rec_inv sh' v Q R; lock_inv sh v R)
   POST [ tvoid ]
     PROP ()
-    LOCAL ()
+    RETURN ()
     SEP (data_at_ sh tlock v).
 Next Obligation.
 Proof.
@@ -240,7 +244,7 @@ Program Definition release2_spec: funspec :=
     SEP (exclusive_mpred R; rec_inv sh v Q R; R)
   POST [ tvoid ]
     PROP ()
-    LOCAL ()
+    RETURN ()
     SEP ().
 Next Obligation.
 Proof.
@@ -448,13 +452,13 @@ Program Definition spawn_spec :=
                SEP (pre x y)
              POST [ tptr tvoid ]
                PROP  ()
-               LOCAL ()
+               RETURN ()
                SEP   ())
            f);
          let 'existT _ ((gv, w), pre) := fs in valid_pointer b ∧ pre w b) (* Do we need the valid_pointer here? *)
   POST [ tvoid ]
     PROP ()
-    LOCAL ()
+    RETURN ()
     SEP ().
 Next Obligation.
 Proof.

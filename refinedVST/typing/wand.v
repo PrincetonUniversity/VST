@@ -1,12 +1,20 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
-From VST.typing Require Import programs.
+From VST.typing Require Import type_options.
+From iris_ora.algebra Require Import frac_auth ext_order excl.
+From VST.veric Require Import lifting.
+From compcert.cfrontend Require Import Clight.
+From VST.lithium Require Export proof_state.
+From lithium Require Import hooks.
+From VST.typing Require Export type.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
 
 Section wand.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Context {A : Type}.
-  Implicit Types (P : A → iProp Σ).
+  Implicit Types (P : A → assert).
 
   Program Definition wand_ex P (ty : A → type) : type := {|
     ty_own β l := match β return _ with
@@ -14,12 +22,12 @@ Section wand.
                   | Shr => True
                   end;
     ty_has_op_type _ _ := False%type;
-    ty_own_val _ := True;
+    ty_own_val _ _ := True;
   |}%I.
   Solve Obligations with try done.
   Next Obligation. iIntros (?????) "H". done. Qed.
   
-  Lemma subsume_wand B l P1 (P2 : B → A → iProp Σ) ty1 ty2 T:
+  Lemma subsume_wand B l P1 (P2 : B → A → assert) ty1 ty2 T:
     (* The trick is that we prove the wand at the very end so it can
     use all leftover resources. This only works if there is at most
     one wand per block (but this is enough for iterating over linked
@@ -66,42 +74,48 @@ Notation "wand< P , ty >" := (wand P ty)
   (only printing, format "'wand<' P ,  ty '>'") : printing_sugar.
 
 Section wand_val.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Context {A : Type}.
-  Implicit Types (P : A → iProp Σ).
+  Implicit Types (P : A → assert).
 
-  Program Definition wand_val_ex ly P (ty : A → type) : type := {|
-    ty_has_op_type ot mt := ot = ly; 
-    ty_own β l :=
-      ∃ v,  <affine> ⌜field_compatible ly [] l⌝ ∗
-                        <affine> ⌜field_compatible ly [] v ⌝ ∗ l ↦_ly[β] v ∗
+  Program Definition wand_val_ex P (cty: Ctypes.type) (ty : A → type) : type := {|
+    ty_has_op_type ot mt := (ot = cty ∧ type_is_by_value cty = true)%type; 
+    ty_own β l := ∃ v, <affine> ⌜l `has_layout_loc` cty⌝ ∗ <affine> ⌜v `has_layout_val` cty⌝ ∗
+                                   l ↦[β]|cty| v ∗
         match β return _ with
-        | Own => ∀ x, P x -∗ v ◁ᵥ (ty x)
+        | Own => ∀ x, P x -∗ v ◁ᵥ|cty| (ty x)
         | Shr => True
         end;
-     ty_own_val v := (<affine> ⌜field_compatible ly [] v⌝ ∗ ∀ x, P x -∗ v ◁ᵥ (ty x))%I;
+    ty_own_val cty v :=  <affine> ⌜v `has_layout_val` cty⌝ ∗
+                                    ∀ x, P x -∗ v ◁ᵥ|cty| (ty x)%I;
   |}%I.
   Next Obligation.
-    iIntros (??????) "H". iDestruct "H" as (v) "(Hly1&Hly2&Hl&_)".
-    iMod (heap_mapsto_own_state_share with "Hl") as "Hl". eauto with iFrame.
+    iIntros (??????) "H".
+    iDestruct "H" as (v) "(%&%&Hly&Hl)".
+    iMod (heap_mapsto_own_state_share with "Hly") as "Hly". eauto with iFrame.
   Qed. 
-  Next Obligation. iIntros (??????->) "Hl". iDestruct "Hl" as (?) "[$ _]". Qed.
-  Next Obligation. iIntros (???????) "Hl".
-                   iDestruct "Hl" as (v) "(% & % & Hl1 & Hl2)".
-                   rewrite / heap_mapsto_own_state.
-                   iExists _. iFrame.
-                   simpl in H. rewrite H. by iFrame. Qed.
-  Next Obligation. iIntros (?????????) "Hl".
-                   iIntros "(% & H3)".
-                   rewrite /heap_mapsto_own_state.
-                   iExists _. iFrame.
-                   simpl in H.
-                   rewrite H. iFrame.
-                   iPureIntro.
-                   split; auto.
-                   subst. done. Qed.
-
+  Next Obligation.
+    iIntros (??????(->&?)) "Hl".
+    by iDestruct "Hl" as (?) "(% & _)".
+  Qed.
+  Next Obligation.
+    iIntros (???????) "(? &?)"; done.
+  Qed.
+  Next Obligation.
+    iIntros (??????([=]&?)) "Hl"; subst.
+    iDestruct "Hl" as (?) "(% & % & Hl & HP)".
+    by iFrame.
+  Qed.
+  Next Obligation.
+    iIntros (???????([=]&?)?) "Hl"; subst.
+    iIntros "(% & HP)".
+    rewrite /heap_mapsto_own_state.
+    iExists v_rep.
+    do 2 (iSplit; try done).
+    iFrame.
+  Qed.
+  
   (*
   Global Instance wand_val_loc_in_bounds P ly β (ty : A → type):
     LocInBounds (wand_val_ex ly P ty) β (ly_size ly).
@@ -112,13 +126,13 @@ Section wand_val.
   Qed.
   *)
   
-  Lemma subsume_wand_val B v ly1 ly2 P1 (P2 : B → A → iProp Σ) ty1 ty2 T:
+  Lemma subsume_wand_val B v ly2 P1 (P2 : B → A → assert) cty ty1 ty2 T:
     (* The trick is that we prove the wand at the very end so it can
     use all leftover resources. This only works if there is at most
     one wand per block (but this is enough for iterating over linked
     lists). *)
-    (∃ z, <affine> ⌜ly1 = ly2 z⌝ ∗ T z ∗ (∀ x, P2 z x -∗ ∃ y, P1 y ∗ (v ◁ᵥ ty1 y -∗ v ◁ᵥ ty2 z x ∗ <affine> True)))
-    ⊢ subsume (v ◁ᵥ wand_val_ex ly1 P1 ty1) (λ z : B, v ◁ᵥ wand_val_ex (ly2 z) (P2 z) (ty2 z)) T.
+    (∃ z, <affine> ⌜cty = ly2 z⌝ ∗ T z ∗ (∀ x, P2 z x -∗ ∃ y, P1 y ∗ (v ◁ᵥₐₗ|cty| ty1 y -∗ v ◁ᵥₐₗ|cty| ty2 z x ∗ <affine> True)))
+      ⊢ subsume (v ◁ᵥₐₗ|cty| wand_val_ex P1 cty ty1) (λ z : B, v ◁ᵥₐₗ|cty| wand_val_ex  (P2 z) (ly2 z) (ty2 z)) T.
   Proof.
     iIntros "(%&->&?&Hwand) (%&Hty1)". iExists _. iFrame. iSplit; [done|].
     iIntros (x) "HP2". iDestruct ("Hwand" with "HP2") as (y) "[HP1 Hwand]".
@@ -127,9 +141,9 @@ Section wand_val.
   Definition subsume_wand_val_inst := [instance subsume_wand_val].
   Global Existing Instance subsume_wand_val_inst.
 
-  Lemma simplify_hyp_resolve_wand_val v ly P ty T:
-    (∃ x, P x ∗ (v ◁ᵥ ty x -∗ T))
-    ⊢ simplify_hyp (v ◁ᵥ wand_val_ex ly P ty) T.
+  Lemma simplify_hyp_resolve_wand_val v cty P ty T:
+    (∃ x, P x ∗ (v ◁ᵥₐₗ|cty| ty x -∗ T))
+      ⊢ simplify_hyp (v ◁ᵥₐₗ|cty| wand_val_ex P cty ty) T.
   Proof.
     iDestruct 1 as (x) "[HP HT]". iIntros "[_ Hwand]".
     iApply "HT". by iApply "Hwand".
@@ -138,11 +152,11 @@ Section wand_val.
   Definition simplify_hyp_resolve_wand_val_inst := [instance simplify_hyp_resolve_wand_val with 9%N].
   Global Existing Instance simplify_hyp_resolve_wand_val_inst.
 
-  Lemma simplify_goal_wand_val v P ly ty T:
-    simplify_goal (v ◁ᵥ wand_val_ex ly P ty) T :-
+  Lemma simplify_goal_wand_val v P cty ty T:
+    simplify_goal (v ◁ᵥₐₗ|cty| wand_val_ex P cty ty) T :-
     and:
-    | drop_spatial; ∀ x, inhale P x; exhale v ◁ᵥ ty x; done
-    | exhale (<affine> ⌜field_compatible ly [] v⌝); return T.
+  | drop_spatial; ∀ x, inhale P x; exhale v ◁ᵥₐₗ|cty| ty x; done
+  | exhale (<affine> ⌜(valinject (val_type cty) v) `has_layout_val` (val_type cty)⌝); return T.
   Proof.
     iIntros "[#Hwand [% $]]". iSplit; [done|].
     iIntros (?) "?". iDestruct ("Hwand" with "[$]") as "[H1 H2]". iFrame "H1".

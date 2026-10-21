@@ -1,5 +1,5 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Import VST.floyd.base2.
+Require Import VST.floyd.base.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.fieldlist.
 Require Import VST.floyd.computable_theorems.

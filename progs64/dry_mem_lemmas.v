@@ -256,6 +256,7 @@ Proof.
   2: { apply Zlength_cons. }
   rewrite sublist_0_cons // sublist_nil sublist_1_cons sublist_same //; last lia.
   rewrite -data_at_tuchar_singleton_array.
+  rewrite simple_mapsto.mapsto_weaken.
   erewrite mapsto_data_at' by done.
   rewrite /field_address0 if_true /=.
   by iFrame.

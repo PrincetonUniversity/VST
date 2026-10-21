@@ -2,10 +2,10 @@ Require Import Stdlib.Setoids.Setoid.
 Require Import VST.zlist.sublist.
 Require Import iris.bi.monpred.
 Require Import iris.proofmode.proofmode.
-Set Warnings "-notation-overridden".
+Set Warnings "-notation-overridden,-hiding-delimiting-key".
 From iris_ora.logic Require Import oupred.
+Set Warnings "notation-overridden,hiding-delimiting-key".
 Require Import VST.msl.Extensionality.
-Set Warnings "notation-overridden".
 
 Local Open Scope bi_scope.
 
@@ -125,6 +125,12 @@ Proof.
   intros.
   replace P with False%type; first apply False_and.
   apply prop_ext; tauto.
+Qed.
+
+Lemma pure_and : forall (P Q : Prop), bi_pure(PROP := ouPredI M) (P /\ Q) = (⌜P⌝ ∧ ⌜Q⌝).
+Proof.
+  intros.
+  ouPred.unseal. apply IProp_eq; extensionality n x; apply prop_ext; done.
 Qed.
 
 Lemma exp_comm : forall {B C} (P: B -> C -> ouPred M),

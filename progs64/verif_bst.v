@@ -842,28 +842,28 @@ Proof.
 do_funspec_sub.
 rewrite <- fupd_intro.
 Intros.
-Exists (emp : mpred). entailer!!.
-intros tau ? ?. Exists (eval_id ret_temp tau). entailer!!.
+Exists tt (emp : mpred). entailer!!.
+Exists a. entailer!!.
 unfold tmap_rep.
 Exists (empty_tree val).
 unfold treebox_rep.
 Exists nullval.
 entailer!!.
 constructor.
-simpl. entailer!!. 
+simpl. entailer!!.
 Qed.
 
 Lemma subsume_treebox_free:
  funspec_sub (snd treebox_free_spec) (snd abs_treebox_free_spec).
 Proof.
-do_funspec_sub. destruct w as [m p]. clear H.
+do_funspec_sub. destruct w as [m p]. simpl; clear H.
 rewrite <- fupd_intro.
 Intros.
 subst.
-unfold env_set, eval_id in *. simpl in *. 
 unfold tmap_rep.
 Intros t.
 Exists (t,p) (emp : mpred). simpl. entailer!!.
+entailer!!.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.

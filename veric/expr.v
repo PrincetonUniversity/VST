@@ -16,6 +16,11 @@ Import Ctypes.
 Definition sizeof {cs: compspecs} t := @Ctypes.sizeof (@cenv_cs cs) t.
 Definition alignof {cs: compspecs} t := @Ctypes.alignof (@cenv_cs cs) t.
 
+Lemma sizeof_pos: forall {cs: compspecs} (t: type), sizeof t >= 0.
+Proof. intros. apply Ctypes.sizeof_pos. Qed.
+Lemma alignof_pos: forall {cs: compspecs} (t: type), alignof t > 0.
+Proof. intros. apply Ctypes.alignof_pos. Qed.
+
 (** Functions for evaluating expressions in environments,
 these return vundef if something goes wrong, meaning they always return some value **)
 
@@ -68,7 +73,7 @@ Definition eval_field {CS: compspecs} (ty: type) (fld: ident) : val -> val :=
           end.
 
 Definition eval_var (id:ident) (ty: type) (rho: environ) : val :=
-                         match Map.get (ve_of rho) id with
+                         match lookup id (ve_of rho) with
                          | Some (b,ty') => if eqb_type ty ty'
                                                     then Vptr b Ptrofs.zero
                                                     else Vundef
@@ -863,12 +868,12 @@ Qed.
 
 Definition expr_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : Prop :=
   forall rho te',
-     (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
+     (forall i, S i \/ lookup i (te_of rho) = lookup i te') ->
      eval_expr e rho = eval_expr e (mkEnviron (ge_of rho) (ve_of rho) te').
 
 Definition lvalue_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : Prop :=
   forall rho te',
-     (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
+     (forall i, S i \/ lookup i (te_of rho) = lookup i te') ->
      eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) (ve_of rho) te').
 
 
@@ -923,6 +928,9 @@ Definition valid_pointer (p: val) : mpred :=
 
 Definition weak_valid_pointer (p: val) : mpred :=
  (valid_pointer' p 0) ∨ (valid_pointer' p (-1)).
+
+Global Instance weak_valid_pointer_absorbing p : Absorbing (weak_valid_pointer p).
+Proof.  apply _. Qed.
 
 Lemma func_at_valid_pointer {phi b z} (Hz: 0 <= z <= Ptrofs.max_unsigned):
       func_at phi (b,z) ⊢ valid_pointer (Vptr b (Ptrofs.repr z)).
@@ -1085,13 +1093,12 @@ Global Arguments typecheck_lvalue {_ _ _} _ !e / : simpl nomatch.
 
 Lemma typecheck_var_environ_None: forall ve vt,
   typecheck_var_environ ve vt ->
-  forall i,
-  vt !! i = None <-> Map.get ve i = None.
+  forall (i : ident),
+  vt !! i = None <-> lookup i ve = None.
 Proof.
   intros.
-  destruct (vt !! i) eqn:?H, (Map.get ve i) eqn:?H; try (split; congruence).
-  + apply H in H0.
-    destruct H0; congruence.
+  destruct (vt !! i) eqn:?H, (ve !! i)%stdpp eqn:?H; try (split; congruence).
+  + apply H in H0 as (? & ?); congruence.
   + destruct p.
     assert (vt !! i = Some t) by (apply H; eauto).
     congruence.
@@ -1101,8 +1108,8 @@ Qed.
 Lemma WARNING___________you_should_use_tactic___destruct_var_types___instead:
   forall (ve : venviron) (vt : Maps.PTree.t type), typecheck_var_environ ve vt -> forall i : ident,
      match vt !! i with
-     | Some t => exists b, Map.get ve i = Some (b, t)
-     | None => Map.get ve i = None
+     | Some t => exists b, lookup i ve = Some (b, t)
+     | None => lookup i ve = None
      end.
 Proof.
   intros.

@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Import type.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
 (** This file collects options for files with type definitions.
 

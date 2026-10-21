@@ -14,6 +14,48 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
+Lemma local_and_sep_assoc : forall (P : environ -> Prop) (Q R : assert), (local P ∧ (Q ∗ R)) = ((local P ∧ Q) ∗ R).
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal.
+  rewrite sepcon_andp_prop' //.
+Qed.
+
+Lemma local_and_sep_assoc' : forall (P : assert) (Q : environ -> Prop) (R : assert), (P ∗ (local Q ∧ R)) = (local Q ∧ (P ∗ R)).
+Proof.
+  intros; rewrite sep_comm' -local_and_sep_assoc sep_comm' //.
+Qed.
+
+Lemma local_and_sep_assoc2 : forall (P : environ -> Prop) (Q R : assert), (local P ∧ (Q ∗ R)) = ((Q ∧ local P) ∗ R).
+Proof.
+  intros; rewrite (and_comm' Q); apply local_and_sep_assoc.
+Qed.
+
+Lemma local_and_sep_assoc2' : forall (P : assert) (Q : environ -> Prop) (R : assert), (P ∗ (R ∧ local Q)) = (local Q ∧ (P ∗ R)).
+Proof.
+  intros; rewrite (and_comm' R); apply local_and_sep_assoc'.
+Qed.
+
+Lemma pure_and_sep_assoc : forall (P : Prop) (Q R : assert), (⌜P⌝ ∧ (Q ∗ R)) = ((⌜P⌝ ∧ Q) ∗ R).
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal.
+  rewrite sepcon_andp_prop' //.
+Qed.
+
+Lemma pure_and_sep_assoc' : forall (P : assert) (Q : Prop) (R : assert), (P ∗ (⌜Q⌝ ∧ R)) = (⌜Q⌝ ∧ (P ∗ R)).
+Proof.
+  intros; rewrite sep_comm' -pure_and_sep_assoc sep_comm' //.
+Qed.
+
+Lemma pure_and_sep_assoc2 : forall (P : Prop) (Q R : assert), (⌜P⌝ ∧ (Q ∗ R)) = ((Q ∧ ⌜P⌝) ∗ R).
+Proof.
+  intros; rewrite (and_comm' Q); apply pure_and_sep_assoc.
+Qed.
+
+Lemma pure_and_sep_assoc2' : forall (P : assert) (Q : Prop) (R : assert), (P ∗ (R ∧ ⌜Q⌝)) = (⌜Q⌝ ∧ (P ∗ R)).
+Proof.
+  intros; rewrite (and_comm' R); apply pure_and_sep_assoc'.
+Qed.
+
 Lemma SEP_entail:
  forall R' Delta P Q R,
    (fold_right_sepcon R ⊢ fold_right_sepcon R') ->
@@ -239,61 +281,6 @@ Proof.
   + destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?; simpl; split; congruence.
 Qed.
 
-Definition retval : environ -> val := eval_id ret_temp.
-
-Lemma simpl_get_result1:
- forall (f: val -> Prop) i, @liftx (Tarrow environ (LiftEnviron Prop)) (@liftx (Tarrow val (LiftEnviron Prop))f retval) (get_result1 i) = `f (eval_id i).
-Proof.
-intros; extensionality rho.
-unfold_lift; unfold retval, get_result1.
-f_equal.
-Qed.
-
-Lemma retval_get_result1:
-   forall i rho, retval (get_result1 i rho) = (eval_id i rho).
-Proof. intros. unfold retval, get_result1. simpl.
- normalize.
-Qed.
-
-Lemma retval_ext_rval:
-  forall ge t v, retval (make_ext_rval ge t v) = force_val v.
-Proof.
- intros. unfold retval, eval_id; simpl. unfold make_ext_rval; simpl.
-destruct t eqn:?H;  destruct v eqn:?H; simpl; auto.
-Abort.
-
-Lemma retval_lemma1:
-  forall rho v,     retval (env_set rho ret_temp v) = v.
-Proof.
- intros. unfold retval.  normalize.
-Qed.
-
-Lemma retval_make_args:
-  forall v rho, retval (make_args (ret_temp::nil) (v::nil) rho) = v.
-Proof. intros.  unfold retval, eval_id; simpl. try rewrite Map.gss. reflexivity.
-Qed.
-
-(*Lemma andp_makeargs:
-   forall (a b: assert) d e,
-   `(a ∧ b) (make_args d e) = `a (make_args d e) ∧ `b (make_args d e).
-Proof. intros. reflexivity. Qed.
-
-Lemma local_makeargs:
-   forall (f: val -> Prop) v,
-   `(local (`(f) retval)) (make_args (cons ret_temp nil) (cons v nil))
-    = (local (`(f) `(v))).
-Proof. intros. reflexivity. Qed.
-
-Lemma simpl_and_get_result1:
-  forall (Q R: assert) i,
-    `(Q ∧ R) (get_result1 i) = `Q (get_result1 i) ∧ `R (get_result1 i).
-Proof. intros. reflexivity. Qed.
-
-Lemma liftx_local_retval:
-  forall (P: val -> Prop) i,
-   `(local (`P retval)) (get_result1 i) = local (`P (eval_id i)).
-Proof. intros. reflexivity. Qed.*)
-
 Lemma Vint_inj': forall i j,  (Vint i = Vint j) = (i=j).
 Proof. intros; apply prop_ext; split; intro; congruence. Qed.
 
@@ -462,7 +449,7 @@ intros.
 rewrite typecheck_lvalue_sound //.
 apply bi.pure_mono; simpl; intros.
 unfold eval_var in *.
-destruct (Map.get (ve_of rho) i) as [[? ?] |].
+destruct (ve_of rho !! i)%stdpp as [[? ?] |].
 destruct (eqb_type t t0); try discriminate; reflexivity.
 destruct (Map.get (ge_of rho) i).
 reflexivity.
@@ -589,20 +576,6 @@ Lemma raise_sepcon:
  forall A B : assert,
     assert_of (fun rho: environ => A rho ∗ B rho) = (A ∗ B).
 Proof. intros; apply assert_ext; intros; monPred.unseal; done. Qed.
-
-Lemma lift1_lift1_retval {A}: forall i (P: val -> A),
-lift1 (lift1 P retval) (get_result1 i) = lift1 P (eval_id i).
-Proof. intros.  extensionality rho.
-  unfold lift1.  f_equal; normalize.
-Qed.
-
-Lemma lift_lift_retval:
-  forall (i: ident) P,
-   @liftx (Tarrow environ (LiftEnviron mpred))
-     (@liftx (Tarrow val (LiftEnviron mpred)) P retval) (get_result1 i) = `P (eval_id i).
-Proof.
- reflexivity.
-Qed.
 
 Lemma lift_lift_x:  (* generalizes lift_lift_val *)
   forall t t' P (v: t),
@@ -732,12 +705,12 @@ Definition convertPre' (f: funsig) A
   (Pre: A -> assert)  (w: A) (ae: argsEnviron) : mpred :=
  ⌜length (snd ae) = length (fst f)⌝ ∧
  Pre w (make_args (map fst (fst f)) (snd ae)
-    (mkEnviron (fst ae) (Map.empty (block*type)) (Map.empty val))).
+    (mkEnviron (fst ae) ∅ ∅)).
 
 Definition convertPre f A Pre w := argsassert_of (convertPre' f A Pre w).
 
 Definition mk_funspec' (f: funsig) (cc: calling_convention)
-  (A: Type) (Pre Post: A -> assert): funspec :=
+  (A: Type) (Pre: A -> assert) (Post: A -> postassert): funspec :=
   NDmk_funspec (typesig_of_funsig f) cc
   A (convertPre f A Pre) Post.
 
@@ -757,7 +730,7 @@ end.
 
 Definition ImpossibleFunspec :=
    NDmk_funspec (nil,Tvoid) cc_default (Impossible)
-        (fun _ => False : argsassert) (fun _ => False : assert).
+        (fun _ => False : argsassert) (fun _ => False : postassert).
 
 Lemma prop_true_andp1 :
   forall {B : bi} (P1 P2: Prop) (Q : B),
@@ -837,9 +810,14 @@ Proof.
   unfold stackframe_of; simpl; intros.
   unfold subst.
   intros; apply assert_ext; intros; simpl.
-  induction (fn_vars f); simpl; [|revert IHl]; unfold var_block; monPred.unseal; first done; intros; simpl.
-  rewrite IHl.
-  rewrite /var_block; done.
+  induction (fn_vars f); [simpl; monPred.unseal; done|].
+  simpl; revert IHl.
+  unfold var_block.
+  intros.
+  (* has to hide the bi_sep in `big_opL bi_sep` from monPred.unseal *)
+  set ((big_opL _ _ _)) as b.
+  monPred.unseal.
+  rewrite  -IHl //.
 Qed.
 
 Lemma remove_localdef_temp_PROP: forall (i: ident) P Q R,
@@ -900,7 +878,7 @@ Proof.
 Qed.
 
 Lemma subst_PROP_LOCAL_SEP : forall P Q R i v,
-  assert_of (subst i v (PROPx P (LOCALx Q (SEPx R)))) ≡ PROPx P ((seplog.local (subst i v (foldr (` and) (` True%type) (map locald_denote Q)))) ∧ SEPx R).
+  assert_of (subst i v (PROPx P (LOCALx Q (SEPx R)))) ≡ PROPx P ((local (subst i v (foldr (` and) (` True%type) (map locald_denote Q)))) ∧ SEPx R).
 Proof.
   intros; rewrite /subst /PROPx /LOCALx /SEPx.
   split => rho; simpl; monPred.unseal; done.
@@ -1010,14 +988,6 @@ Proof.
  - autorewrite with subst. f_equiv; auto.
 Qed.
 
-Lemma unsigned_eq_eq: forall i j, Int.unsigned i = Int.unsigned j -> i = j.
-Proof.
-  intros.
-  rewrite <- (Int.repr_unsigned i), <- (Int.repr_unsigned j).
-  rewrite H.
-  reflexivity.
-Qed.
-
 Lemma wand_join:
   forall {BI : bi} (x1 x2 y1 y2: BI),
     (x1 -∗ y1) ∗ (x2 -∗ y2) ⊢ ((x1 ∗ x2) -∗ (y1 ∗ y2)).
@@ -1121,10 +1091,6 @@ End VST.
 
 #[export] Hint Rewrite eval_id_same : norm.
 #[export] Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : norm.
-#[export] Hint Rewrite simpl_get_result1: norm.
-#[export] Hint Rewrite retval_get_result1 : norm.
-#[export] Hint Rewrite retval_lemma1 : norm.
-#[export] Hint Rewrite retval_make_args: norm2.
 (*#[export] Hint Rewrite andp_makeargs: norm2.
 #[export] Hint Rewrite local_makeargs: norm2.
 #[export] Hint Rewrite liftx_local_retval : norm2.*)
@@ -1187,7 +1153,6 @@ Arguments ret_type {_ _} !Delta /.
 Arguments Datatypes.id {A} x / .
 
 #[export] Hint Rewrite @raise_sepcon : norm1.
-#[export] Hint Rewrite @lift_lift_retval: norm2.
 #[export] Hint Rewrite lift_lift_x : norm2.
 #[export] Hint Rewrite @lift0_exp : norm2.
 #[export] Hint Rewrite @lift0C_exp : norm2.
@@ -1198,15 +1163,11 @@ Arguments Datatypes.id {A} x / .
 #[export] Hint Rewrite @lift0C_prop : norm.
 
 #[export] Hint Rewrite
-    @lift1_lift1_retval
     @lift0_exp
     @lift0_sepcon
     @lift0_prop
     @lift0_later
     : norm2.
-
-Lemma derives_refl {BI : bi} (P : BI) : P ⊢ P.
-Proof. done. Qed.
 
 #[export] Hint Rewrite @fst_unfold @snd_unfold : norm.
 #[export] Hint Rewrite @local_andp_prop @local_andp_prop1 : norm2.
@@ -1259,7 +1220,7 @@ Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
 
 Definition NDsemax_external `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} (ef: external_function)
-  (A: Type) E (P:A -> argsassert) (Q: A -> assert): Prop :=
+  (A: Type) E (P:A -> argsassert) (Q: A -> postassert): Prop :=
   ⊢ semax_external ef (ConstType A) E (λne (x : leibnizO A), P x : _ -d> mpred) (λne (x : leibnizO A), Q x : _ -d> mpred).
 
 Notation "'WITH' x : tx 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
@@ -1951,10 +1912,6 @@ Ltac saturate_local :=
 Ltac prop_right_cautious :=
  try solve [simple apply bi.pure_intro; auto].
 
-Ltac subst_any :=
- repeat match goal with
-  | H: ?x = ?y |- _ => first [ subst x | subst y ]
- end.
 Ltac solve_mod_eq :=
   unfold Int.add, Int.mul;
   repeat rewrite Int.unsigned_repr_eq;

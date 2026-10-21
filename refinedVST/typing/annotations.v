@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Import base.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
 Inductive to_uninit_annot : Type :=
   ToUninit.

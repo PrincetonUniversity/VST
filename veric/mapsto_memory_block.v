@@ -111,15 +111,16 @@ destruct sz, sgn; auto; try lia.
 - destruct H; subst; by compute.
 Qed.
 
-Definition writable_block (id: ident) (n: Z): environ -> mpred :=
-   fun rho => 
-        ∃ b: block,  ∃ sh: Share.t,
-          ⌜writable_share sh /\ ge_of rho id = Some b⌝ ∧ VALspec_range n sh (b, 0).
+Context `{!envGS Σ}.
 
-Fixpoint writable_blocks (bl : list (ident*Z)) : environ -> mpred :=
+Definition writable_block (id: ident) (n: Z): mpred :=
+  ∃ b: block, ∃ sh: Share.t, ⌜writable_share sh⌝ ∧
+    seplog.gvar id b ∗ VALspec_range n sh (b, 0).
+
+Fixpoint writable_blocks (bl : list (ident*Z)) : mpred :=
  match bl with
-  | nil =>  fun rho => emp
-  | (b,n)::bl' =>  fun rho => writable_block b n rho ∗ writable_blocks bl' rho
+  | nil => emp
+  | (b,n)::bl' => writable_block b n ∗ writable_blocks bl'
  end.
 
 Fixpoint address_mapsto_zeros (sh: share) (n: nat) (adr: address) : mpred :=
@@ -233,6 +234,20 @@ Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  | _ => False
  end.
 
+Lemma mapsto__exp_address_mapsto1: forall sh t b i_ofs, readable_share sh ->
+  mapsto_ sh t (Vptr b i_ofs) ⊢ ∃ ch, ⌜access_mode t = By_value ch⌝ ∧ ∃ v2' : val,
+            address_mapsto ch v2' sh (b, (Ptrofs.unsigned i_ofs)).
+Proof.
+  intros.
+  unfold mapsto_, mapsto.
+  destruct (access_mode t); try by iIntros "[]".
+  destruct (type_is_volatile t); try by iIntros "[]".
+  destruct (readable_share_dec sh); last done.
+  rewrite -> bi.pure_False by apply tc_val_Vundef.
+  rewrite bi.False_and bi.False_or bi.pure_True; last done.
+  rewrite bi.True_and; auto.
+Qed.
+
 Lemma mapsto__exp_address_mapsto: forall sh t b i_ofs ch,
   access_mode t = By_value ch ->
   type_is_volatile t = false ->
@@ -270,6 +285,33 @@ Proof.
   intros.
   rewrite exp_address_mapsto_VALspec_range_eq bi.pure_True; last done.
   by rewrite bi.True_and.
+Qed.
+
+Lemma mapsto__memory_block1: forall {cs : compspecs} sh b ofs t,
+  Ptrofs.unsigned ofs + sizeof t < Ptrofs.modulus ->
+  mapsto_ sh t (Vptr b ofs) ⊢ memory_block sh (sizeof t) (Vptr b ofs).
+Proof.
+  intros.
+  unfold memory_block.
+  rewrite memory_block'_eq.
+  2: pose proof Ptrofs.unsigned_range ofs; lia.
+  2: rewrite -> Z2Nat.id by (pose proof sizeof_pos t; lia); lia.
+  rewrite bi.pure_True; last done.
+  rewrite bi.True_and.
+  unfold memory_block'_alt.
+  rewrite -> Z2Nat.id by (pose proof sizeof_pos t; lia).
+  destruct (readable_share_dec sh).
+ * rewrite -> mapsto__exp_address_mapsto1; last done.
+   iIntros "(% & % & H)".
+   rewrite (size_chunk_sizeof _ _ ch); last done.
+   rewrite exp_address_mapsto_VALspec_range_eq.
+   iDestruct "H" as "(_ & $)".
+ * unfold mapsto_, mapsto.
+  destruct (access_mode t) as [ch | | |] eqn: Hch; try by iIntros "[]".
+  destruct (type_is_volatile t); try by iIntros "[]".
+  rewrite (size_chunk_sizeof _ _ ch); last done.
+  rewrite -> if_false by auto.
+  iIntros "(_ & $)".
 Qed.
 
 Lemma mapsto__memory_block: forall sh b ofs t ch,
@@ -1020,15 +1062,6 @@ Proof.
 Qed.
 
 (* Timeless *)
-(* up? *)
-Lemma big_sepL_timeless' {A} (f : nat -> A -> mpred) l `(∀ k v, Timeless (f k v)) : l ≠ [] -> Timeless ([∗ list] k↦v ∈ l, f k v).
-Proof.
-  generalize dependent f; induction l; first done; simpl; intros.
-  destruct l.
-  - rewrite /= right_id //.
-  - apply bi.sep_timeless; first done.
-    by apply IHl.
-Qed.
 
 Global Instance mapsto_val_timeless l dq v : Timeless (l ↦{dq} VAL v).
 Proof.
@@ -1067,24 +1100,16 @@ Proof.
   intros; if_tac; try apply _.
   apply bi.exist_timeless; intros; apply bi.and_timeless; try apply _.
   apply mapsto_timeless; done.
-  { destruct (Z.to_nat _) eqn: Hn; try done.
-    pose proof (size_chunk_pos m); lia. }
 Qed.
 
-Lemma memory_block'_timeless sh n b o : (n > 0)%nat -> Timeless (memory_block' sh n b o).
+Global Instance memory_block'_timeless sh n b o : Timeless (memory_block' sh n b o).
 Proof.
-  revert o; induction n; simpl; first lia; intros.
-  destruct (gt_dec n O).
-  - apply bi.sep_timeless; [apply _ | eauto].
-  - replace n with O by lia; rewrite bi.sep_emp; apply _.
+  revert o; induction n; apply _.
 Qed.
 
-Lemma memory_block_timeless sh z p : z > 0 -> Timeless (memory_block sh z p).
+Global Instance memory_block_timeless sh z p : Timeless (memory_block sh z p).
 Proof.
-  intros.
-  destruct p; simpl; try apply _.
-  apply bi.and_timeless; first apply _.
-  apply memory_block'_timeless; lia.
+  destruct p; apply _.
 Qed.
 
 End mpred.

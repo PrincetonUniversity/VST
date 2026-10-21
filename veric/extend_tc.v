@@ -10,6 +10,9 @@ Require Import VST.veric.binop_lemmas4.
 Require Import VST.veric.expr_lemmas.
 
 Require Import VST.veric.seplog. (*For definition of tycontext*)
+Require Import VST.veric.lifting_expr.
+Require Import VST.veric.env_pred.
+Require Import VST.veric.lifting.
 Import LiftNotation.
 
 Section mpred.
@@ -104,19 +107,6 @@ Section CENV_SUB.
     apply denote_tc_assert_cenv_sub; auto.
   Qed.
 
-Lemma entails_refl : forall (P : mpred), P ⊢ P.
-Proof. done. Qed.
-
-Lemma pure_intro_l : forall (P : Prop) (Q R : mpred), P -> (Q ⊢ R) -> Q ⊢ ⌜P⌝ ∧ R.
-Proof.
-  intros ???? ->; iIntros "$"; auto.
-Qed.
-
-Lemma pure_intro_r : forall (P : Prop) (Q R : mpred), P -> (Q ⊢ R) -> Q ⊢ R ∧ ⌜P⌝.
-Proof.
-  intros ???? ->; iIntros "$"; auto.
-Qed.
-
 Ltac tc_expr_cenv_sub_tac := 
 repeat
 match goal with
@@ -177,14 +167,14 @@ Lemma tc_expr_cenv_sub_unop:
  (u : Cop.unary_operation)
  (a : expr)
  (t : type)
- (rho : environ)
+ (rho : _)
  (Delta : tycontext)
  (IHa : @tc_expr CS Delta a rho ⊢ @tc_expr CS' Delta a rho),
  @tc_expr CS Delta (Eunop u a t) rho ⊢
  @tc_expr CS' Delta (Eunop u a t) rho.
 Proof.
   intros.
-  unfold tc_expr in *; unfold typecheck_expr; fold typecheck_expr.
+  unfold tc_expr in *; simpl.
   tc_expr_cenv_sub_tac.
   destruct u; simpl;
   destruct (typeof a) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
@@ -318,19 +308,20 @@ Proof.
    apply (cenv_consistent i0); auto.
 Qed.
 
+Arguments typecheck_expr {Σ heapGS0 CS} Delta !e /.
+
 Lemma tc_expr_lvalue_cenv_sub a rho Delta :
   (tc_expr(CS := CS) Delta a rho ⊢ tc_expr(CS := CS') Delta a rho) /\
   (tc_lvalue(CS := CS) Delta a rho ⊢ tc_lvalue(CS := CS') Delta a rho).
 Proof.
-  induction a; intros; split; try apply (denote_tc_assert_cenv_sub CSUB); unfold tc_expr, tc_lvalue; simpl.
-  + unfold typecheck_expr; fold (typecheck_expr(CS := CS)); fold (typecheck_expr(CS := CS')).
+  induction a; intros; split; try apply (denote_tc_assert_cenv_sub CSUB).
+  + rewrite /tc_expr /=.
     destruct (access_mode t); try done.
     rewrite !denote_tc_assert_andp; apply bi.and_mono; first apply bi.and_mono; first apply IHa; apply (denote_tc_assert_cenv_sub CSUB).
   + (* Ederef *)
-    unfold typecheck_lvalue;
-    fold (typecheck_expr(CS := CS)); fold (typecheck_expr(CS := CS')).
+    rewrite /tc_lvalue /=.
     rewrite !denote_tc_assert_andp; apply bi.and_mono; first apply bi.and_mono; first apply IHa; apply (denote_tc_assert_cenv_sub CSUB).
-  + unfold typecheck_expr; fold (typecheck_lvalue(CS := CS)); fold (typecheck_lvalue(CS := CS')).
+  + rewrite /tc_expr /=.
     rewrite !denote_tc_assert_andp; apply bi.and_mono; first apply IHa.
     rewrite /tc_bool; simple_if_tac; done.
   + apply tc_expr_cenv_sub_unop, IHa.
@@ -338,10 +329,10 @@ Proof.
   + apply tc_expr_cenv_sub_cast, IHa.
   + apply tc_expr_cenv_sub_field, IHa. apply IHa.
   + apply tc_lvalue_cenv_sub_field, IHa.
-  + unfold typecheck_expr.
+  + rewrite /tc_expr /=.
     rewrite !denote_tc_assert_andp; apply bi.and_mono; first apply tc_complete_type_cenv_sub.
     rewrite /tc_bool; simple_if_tac; done.
-  + unfold typecheck_expr.
+  + rewrite /tc_expr /=.
     rewrite !denote_tc_assert_andp; apply bi.and_mono; first apply tc_complete_type_cenv_sub.
     rewrite /tc_bool; simple_if_tac; done.
 Qed.
@@ -349,8 +340,14 @@ Qed.
 Lemma tc_expr_cenv_sub a rho Delta : tc_expr(CS := CS) Delta a rho ⊢ tc_expr(CS := CS') Delta a rho.
 Proof. apply tc_expr_lvalue_cenv_sub. Qed.
 
+(*Lemma tc_expr_cenv_sub' a Delta : tc_expr(CS := CS) Delta a ⊢ tc_expr(CS := CS') Delta a.
+Proof. split => rho; apply tc_expr_cenv_sub. Qed.*)
+
 Lemma tc_lvalue_cenv_sub a rho Delta : tc_lvalue(CS := CS) Delta a rho ⊢ tc_lvalue(CS := CS') Delta a rho.
 Proof. apply tc_expr_lvalue_cenv_sub. Qed.
+
+(*Lemma tc_lvalue_cenv_sub' a Delta : tc_lvalue(CS := CS) Delta a ⊢ tc_lvalue(CS := CS') Delta a.
+Proof. split => rho; apply tc_lvalue_cenv_sub. Qed.*)
 
 Lemma tc_exprlist_cenv_sub Delta rho:
   forall types bl, @tc_exprlist CS Delta types bl rho ⊢
@@ -360,7 +357,7 @@ Proof.
   + destruct bl; simpl in *; trivial.
   + destruct bl. trivial.
     unfold tc_exprlist.
-    unfold typecheck_exprlist; 
+    unfold typecheck_exprlist;
       fold (typecheck_exprlist(CS := CS));
       fold (typecheck_exprlist(CS := CS')).
     setoid_rewrite denote_tc_assert_andp.
@@ -370,4 +367,256 @@ Qed.
 
 End CENV_SUB.
 
+Context `{!envGS Σ}.
+
+(* use this throughout? *)
+Definition assert_of' (P : nat -> mpred) := ∀ n, stack_level n -∗ ⎡P n⎤.
+
+Lemma assert_of_eq : forall P, mpred.assert_of P ⊣⊢ assert_of' P.
+Proof.
+  split => n.
+  rewrite /assert_of' /stack_level.
+  monPred.unseal.
+  setoid_rewrite monPred_at_affinely; simpl.
+  iSplit.
+  - iIntros "H" (?? [=] [=]); subst; done.
+  - iIntros "H"; iApply "H"; done.
+Qed.
+
+#[global] Instance assert_of'_mono : Proper (pointwise_relation _ bi_entails ==> bi_entails) assert_of'.
+Proof. solve_proper. Qed.
+
+#[global] Instance assert_of'_proper : Proper (pointwise_relation _ base.equiv ==> base.equiv) assert_of'.
+Proof. solve_proper. Qed.
+
+(* We can always use tc_expr+eval_expr to satisfy wp_expr. However, wp_expr takes a
+   small-footprint approach to the environment, while tc_expr and eval_expr freely
+   call on the full environment rho. So to do this, we need to first fix the entire
+   environment. *)
+
+Definition curr_env (ge : genv) f (rho : environ) : mpred.assert :=
+  <affine> ⌜(stack_size f = O -> te_of rho = ∅) ∧ ∀ i, Map.get (ge_of rho) i = Genv.find_symbol ge i⌝ ∗
+  ⎡globals_auth (make_env (Genv.genv_symb ge))⎤ ∗
+  assert_of' (λ n, stack_frag n (stack_frac f) 1%Qp (ve_of rho) (te_of rho)).
+
+Lemma curr_env_ge : forall ge f rho, curr_env ge f rho ⊢ curr_env ge f rho ∗
+   <affine> ⌜∀ i : ident, Map.get (ge_of rho) i = Genv.find_symbol ge i⌝ ∗ ⎡globals_auth (make_env (Genv.genv_symb ge))⎤.
+Proof.
+  intros; iIntros "((% & %) & #$ & $)"; auto.
+Qed.
+
+Lemma curr_env_e : forall ρ ge0 f rho, ⊢ ⎡env_auth ρ⎤ -∗ curr_env ge0 f rho -∗
+  □ ∀ ge ve te, env_match ρ ge ve te -∗ ⌜Genv.find_symbol ge0 = Genv.find_symbol ge /\ env_matches rho ge0 ve te⌝.
+Proof.
+  split => n; rewrite /curr_env; monPred.unseal.
+  iIntros "_ %% Hρ %% H".
+  rewrite monPred_at_affinely monPred_at_intuitionistically /=.
+  iDestruct "H" as "((% & %Hge0) & Hge & Hs)".
+  rewrite -assert_of_eq /=.
+  iDestruct (stack_frag_e_1 with "[$Hρ $Hs]") as %(Hve & Hte).
+  rewrite /env_auth (pair_split(A := (gmap_view.gmap_viewR ident (leibnizO block)))).
+  iDestruct "Hρ" as "(Hge0 & _)".
+  iDestruct (own_valid_2 with "Hge0 Hge") as %(Hge & _).
+  (* The following line times out without this *)
+  change (uora_ucmraR (gmap.gmapUR _ _)) with (iris.algebra.gmap.gmapUR ident (prodR iris.algebra.dfrac.dfracR (iris.algebra.agree.agreeR (leibnizO block)))) in Hge.
+  apply lib.gmap_view.gmap_view_auth_dfrac_op_inv in Hge.
+  apply map_fmap_equiv_inj in Hge; last apply _.
+  apply leibniz_equiv in Hge.
+  iPureIntro; simpl; intros ????? Hmatch.
+  unfold sqsubseteq in *; subst.
+  destruct Hmatch as (? & ? & ?).
+  split.
+  - extensionality i.
+    rewrite H ge_of_env Hge /Map.get /gmap_to_fun make_env_spec //.
+  - split3; rewrite ?Hve ?Hte; done.
+Qed.
+
+Lemma curr_env_gvar_e : forall ge f rho i b, curr_env ge f rho ∗ ⎡gvar i b⎤ ⊢ ⌜Genv.find_symbol ge i = Some b⌝.
+Proof.
+  intros; rewrite /curr_env.
+  iIntros "((% & ? & _) & ?)".
+  iDestruct (globals_gvar_e with "[$]") as %Hi.
+  rewrite make_env_spec in Hi; auto.
+Qed.
+
+Lemma curr_env_set_temp : forall Delta ge f rho i t
+  (Hi : temp_types Delta !! i = Some t) (Htc : typecheck_environ Delta rho),
+  curr_env ge f rho ⊢ (∃ v, temp i v) ∗ (∀ v, temp i v -∗ curr_env ge f (env_set rho i v)).
+Proof.
+  intros.
+  destruct Htc as (Htc & _).
+  apply Htc in Hi as (v0 & ? & ?).
+  iIntros "((%Hte & %) & ? & Hs)".
+  iDestruct stack_level_intro as (?) "#l".
+  iDestruct ("Hs" with "[$]") as "Hs".
+  replace (ve_of rho) with (ve_of rho ∪ ∅) at 1 by (rewrite right_id //).
+  replace (te_of rho) with (delete i (te_of rho) ∪ {[i := v0]}) at 1.
+  assert (exists q1, 1 = q1 + stack_frac f)%Qp as (q1 & Heq).
+  { assert (stack_frac f < 1)%Qp as Hq0.
+    { rewrite /stack_frac.
+      rewrite -Qp.inv_1 -Qp.inv_lt_mono.
+      rewrite Nat2Pos.inj_succ.
+      rewrite Pplus_one_succ_l -pos_to_Qp_add.
+      apply Qp.lt_add_l.
+      { intros X; rewrite Hte in H; done. } }
+    apply Qp.lt_sum in Hq0 as (? & Hq0); rewrite Qp.add_comm in Hq0; eauto. }
+  rewrite Heq stack_frag_split.
+  iDestruct "Hs" as "(Hs & Hi)".
+  iSplitL "Hi".
+  { iExists v0. iApply (stack_level_elim with "[$]"). iFrame. }
+  iIntros (?) "Hi".
+  iPoseProof (stack_level_embed with "[$] Hi") as "Hi"; simpl.
+  iDestruct "Hi" as (?) "Hi".
+  iDestruct (stack_frag_join with "[$Hs $Hi]") as ((<- & _ & _)) "Hs".
+  rewrite right_id -insert_union_singleton_r.
+  rewrite insert_delete_eq.
+  iSplit; last iFrame.
+  { iPureIntro; split; auto.
+    intros; by rewrite Hte in H. }
+  iIntros (?) "#l'"; iDestruct (stack_level_eq with "l l'") as %->.
+  rewrite -Heq /=; by iFrame.
+  * apply lookup_delete_eq.
+  * apply map_disjoint_empty_r.
+  * apply map_disjoint_singleton_r_2, lookup_delete_eq.
+  * rewrite -insert_union_singleton_r; last apply lookup_delete_eq.
+    by apply insert_delete_id.
+Qed.
+
+Lemma wp_tc_expr : forall {CS : compspecs} E f Delta e P (ge : genv) rho,
+  cenv_sub cenv_cs ge ->
+  typecheck_environ Delta rho ->
+  ⊢ curr_env ge f rho -∗
+    ▷ ⎡tc_expr Delta e rho⎤ ∧
+    (curr_env ge f rho -∗ ⌜tc_val (typeof e) (eval_expr e rho)⌝ → P (eval_expr e rho)) -∗
+  wp_expr ge E f e P.
+Proof.
+  intros; rewrite /wp_expr.
+  iIntros "Hrho H !>" (??) "Hm Hρ".
+  iDestruct (curr_env_e with "Hρ Hrho") as "#Hsub".
+  iCombine "H Hρ" as "TC".
+  iDestruct (add_and _ (▷ ⌜tc_val (typeof e) (eval_expr e rho)⌝) with "TC") as "(TC & >%)".
+  { iIntros "((H & _) & ?) !>". rewrite -embed_pure. by iApply typecheck_expr_sound. }
+  iCombine "TC Hm" as "H"; iDestruct (add_and _ (▷ ⌜∀ ge ve te,
+    env_matches rho ge ve te → cenv_sub cenv_cs ge
+      → match_venv (make_env ve) (fn_vars f)
+        → Clight.eval_expr ge ve te m e (eval_expr e rho)⌝) with "H") as "(((H & ?) & ?) & >%He)".
+  { iIntros "(((H & _) & ?) & Hm) !>" (??????).
+    rewrite -embed_pure. iApply eval_expr_relate; eauto; iFrame. }
+  rewrite bi.and_elim_r.
+  iSpecialize ("H" with "Hrho [//]").
+  iIntros "!>"; iExists (eval_expr e rho); iFrame.
+  iIntros "!>" (??) "Hmatch".
+  iDestruct ("Hsub" with "Hmatch") as %(? & Hmatch).
+  iPureIntro; auto.
+Qed.
+
+Lemma wp_tc_lvalue : forall {CS : compspecs} E f Delta e P (ge : genv) rho,
+  cenv_sub cenv_cs ge ->
+  typecheck_environ Delta rho ->
+  ⊢ curr_env ge f rho -∗
+    ▷ ⎡tc_lvalue Delta e rho⎤ ∧
+    (curr_env ge f rho -∗ ∀ b o, ⌜eval_lvalue e rho = Vptr b o⌝ → P (b, o)) -∗
+  wp_lvalue ge E f e P.
+Proof.
+  intros; rewrite /wp_lvalue.
+  iIntros "Hrho H !>" (??) "Hm Hρ".
+  iDestruct (curr_env_e with "Hρ Hrho") as "#Hsub".
+  iCombine "H Hρ" as "TC".
+  iDestruct (add_and _ (▷ ⌜isptr (eval_lvalue e rho)⌝) with "TC") as "(TC & >%)".
+  { iIntros "((H & _) & ?) !>". edestruct typecheck_both_sound as (_ & Htc); first done.
+    rewrite -embed_pure. by iApply (Htc (Tstruct 1%positive noattr)). }
+  iCombine "TC Hm" as "H"; iDestruct (add_and _ (▷ ⌜∀ ge ve te,
+    env_matches rho ge ve te → cenv_sub cenv_cs ge
+      → match_venv (make_env ve) (fn_vars f)
+        → ∃ b o, Clight.eval_lvalue ge ve te m e b o Full ∧ eval_lvalue e rho = Vptr b o⌝) with "H") as "(((H & ?) & ?) & >%He)".
+  { iIntros "(((H & _) & ?) & Hm) !>" (??????).
+    rewrite -embed_pure. iApply eval_lvalue_relate; eauto; iFrame. }
+  rewrite bi.and_elim_r.
+  destruct (eval_lvalue e rho) eqn: Heval; try contradiction.
+  iIntros "!>"; iExists _, _; iFrame.
+  iSplitL "".
+  - iIntros "!>" (??) "Hmatch %".
+    iDestruct ("Hsub" with "Hmatch") as %(? & Hmatch).
+    iPureIntro; simpl.
+    edestruct He as (? & ? & ? & [=]); by subst.
+  - by iApply ("H" with "Hrho").
+Qed.
+
+Lemma typecheck_exprlist_sound : forall {CS : compspecs} Delta tys es rho,
+  typecheck_environ Delta rho ->
+  denote_tc_assert (typecheck_exprlist Delta tys es) rho ⊢ ⌜tc_vals tys (eval_exprlist tys es rho)⌝.
+Proof.
+  induction tys; simpl; intros.
+  - destruct es; simpl; auto.
+  - destruct es; simpl; auto.
+    rewrite denote_tc_assert_andp IHtys //.
+    iIntros "(? & %)".
+    iSplit; last done.
+    by iApply (typecheck_expr_sound _ _ (Ecast e a)).
+Qed.
+
+Lemma eval_exprlist_relate : forall {CS : compspecs} Delta (ge : genv) te ve rho tys es m,
+  cenv_sub cenv_cs ge -> env_matches rho ge ve te -> typecheck_environ Delta rho ->
+  juicy_mem.mem_auth m ∗ denote_tc_assert (typecheck_exprlist Delta tys es) rho ⊢
+  ⌜Clight.eval_exprlist ge ve te m es tys (eval_exprlist tys es rho)⌝.
+Proof.
+  induction tys; simpl; intros.
+  - destruct es; simpl.
+    + apply bi.pure_intro; constructor.
+    + iIntros "(? & [])".
+  - destruct es; simpl.
+    { iIntros "(? & [])". }
+    rewrite denote_tc_assert_andp.
+    iIntros "(Hm & H)"; iDestruct (IHtys with "[$Hm H]") as %?; [done.. | by rewrite bi.and_elim_r |].
+    rewrite bi.and_elim_l.
+    iDestruct (eval_expr_relate _ _ _ _ _ (Ecast e a) with "[$Hm $H]") as %He; [done..|].
+    iPureIntro.
+    inv He.
+    econstructor; eauto.
+    { inv H3. }
+Qed.
+
 End mpred.
+
+Lemma wp_tc_exprlist : forall `{!VSTGS OK_ty Σ} {CS : compspecs} E f Delta tys es P (ge : genv) rho,
+  cenv_sub cenv_cs ge ->
+  typecheck_environ Delta rho ->
+  ⊢ curr_env ge f rho -∗
+    ▷ ⎡tc_exprlist Delta tys es rho⎤ ∧
+    (curr_env ge f rho -∗ ⌜tc_vals tys (eval_exprlist tys es rho)⌝ → P (eval_exprlist tys es rho)) -∗
+  wp_exprs ge E f es tys P.
+Proof.
+  intros; rewrite /wp_exprs.
+  iIntros "Hrho H" (??) "Hm Hρ".
+  iDestruct (curr_env_e with "Hρ Hrho") as "#Hsub".
+  iCombine "H Hρ" as "TC".
+  iDestruct (add_and _ (▷ ⌜tc_vals tys (eval_exprlist tys es rho)⌝) with "TC") as "(TC & >%)".
+  { iIntros "((H & _) & ?) !>". rewrite -embed_pure. by iApply typecheck_exprlist_sound. }
+  iCombine "TC Hm" as "H"; iDestruct (add_and _ (▷ ⌜∀ ge ve te,
+    env_matches rho ge ve te → cenv_sub cenv_cs ge
+      → match_venv (make_env ve) (fn_vars f)
+        → Clight.eval_exprlist ge ve te m es tys (eval_exprlist tys es rho)⌝) with "H") as "(((H & ?) & ?) & >%Hes)".
+  { iIntros "(((H & _) & ?) & Hm) !>" (??????).
+    rewrite -embed_pure. iApply eval_exprlist_relate; eauto; iFrame. }
+  rewrite bi.and_elim_r.
+  iSpecialize ("H" with "Hrho [//]").
+  iIntros "!>"; iExists (eval_exprlist tys es rho); iFrame.
+  iIntros "!>" (??) "Hmatch".
+  iDestruct ("Hsub" with "Hmatch") as %(? & Hmatch).
+  iPureIntro; auto.
+Qed.
+
+Lemma wp_tc_expropt : forall `{!VSTGS OK_ty Σ} {CS : compspecs} E f Delta e t P (ge : genv) rho,
+  cenv_sub cenv_cs ge ->
+  typecheck_environ Delta rho ->
+  ⊢ curr_env ge f rho -∗
+    ▷ ⎡tc_expropt Delta e t rho⎤ ∧
+    (curr_env ge f rho -∗ ⌜match eval_expropt (option_map (λ e, Ecast e t) e) rho with Some v => tc_val t v | _ => True end⌝ → P (eval_expropt (option_map (λ e, Ecast e t) e) rho)) -∗
+  wp_expr_opt ge E f (option_map (λ e, Ecast e t) e) P.
+Proof.
+  intros; destruct e; simpl.
+  - iIntros "E H"; iApply (wp_tc_expr with "E"); [done..|].
+    iSplit; first by rewrite bi.and_elim_l.
+    iIntros "E" (?); rewrite bi.and_elim_r; by iApply ("H" with "E").
+  - iIntros "E H"; by iApply ("H" with "E").
+Qed.

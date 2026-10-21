@@ -575,6 +575,7 @@ Proof.
   iPoseProof (unpack_globvar_star with "[$H]") as "H"; eauto.
   rewrite H5.
   rewrite -(id2pred_star_ZnthV_Tint Delta gz); auto.
+  2: rewrite H4 H5 //.
   iStopProof; go_lowerx.
   rewrite monPred_at_intuitionistically.
   fold id2pred_star.
@@ -616,7 +617,6 @@ Proof.
  apply Z.mul_nonneg_nonneg.
  clear; pose proof (sizeof_pos (Tint sz sign noattr)); lia.
    apply Zlength_nonneg.
-{ rewrite -H5 //. }
 Qed.
 
 Definition float_type (sz: floatsize) : Type :=
@@ -789,6 +789,7 @@ Proof.
   iPoseProof (unpack_globvar_star with "[$H]") as "H"; eauto.
   rewrite H5.
   rewrite -(id2pred_star_ZnthV_tfloat Delta sz gz); auto.
+  2: rewrite H4 H5 //.  
   iStopProof; go_lowerx.
   rewrite monPred_at_intuitionistically.
   fold id2pred_star.
@@ -825,7 +826,6 @@ Proof.
  apply Z.mul_nonneg_nonneg.
  clear; pose proof (sizeof_pos (Tfloat sz noattr)); lia.
    apply Zlength_nonneg.
-{ rewrite -H5 //. }
 Qed.
 
 Definition gv_globvars2pred (gv: ident->val) (vl: list (ident * globvar type)) : mpred :=
@@ -1109,7 +1109,7 @@ unfold globvars2pred,  PROPx, LOCALx, SEPx.
 split => rho; monPred.unseal.
 unfold_lift; rewrite /lift1.
 normalize.
-rewrite and_True True_and bi.sep_comm //.
+rewrite bi.sep_comm; do 2 f_equiv; tauto.
 Qed.
 
 

@@ -1,29 +1,33 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
 From VST.typing Require Import programs optional.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
 
-Definition ty_exists_rty_def `{!typeG Σ} {cs : compspecs} {A} (ty : A → type) (a : A) : type := ty a.
+Definition ty_exists_rty_def `{!typeG Ok_ty Σ} {cs : compspecs} {A} (ty : A → type) (a : A) : type := ty a.
 Definition ty_exists_rty_aux : seal (@ty_exists_rty_def). by eexists. Qed.
 Definition ty_exists_rty := (ty_exists_rty_aux).(unseal).
 Definition ty_exists_rty_eq : ty_exists_rty = @ty_exists_rty_def := (ty_exists_rty_aux).(seal_eq).
 Arguments ty_exists_rty {_ _ _} _ _.
 
 Section tyexist.
-  Context `{!typeG Σ} {cs : compspecs} {A : Type}.
+  Context `{!typeG Ok_ty Σ} {cs : compspecs} {A : Type}.
   (* rty has to be sealed as unification goes crazy otherwise (it will
   unify everything with tyexists). However rty_type must not use
   opaque as it cannot be unified with A otherwise by typeclass
   search. *)
-  Check ty_exists_rty.
   Program Definition tyexists_type (ty : A → type) (x : A) : type := {|
     ty_has_op_type := (ty x).(ty_has_op_type);
-    ty_own := (ty_exists_rty _ ty x).(ty_own); 
-    ty_own_val := (ty_exists_rty _ ty x).(ty_own_val); 
+    ty_own := (ty_exists_rty _ _ ty x).(ty_own); 
+    ty_own_val := (ty_exists_rty _ _ ty x).(ty_own_val); 
   |}.
   Next Obligation. move => *. rewrite ty_exists_rty_eq. by apply: ty_share. Qed.
   Next Obligation. move => *. rewrite ty_exists_rty_eq. by apply: ty_aligned. Qed.
-  Next Obligation. move => *. rewrite ty_exists_rty_eq. by eapply ty_deref. Qed.
-  Next Obligation. move => *. rewrite ty_exists_rty_eq. by apply: ty_ref. Qed.
+  Next Obligation. move => *. rewrite ty_exists_rty_eq. iIntros.
+                   iApply (ty_size_eq with "[$]"); try done. Qed.
+  Next Obligation. move => *. rewrite ! ty_exists_rty_eq. eapply ty_deref; eauto. Qed.
+  Next Obligation. move => *. rewrite ty_exists_rty_eq /ty_exists_rty_def.
+                   eapply ty_ref; eauto. Qed.
 
   Definition tyexists (ty : A → type) : rtype _ := RType (tyexists_type ty).
 
@@ -58,9 +62,9 @@ Notation "'∃ₜ' x .. y , p" := (ty_of_rty (tyexists (fun x => .. (ty_of_rty (
   : bi_scope.
 
 Section tyexist.
-  Context `{!typeG Σ} {cs : compspecs} {A : Type}.
+  Context `{!typeG Ok_ty Σ} {cs : compspecs} {A : Type}.
 
-  Lemma simplify_hyp_place_tyexists x l β (ty : A → _) T:
+  Lemma simplify_hyp_place_tyexists x l β (ty : A → _) (T : assert) :
     (l ◁ₗ{β} ty x -∗ T) ⊢ simplify_hyp (l◁ₗ{β} x @ tyexists ty) T.
   Proof. iIntros "HT Hl". rewrite tyexists_eq. by iApply "HT". Qed.
   
@@ -68,22 +72,22 @@ Section tyexist.
     [instance simplify_hyp_place_tyexists with 0%N].
   Global Existing Instance simplify_hyp_place_tyexists_inst.
 
-  Lemma simplify_goal_place_tyexists x l β (ty : A → _) T:
+  Lemma simplify_goal_place_tyexists x l β (ty : A → _) (T : assert) :
     l ◁ₗ{β} ty x ∗ T ⊢ simplify_goal (l◁ₗ{β} x @ tyexists ty) T.
   Proof. iIntros "[? $]". by rewrite tyexists_eq. Qed.
 
   Definition simplify_goal_place_tyexists_inst := [instance simplify_goal_place_tyexists with 0%N].
   Global Existing Instance simplify_goal_place_tyexists_inst.
 
-  Lemma simplify_hyp_val_tyexists x v ty T :
-    (v ◁ᵥ ty x -∗ T) ⊢ simplify_hyp (v◁ᵥ x @ tyexists (A:=A) ty) T.
+  Lemma simplify_hyp_val_tyexists x cty v ty (T : assert) :
+    (v ◁ᵥ|cty| ty x -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| x @ tyexists (A:=A) ty) T.
   Proof. iIntros "HT Hl". rewrite tyexists_eq. by iApply "HT". Qed.
 
   Definition simplify_hyp_val_tyexists_inst := [instance simplify_hyp_val_tyexists with 0%N].
   Global Existing Instance simplify_hyp_val_tyexists_inst.
 
-  Lemma simplify_goal_val_tyexists x v ty T:
-    v ◁ᵥ ty x ∗ T ⊢ simplify_goal (v◁ᵥ x @ tyexists (A:=A) ty) T.
+  Lemma simplify_goal_val_tyexists x cty v ty (T : assert) :
+    v ◁ᵥ|cty| ty x ∗ T ⊢ simplify_goal (v ◁ᵥ|cty| x @ tyexists (A:=A) ty) T.
   Proof. iIntros "[? $]". by rewrite tyexists_eq. Qed.
 
   Definition simplify_goal_val_tyexists_inst := [instance simplify_goal_val_tyexists with 0%N].
@@ -99,14 +103,14 @@ Section tyexist.
     SimpleSubsumePlace ty1 (x @ tyexists ty2) P.
   Proof. iIntros (l β) "HP Hl". rewrite ! tyexists_eq. iApply (@simple_subsume_place with "HP Hl"). Qed.
 
-  Global Program Instance tyexist_optional x (ty : A → _) optty ot1 ot2
-    `{!∀ x, Optionable (ty x) optty ot1 ot2} : Optionable (x @ tyexists ty) optty ot1 ot2 := {|
+  Global Program Instance tyexist_optional x cty cty2 (ty : A → _) optty ot1 ot2
+    `{!∀ x, Optionable cty cty2 (ty x) optty ot1 ot2} : Optionable cty cty2 (x @ tyexists ty) optty ot1 ot2 := {|
     opt_pre v1 v2 := opt_pre (ty x) v1 v2
   |}.
   Next Obligation.
-    move => ????????????. rewrite {1}/ty_own_val/= ty_exists_rty_eq /ty_has_op_type/ty_own_val. apply opt_bin_op.
+    move => ?????????????. rewrite {1}/ty_own_val_at {1}/ty_own_val/= ty_exists_rty_eq /ty_has_op_type /ty_own_val_at /ty_own_val. apply opt_bin_op.
   Qed.
-  
+
   Global Instance optionable_agree_tyexists (ty2 : A → type) ty1
     `{!∀ x, OptionableAgree (ty2 x) ty1} : OptionableAgree (tyexists ty2) ty1.
   Proof. done. Qed.

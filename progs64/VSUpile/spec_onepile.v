@@ -20,7 +20,7 @@ Definition Onepile_init_spec :=
  PRE [ ] 
     PROP() PARAMS () GLOBALS (gv) SEP(onepile ONEPILE None gv; mem_mgr M gv)
  POST[ tvoid ]
-    PROP() LOCAL() SEP(onepile ONEPILE (Some nil) gv; mem_mgr M gv).
+    PROP() RETURN() SEP(onepile ONEPILE (Some nil) gv; mem_mgr M gv).
 
 Definition Onepile_add_spec :=
  DECLARE _Onepile_add
@@ -30,7 +30,7 @@ Definition Onepile_add_spec :=
     PARAMS (Vint (Int.repr n)) GLOBALS (gv)
     SEP(onepile ONEPILE (Some sigma) gv; mem_mgr M gv)
  POST[ tvoid ]
-    PROP() LOCAL()
+    PROP() RETURN()
     SEP(onepile ONEPILE (Some (n::sigma)) gv; mem_mgr M gv).
 
 Definition Onepile_count_spec :=
@@ -42,7 +42,7 @@ Definition Onepile_count_spec :=
     SEP(onepile ONEPILE (Some sigma) gv)
  POST[ tint ]
       PROP() 
-      LOCAL(temp ret_temp (Vint (Int.repr (sumlist sigma))))
+      RETURN(Vint (Int.repr (sumlist sigma)))
       SEP(onepile ONEPILE (Some sigma) gv).
 
 Definition OnepileASI:funspecs := [ Onepile_init_spec; Onepile_add_spec; Onepile_count_spec].

@@ -1,12 +1,16 @@
 From compcert Require Export Clightdefs.
 Require Export VST.veric.base.
-Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Export VST.veric.SeparationLogic.
-Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.msl.Extensionality.
 Require Export compcert.lib.Coqlib.
 Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
+Require Export VST.veric.Clight_base.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
+Require Export VST.veric.expr.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
+Require Export VST.veric.mpred.
+Require Export VST.veric.seplog.
 Require Export VST.floyd.functional_base.
+Import expr.
 Import LiftNotation.
 
 Transparent intsize_eq.

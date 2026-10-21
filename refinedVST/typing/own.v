@@ -1,32 +1,54 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.typing Require Export type.
 From VST.typing Require Import programs optional boolean int singleton.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 From VST.typing Require Import type_options.
+From compcert Require Import Ctypesdefs.
 
 Section own.
-  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs} (ge : Genv.t Clight.fundef Ctypes.type).
 
   Local Typeclasses Transparent place.
 
-  (* Separate definition such that we can make it typeclasses opaque later. *)
   Program Definition frac_ptr_type (β : own_state) (ty : type) (l' : address) : type := {|
-    ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
-    ty_own β' l := (<affine> ⌜field_compatible (tptr tvoid) [] l⌝ ∗ l ↦_(tptr tvoid)[β'] l' ∗ (l' ◁ₗ{own_state_min β' β} ty))%I;
-    ty_own_val v := (<affine> ⌜v = adr2val l'⌝ ∗ l' ◁ₗ{β} ty)%I;
+    ty_has_op_type ot mt := (match ot with | Tpointer t attr => ot = tptr t | _ => False end)%type;
+    ty_own β' l := (<affine>⌜l `has_layout_loc` (tptr tvoid)⌝ ∗ l ↦[β']|tptr tvoid| l' ∗ (l' ◁ₗ{own_state_min β' β} ty))%I;
+    ty_own_val cty v_rep := (<affine> ⌜repinject cty v_rep = adr2val l'⌝ ∗ l' ◁ₗ{β} ty)%I;
   |}.
   Next Obligation.
     iIntros (β ?????) "($&Hl&H)". rewrite left_id.
     iMod (heap_mapsto_own_state_share with "Hl") as "$".
     destruct β => //=. by iApply ty_share.
   Qed.
-  Next Obligation. iIntros (β ty l ot mt l' (? & ->)). unfold has_layout_loc. rewrite !field_compatible_tptr. by iDestruct 1 as (?) "_". Qed.
-  Next Obligation. iIntros (β ty l ot mt l' (? & ->)).
-    iIntros "(-> & ?)"; iPureIntro. intros ?; hnf. simple_if_tac; done. Qed.
-  Next Obligation. iIntros (β ty l ot mt l' (? & ->)) "(%&Hl&Hl')". rewrite left_id. unfold heap_mapsto_own_state. erewrite mapsto_tptr. eauto with iFrame. Qed.
-  Next Obligation. iIntros (β ty l ot mt l' v (? & ->) ?) "Hl [-> Hl']". unfold has_layout_loc in *. rewrite field_compatible_tptr in H. unfold heap_mapsto_own_state. erewrite mapsto_tptr. by iFrame. Qed.
-(*   Next Obligation.
-    iIntros (β ty l v ot mt st ?). apply: mem_cast_compat_loc; [done|].
-    iIntros "[-> ?]". iPureIntro. naive_solver.
-  Qed. *)
+  Next Obligation.
+    iIntros (β ty l ot mt l' ?). destruct ot as [ [] |]; try done.
+    rewrite has_layout_loc_tptr.
+    by iDestruct 1 as (?) "_". Qed.
+  Next Obligation.
+    iIntros (β ty l ot mt l' ?) "(%H1 & Hl)".
+    rewrite /repinject /has_layout_val /= in H1; subst.
+    iPureIntro.
+    destruct ot; try done.
+    inv H.
+    rewrite has_layout_val_by_value // => ? /=.
+    simple_if_tac; done.
+  Qed.
+  Next Obligation.
+    iIntros (β ty l ot mt l' ?) "(%&Hl&Hl')".
+    rewrite left_id. unfold heap_mapsto_own_state.
+    destruct ot; try done. inv H. simpl.
+    rewrite /tptr.
+    erewrite (mapsto_tptr _ _ tvoid ot).
+    eauto with iFrame.
+  Qed.
+  Next Obligation.
+    iIntros (β ty l ot mt l' v ? ?) "Hl [% Hl']".
+    destruct ot; try done. inv H.
+    simpl in H1. rewrite H1.
+    rewrite has_layout_loc_tptr in H0. unfold heap_mapsto_own_state.
+    erewrite (mapsto_tptr _ _ tvoid ot). by iFrame.
+  Qed.
+
   Global Instance frac_ptr_type_le : Proper ((=) ==> (⊑) ==> (=) ==> (⊑)) frac_ptr_type.
   Proof. solve_type_proper. Qed.
   Global Instance frac_ptr_type_proper : Proper ((=) ==> (≡) ==> (=) ==> (≡)) frac_ptr_type.
@@ -34,12 +56,23 @@ Section own.
 
   Definition frac_ptr (β : own_state) (ty : type) : rtype _ := RType (frac_ptr_type β ty).
 
-(*   Global Instance frac_ptr_loc_in_bounds l ty β1 β2 : LocInBounds (l @ frac_ptr β1 ty) β2 bytes_per_addr.
+  Global Instance frac_ptr_loc_in_bounds l ty β1 β2 : LocInBounds (l @ frac_ptr β1 ty) β2 (Z.to_nat (sizeof (tptr tvoid))).
   Proof.
-    constructor. iIntros (?) "(_&Hl&_)".
-    iDestruct (heap_mapsto_own_state_loc_in_bounds with "Hl") as "Hb".
-    iApply loc_in_bounds_shorten; last done. by rewrite /val_of_loc.
-  Qed. *)
+    constructor. iIntros (?) "(%&Hl)".
+    by iApply (has_layout_in_bounds _ (tptr tvoid)).
+  Qed.
+
+  Global Instance frac_ptr_defined p β ty: DefinedTy (p @ frac_ptr β ty).
+  Proof.
+    iIntros (??) "(% & _)".
+    destruct cty; try done; destruct v; try done.
+  Qed.
+
+  Global Instance frac_ptr_objective p β ty `{!ObjectiveTy ty}: ObjectiveTy (p @ frac_ptr β ty).
+  Proof. constructor; apply _. Qed.
+
+  Global Instance frac_ptr_unrefined_objective β ty `{!ObjectiveTy ty}: ObjectiveTy (frac_ptr β ty).
+  Proof. constructor; apply _. Qed.
 
   Lemma frac_ptr_mono A ty1 ty2 l β β' p p' T:
     (p ◁ₗ{own_state_min β β'} ty1 -∗ ∃ x, <affine> ⌜p = p' x⌝ ∗ p ◁ₗ{own_state_min β β'} (ty2 x) ∗ T x)
@@ -55,50 +88,65 @@ Section own.
     SimpleSubsumePlace (p @ frac_ptr β ty1) (p @ frac_ptr β ty2) P.
   Proof. iIntros (l β') "HP [$ [$ Hl]]". iApply (@simple_subsume_place with "HP Hl"). Qed.
 
-(*   Lemma type_place_frac p β K β1 ty1 l mc T:
-    typed_place K p (own_state_min β1 β) ty1 (λ l2 β2 ty2 typ, T l2 β2 ty2 (λ t, (p @ (frac_ptr β (typ t)))))
-    ⊢ typed_place (DerefPCtx Na1Ord PtrOp mc :: K) l β1 (p @ (frac_ptr β ty1)) T.
+  Lemma type_place_frac p β K β1 ty1 l ot T:
+    typed_place ge K p (own_state_min β1 β) ty1 (λ l2 β2 ty2 typ, T l2 β2 ty2 (λ t, (p @ (frac_ptr β (typ t)))))
+    ⊢ typed_place ge (DerefPCtx (tptr ot) :: K) l β1 (p @ (frac_ptr β ty1)) T.
   Proof.
     iIntros "HP" (Φ) "(%&Hm&Hl) HΦ" => /=.
-    iMod (heap_mapsto_own_state_to_mt with "Hm") as (q Hq) "Hm" => //.
-    iApply (wp_deref with "Hm") => //; [naive_solver| by apply val_to_of_loc|].
-    iIntros "!# %st Hm". iExists p. rewrite mem_cast_id_loc. iSplit; [by destruct mc|].
-    iApply ("HP" with "Hl"). iIntros (l' ty2 β2 typ R) "Hl' Htyp HT".
+    iMod (heap_mapsto_own_state_to_mt with "Hm") as (q Hq ?) "Hm" => //.
+    iModIntro; iExists _, _; iSplit => //.
+    iSplitL "Hm".
+    { rewrite (mapsto_tptr _ _ _ ot) /mapsto data_at_rec_eq /= simple_mapsto.mapsto_eq //; by iFrame. }
+    iExists _; iSplit => //.
+    iIntros "Hm"; iApply ("HP" with "Hl"). iIntros (l' ty2 β2 typ R) "Hl' Htyp HT".
     iApply ("HΦ" with "Hl' [-HT] HT"). iIntros (ty') "Hl'".
     iMod ("Htyp" with "Hl'") as "[? $]". iFrame. iSplitR => //.
-    by iApply heap_mapsto_own_state_from_mt.
+    iMod "Hm"; iMod (heap_mapsto_own_state_from_mt with "[Hm]") as "H"; last iApply "H"; [done..|].
+    rewrite (mapsto_tptr _ _ _ ot) /mapsto data_at_rec_eq -simple_mapsto.mapsto_eq //=.
   Qed.
   Definition type_place_frac_inst := [instance type_place_frac].
-  Global Existing Instance type_place_frac_inst. *)
+  Global Existing Instance type_place_frac_inst.
 
-(*   Lemma type_addr_of e ot (T : val → _):
-    typed_addr_of e (λ l β ty, T l (l @ frac_ptr β ty))
-    ⊢ typed_val_expr (Eaddrof e ot) T.
+  Lemma type_addrof f e ot (T : val → _):
+    typed_lvalue ge f e (λ l, T l (value (tptr ot) l))
+    ⊢ typed_val_expr ge f (Eaddrof e (tptr ot)) T.
   Proof.
-    iIntros "Haddr" (Φ) "HΦ". rewrite /AddrOf.
-    iApply "Haddr". iIntros (l β ty) "Hl HT".
-    iApply ("HΦ" with "[Hl] HT").
-    iSplit => //.
-  Qed. *)
+    iIntros "Haddr" (Φ) "HΦ". rewrite -wp_addrof.
+    iApply "Haddr". iIntros ((?,?)) "HT".
+    iApply ("HΦ" with "[] HT").
+    rewrite /value; simpl_type; iPureIntro.
+    split3; try done.
+    rewrite /has_layout_val value_fits_eq /=.
+    intros _; rewrite /tc_val.
+    by simple_if_tac.
+  Qed.
 
-  Lemma simplify_frac_ptr (v : val) (p : address) ty β T:
+  Lemma simplify_frac_ptr (v : val) (p : address) cty ty β T:
     (<affine> ⌜v = p⌝ -∗ p ◁ₗ{β} ty -∗ T)
-    ⊢ simplify_hyp (v◁ᵥ p @ frac_ptr β ty) T.
-  Proof. iIntros "HT Hl". iDestruct "Hl" as (->) "Hl". by iApply "HT". Qed.
+      ⊢ simplify_hyp (v ◁ᵥₐₗ|tptr cty| p @ frac_ptr β ty) T.
+  Proof.  iIntros "HT Hl".
+          iDestruct "Hl" as (?) "Hl".
+          iApply "HT"; try done.
+  Qed.
   Definition simplify_frac_ptr_inst := [instance simplify_frac_ptr with 0%N].
   Global Existing Instance simplify_frac_ptr_inst.
 
-  Lemma simplify_goal_frac_ptr_val ty (v : val) β (p : address) T:
+  Lemma simplify_goal_frac_ptr_val cty ty (v : val) β (p : address) T:
     <affine> ⌜v = p⌝ ∗ p ◁ₗ{β} ty ∗ T
-    ⊢ simplify_goal (v ◁ᵥ p @ frac_ptr β ty) T.
-  Proof. by iIntros "[-> [$ $]]". Qed.
+    ⊢ simplify_goal (v ◁ᵥₐₗ|tptr cty| p @ frac_ptr β ty) T.
+  Proof.
+    by iIntros "[-> [$ $]]".
+  Qed.
   Definition simplify_goal_frac_ptr_val_inst := [instance simplify_goal_frac_ptr_val with 0%N].
   Global Existing Instance simplify_goal_frac_ptr_val_inst.
 
-  Lemma simplify_goal_frac_ptr_val_unrefined ty (v : val) β T:
+  Lemma simplify_goal_frac_ptr_val_unrefined cty ty (v : val) β T:
     (∃ p : address, <affine> ⌜v = p⌝ ∗ p ◁ₗ{β} ty ∗ T)
-    ⊢ simplify_goal (v ◁ᵥ frac_ptr β ty) T.
-  Proof. iIntros "[% [-> [? $]]]". iExists _. by iSplit. Qed.
+      ⊢ simplify_goal (v ◁ᵥₐₗ|tptr cty| frac_ptr β ty) T.
+  Proof. iIntros "[% [-> [? $]]]".
+         rewrite /ty_own_val_at /ty_own_val /=.
+         iExists _. iSplit; auto.
+  Qed.
   Definition simplify_goal_frac_ptr_val_unrefined_inst :=
     [instance simplify_goal_frac_ptr_val_unrefined with 0%N].
   Global Existing Instance simplify_goal_frac_ptr_val_unrefined_inst.
@@ -110,6 +158,85 @@ Section own.
   Definition simplify_frac_ptr_place_shr_to_own_inst :=
     [instance simplify_frac_ptr_place_shr_to_own with 50%N].
   Global Existing Instance simplify_frac_ptr_place_shr_to_own_inst.
+
+  Lemma simplify_temp_frac_ptr x (p : address) cty ty β T:
+    (x ◁ₜ|tptr cty| value (tptr cty) p -∗ p ◁ₗ{β} ty -∗ T)
+      ⊢ simplify_hyp (x ◁ₜ|tptr cty| p @ frac_ptr β ty) T.
+  Proof.  iIntros "HT Hl".
+          iDestruct "Hl" as (?) "(Hx & %H & Hl)".
+          iApply ("HT" with "[$Hx] Hl").
+          rewrite repinject_valinject // in H; subst.
+          rewrite /value; iPureIntro; split3; auto.
+          apply tc_val_has_layout_val2 => //=.
+          intros _; simpl.
+          by rewrite andb_false_r.
+  Qed.
+  Definition simplify_temp_frac_ptr_inst := [instance simplify_temp_frac_ptr with 0%N].
+  Global Existing Instance simplify_temp_frac_ptr_inst.
+
+  Lemma simplify_hyp_down_ty_frac_ptr_l l p β ty T:
+    (l ◁ₗ (p @ frac_ptr β (down_ty ty)) -∗ T) ⊢ simplify_hyp (l ◁ₗ down_ty (p @ frac_ptr β ty)) T.
+  Proof.
+    iIntros "H Hl"; iApply "H".
+    rewrite /down_ty /frac_ptr; repeat simpl_type.
+    iDestruct "Hl" as "(% & H & $)".
+    by rewrite down1_obj_elim; iFrame.
+  Qed.
+  Definition simplify_hyp_down_ty_frac_ptr_l_inst := [instance simplify_hyp_down_ty_frac_ptr_l with 0%N].
+  Global Existing Instance simplify_hyp_down_ty_frac_ptr_l_inst.
+
+  Lemma simplify_hyp_down_ty_frac_ptr_unrefined_l l β ty T:
+    (l ◁ₗ (frac_ptr β (down_ty ty)) -∗ T) ⊢ simplify_hyp (l ◁ₗ down_ty (frac_ptr β ty)) T.
+  Proof.
+    iIntros "H Hl"; iApply "H".
+    rewrite /down_ty /frac_ptr /ty_of_rty; repeat simpl_type.
+    iDestruct "Hl" as "(% & % & H & $)".
+    by rewrite down1_obj_elim; iFrame.
+  Qed.
+  Definition simplify_hyp_down_ty_frac_ptr_unrefined_l_inst := [instance simplify_hyp_down_ty_frac_ptr_unrefined_l with 0%N].
+  Global Existing Instance simplify_hyp_down_ty_frac_ptr_unrefined_l_inst.
+
+  Lemma simplify_hyp_down_ty_frac_ptr cty v p β ty T:
+    (v ◁ᵥ|cty| (p @ frac_ptr β (down_ty ty)) -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| down_ty (p @ frac_ptr β ty)) T.
+  Proof.
+    iIntros "H Hv"; iApply "H".
+    rewrite /down_ty /frac_ptr; repeat simpl_type.
+    by iDestruct "Hv" as "(% & $)".
+  Qed.
+  Definition simplify_hyp_down_ty_frac_ptr_inst := [instance simplify_hyp_down_ty_frac_ptr with 0%N].
+  Global Existing Instance simplify_hyp_down_ty_frac_ptr_inst.
+
+  Lemma simplify_hyp_down_ty_frac_ptr_unrefined cty v β ty T:
+    (v ◁ᵥ|cty| (frac_ptr β (down_ty ty)) -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| down_ty (frac_ptr β ty)) T.
+  Proof.
+    iIntros "H Hv"; iApply "H".
+    rewrite /down_ty /frac_ptr /ty_of_rty; repeat simpl_type.
+    by iDestruct "Hv" as "(% & % & $)".
+  Qed.
+  Definition simplify_hyp_down_ty_frac_ptr_unrefined_inst := [instance simplify_hyp_down_ty_frac_ptr_unrefined with 0%N].
+  Global Existing Instance simplify_hyp_down_ty_frac_ptr_unrefined_inst.
+
+  Lemma simplify_goal_down_ty_frac_ptr cty v p β ty T:
+    (v ◁ᵥ|cty| (p @ frac_ptr β (down_ty ty)) ∗ T) ⊢ simplify_goal (v ◁ᵥ|cty| down_ty (p @ frac_ptr β ty)) T.
+  Proof.
+    iIntros "(H & $)".
+    rewrite /down_ty /frac_ptr; repeat simpl_type.
+    iDestruct "H" as "(% & H)".
+    iApply (down1_mono with "H"); auto.
+  Qed.
+  Definition simplify_goal_down_ty_frac_ptr_inst := [instance simplify_goal_down_ty_frac_ptr with 0%N].
+  Global Existing Instance simplify_goal_down_ty_frac_ptr_inst.
+
+  Lemma simplify_goal_down_ty_frac_ptr_unrefined cty v β ty T:
+    (v ◁ᵥ|cty| (frac_ptr β (down_ty ty)) ∗ T) ⊢ simplify_goal (v ◁ᵥ|cty| down_ty (frac_ptr β ty)) T.
+  Proof.
+    iIntros "(H & $)".
+    rewrite /down_ty /frac_ptr /ty_of_rty /ty_own_val; repeat simpl_type.
+    iDestruct "H" as "(% & % & H)".
+    iApply (down1_mono with "H"); auto.
+  Qed.
+  Definition simplify_goal_down_ty_frac_ptr_unrefined_inst := [instance simplify_goal_down_ty_frac_ptr_unrefined with 0%N].
+  Global Existing Instance simplify_goal_down_ty_frac_ptr_unrefined_inst.
 
   (*
   TODO: revisit this comment
@@ -124,15 +251,29 @@ Section own.
   and can make the application of this lemma fail if it tries to solve
   a Movable (tc_opaque x) in the context. *)
 
-  Lemma own_val_to_own_place (l : address) ty β T:
+  Lemma own_val_to_own_place l cty ty β T:
     l ◁ₗ{β} ty ∗ T
-    ⊢ l ◁ᵥ l @ frac_ptr β ty ∗ T.
+      ⊢ l ◁ᵥₐₗ|tptr cty| l @ frac_ptr β ty ∗ T.
   Proof. by iIntros "[$ $]". Qed.
 
-  Lemma own_val_to_own_place_singleton (l : address) β T:
-    T
-    ⊢ l ◁ᵥ l @ frac_ptr β (place l) ∗ T.
-  Proof. by iIntros "$". Qed.
+  Lemma own_val_to_own_place_singleton (l : address) cty β T:
+    T ⊢ l ◁ᵥₐₗ|tptr cty| l @ frac_ptr β (place l) ∗ T.
+  Proof. by iDestruct 1 as "$". Qed.
+
+  (* We might not always want this. *)
+  Lemma own_value_simplify l ot p T:
+    (∃ ty, p ◁ₗ ty ∗ (l ◁ₗ p @ frac_ptr Own ty -∗ T))
+    ⊢ simplify_hyp (l ◁ₗ value (tptr ot) p) T.
+  Proof.
+    iIntros "(% & Hp & HT) Hl".
+    rewrite /value; simpl_type.
+    iDestruct "Hl" as "(%Hl & % & Hl)".
+    iApply "HT".
+    rewrite /heap_mapsto_own_state (mapsto_tptr _ _ _ tvoid); iFrame.
+    by apply has_layout_loc_tptr in Hl.
+  Qed.
+  Definition own_value_simplify_inst := [instance own_value_simplify with 0%N].
+  Global Existing Instance own_value_simplify_inst.
 
 (*   Lemma type_offset_of_sub v1 l s m P ly t T:
     ⌜ly_size ly = 1%nat⌝ ∗ (
@@ -152,74 +293,107 @@ Section own.
   Definition type_offset_of_sub_inst := [instance type_offset_of_sub].
   Global Existing Instance type_offset_of_sub_inst. *)
 
-(*   Lemma type_cast_ptr_ptr p β ty T:
-    (T (addr_to_val p) (p @ frac_ptr β ty))
-    ⊢ typed_un_op p (p ◁ₗ{β} ty) (CastOp PtrOp) PtrOp T.
+  (*Lemma type_lvar_expr f x cty T:
+    match access_mode cty with By_reference | By_copy => True | _ => False end →
+    find_in_context (FindLvar cty x) (λ ty, ∀ b, env.lvar x cty b -∗ T (adr2val (b, Ptrofs.zero)) ((b, Ptrofs.zero) @ frac_ptr Own ty))
+    ⊢ typed_val_expr ge f (Evar x cty) T.
   Proof.
-    iIntros "HT Hp" (Φ) "HΦ".
-    iApply wp_cast_loc; [by apply val_to_of_loc|].
-    iApply ("HΦ" with "[Hp] HT") => //. by iFrame.
+    rewrite /find_in_context /=.
+    iDestruct 1 as (ty) "[(% & ? & Hv) HT]".
+    iIntros (Φ) "HΦ".
+    rewrite -wp_expr_ptr // -wp_var_local; iFrame.
+    iIntros; iApply ("HΦ" with "[Hv]"); last by iApply "HT".
+    simpl; iFrame.
+    rewrite repinject_valinject //.
+    apply val_type_by_value.
   Qed.
-  Definition type_cast_ptr_ptr_inst := [instance type_cast_ptr_ptr].
-  Global Existing Instance type_cast_ptr_ptr_inst. *)
 
-  Lemma type_if_ptr_own l β ty t T1 T2:
-    (l ◁ₗ{β} ty -∗ (*(loc_in_bounds l 0 ∗ True) ∧*) T1)
-    ⊢ typed_if (tptr t) l (l ◁ₗ{β} ty) T1 T2.
+  (* change to match type_lvar? *)
+  Lemma type_gvar_expr f x cty b ty T:
+    match access_mode cty with By_reference | By_copy => True | _ => False end →
+    ~In x (map fst (fn_vars f)) → Genv.find_symbol ge x = Some b →
+    adr2val (b, Ptrofs.zero) ◁ᵥₐₗ|cty| ty ∗ T (adr2val (b, Ptrofs.zero)) ty
+    ⊢ typed_val_expr ge f (Evar x cty) T.
   Proof.
-    iIntros "HT1 Hl".
-    iDestruct ("HT1" with "Hl") as "HT".
-    rewrite /adr2val /sem_cast /=.
-    rewrite andb_false_r /=.
-    eauto.
-  Qed.
-  Definition type_if_ptr_own_inst := [instance type_if_ptr_own].
-  Global Existing Instance type_if_ptr_own_inst.
+    intros; iIntros "(Hgvar & HT)" (Φ) "HΦ".
+    rewrite -wp_expr_ptr // -wp_var_global0 //; iFrame.
+    by iApply ("HΦ" with "Hgvar").
+  Qed.*)
 
-(*   Lemma type_assert_ptr_own l β ty t s fn ls R Q:
-    (l ◁ₗ{β} ty -∗ (*(loc_in_bounds l 0 ∗ True) ∧*) typed_stmt s fn ls R Q)
-    ⊢ typed_assert (tptr t) l (l ◁ₗ{β} ty) s fn ls R Q.
+  Lemma type_cast_ptr_ptr f e ot T:
+    is_tptr (typeof e) = true →
+    typed_val_expr ge f e (λ v ty0, v ◁ᵥₐₗ|typeof e| ty0 -∗
+      <affine> ⌜is_pointer_or_null v⌝ ∗ T v (value (tptr ot) v))
+    ⊢ typed_val_expr ge f (Ecast e (tptr ot)) T.
   Proof.
-    iIntros "HT1 Hl".
-    iDestruct ("HT1" with "Hl") as "[[#Hlib _] HT]".
-    iDestruct (loc_in_bounds_has_alloc_id with "Hlib") as %[? H].
-    iExists l. iSplit; first by rewrite val_to_of_loc.
-    iSplit. { iPureIntro. move: l H => [??] /= -> //. }
-    iSplitR. { by iApply wp_if_precond_alloc. }
-    by iApply "HT".
+    intros; iIntros "He %Φ HΦ".
+    iApply wp_cast0.
+    iApply "He".
+    iIntros (v ?) "own_v HT".
+    iDestruct ("HT" with "own_v") as "(% & HT)".
+    iExists v; subst; iSplit.
+    { iPureIntro; intros; destruct (typeof e); try done; destruct v; done. }
+    iApply ("HΦ" with "[] HT").
+    unfold value; simpl_type.
+    iPureIntro; split3; try done.
+    rewrite has_layout_val_by_value //=.
+    intros ?; simpl.
+    rewrite andb_false_r //.
   Qed.
-  Definition type_assert_ptr_own_inst := [instance type_assert_ptr_own].
-  Global Existing Instance type_assert_ptr_own_inst.
 
-  Lemma type_place_cast_ptr_ptr K l ty β T:
-    typed_place K l β ty T
-    ⊢ typed_place (UnOpPCtx (CastOp PtrOp) :: K) l β ty T.
+  Lemma type_place_cast_ptr_ptr K β ty l ot1 ot2 T:
+    typed_place ge K l β ty (λ l2 β2 ty2 typ, T l2 β2 ty2 (λ t, typ t))
+    ⊢ typed_place ge (CastPCtx (tptr ot1) (tptr ot2) :: K) l β ty T.
   Proof.
     iIntros "HP" (Φ) "Hl HΦ" => /=.
-    iApply wp_cast_loc. { by apply val_to_of_loc. }
-    iIntros "!#". iExists _. iSplit => //.
-    iApply ("HP" with "Hl"). iIntros (l' ty2 β2 typ R) "Hl' Htyp HT".
-    iApply ("HΦ" with "Hl' [-HT] HT"). iIntros (ty') "Hl'".
-    iMod ("Htyp" with "Hl'") as "[? $]". by iFrame.
+    iSplit => //.
+    iExists l; iSplit => //.
+    by iApply ("HP" with "Hl").
   Qed.
   Definition type_place_cast_ptr_ptr_inst := [instance type_place_cast_ptr_ptr].
   Global Existing Instance type_place_cast_ptr_ptr_inst.
 
-  Lemma type_cast_int_ptr n v it T:
-    (⌜n ∈ it⌝ -∗ ∀ oid, T (val_of_loc (oid, n)) ((oid, n) @ frac_ptr Own (place (oid, n))))
-    ⊢ typed_un_op v (v ◁ᵥ n @ int it) (CastOp PtrOp) (IntOp it) T.
+  (*Lemma type_cast_ptr_ptr f e ot β ty T:
+    is_tptr (typeof e) = true →
+    typed_val_expr ge f e (λ v ty0, v ◁ᵥₐₗ|typeof e| ty0 -∗ ∃ l, <affine> ⌜v = adr2val l⌝ ∗
+      l ◁ₗ{β} ty ∗ T v (l @ frac_ptr β ty))
+    ⊢ typed_val_expr ge f (Ecast e (tptr ot)) T.
   Proof.
-    unfold int; simpl_type.
-    iIntros "HT" (Hn Φ) "HΦ".
-    iDestruct ("HT" with "[%]") as "HT".
-    { by apply: val_to_Z_in_range. }
-    iApply wp_cast_int_ptr_weak => //.
-    iIntros (i') "!>". by iApply ("HΦ" with "[] HT").
-  Qed.
-  Definition type_cast_int_ptr_inst := [instance type_cast_int_ptr].
-  Global Existing Instance type_cast_int_ptr_inst | 50.
+    intros; iIntros "He %Φ HΦ".
+    iApply wp_cast0.
+    iApply "He".
+    iIntros (v ?) "own_v HT".
+    iDestruct ("HT" with "own_v") as "(% & % & HT)".
+    iExists v; subst; iSplit.
+    { iPureIntro; intros; destruct (typeof e); done. }
+    iDestruct "HT" as "(Hp & HT)".
+    iApply ("HΦ" with "[Hp] HT"). by iFrame.
+  Qed.*)
 
-  Lemma type_copy_aid v a it l β ty T:
+  Lemma type_if_ptr_own (l : address) β ty t T1 T2:
+    (l ◁ₗ{β} ty -∗ (*(loc_in_bounds l 0 ∗ True) ∧*) ⎡valid_val l⎤ ∧ T1)
+    ⊢ typed_if (tptr t) l (l ◁ₗ{β} ty) ⎡valid_val l⎤ T1 T2.
+  Proof.
+    iIntros "HT1 Hl".
+    iDestruct ("HT1" with "Hl") as "HT".
+    iStopProof; f_equiv; iIntros "HT".
+    rewrite /adr2val /bool_val /= andb_false_r /=; eauto.
+  Qed.
+  Definition type_if_ptr_own_inst := [instance type_if_ptr_own].
+  Global Existing Instance type_if_ptr_own_inst.
+
+  Lemma type_assert_ptr_own l β ty t R:
+    (l ◁ₗ{β} ty -∗ ⎡weak_valid_pointer l⎤ ∧ T_normal R)
+    ⊢ typed_assert (tptr t) l (l ◁ₗ{β} ty) R.
+  Proof.
+    iIntros "HT1 Hl".
+    iDestruct ("HT1" with "Hl") as "$".
+    rewrite /bool_val /= andb_false_r //.
+  Qed.
+  Definition type_assert_ptr_own_inst := [instance type_assert_ptr_own].
+  Global Existing Instance type_assert_ptr_own_inst.
+
+(*  Lemma type_copy_aid v a it l β ty T:
     (l ◁ₗ{β} ty -∗
       (loc_in_bounds (l.1, a) 0 ∗ True) ∧
       (alloc_alive_loc l ∗ True) ∧
@@ -241,25 +415,26 @@ Section own.
 
   (* TODO: Is it a good idea to have this general rule or would it be
   better to have more specialized rules? *)
+
   Lemma type_relop_ptr_ptr (l1 l2 : address) op b β1 β2 ty1 ty2 t1 t2
     (Hop : match op with
-           | Olt => Some (bool_decide (l1.2 < l2.2))
-           | Ogt => Some (bool_decide (l1.2 > l2.2))
-           | Ole => Some (bool_decide (l1.2 <= l2.2))
-           | Oge => Some (bool_decide (l1.2 >= l2.2))
+           | Olt => Some (bool_decide (Ptrofs.unsigned l1.2 < Ptrofs.unsigned l2.2))
+           | Ogt => Some (bool_decide (Ptrofs.unsigned l1.2 > Ptrofs.unsigned l2.2))
+           | Ole => Some (bool_decide (Ptrofs.unsigned l1.2 <= Ptrofs.unsigned l2.2))
+           | Oge => Some (bool_decide (Ptrofs.unsigned l1.2 >= Ptrofs.unsigned l2.2))
            | _ => None
            end = Some b) T:
-    (⎡l1 ◁ₗ{β1} ty1⎤ -∗ ⎡l2 ◁ₗ{β2} ty2⎤ -∗ <affine> ⌜l1.1 = l2.1⌝ ∗ (
-      ⌜0 ≤ l1.2 ≤ Ptrofs.max_unsigned ∧ 0 ≤ l2.2 ≤ Ptrofs.max_unsigned⌝ ∧
+    (l1 ◁ₗ{β1} ty1 -∗ l2 ◁ₗ{β2} ty2 -∗ <affine> ⌜l1.1 = l2.1⌝ ∗ (
       ⎡expr.weak_valid_pointer l1⎤ ∧ ⎡expr.weak_valid_pointer l2⎤ ∧
       T (i2v (bool_to_Z b) tint) (b @ boolean tint)))
-    ⊢ typed_bin_op l1 ⎡l1 ◁ₗ{β1} ty1⎤ l2 ⎡l2 ◁ₗ{β2} ty2⎤ op (tptr t1) (tptr t2) T.
+      ⊢ typed_bin_op ge l1 (l1 ◁ₗ{β1} ty1) l2 (l2 ◁ₗ{β2} ty2) op (tptr t1) (tptr t2) (tint) T.
   Proof.
-    iIntros "HT Hl1 Hl2". iIntros (Φ) "HΦ". iDestruct ("HT" with "Hl1 Hl2") as (Heq (? & ?)) "HT".
+    iIntros "HT Hl1 Hl2". iIntros (Φ) "HΦ".
+    iDestruct ("HT" with "Hl1 Hl2") as (Heq) "HT".
     iIntros "!>" (?) "Hm !>".
-    iDestruct (binop_lemmas4.weak_valid_pointer_dry with "[$Hm HT]") as %H1.
+    iDestruct (valid_pointer.weak_valid_pointer_dry with "[$Hm HT]") as %H1.
     { iDestruct "HT" as "($ & _)". }
-    iDestruct (binop_lemmas4.weak_valid_pointer_dry with "[$Hm HT]") as %H2.
+    iDestruct (valid_pointer.weak_valid_pointer_dry with "[$Hm HT]") as %H2.
     { iDestruct "HT" as "(_ & $ & _)". }
     iFrame; iExists (i2v (bool_to_Z b) tint); iSplit.
     - iStopProof; split => rho; monPred.unseal.
@@ -267,31 +442,31 @@ Section own.
       assert (classify_cmp (tptr t1) (tptr t2) = cmp_case_pp) as Hclass by done.
       rewrite -val_of_bool_eq.
       destruct op => //; simplify_eq; simpl; rewrite /Cop.sem_cmp Hclass /cmp_ptr /= if_true // H1 H2 /=.
-      + rewrite /Ptrofs.ltu !Ptrofs.unsigned_repr //.
-      + rewrite /Ptrofs.ltu !Ptrofs.unsigned_repr //.
+      + rewrite /Ptrofs.ltu //.
+      + rewrite /Ptrofs.ltu //.
         case_bool_decide; destruct (zlt _ _); (done || lia).
-      + rewrite /Ptrofs.ltu !Ptrofs.unsigned_repr //.
+      + rewrite /Ptrofs.ltu //.
         case_bool_decide; destruct (zlt _ _); (done || lia).
-      + rewrite /Ptrofs.ltu !Ptrofs.unsigned_repr //.
+      + rewrite /Ptrofs.ltu //.
         case_bool_decide; destruct (zlt _ _); (done || lia).
     - iDestruct "HT" as "(_ & _ & HT)".
       iApply ("HΦ" with "[] HT") => //.
-      iExists _; iSplit; iPureIntro; try done.
-      by destruct b.
+      rewrite /ty_own_val_at /ty_own_val /=.
+      destruct b; iSplit; eauto; iExists _; try done.
   Qed.
+
   Definition type_lt_ptr_ptr_inst l1 l2 :=
-    [instance type_relop_ptr_ptr l1 l2 Olt (bool_decide (l1.2 < l2.2))].
+    [instance type_relop_ptr_ptr l1 l2 Olt (bool_decide (Ptrofs.unsigned l1.2 < Ptrofs.unsigned l2.2))].
   Global Existing Instance type_lt_ptr_ptr_inst.
   Definition type_gt_ptr_ptr_inst l1 l2 :=
-    [instance type_relop_ptr_ptr l1 l2 Ogt (bool_decide (l1.2 > l2.2))].
+    [instance type_relop_ptr_ptr l1 l2 Ogt (bool_decide (Ptrofs.unsigned l1.2 > Ptrofs.unsigned l2.2))].
   Global Existing Instance type_gt_ptr_ptr_inst.
   Definition type_le_ptr_ptr_inst l1 l2 :=
-    [instance type_relop_ptr_ptr l1 l2 Ole (bool_decide (l1.2 <= l2.2))].
+    [instance type_relop_ptr_ptr l1 l2 Ole (bool_decide (Ptrofs.unsigned l1.2 <= Ptrofs.unsigned l2.2))].
   Global Existing Instance type_le_ptr_ptr_inst.
   Definition type_ge_ptr_ptr_inst l1 l2 :=
-    [instance type_relop_ptr_ptr l1 l2 Oge (bool_decide (l1.2 >= l2.2))].
+    [instance type_relop_ptr_ptr l1 l2 Oge (bool_decide (Ptrofs.unsigned l1.2 >= Ptrofs.unsigned l2.2))].
   Global Existing Instance type_ge_ptr_ptr_inst.
-
 
   (* Lemma type_roundup_frac_ptr v2 β ty P2 T p: *)
   (*   (P2 -∗ T (val_of_loc p) (t2mt (p @ frac_ptr β ty))) ⊢ *)
@@ -319,21 +494,23 @@ Section own.
   (*   TypedBinOp p (p ◁ₗ{β} ty) v2 P2 RoundDownOp T := *)
   (*   i2p (type_rounddown_frac_ptr v2 β ty P2 T p). *)
 
+(*  
   Global Program Instance shr_copyable p ty : Copyable (p @ frac_ptr Shr ty).
   Next Obligation.
+    intros. rewrite /Affine /ty_own_val /=.
   Admitted.
   Next Obligation.
-    iIntros (p ty E ot l ? (t & ->)) "(%&#Hmt&#Hty)".
-    iMod (heap_mapsto_own_state_to_mt with "Hmt") as (q) "[_ Hl]" => //.
+    iIntros (p ty E ot l) "Htm".
+    iMod (heap_mapsto_own_state_to_mt with "Htm") as (q) "(? ?)".
     unfold has_layout_loc.
     rewrite field_compatible_tptr; erewrite mapsto_tptr; iSplitR => //.
     iExists _, _. iFrame. iModIntro. iSplit => //.
     - iIntros "!>"; by iSplit.
     - by iIntros "_".
   Qed.
-
+*)
   Lemma find_in_context_type_loc_own l T:
-    (∃ l1 β1 β ty, l1 ◁ₗ{β1} (l @ frac_ptr β ty) ∗ (l1 ◁ₗ{β1} (l @ frac_ptr β (place l)) -∗
+    (∃ l1 β1 β ty, (l1 ◁ₗ{β1} (l @ frac_ptr β ty)) ∗ ((l1 ◁ₗ{β1} (l @ frac_ptr β (place l))) -∗
       T (own_state_min β1 β, ty)))
     ⊢ find_in_context (FindLoc l) T.
   Proof.
@@ -345,18 +522,21 @@ Section own.
     [instance find_in_context_type_loc_own with FICSyntactic].
   Global Existing Instance find_in_context_type_loc_own_inst | 10.
 
-  Lemma find_in_context_type_val_own l T:
-    (∃ ty : type, ⎡l ◁ₗ ty⎤ ∗ T (l @ frac_ptr Own ty))
-    ⊢ find_in_context (FindVal l) T.
-  Proof. iDestruct 1 as (ty) "[Hl HT]". iExists _ => /=. by iFrame. Qed.
+  (* Should check it again *)
+  Lemma find_in_context_type_val_own cty (l : address) T:
+    (∃ ty : type, (adr2val l) ◁ᵥₐₗ| (tptr cty) | (l @ frac_ptr Own ty) ∗ T (l @ frac_ptr Own ty))
+    ⊢ find_in_context (FindVal (tptr cty) l) T.
+  Proof. iDestruct 1 as (ty) "[Hl HT]". iExists _ => /=. iFrame. Qed.
   Definition find_in_context_type_val_own_inst :=
     [instance find_in_context_type_val_own with FICSyntactic].
   Global Existing Instance find_in_context_type_val_own_inst | 10.
 
-  Lemma find_in_context_type_val_own_singleton (l : address) T:
+  Lemma find_in_context_type_val_own_singleton cty (l : address) T:
     (emp ∗ T (l @ frac_ptr Own (place l)))
-    ⊢ find_in_context (FindVal l) T.
-  Proof. iIntros "[_ HT]". iExists _ => /=. iFrame "HT". simpl. done. Qed.
+      ⊢ find_in_context (FindVal (tptr cty) l) T.
+  Proof. iIntros "[_ HT]". iExists _ => /=. iFrame "HT".
+         rewrite / ty_own_val_at /ty_own_val /=. done.
+  Qed.
   Definition find_in_context_type_val_own_singleton_inst :=
     [instance find_in_context_type_val_own_singleton with FICSyntactic].
   Global Existing Instance find_in_context_type_val_own_singleton_inst | 20.
@@ -366,14 +546,15 @@ Section own.
   unfolded as eagerly as place. You probably should not add typing
   rules for place', but for place instead. *)
   Definition place' (l : address) : type := place l.
-  Lemma find_in_context_type_val_P_own_singleton (l : address) T:
+  Lemma find_in_context_type_val_P_own_singleton (l : address) (T:assert->assert):
     (emp ∗ T (l ◁ₗ place' l))
     ⊢ find_in_context (FindValP l) T.
-  Proof. rewrite /place'. iIntros "[_ HT]". iExists _. iFrame "HT" => //=. Qed.
+  Proof. rewrite /place'. iIntros "[_ HT]". iExists (l ◁ₗ place l). iFrame "HT" => //=. Qed.
   Definition find_in_context_type_val_P_own_singleton_inst :=
     [instance find_in_context_type_val_P_own_singleton with FICSyntactic].
   Global Existing Instance find_in_context_type_val_P_own_singleton_inst | 30.
 End own.
+
 Global Typeclasses Opaque place'.
 Notation "place'< l >" := (place' l) (only printing, format "'place'<' l '>'") : printing_sugar.
 
@@ -388,45 +569,76 @@ Notation "&shr< ty >" := (frac_ptr Shr ty) (only printing, format "'&shr<' ty '>
 Section ptr.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  (* Should loc_in_bounds be replaced with valid_pointer'? But that would take a piece of ownership of l'. *)
+  (* at present n doesn't do anything *)
   Program Definition ptr_type (n : nat) (l' : address) : type := {|
-    ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
-    ty_own β l := (<affine> ⌜field_compatible (tptr tvoid) [] l⌝ ∗ (*loc_in_bounds l' n ∗*) l ↦_(tptr tvoid)[β] l')%I;
-    ty_own_val v := (<affine> ⌜v = adr2val l'⌝ (*∗ loc_in_bounds l' n*))%I;
+    ty_has_op_type ot mt := (match ot with | Tpointer t attr => ot = tptr t | _ => False end)%type;
+    ty_own β l := (<affine> ⌜l `has_layout_loc` (tptr tvoid)⌝ ∗ (*valid_pointer l' (*n*) ∧*) l ↦[β]|tptr tvoid| l')%I;
+    ty_own_val cty v := (<affine> ⌜repinject cty v = adr2val l'⌝ (*∗ loc_in_bounds l' n*))%I;
   |}.
-  Next Obligation. iIntros (????). iDestruct 1 as "[$ ?]". by iApply heap_mapsto_own_state_share. Qed.
-  Next Obligation. iIntros (n l ot mt l' (? & ->)). iDestruct 1 as (?) "_". rewrite /has_layout_loc field_compatible_tptr //. Qed.
-  Next Obligation. iIntros (n l ot mt l' (? & ->) ->). iPureIntro. intros ?; hnf. simple_if_tac; done. Qed.
-  Next Obligation. iIntros (n l ot mt v (? & ->)) "[? Hl]". unfold heap_mapsto_own_state. erewrite mapsto_tptr. eauto with iFrame. Qed.
-  Next Obligation. iIntros (n l ot mt l' v (? & ->) ?) "Hl ->". rewrite /has_layout_loc field_compatible_tptr in H; unfold heap_mapsto_own_state; erewrite mapsto_tptr; by iFrame. Qed.
-(*   Next Obligation.
-    iIntros (n l v ot mt st ?). apply mem_cast_compat_loc; [done|].
-    iIntros "[-> ?]". iPureIntro. naive_solver.
-  Qed. *)
+  Next Obligation.
+    iIntros (?????).
+    iDestruct 1 as "[$ Hl]".
+    iMod (heap_mapsto_own_state_share with "Hl") as "$"; done.
+  Qed.
+  Next Obligation.
+    iIntros (??????) "(% & Hl)".
+    rewrite /has_layout_loc in H |- *.
+    destruct ot as [[] |]; done.
+  Qed.
+  Next Obligation.
+    iIntros (???????).
+    rewrite /repinject /= in H; subst.
+    iPureIntro.
+    destruct cty; try done. inv H.
+    rewrite has_layout_val_by_value //=.
+    rewrite /tc_val' /=.
+    intros. 
+    destruct v_rep; try done.
+    simple_if_tac; try done.
+  Qed.
+  Next Obligation.
+    iIntros (??????) "(% & Hl)".
+    rewrite /heap_mapsto_own_state.
+    destruct cty; try done; inv H.
+    erewrite (mapsto_tptr _ _ tvoid cty).
+    iExists _. iFrame.
+    by iPureIntro.
+  Qed.
+  Next Obligation.
+    iIntros (????????) "Hl".
+    iIntros "%".
+    destruct cty; try done; inv H.
+    rewrite /= in H1. rewrite H1.
+    rewrite has_layout_loc_tptr in H0. unfold heap_mapsto_own_state.
+    erewrite (mapsto_tptr _ _ tvoid cty). by iFrame.
+  Qed.
 
   Definition ptr (n : nat) : rtype _ := RType (ptr_type n).
 
-(*   Instance ptr_loc_in_bounds l n β : LocInBounds (l @ ptr n) β bytes_per_addr.
+  Instance ptr_loc_in_bounds l n β : LocInBounds (l @ ptr n) β (Z.to_nat (sizeof (tptr tvoid))).
   Proof.
-    constructor. iIntros (?) "[_ [_ Hl]]".
-    iDestruct (heap_mapsto_own_state_loc_in_bounds with "Hl") as "Hb".
-    iApply loc_in_bounds_shorten; last done. by rewrite /val_of_loc.
-  Qed. *)
+    constructor. iIntros (?) "(% & ?)".
+    by iApply (has_layout_in_bounds _ (tptr tvoid)).
+  Qed.
 
-   Lemma simplify_ptr_hyp_place (p:address) l t n T:
+  Lemma simplify_ptr_hyp_place (p:address) l t n T:
     ((*loc_in_bounds p n -∗*) l ◁ₗ value (tptr t) (adr2val p) -∗ T)
     ⊢ simplify_hyp (l ◁ₗ p @ ptr n) T.
   Proof.
     iIntros "HT [% Hl]". iApply "HT". unfold value; simpl_type.
     rewrite /heap_mapsto_own_state.
-    rewrite field_compatible_tptr; erewrite mapsto_tptr.
-    repeat iSplit => //. iPureIntro. rewrite /tc_val' /= andb_false_r //.
+    erewrite (mapsto_tptr _ _ tvoid t).
+    repeat iSplit => //.
+    { rewrite /has_layout_loc in H |- *. iPureIntro.
+      rewrite has_layout_val_by_value //= /tc_val' /=.
+      destruct t; try done.
+    }
   Qed.
   Definition simplify_ptr_hyp_place_inst := [instance simplify_ptr_hyp_place with 0%N].
   Global Existing Instance simplify_ptr_hyp_place_inst.
 
-  Lemma simplify_ptr_goal_val (p:address) l n T:
-    <affine> ⌜l = p⌝ ∗ (*loc_in_bounds l n ∗*) T  ⊢ simplify_goal (p ◁ᵥ l @ ptr n) T.
+  Lemma simplify_ptr_goal_val cty (p:address) l n T:
+    <affine> ⌜l = p⌝ ∗ (*loc_in_bounds l n ∗*) T  ⊢ simplify_goal (p ◁ᵥₐₗ|tptr cty| l @ ptr n) T.
   Proof. by iIntros "[-> $]". Qed.
   Definition simplify_ptr_goal_val_inst := [instance simplify_ptr_goal_val with 10%N].
   Global Existing Instance simplify_ptr_goal_val_inst.
@@ -437,11 +649,17 @@ Section ptr.
   Proof.
     iIntros "HT Hp".
     iDestruct (ty_aligned _ (tptr tvoid) MCNone with "Hp") as %?; [eexists; eauto|].
-    iDestruct (ty_deref _ (tptr tvoid) MCNone with "Hp") as (v) "[Hp [-> Hl]]"; [eexists; eauto|].
-    iDestruct ("HT" with "Hl") as (? ->) "?". iExists _. by iFrame "∗".
+    iDestruct (ty_deref _ (tptr tvoid) MCNone with "Hp") as (v) "(Hp & Hl)"; try done.
+    rewrite /ty_own_val /=.
+    iDestruct "Hl" as "(% & Hl)".
+    rewrite H0.
+    iDestruct ("HT" with "[$Hl]") as (? ->) "?".
+    iExists _. by iFrame "∗".
   Qed.
   Definition subsume_own_ptr_inst := [instance subsume_own_ptr].
   Global Existing Instance subsume_own_ptr_inst.
+
+End ptr.
 
 (*   Lemma type_copy_aid_ptr v1 a it v2 l n T:
     (v1 ◁ᵥ a @ int it -∗
@@ -463,44 +681,89 @@ Section ptr.
   Qed.
   Definition type_copy_aid_ptr_inst := [instance type_copy_aid_ptr].
   Global Existing Instance type_copy_aid_ptr_inst. *)
-End ptr.
 
 Section null.
-  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs} (ge : Genv.t Clight.fundef Ctypes.type).
+
   Program Definition null : type := {|
-    ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
-    ty_own β l := (<affine> ⌜field_compatible (tptr tvoid) [] l⌝ ∗ l ↦_(tptr tvoid)[β] nullval)%I;
-    ty_own_val v := <affine> ⌜v = nullval⌝%I;
+    ty_has_op_type ot mt := (match ot with | Tpointer t attr => ot = tptr t | _ => False end)%type;
+    ty_own β l := (<affine> ⌜l `has_layout_loc` (tptr tvoid)⌝ ∗ l ↦[β]|tptr tvoid| nullval)%I;
+    ty_own_val cty v := <affine> ⌜repinject cty v = nullval⌝%I;
   |}.
-  Next Obligation. iIntros (???). iDestruct 1 as "[$ ?]". by iApply heap_mapsto_own_state_share. Qed.
-  Next Obligation. iIntros (???(? & ->)) "[% _]". rewrite /has_layout_loc field_compatible_tptr //. Qed.
-  Next Obligation. iIntros (???(? & ->) ->). iPureIntro; intros ?; hnf. simple_if_tac; done. Qed.
-  Next Obligation. iIntros (???(? & ->)) "[% ?]". iExists _. unfold mapsto. erewrite mapsto_tptr. by iFrame. Qed.
-  Next Obligation. iIntros (????(? & ->)?) "? ->". rewrite /has_layout_loc field_compatible_tptr in H; unfold mapsto; erewrite mapsto_tptr. by iFrame. Qed.
-(*   Next Obligation. iIntros (v ot mt st ?). apply mem_cast_compat_loc; [done|]. iPureIntro. naive_solver. Qed. *)
-
-(*   Global Instance null_loc_in_bounds β : LocInBounds null β bytes_per_addr.
-  Proof.
-    constructor. iIntros (l) "[_ Hl]".
-    iDestruct (heap_mapsto_own_state_loc_in_bounds with "Hl") as "Hb".
-    by iApply loc_in_bounds_shorten.
-  Qed. *)
-
-  Lemma type_null T :
-    T null
-    ⊢ typed_value nullval T.
-  Proof. iIntros "HT". iExists  _. iFrame. done. Qed.
-  Definition type_null_inst := [instance type_null].
-  Global Existing Instance type_null_inst.
-
-  Global Program Instance null_copyable : Copyable (null).
   Next Obligation.
-    iIntros (E l ??(? & ->)) "[% Hl]".
-    rewrite /has_layout_loc field_compatible_tptr.
-    iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //. iSplitR => //.
-    iExists _, _. erewrite mapsto_tptr. iFrame. iModIntro. iSplit => //.
-    by iIntros "_".
+    iIntros (???). iDestruct 1 as "[$ Hl]".
+    by iApply (heap_mapsto_own_state_share with "[Hl]").
   Qed.
+  Next Obligation.
+    iIntros (????) "[% _]".
+    destruct ot as [[] |]; try done; inv H.
+  Qed.
+  Next Obligation.
+    iIntros (?????).
+    rewrite /repinject /= in H; subst.
+    destruct cty; try done; inv H.
+    simpl in H0. rewrite H0.
+    iPureIntro. 
+    hnf.
+    intros ?; apply Clight_mapsto_memory_block.tc_val_pointer_nullval.
+  Qed.
+  Next Obligation.
+    iIntros (????) "(% & Hl)".
+    destruct cty; try done; inv H.
+    rewrite /heap_mapsto_own_state.
+    erewrite (mapsto_tptr _ _ tvoid cty).
+    eauto with iFrame.
+  Qed.
+  Next Obligation.
+    iIntros (?????) "% Hl %Hl1".
+    destruct cty; try done; inv H.
+    rewrite /repinject /= in Hl1; subst.
+    rewrite /heap_mapsto_own_state.
+    erewrite (mapsto_tptr _ _ tvoid cty).
+    by iFrame.
+  Qed.
+
+  Global Instance null_loc_in_bounds β : LocInBounds null β (Z.to_nat (expr.sizeof (tptr tvoid))).
+  Proof.
+    constructor. iIntros (l) "[% _]".
+    by iApply (has_layout_in_bounds _ (tptr tvoid)).
+  Qed.
+
+  Lemma type_null cty T :
+    T null
+    ⊢ typed_value (tptr cty) nullval T.
+  Proof. iIntros "HT". iExists _. iFrame. done. Qed.
+  Definition type_null_inst := [instance type_null].
+  Global Existing Instance type_null_inst | 1.
+
+  Global Program Instance null_copyable : Copyable null.
+  Next Obligation.
+    iIntros (E ? l ? Hcty) "(% & Hl)".
+    hnf in Hcty; destruct cty; inv Hcty.
+    iSplitR => //.
+    iInv "Hl" as ">(% & % & Hl)" "Hclose".
+    exploit slice.split_readable_share; first done; intros (s & ? & ? & ? & ?).
+    rewrite (mapsto_tptr _ _ _ cty) /mapsto.
+    rewrite -{1}data_at_rec_share_join; last done.
+    iDestruct "Hl" as "($ & H2)".
+    iMod ("Hclose" with "[H2]").
+    { rewrite /data_at_rec /=; erewrite mem_block_mapsto_tptr; by iFrame. }
+    iModIntro. do 2 iSplit => //.
+    iIntros "H"; iSplitR => //.
+    iApply (heap_mapsto_own_state_from_mt _ _ _ _ _ s with "[H]"); [done..|].
+    rewrite (mapsto_tptr _ _ _ cty) //.
+  Qed.
+  
+  Global Program Instance null_defined : DefinedTy null.
+  Next Obligation. intros; iIntros (? ->). by destruct cty. Qed.
+
+  (*(* Why don't they need this? Because TypedValue and cast rules proactively catch nulls. *)
+  Lemma simplify_null t a v {H : TCEq v nullval} T:
+    (v ◁ᵥ|Tpointer t a| null -∗ T)
+    ⊢ simplify_hyp (v ◁ᵥ|Tpointer t a| value (Tpointer t a) nullval) T.
+  Proof.  iIntros "HT Hv". inv H. by iApply "HT". Qed.
+  Definition simplify_null_inst := [instance simplify_null with 0%N].
+  Global Existing Instance simplify_null_inst.*)
 
   Definition heap_loc_eq l1 l2 m :=
     if Archi.ptr64 then Val.cmplu_bool (Mem.valid_pointer m) Ceq l1 l2
@@ -515,146 +778,356 @@ Section null.
     rewrite /heap_loc_eq /=. move => ? Heq.
     rewrite /sem_binary_operation; destruct op => //; rewrite /Cop.sem_cmp /= /cmp_ptr /=.
     - rewrite Heq /=; split; congruence.
-    - rewrite /Val.cmpu_bool /Val.cmplu_bool in Heq |- *; destruct l1 => //; destruct l2 => //; simpl in *; simple_if_tac; simpl;
+    - rewrite /Val.cmpu_bool /Val.cmplu_bool in Heq |- *;
+        destruct l1 => //; destruct l2 => //; simpl in *; simple_if_tac; simpl;
         first [inv Heq; split; congruence | try if_tac in Heq; destruct (_ && _); inv Heq; simpl; split; congruence].
   Qed.
 
-  Lemma type_binop_null_null v1 v2 t1 t2 op T:
+  Lemma type_binop_null_null cty v1 v2 t1 t2 op T:
     (<affine> ⌜match op with | Cop.Oeq | Cop.One => True | _ => False end⌝ ∗ ∀ v,
           T v ((if op is Cop.Oeq then true else false) @ boolean tint))
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ null⎤ v2 ⎡v2 ◁ᵥ null⎤ op (tptr t1) (tptr t2) T.
+      ⊢ typed_bin_op ge v1 (v1 ◁ᵥₐₗ|tptr cty| null) v2 (v2 ◁ᵥₐₗ|tptr cty| null) op (tptr t1) (tptr t2) (tint) T.
   Proof.
-    iIntros "[% HT]" (-> -> Φ) "HΦ".
+    iIntros "(% & HT)" (?) "%"; simpl in *; subst.
+    iIntros (Φ) "HΦ".
     iIntros "!>" (?) "$ !>".
     iExists (Val.of_bool (if op is Oeq then true else false)); iSplit.
-    - iStopProof; split => rho; monPred.unseal.
-      apply bi.pure_intro.
-      intros; eapply eval_bin_op_ptr_cmp; done.
-    - iApply "HΦ" => //. iExists _. iSplit; iPureIntro => //. by destruct op.
+    - iPureIntro.
+      eapply eval_bin_op_ptr_cmp with (b := true); eauto.
+    - iApply "HΦ" => //.
+      rewrite /ty_own_val_at /ty_own_val /=.
+      iSplit; auto.
+      iExists _. iSplit; iPureIntro => //.
+      { by destruct op. }
+      { split; auto; by destruct op. }
   Qed.
   Definition type_binop_null_null_inst := [instance type_binop_null_null].
   Global Existing Instance type_binop_null_null_inst.
 
-(* need Mem.valid_pointer for this
-  Lemma type_binop_ptr_null v op (l : address) t1 t2 ty β (*n `{!LocInBounds ty β n}*) T:
-    (<affine> ⌜match op with Oeq | One => True | _ => False end⌝ ∗ ∀ v, ⎡l ◁ₗ{β} ty⎤ -∗
+  Lemma type_binop_ptr_null cty v op (l : address) t1 t2 ty β T:
+    (<affine> ⌜match op with | Cop.Oeq | Cop.One => True | _ => False end⌝ ∗
+     type_alive ty β 1 ∗ ∀ v, l ◁ₗ{β} ty -∗
           T v ((if op is Oeq then false else true) @ boolean tint))
-    ⊢ typed_bin_op l ⎡l ◁ₗ{β} ty⎤ v ⎡v ◁ᵥ null⎤ op (tptr t1) (tptr t2) T.
+      ⊢ typed_bin_op ge l (l ◁ₗ{β} ty) v (v ◁ᵥₐₗ|tptr cty| null) op (tptr t1) (tptr t2) tint T.
   Proof.
-    iIntros "[% HT] Hl" (-> Φ) "HΦ".
-    iIntros (?) "$".
-    iExists (Val.of_bool (if op is Oeq then false else true)); iSplit.
-    - iStopProof; split => rho; monPred.unseal.
-      apply bi.pure_intro.
-      intros; eapply (eval_bin_op_ptr_cmp _ _ _ _ _ _ _ _ false); try done.
-      rewrite /heap_loc_eq /=.
-    - iApply "HΦ" => //. iExists _. iSplit; iPureIntro => //. by destruct op.
+    rewrite /type_alive.
+    iIntros "(% & #Halive & HT) Hl" (?) "% HΦ"; simpl in *; subst.
+    iApply (wp_binop_sc _ _ _ _ _ _ _ (Val.of_bool (if op is Oeq then false else true))).
+    { by destruct op. }
+    iSplit.
+    - iPoseProof ("Halive" with "Hl") as "Hl".
+      iSpecialize  ("Hl" $! 0 with "[%]"); first lia.
+      rewrite offset_val_zero_Vptr valid_pointer_weak.
+      destruct op; try done; rewrite /= /sc_cmp /= /sc_cmp_ptr /nullval /=; simple_if_tac; done.
+    - iSpecialize ("HT" with "Hl").
+      iApply "HΦ" => //.
+      destruct op; try done.
+      { rewrite /Val.of_bool /Vfalse /= /ty_own_val_at /ty_own_val /=.
+        iSplit; auto.
+      }
+      { rewrite /Val.of_bool /Vtrue /= /ty_own_val_at /ty_own_val /=.
+        iSplit; auto.
+      }
   Qed.
   Definition type_binop_ptr_null_inst := [instance type_binop_ptr_null].
   Global Existing Instance type_binop_ptr_null_inst.
 
-  Lemma type_binop_null_ptr v op (l : address) ty β n `{!LocInBounds ty β n} T:
-    (⌜match op with EqOp rit | NeOp rit => rit = tint | _ => False end⌝ ∗ ∀ v, l ◁ₗ{β} ty -∗
-          T v (((if op is EqOp _ then false else true) @ boolean tint)))
-    ⊢ typed_bin_op v (v ◁ᵥ null) l (l ◁ₗ{β} ty) op PtrOp PtrOp T.
+  Lemma type_binop_null_ptr cty v op (l : address) t1 t2 ty β T:
+    (<affine> ⌜match op with | Cop.Oeq | Cop.One => True | _ => False end⌝ ∗
+    type_alive ty β 1 ∗ ∀ v, l ◁ₗ{β} ty -∗
+     T v ((if op is Oeq then false else true) @ boolean tint))
+      ⊢ typed_bin_op ge v (v ◁ᵥₐₗ|tptr cty| null) l (l ◁ₗ{β} ty) op (tptr t1) (tptr t2) tint T.
   Proof.
-    iIntros "[% HT] -> Hl %Φ HΦ".
-    iDestruct (loc_in_bounds_in_bounds with "Hl") as "#Hb".
-    iDestruct (loc_in_bounds_shorten _ _ 0 with "Hb") as "#Hb0"; first by lia.
-    have ?:= val_of_Z_bool (if op is EqOp _ then false else true) tint.
-    iApply (wp_binop_det (i2v (bool_to_Z (if op is EqOp _ then false else true)) tint)).
-    iIntros (σ) "Hctx". iApply fupd_mask_intro; [set_solver|]. iIntros "HE".
-    iDestruct (loc_in_bounds_has_alloc_id with "Hb") as %[??].
-    iDestruct (wp_if_precond_heap_loc_eq with "[] Hctx") as %Heq. { by iApply wp_if_precond_alloc. }
-    rewrite heap_loc_eq_symmetric in Heq.
+    rewrite /type_alive.
+    iIntros "(% & #Halive & HT)" (?) "Hl % HΦ"; simpl in *; subst.
+    iApply (wp_binop_sc _ _ _ _ _ _ _ (Val.of_bool (if op is Oeq then false else true))).
+    { by destruct op. }
     iSplit.
-    { iPureIntro => ?. rewrite eval_bin_op_ptr_cmp //. case_bool_decide => //; simplify_eq. naive_solver. }
-    iModIntro. iMod "HE". iModIntro. iFrame.
-    iApply "HΦ". 2: by iApply "HT". iExists _. iSplit; iPureIntro => //; by destruct op.
+    - iPoseProof ("Halive" with "Hl") as "Hl".
+      iSpecialize  ("Hl" $! 0 with "[%]"); first lia.
+      rewrite offset_val_zero_Vptr valid_pointer_weak.
+      destruct op; try done; rewrite /= /sc_cmp /= /sc_cmp_ptr /nullval /=; simple_if_tac; done.
+    - iSpecialize ("HT" with "Hl").
+      iApply "HΦ" => //.
+      destruct op; try done.
+      { rewrite /Val.of_bool /Vfalse /= /ty_own_val_at /ty_own_val /=.
+        iSplit; auto.
+      }
+      { rewrite /Val.of_bool /Vtrue /= /ty_own_val_at /ty_own_val /=.
+        iSplit; auto.
+      }
   Qed.
   Definition type_binop_null_ptr_inst := [instance type_binop_null_ptr].
-  Global Existing Instance type_binop_null_ptr_inst. *)
+  Global Existing Instance type_binop_null_ptr_inst.
 
-(*  Lemma type_cast_null_int it v T:
-    (T (i2v 0 it) (0 @ int it))
-    ⊢ typed_un_op v (v ◁ᵥ null) (CastOp (IntOp it)) PtrOp T.
+  (* hardcoding target type for now *)
+  Lemma type_cast_null_int f s e T: is_tptr (typeof e) = true →
+    typed_val_expr ge f e (λ v ty, v ◁ᵥₐₗ|typeof e| ty -∗ v ◁ᵥₐₗ|typeof e| null ∗
+      T (i2v 0 (Tlong s noattr)) (0 @ int.int (Tlong s noattr)))
+    ⊢ typed_val_expr ge f (Ecast e (Tlong s noattr)) T.
   Proof.
-    iIntros "HT" (-> Φ) "HΦ".
-    iApply wp_cast_null_int.
-    { by apply: (val_of_Z_bool false). }
-    iModIntro. iApply ("HΦ" with "[] HT").
-    unfold int; simpl_type. iPureIntro. apply: (i2v_bool_Some false).
+    intros; iIntros "He %Φ HΦ".
+    iApply wp_cast0.
+    iApply "He".
+    iIntros (v ty) "own_v HT".
+    iDestruct ("HT" with "own_v") as "(own_v & HT)".
+    rewrite /null; simpl_type.
+    iDestruct "own_v" as %Hv.
+    iExists nullval; iSplit.
+    { iPureIntro; intros.
+      destruct (typeof e); try done; destruct v; try done; simpl in *.
+      unfold nullval in Hv.
+      change Archi.ptr64 with true in *; inv Hv; done. }
+    iApply ("HΦ" with "[] HT").
+    rewrite /int.int; simpl_type; iPureIntro.
+    split3; auto.
+    - rewrite has_layout_val_by_value //.
+    - destruct s; done.
   Qed.
-  Definition type_cast_null_int_inst := [instance type_cast_null_int].
-  Global Existing Instance type_cast_null_int_inst.
 
-  Lemma type_cast_zero_ptr v it T:
-    (T (val_of_loc NULL_loc) null)
-    ⊢ typed_un_op v (v ◁ᵥ 0 @ int it) (CastOp PtrOp) (IntOp it) T.
+  Lemma type_cast_zero_ptr f e it ot T:
+    typed_val_expr ge f e (λ v ty, v ◁ᵥₐₗ|typeof e| ty -∗ v ◁ᵥₐₗ|typeof e| 0 @ int.int it ∗
+      T nullval null)
+    ⊢ typed_val_expr ge f (Ecast e (tptr ot)) T.
   Proof.
-    unfold int; simpl_type.
-    iIntros "HT" (Hv Φ) "HΦ".
-    iApply wp_cast_int_null; first done.
-    iModIntro. by iApply ("HΦ" with "[] HT").
-  Qed.
-  Definition type_cast_zero_ptr_inst := [instance type_cast_zero_ptr].
-  Global Existing Instance type_cast_zero_ptr_inst | 10.
-
-  Lemma type_cast_null_ptr v T:
-    (T v null)
-    ⊢ typed_un_op v (v ◁ᵥ null) (CastOp PtrOp) PtrOp T.
-  Proof.
-    iIntros "HT" (-> Φ) "HΦ".
-    iApply wp_cast_loc; [by apply val_to_of_loc|].
+    intros; iIntros "He %Φ HΦ".
+    iApply wp_cast0.
+    iApply "He".
+    iIntros (v ty) "own_v HT".
+    iDestruct ("HT" with "own_v") as "(own_v & HT)".
+    rewrite /int.int; simpl_type.
+    iDestruct "own_v" as %(<- & ? & Hv).
+    iExists nullval; iSplit.
+    { iPureIntro; intros.
+      destruct (typeof e); try done; destruct v; try done; simpl in *.
+      - change Archi.ptr64 with true; simpl.
+        destruct s; simpl; injection Hv as ->; done.
+      - rewrite /nullval; change Archi.ptr64 with true; simpl.
+        do 2 f_equal.
+        destruct s; inv Hv; apply (f_equal Int64.repr) in H1; by [rewrite Int64.repr_signed in H1 | rewrite Int64.repr_unsigned in H1]. }
     by iApply ("HΦ" with "[] HT").
   Qed.
-  Definition type_cast_null_ptr_inst := [instance type_cast_null_ptr].
-  Global Existing Instance type_cast_null_ptr_inst. *)
 
-  Lemma type_if_null v t T1 T2:
-    T2
-    ⊢ typed_if (tptr t) v (v ◁ᵥ null) T1 T2.
+  Lemma type_cast_null_ptr f e ot T: is_tptr (typeof e) = true →
+    typed_val_expr ge f e (λ v ty, v ◁ᵥₐₗ|typeof e| ty -∗ v ◁ᵥₐₗ|typeof e| null ∗
+      T v null)
+    ⊢ typed_val_expr ge f (Ecast e (tptr ot)) T.
   Proof.
-    iIntros "HT2 -> /=". iExists (Vint Int.zero); iFrame; iPureIntro.
-    rewrite /sem_cast /= andb_false_r //.
+    intros; iIntros "He %Φ HΦ".
+    iApply wp_cast0.
+    iApply "He".
+    iIntros (v ty) "own_v HT".
+    iDestruct ("HT" with "own_v") as "(own_v & HT)".
+    rewrite {1}/null; simpl_type.
+    iDestruct "own_v" as %Hv.
+    destruct (typeof e); try done.
+    iExists v; iSplit.
+    { iPureIntro; intros.
+      destruct v; done. }
+    iApply ("HΦ" with "[] HT").
+    rewrite {1}/null; simpl_type; done.
+  Qed.
+
+  Lemma type_if_null cty v t T1 T2:
+    ⎡valid_val v⎤ ∧ T2
+    ⊢ typed_if (tptr t) v (v ◁ᵥₐₗ|tptr cty| null) ⎡valid_val v⎤ T1 T2.
+  Proof.
+    iIntros "Hv HT2".
+    iSplit.
+    { rewrite bi.and_elim_l; auto. }
+    { iExists false; iFrame.
+      rewrite /bool_val /= andb_false_r //.
+      rewrite / ty_own_val_at /ty_own_val /=.
+      iDestruct "HT2" as "%Hv"; subst.
+      iSplit; last first; try done.
+      by rewrite bi.and_elim_r.
+    }
   Qed.
   Definition type_if_null_inst := [instance type_if_null].
   Global Existing Instance type_if_null_inst.
+
+  (* casting a value v from cty to (tptr _). *)
+  Definition can_cast_to_tptr cty := 
+    match cty with
+    | Tint _ _ _ | Tlong _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ => true
+    | _ => false
+    end.
+
+  Definition cast_to_tptr v cty :=
+    match cty with
+    | Tint _ si _ => if Archi.ptr64
+      then (* cast_case_i2l si *)
+        match v with Vint n => Vlong (cast_int_long si n) | _ => v end
+      else v
+    | Tlong _ _ =>
+      if Archi.ptr64
+      then v
+      else (* cast_case_l2i I32 Unsigned *) 
+        match v with Vlong n => Vint (cast_int_int I32 Unsigned (Int.repr (Int64.unsigned n))) | _ => v end
+    | _ => v
+    end.
+
+    (*match v, cty with
+    | Vint n, Tint _ si _ => 
+      if Archi.ptr64
+      then (* cast_case_i2l si *)
+        Vlong (cast_int_long si n)
+      else v
+    | Vlong n, Tlong _ _ =>
+      if Archi.ptr64
+      then Some v
+      else (* cast_case_l2i I32 Unsigned *) 
+        Some (Vint (cast_int_int I32 Unsigned (Int.repr (Int64.unsigned n))))
+    | Vint n, Tpointer _ _ =>
+      if Archi.ptr64
+      then None
+      else Some v
+    | Vlong n, Tpointer _ _ =>
+      if Archi.ptr64
+      then Some v
+      else None
+    | Vptr _ _, Tlong _ _
+    | Vptr _ _, Tpointer _ _
+    | Vptr _ _, Tarray _ _ _
+    | Vptr _ _, Tfunction _ _ _  =>
+      Some v
+    | _, _ => None
+   end.*)
+  
+  Lemma cast_to_ptr_sem_cast v ty ty2 m:
+    tc_val (val_type ty) v ->
+    can_cast_to_tptr ty = true ->
+    Cop.sem_cast v ty (tptr ty2) m = Some (cast_to_tptr v ty).
+  Proof.
+    intros. destruct v, ty eqn:?; try done; simpl.
+    - hnf in H.
+      destruct eqb_type; done.
+    - hnf in H.
+      destruct eqb_type; done.
+    - hnf in H.
+      destruct eqb_type; done.
+    - hnf in H.
+      destruct eqb_type; done.
+  Qed.
+
+  Instance Int_eq_dec (i1 i2:int): Decision (i1 = i2).
+  Proof.
+    rewrite /Decision. destruct (Int.eq_dec i1 i2); naive_solver.
+  Qed.
+
+  Instance Int64_eq_dec (i1 i2: int64): Decision (i1 = i2).
+  Proof.
+    rewrite /Decision. destruct (Int64.eq_dec i1 i2); naive_solver.
+  Qed.
+  
+  Definition is_null v :=
+    match v with
+    | Vint i => if Archi.ptr64 then false else Int.eq i Int.zero
+    | Vlong i => if Archi.ptr64 then Int64.eq i Int64.zero else false
+    | _ => false
+    end.
+
+  Lemma Int_eq_iff: forall x y, Int.eq x y = true <-> x = y.
+  Proof.
+    split.
+    - apply Int.same_if_eq.
+    - intros ->; apply Int.eq_true.
+  Qed.
+
+  Lemma Int64_eq_iff: forall x y, Int64.eq x y = true <-> x = y.
+  Proof.
+    split.
+    - apply Int64.same_if_eq.
+    - intros ->; apply Int64.eq_true.
+  Qed.
+  
+  Lemma is_null_nullval v:
+    (is_null v = true) <-> v=nullval.
+  Proof.
+    destruct v.
+    - done.
+    - rewrite /nullval /=; destruct Archi.ptr64; first done.
+      rewrite Int_eq_iff; split; congruence.
+    - rewrite /nullval /=; destruct Archi.ptr64; last done.
+      rewrite Int64_eq_iff; split; congruence.
+    - done.
+    - done.
+    - done.
+  Qed.
+
+  Lemma type_cast_to_ptr f e ot T: can_cast_to_tptr (typeof e) →
+      typed_val_expr ge f e (λ v ty0, <affine> ⌜ty_has_op_type ty0 (val_type (typeof e)) MCNone⌝ ∗
+      <affine> ⌜can_cast_to_tptr (typeof e) = true⌝ ∗ (v ◁ᵥₐₗ|typeof e| ty0 -∗ 
+      <affine> ⌜v ≠ Vundef⌝ ∗ let v' := cast_to_tptr v (typeof e) in
+        <affine> ⌜is_pointer_or_null v'⌝ ∗ T v' (if is_null v' then null else value (tptr ot) v')))
+    ⊢ typed_val_expr ge f (Ecast e (tptr ot)) T.
+  Proof.
+    intros; iIntros "He %Φ HΦ".
+    iApply wp_cast0.
+    iApply "He".
+    iIntros (v ?) "own_v (%Hty & % & HT)".
+    iDestruct (ty_size_eq with "own_v") as %Hv; first done.
+    iDestruct ("HT" with "own_v") as "(% & % & HT)".
+    iExists _; iSplit.
+    { iPureIntro; intros. apply cast_to_ptr_sem_cast; try done.
+      apply has_layout_val_tc_val in Hv as (? & ?); auto.
+      apply val_type_by_value. }
+    iApply ("HΦ" with "[] HT").
+    destruct (is_null _) eqn: Hnull.
+    - by apply is_null_nullval in Hnull.
+    - unfold value; simpl_type.
+      iPureIntro; split3; try done.
+      rewrite has_layout_val_by_value //=.
+      intros ?; simpl.
+      rewrite andb_false_r //.
+  Qed.
+  Definition type_cast_to_ptr_inst := [instance type_cast_to_ptr].
+  (*Global Existing Instance type_cast_int_ptr_cast_case_pointer_inst | 50.*)
+
+  (* When v' is a black box this acts as a new type. *)
+  Global Instance maybe_null_copyable ot v': Copyable (if is_null v' then null else value (tptr ot) v').
+  Proof. destruct (is_null v'); apply _. Qed.
+
 End null.
+
+(* up *)
+Lemma repinject_by_value : forall {cs : compspecs} t v,
+  repinject t v ≠ Vundef → type_is_by_value t = true.
+Proof. by destruct t. Qed.
 
 Section optionable.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  Global Program Instance frac_ptr_optional p ty β t1 t2: Optionable (p @ frac_ptr β ty) null (tptr t1) (tptr t2) := {|
-    opt_pre v1 v2 := (p ◁ₗ{β} ty -∗ expr.valid_pointer p)%I
+  Global Program Instance frac_ptr_optional p cty cty2 ty β t1 t2:
+    Optionable cty cty2 (p @ frac_ptr β ty) null (tptr t1) (tptr t2) := {|
+    opt_pre v1 v2 := (p ◁ₗ{β} ty -∗ alloc_alive_loc p 1 ∗ True)%I
   |}.
   Next Obligation.
     intros.
-    iIntros "Hpre H1 -> Hctx".
-    destruct bty; [ iDestruct "H1" as (->) "Hty" | iDestruct "H1" as %-> ].
-    - iDestruct ("Hpre" with "Hty") as "Hlib".
-      iDestruct (expr_lemmas4.valid_pointer_dry0 with "[$Hctx $Hlib]") as %Hvalid; iPureIntro.
+    iIntros "Hpre H1 %H2 Hctx".
+    exploit repinject_by_value; first (by setoid_rewrite H2); intros Hcty.
+    rewrite repinject_valinject // in H2; subst.
+    destruct bty.
+    - iDestruct "H1" as "(% & Hty)".
+      rewrite repinject_valinject in H; subst; last by apply val_type_by_value.
+      iDestruct ("Hpre" with "Hty") as "(Hlib & _)".
+      iSpecialize ("Hlib" $! 0 with "[%]"); first lia.
+      iDestruct (valid_pointer.valid_pointer_dry0 with "[$Hctx $Hlib]") as %Hvalid; iPureIntro.
+      rewrite Ptrofs.add_zero in Hvalid.
       destruct beq => /=; rewrite /Cop.sem_cmp /= /cmp_ptr /nullval /=; change Archi.ptr64 with true; rewrite /= Hvalid /= /Vtrue /Vfalse /Int.zero /Int.one; split; congruence.
-    - rewrite eval_bin_op_ptr_cmp // /= ?Int.eq_true ?Int64.eq_true; destruct beq => //.
+    - iDestruct "H1" as %H1.
+      rewrite repinject_valinject in H1; subst; last by apply val_type_by_value.
+      rewrite eval_bin_op_ptr_cmp // /= ?Int.eq_true ?Int64.eq_true; destruct beq => //.
   Qed.
+  
   Global Program Instance frac_ptr_optional_agree ty1 ty2 β : OptionableAgree (frac_ptr β ty1) (frac_ptr β ty2).
-  Next Obligation. done. Qed.
-
-
-  (* Global Program Instance ptr_optional : ROptionable ptr null PtrOp PtrOp := {| *)
-  (*   ropt_opt x := {| opt_alt_sz := _ |} *)
-  (* |}. *)
-  (* Next Obligation. move => ?. done. Qed. *)
-  (* Next Obligation. *)
-  (*   iIntros (p bty beq v1 v2 σ v) "H1 -> Hctx". *)
-  (*   destruct bty; [ iDestruct "H1" as %-> | iDestruct "H1" as %-> ]; iPureIntro. *)
-  (*   - admit. (*by etrans; first apply (eval_bin_op_ptr_null (negb beq)); destruct beq => //.*) *)
-  (*   - by etrans; first apply (eval_bin_op_null_null beq); destruct beq => //. *)
-  (* Admitted. *)
-
-  Lemma subsume_optional_place_val_null A ty l β b ty' T:
-    (l ◁ₗ{β} ty' -∗ ∃ x, <affine> ⌜b x⌝ ∗ l ◁ᵥ (ty x) ∗ T x)
-    ⊢ subsume (l ◁ₗ{β} ty') (λ x : A, l ◁ᵥ (b x) @ optional (ty x) null) T.
+  Next Obligation.
+    done.
+  Qed.
+  
+  Lemma subsume_optional_place_val_null A cty ty l β b ty' T:
+    (l ◁ₗ{β} ty' -∗ ∃ x, <affine> ⌜b x⌝ ∗ l ◁ᵥₐₗ|cty| (ty x) ∗ T x)
+      ⊢ subsume (l ◁ₗ{β} ty') (λ x : A, l ◁ᵥₐₗ|cty| (b x) @ optional (ty x) null) T.
   Proof.
     iIntros "Hsub Hl". iDestruct ("Hsub" with "Hl") as (??) "[Hl ?]".
     iExists _. iFrame. unfold optional; simpl_type. iLeft. by iFrame.
@@ -662,9 +1135,9 @@ Section optionable.
   Definition subsume_optional_place_val_null_inst := [instance subsume_optional_place_val_null].
   Global Existing Instance subsume_optional_place_val_null_inst | 20.
 
-  Lemma subsume_optionalO_place_val_null B A (ty : B → A → type) l β b ty' T:
-    (l ◁ₗ{β} ty' -∗ ∃ y x, <affine> ⌜b y = Some x⌝ ∗ l ◁ᵥ ty y x ∗ T y)
-    ⊢ subsume (l ◁ₗ{β} ty') (λ y, l ◁ᵥ (b y) @ optionalO (ty y) null) T.
+  Lemma subsume_optionalO_place_val_null B A (ty : B → A → type) l β b cty ty' T:
+    (l ◁ₗ{β} ty' -∗ ∃ y x, <affine> ⌜b y = Some x⌝ ∗ l ◁ᵥₐₗ|cty| ty y x ∗ T y)
+      ⊢ subsume (l ◁ₗ{β} ty') (λ y, l ◁ᵥₐₗ|cty| (b y) @ optionalO (ty y) null) T.
   Proof.
     iIntros "Hsub Hl". iDestruct ("Hsub" with "Hl") as (?? Heq) "[? ?]".
     iExists _. iFrame. rewrite Heq. unfold optionalO; simpl_type. done.
@@ -672,65 +1145,89 @@ Section optionable.
   Definition subsume_optionalO_place_val_null_inst := [instance subsume_optionalO_place_val_null].
   Global Existing Instance subsume_optionalO_place_val_null_inst | 20.
 
-(*   (* TODO: generalize this with a IsLoc typeclass or similar *)
-  Lemma type_cast_optional_own_ptr b v β ty T:
-    (T v (b @ optional (&frac{β} ty) null))
-    ⊢ typed_un_op v (v ◁ᵥ b @ optional (&frac{β} ty) null) (CastOp PtrOp) PtrOp T.
+  (* TODO: generalize this with a IsLoc typeclass or similar *)
+  Lemma type_cast_optional_own_ptr ge f e ot b β T: is_tptr (typeof e) = true →
+      typed_val_expr ge f e (λ v ty, v ◁ᵥₐₗ|typeof e| ty -∗ v ◁ᵥₐₗ|typeof e| b @ optional (&frac{β} ty) null ∗
+      T v (b @ optional (&frac{β} ty) null))
+    ⊢ typed_val_expr ge f (Ecast e (tptr ot)) T.
   Proof.
-    iIntros "HT Hv" (Φ) "HΦ". unfold optional, ty_of_rty at 2; simpl_type.
-    iDestruct "Hv" as "[[% [%l [% Hl]]]|[% ->]]"; subst.
-    all: iApply wp_cast_loc; [by apply val_to_of_loc|].
-    - iApply ("HΦ" with "[Hl] HT"). simpl_type. iLeft. iSplitR; [done|]. iExists _. by iFrame.
-    - iApply ("HΦ" with "[] HT"). simpl_type. by iRight.
+    intros; iIntros "He %Φ HΦ".
+    iApply wp_cast0.
+    iApply "He".
+    iIntros (v ty) "own_v HT".
+    iDestruct ("HT" with "own_v") as "(own_v & HT)".
+    unfold optional at 1; simpl_type.
+    destruct (typeof e); try done.
+    iDestruct "own_v" as "[[% Hl]|[% %Hnull]]"; subst; iExists v.
+    - rewrite {1}/frac_ptr {1}/ty_of_rty /frac_ptr_type; simpl_type.
+      rewrite {1}/with_refinement /ty_own_val /=.
+      iDestruct "Hl" as "(% & % & Hl)".
+      iSplit.
+      { iPureIntro; by destruct v. }
+      iApply ("HΦ" with "[Hl] HT").
+      rewrite /optional; simpl_type.
+      iLeft. iSplit => //. iExists _. by iFrame.
+    - iSplit.
+      { iPureIntro; by destruct v. }
+      iApply ("HΦ" with "[] HT").
+      rewrite /optional; simpl_type. by iRight.
   Qed.
-  Definition type_cast_optional_own_ptr_inst := [instance type_cast_optional_own_ptr].
-  Global Existing Instance type_cast_optional_own_ptr_inst.
 
-  Lemma type_cast_optionalO_own_ptr A (b : option A) v β ty T:
-    (T v (b @ optionalO (λ x, &frac{β} (ty x)) null))
-    ⊢ typed_un_op v (v ◁ᵥ b @ optionalO (λ x, &frac{β} (ty x)) null) (CastOp PtrOp) PtrOp T.
+  Lemma type_cast_optionalO_own_ptr ge f A (b : option A) e ot β ty T: is_tptr (typeof e) = true →
+      typed_val_expr ge f e (λ v ty0, v ◁ᵥₐₗ|typeof e| ty0 -∗ v ◁ᵥₐₗ|typeof e| b @ optionalO (λ x, &frac{β} (ty x)) null ∗
+      T v (b @ optionalO (λ x, &frac{β} (ty x)) null))
+    ⊢ typed_val_expr ge f (Ecast e (tptr ot)) T.
   Proof.
-    iIntros "HT Hv" (Φ) "HΦ". unfold optionalO; simpl_type.
-    destruct b as [?|].
-    - unfold ty_of_rty at 2; simpl_type. iDestruct "Hv" as "[%l [% Hl]]"; subst.
-      iApply wp_cast_loc; [by apply val_to_of_loc|].
-      iApply ("HΦ" with "[Hl] HT"). simpl_type. iExists _. by iFrame.
-    - iDestruct "Hv" as "->".
-      iApply wp_cast_loc; [by apply val_to_of_loc|].
-      iApply ("HΦ" with "[] HT"). simpl_type. done.
+    intros; iIntros "He %Φ HΦ".
+    iApply wp_cast0.
+    iApply "He".
+    iIntros (v ty0) "own_v HT".
+    iDestruct ("HT" with "own_v") as "(own_v & HT)".
+    unfold optionalO; simpl_type.
+    destruct (typeof e); try done.
+    iExists v; destruct b.
+    - rewrite {1}/frac_ptr {1}/ty_of_rty /frac_ptr_type; simpl_type.
+      rewrite /with_refinement /ty_own_val /=.
+      iDestruct "own_v" as "(% & % & Hl)".
+      iSplit.
+      { iPureIntro; by destruct v. }
+      iApply ("HΦ" with "[Hl] HT").
+      rewrite /optionalO_type; simpl_type. iExists _. by iFrame.
+    - iDestruct "own_v" as %Hv.
+      iSplit.
+      { iPureIntro; by destruct v. }
+      iApply ("HΦ" with "[] HT").
+      rewrite /optionalO_type; simpl_type. done.
   Qed.
-  Definition type_cast_optionalO_own_ptr_inst := [instance type_cast_optionalO_own_ptr].
-  Global Existing Instance type_cast_optionalO_own_ptr_inst. *)
 End optionable.
 
 Global Typeclasses Opaque ptr_type ptr.
-Global Typeclasses Opaque frac_ptr_type frac_ptr.
+Global Typeclasses Opaque frac_ptr.
 Global Typeclasses Opaque null.
 
 Section optional_null.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
-
   Local Typeclasses Transparent optional_type optional.
-
-(*   Lemma type_place_optional_null K l β1 b ty T:
-    ⌜b⌝ ∗ typed_place K l β1 ty T
-    ⊢ typed_place K l β1 (b @ optional ty null) T.
+  
+  Lemma type_place_optional_null ge K l β1 b ty T:
+    <affine> ⌜b⌝ ∗ typed_place ge K l β1 ty T
+    ⊢ typed_place ge K l β1 (b @ optional ty null) T.
   Proof.
-    iIntros "[% H]" (Φ) "[[_ Hl]|[% _]] HH"; last done.
+    iIntros "[% H]" (Φ) "[[_ Hl]|[% ?]] HH"; last done.
     by iApply ("H" with "Hl").
   Qed.
   (* This should have a lower priority than type_place_id *)
   Definition type_place_optional_null_inst := [instance type_place_optional_null].
   Global Existing Instance type_place_optional_null_inst | 100.
 
-  Lemma type_place_optionalO_null A K l β1 b (ty : A → _) T:
-    ⌜is_Some b⌝ ∗ (∀ x, ⌜b = Some x⌝ -∗ typed_place K l β1 (ty x) T)
-    ⊢ typed_place K l β1 (b @ optionalO ty null) T.
+  Lemma type_place_optionalO_null ge A K l β1 b (ty : A → _) T:
+    <affine> ⌜is_Some b⌝ ∗ (∀ x, <affine> ⌜b = Some x⌝ -∗ typed_place ge K l β1 (ty x) T)
+    ⊢ typed_place ge K l β1 (b @ optionalO ty null) T.
   Proof.
     iDestruct 1 as ([? ->]) "Hwp".
     iIntros (Φ) "Hx". by iApply "Hwp".
   Qed.
   (* This should have a lower priority than type_place_id *)
   Definition type_place_optionalO_null_inst := [instance type_place_optionalO_null].
-  Global Existing Instance type_place_optionalO_null_inst | 100. *)
+  Global Existing Instance type_place_optionalO_null_inst | 100.
 End optional_null.

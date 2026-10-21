@@ -43,7 +43,7 @@ Section PROOFS.
      SEP (∃ v : val, atomic_int_at Ews v p)
    POST[ tvoid ]
      PROP ()
-     LOCAL ()
+     RETURN ()
      SEP ().
 
   Program Definition release_spec :=
@@ -56,9 +56,9 @@ Section PROOFS.
        SEP () | (atomic_int_at Ews (vint 1) p)
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP () | (atomic_int_at Ews (vint 0) p).
-
+  
   Program Definition acquire_spec :=
     DECLARE _acquire
     ATOMIC TYPE (ConstType val) OBJ l INVS empty
@@ -69,7 +69,7 @@ Section PROOFS.
        SEP () | (atomic_int_at Ews (Val.of_bool l) p)
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP () | (⌜l = false⌝ ∧ atomic_int_at Ews (vint 1) p).
 
   Definition Gprog : funspecs :=
@@ -147,7 +147,7 @@ Section PROOFS.
        SEP (atomic_int_at Ews (vint 1) p)
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP (atomic_int_at Ews (vint 0) p).
 
   Lemma release_nonatomic: funspec_sub (snd release_spec) release_spec_nonatomic.
@@ -262,7 +262,7 @@ Section PROOFS.
        SEP () | (inv_for_lock p R)
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP () | (inv_for_lock p R ∗ R).
 
   Lemma acquire_inv_atomic: funspec_sub (snd acquire_spec) acquire_spec_inv_atomic1.
@@ -284,8 +284,7 @@ Section PROOFS.
       + iIntros (_) "[[% H1] _]"; subst.
         iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
         rewrite bi.sep_emp; iFrame "R"; iExists true; iFrame.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl; auto.
+    - iPureIntro. intros; rewrite emp_sep //.
   Qed.
 
   Program Definition acquire_spec_inv_atomic :=
@@ -297,7 +296,7 @@ Section PROOFS.
        SEP () | (inv_for_lock p R)
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP (R) | (inv_for_lock p R).
 
   Lemma acquire_inv: funspec_sub (snd acquire_spec) acquire_spec_inv_atomic.
@@ -320,8 +319,8 @@ Section PROOFS.
         iFrame "R".
         iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
         rewrite bi.sep_emp; iExists true; iFrame.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl. rewrite bi.sep_assoc //.
+    - iPureIntro. iIntros (rho') "[_ H]".
+      unfold PROPx, RETURNx, SEPx; monPred.unseal. rewrite bi.sep_assoc //.
   Qed.
 
 (*  (* "lock variant" version where the lock has a parameter held in the global state *)
@@ -334,7 +333,7 @@ Section PROOFS.
        SEP () | (inv_for_lock p (R x))
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP () | (inv_for_lock p (R x) * R x).
   Next Obligation.
   Proof.
@@ -375,7 +374,7 @@ Section PROOFS.
        SEP (<affine> (R ∗ R -∗ False)) | (R ∗ inv_for_lock p R)
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP () | (inv_for_lock p R).
 
   Lemma release_inv: funspec_sub (snd release_spec) release_spec_inv_atomic.
@@ -401,8 +400,7 @@ Section PROOFS.
           rewrite bi.sep_emp; iExists false; iFrame.
       + iAssert (▷ False) with "[excl R R1]" as ">[]".
         rewrite bi.affinely_elim; iApply "excl"; by iFrame.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl; auto.
+    - iPureIntro. iIntros (rho') "[_ $]".
   Qed.
 
   Program Definition release_spec_inv_atomic1 :=
@@ -414,7 +412,7 @@ Section PROOFS.
        SEP () | (<affine> (R ∗ R -∗ False) ∗ R ∗ inv_for_lock p R)
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP () | (inv_for_lock p R).
 
   Lemma release_inv_atomic: funspec_sub (snd release_spec) release_spec_inv_atomic1.
@@ -441,8 +439,7 @@ Section PROOFS.
         rewrite bi.sep_emp; iExists false; iFrame.
       + iAssert (▷ False) with "[excl R R1]" as ">[]".
         rewrite bi.affinely_elim; iApply "excl"; by iFrame.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl; auto.
+    - iPureIntro. iIntros (rho') "[_ $]".
   Qed.
 
 (*  Program Definition release_spec_inv_variant :=
@@ -454,7 +451,7 @@ Section PROOFS.
        SEP (<affine> (R ∗ R -∗ False)) | (R x ∗ inv_for_lock p (R y))
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP () | (inv_for_lock p (R x)).
   Next Obligation.
   Proof.
@@ -509,7 +506,7 @@ Section PROOFS.
        SEP (lock_inv sh h R)
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP (lock_inv sh h R; ▷ R).
 
   Lemma acquire_inv_simple: funspec_sub (snd acquire_spec) acquire_spec_inv.
@@ -536,8 +533,8 @@ Section PROOFS.
         iFrame "H H2 R".
         iMod "Hclose'"; iApply "Hclose".
         iExists true; iFrame; auto.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl. rewrite bi.sep_assoc //.
+    - iPureIntro. iIntros (rho') "[_ H]".
+      unfold PROPx, RETURNx, SEPx; monPred.unseal. rewrite bi.sep_assoc //.
   Qed.
 
   Program Definition release_spec_inv :=
@@ -549,7 +546,7 @@ Section PROOFS.
        SEP (<affine> (R ∗ R -∗ False); lock_inv sh h R; P; lock_inv sh h R ∗ P -∗ Q ∗ R)
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP (▷ Q).
 
   Lemma release_inv_simple: funspec_sub (snd release_spec) release_spec_inv.
@@ -582,8 +579,7 @@ Section PROOFS.
       + iPoseProof ("H4" with "[$H2 $H3]") as "[$ HR]"; auto.
         iAssert (▷False) with "[H5 R HR]" as ">[]".
         rewrite bi.affinely_elim; iApply "H5"; iFrame.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl; auto.
+    - iPureIntro. iIntros (rho') "[_ $]".
   Qed.
 
   Lemma release_simple : funspec_sub (snd release_spec) release_spec_simple.
@@ -614,8 +610,7 @@ Section PROOFS.
           unfold inv_for_lock; iExists false; iFrame; auto.
       + iAssert (▷False) with "[H5 R H3]" as ">[]".
         rewrite bi.affinely_elim; iApply "H5"; iFrame.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl; auto.
+    - iPureIntro. iIntros (rho') "[_ $]".
   Qed.
 
   Lemma release_self : funspec_sub (snd release_spec) release_spec_self.
@@ -648,8 +643,8 @@ Section PROOFS.
       + iDestruct "HR" as "[>Hg R']".
         iAssert (▷False) with "[Hexcl R R']" as ">[]".
         rewrite bi.affinely_elim; iApply "Hexcl"; by iFrame.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl. rewrite bi.sep_emp //.
+    - iPureIntro. iIntros (rho') "[_ ?]".
+      unfold PROPx, RETURNx, SEPx; monPred.unseal. rewrite bi.sep_emp //.
   Qed.
 
   Lemma freelock_inv: funspec_sub (snd freelock_spec) lock_specs.freelock_spec.
@@ -671,7 +666,7 @@ Section PROOFS.
     - do 3 (iSplit; auto).
       iExists _; iFrame. admit. (* emp not timeless *)
     - iPureIntro; intros; Intros; cancel.
-      iIntros "($ & $)".
+      iIntros "$"; auto.
     - iAssert (▷False) with "[R HP HR H2]" as ">[]".
       iNext; rewrite bi.affinely_elim; iApply "R"; iFrame; iSplit; auto.
   Admitted.
@@ -690,7 +685,7 @@ Section PROOFS.
        SEP (lock_inv sh1 h (self_part sh2 h ∗ R); self_part sh2 h)
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP ().
 
   Lemma freelock_self : funspec_sub (snd freelock_spec) freelock_spec_self.

@@ -46,6 +46,7 @@ Definition type_is_by_reference t : bool :=
   end.
 
 (** GENERAL KV-Maps **)
+(* deprecate? *)
 
 Set Implicit Arguments.
 
@@ -124,26 +125,27 @@ Qed.
 (** Environment Definitions **)
 Section FUNSPEC.
 
-Definition genviron := Map.t block.
+(* because of VST's GLOBALS mechanism, it's inconvenient for this to be a finite map *)
+Definition genviron := (*gmap ident block*) Map.t block.
 
-Definition venviron := Map.t (block * type).
+Definition venviron := gmap ident (block * type).
 
-Definition tenviron := Map.t val.
+Definition tenviron := gmap ident val.
 
-Inductive environ : Type :=
- mkEnviron: forall (ge: genviron) (ve: venviron) (te: tenviron), environ.
+Definition environ : Type := (genviron * venviron * tenviron).
 
 Definition ge_of (rho: environ) : genviron :=
-  match rho with mkEnviron ge ve te => ge end.
+  match rho with (ge, ve, te) => ge end.
 
 Definition ve_of (rho: environ) : venviron :=
-  match rho with mkEnviron ge ve te => ve end.
+  match rho with (ge, ve, te) => ve end.
 
 Definition te_of (rho: environ) : tenviron :=
-  match rho with mkEnviron ge ve te => te end.
+  match rho with (ge, ve, te) => te end.
 
-Definition any_environ : environ :=
-  mkEnviron (fun _ => None)  (Map.empty _) (Map.empty _).
+Definition mkEnviron a b c : environ := (a, b, c).
+
+Definition any_environ : environ := (Map.empty _, empty, empty).
 
 Definition argsEnviron:Type := genviron * (list val).
 
@@ -165,6 +167,7 @@ Inductive funspec :=
     funspec.
  *)
 
+(* TODO: This isn't part of the core logic; move it to VeriC eventually. *)
 Section funspec.
 
 (* funspecs are effectively dependent pairs of an algebra and a pair of assertions on that algebra.
@@ -195,8 +198,10 @@ Fixpoint dependent_type_functor_rec (T : TypeTree) : oFunctor :=
   | ListType t => listOF (dependent_type_functor_rec t)
   end.
 
-Definition ArgsTT A := ArrowType A (DiscreteFunType argsEnviron Mpred).
-Definition AssertTT A := ArrowType A (DiscreteFunType environ Mpred).
+(* Current theory: funspecs can only mention args/retval and should otherwise
+   not say anything about the environment. *)
+Definition ArgsTT A := ArrowType A (DiscreteFunType (genviron * list val) ((*DiscreteFunType nat*) Mpred)).
+Definition AssertTT A := ArrowType A (DiscreteFunType (option val) ((*DiscreteFunType nat*) Mpred)).
 Definition MaskTT A := ArrowType A (ConstType coPset).
 
 Section ofe.
@@ -388,66 +393,49 @@ Class funspecGS Σ := FunspecG {
 Class heapGS Σ := HeapGS {
   heapGS_invGS :: invGS_gen HasNoLc Σ;
   heapGS_gen_heapGS :: gen_heapGS share address resource Σ;
-  heapGS_funspecGS :: funspecGS Σ
+  heapGS_funspecGS :: funspecGS Σ (* can actually do without this in the core logic *)
+}.
+
+(* Because Clight uses environment semantics, it's natural for us to treat
+   the environment as part of the state and use separation logic on it (e.g., use
+   ∗ to ensure that unrelated assertions aren't affected by an assignment).
+   But from this perspective, entering a new stackframe is a non-frame-preserving
+   operation. We address this by treating the entire stack of variable names as a
+   resource, so that entering a new frame is simply moving up the stack rather
+   than clearing existing resources. *)
+
+Notation fixed_fracR A := (prodR (iris.algebra.agree.agreeR (leibnizO frac))
+  (prodR fracR A)).
+
+Notation frameR := (prodR ((iris.algebra.gmap.gmapR ident (iris.algebra.excl.exclR (leibnizO (block * type)))))
+  ((iris.algebra.gmap.gmapR ident (iris.algebra.excl.exclR (leibnizO val))))).
+
+Notation envR := (ora.prodR
+    (ext_order.inclR (gmap_view.gmap_viewR ident (leibnizO block)))
+    (ext_order.inclR (iris.algebra.auth.authR (iris.algebra.gmap.gmapUR nat (fixed_fracR frameR))))).
+
+(*Definition envUR := Uora' envR (ofe_mixin envR) (cmra_mixin envR) (ora_mixin envR) (ucmra_mixin envR).*)
+
+Class envGS Σ := EnvGS {
+  envGS_inG :: inG Σ envR;
+  env_name : gname
 }.
 
 Definition mpred `{heapGS Σ} := iProp Σ.
 
+(* assertions are monPreds on stack level *)
+Definition stack_index : biIndex := {| bi_index_type := nat; bi_index_rel := eq |}.
+
+Definition assert `{!envGS Σ} := monPred stack_index (iPropI Σ).
+
+Program Definition assert_of `{!envGS Σ} (P : nat -> iProp Σ) : assert := {| monPred_at := P |}.
+
 Section heap.
 
-Context `{!heapGS Σ}.
-
-(* assertions (environ -> mpred as pred) *)
-Global Instance environ_inhabited : Inhabited environ := {| inhabitant := any_environ |}.
-
-Definition environ_index : biIndex := {| bi_index_type := environ |}.
-
-Definition assert' := environ -> mpred.
-Definition assert `{!heapGS Σ} := monPred environ_index (iPropI Σ).
-
-Program Definition assert_of (P : assert') : assert := {| monPred_at := P |}.
-
-Fail Example assert_of_test : forall (P: assert'), ∃ Q:assert, (@eq assert P Q).
-Global Coercion assert_of : assert' >-> assert.
-Example assert_of_test : forall (P: assert'), ∃ Q:assert, (@eq assert P Q).
-Proof. intros.  exists (assert_of P). reflexivity. Qed.
-
-Fail Example bi_of_assert'_test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P.
-Program Definition bi_assert (P : assert) : bi_car assert := {| monPred_at := P |}.
-Set Warnings "-uniform-inheritance".
-Global Coercion bi_assert : assert >-> bi_car.
-Set Warnings "uniform-inheritance".
-(* "Print Coercion Paths assert' bi_car" prints "[assert_of; bi_assert]" *)
-Example test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P. 
-Proof. intros. rewrite bi.sep_comm. done. Qed.
-
-Global Instance argsEnviron_inhabited : Inhabited argsEnviron := {| inhabitant := (Map.empty _, nil) |}.
-
-Definition argsEnviron_index : biIndex := {| bi_index_type := argsEnviron |}.
-
-Definition argsassert' := argsEnviron -> mpred.
-Definition argsassert `{!heapGS Σ} := monPred argsEnviron_index (iPropI Σ).
-
-Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at := P |}.
-
-Coercion argsassert_of : argsassert' >-> argsassert.
-
-Lemma assert_of_at : forall (P : assert), assert_of (monPred_at P) ⊣⊢ P.
-Proof. done. Qed.
-
-Lemma argsassert_of_at : forall (P : argsassert), argsassert_of (monPred_at P) ⊣⊢ P.
-Proof. done. Qed.
-
-Lemma assert_of_embed P: assert_of (fun _ => P) ⊣⊢ ⎡P⎤.
-Proof.
-  intros.
-  split => rho //; monPred.unseal; done.
-Qed.
+Context `{!heapGS Σ} `{!envGS Σ}.
 
 (* funspecs on mpreds *)
 Definition funspec := funspec_ mpred mpred.
-Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> argsassert) (Q : A -> assert) : funspec :=
-  mk_funspec sig cc (ConstType A) (λne a, ⊤) (λne (a : leibnizO A), (P a) : _ -d> mpred) (λne (a : leibnizO A), (Q a) : _ -d> mpred).
 
 Definition funspec_unfold (f : funspec) : laterO funspec := Next f.
 
@@ -465,6 +453,19 @@ Fixpoint make_tycontext_s (G: funspecs) :=
  | nil => Maps.PTree.empty funspec
  | (id,f)::r => Maps.PTree.set id f (make_tycontext_s r)
  end.
+
+Lemma entails_refl : forall (P : mpred), P ⊢ P.
+Proof. done. Qed.
+
+Lemma pure_intro_l : forall (P : Prop) (Q R : mpred), P -> (Q ⊢ R) -> Q ⊢ ⌜P⌝ ∧ R.
+Proof.
+  intros ???? ->; iIntros "$"; auto.
+Qed.
+
+Lemma pure_intro_r : forall (P : Prop) (Q R : mpred), P -> (Q ⊢ R) -> Q ⊢ R ∧ ⌜P⌝.
+Proof.
+  intros ???? ->; iIntros "$"; auto.
+Qed.
 
 End heap.
 
@@ -509,19 +510,19 @@ Definition idset1 (id: ident) : idset := Maps.PTree.set id tt idset0.
 Definition insert_idset (id: ident) (S: idset) : idset :=
   Maps.PTree.set id tt S.
 
-Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
+Definition eval_id (id: ident) (rho: environ) := force_val (lookup id (te_of rho)).
 
 Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
-  mkEnviron (ge_of rho) (ve_of rho) (Map.set x v (te_of rho)).
+  (ge_of rho, ve_of rho, <[x := v]>(te_of rho)).
 
 Lemma eval_id_same: forall rho id v, eval_id id (env_set rho id v) = v.
-Proof. unfold eval_id; intros; simpl. unfold force_val. rewrite Map.gss. auto.
+Proof. unfold eval_id; intros; simpl. unfold force_val. rewrite lookup_insert_eq; auto.
 Qed.
 
 Lemma eval_id_other: forall rho id id' v,
    id<>id' -> eval_id id' (env_set rho id v) = eval_id id' rho.
 Proof.
- unfold eval_id, force_val; intros. simpl. rewrite Map.gso; auto.
+ unfold eval_id, force_val; intros. simpl. rewrite lookup_insert_ne; auto.
 Qed.
 
 #[export] Hint Rewrite eval_id_same : normalize norm.
@@ -565,9 +566,7 @@ Ltac super_unfold_lift :=
   cbv delta [liftx LiftEnviron LiftAEnviron Tarrow Tend lift_S lift_T lift_prod
   lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3 alift0 alift1 alift2 alift3] beta iota in *.
 
-(* switch from an entailment on asserts to mpreds; mostly the same as monPred.unseal *)
-Ltac raise_rho :=
-  try (constructor; intro rho); 
+Ltac raise_rho' :=
   repeat (rewrite monPred_at_and ||
           rewrite monPred_at_sep ||
           rewrite monPred_at_or ||
@@ -602,3 +601,8 @@ Ltac raise_rho :=
           rewrite monPred_at_big_sepMS ||
           rewrite monPred_at_big_sepM ||
           simpl).
+
+(* switch from an entailment on asserts to mpreds; mostly the same as monPred.unseal *)
+Ltac raise_rho :=
+  try (constructor; intro rho); 
+  raise_rho'.

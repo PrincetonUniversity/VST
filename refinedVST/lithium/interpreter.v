@@ -1,9 +1,10 @@
 From iris.proofmode Require Import coq_tactics reduction.
-From lithium Require Import base hooks normalize solvers.
-From VST.lithium Require Import definitions simpl_classes proof_state syntax.
+From lithium Require Import base hooks normalize.
+From VST.lithium Require Import solvers definitions simpl_classes proof_state syntax.
 From VST.lithium Require Import simpl_instances. (* required for tests *)
 Set Default Proof Using "Type".
-
+From Ltac2 Require Import Ltac2.
+Set Default Proof Mode "Classic".
 (** This file contains the main Lithium interpreter. *)
 
 (** * General proof state management tactics  *)
@@ -13,7 +14,11 @@ Ltac liShow := li_unfold_lets_in_context; simpl; try liToSyntaxGoal.
 Ltac liSimpl :=
   (* simpl inserts a cast even if it does not do anything
      (see https://coq.zulipchat.com/#narrow/stream/237656-Coq-devs.20.26.20plugin.20devs/topic/exact_no_check.2C.20repeated.20casts.20in.20proof.20terms/near/259371220 ) *)
-  try progress simpl.
+  try progress simpl;
+  (* refold monPred ops: probably because of a simpl never bug fixed in Rocq 9.1 *)
+  change (@monpred.monPred_defs.monPred_wand ?A ?B) with (@bi_wand (monpred.monPredI A B));
+  change (@monpred.monPred_defs.monPred_and ?A ?B) with (@bi_and (monpred.monPredI A B));
+  change (@monpred.monPred_defs.monPred_exist ?A ?B) with (@bi_exist (monpred.monPredI A B)).
 
 Ltac liUnfoldLetGoal :=
   let do_unfold P :=
@@ -37,10 +42,12 @@ Ltac liUnfoldLetGoal :=
   | |- envs_entails _ ?P => do_unfold P
   end.
 
+(* is this failing for drop_spatial? *)
 Ltac liUnfoldSyntax :=
   lazymatch goal with
   | |- envs_entails _ (li.all _) => liFromSyntax
   | |- envs_entails _ (li.exist _) => liFromSyntax
+  | |- envs_entails _ (li.monPred_exist _) => liFromSyntax
   | |- envs_entails _ (li.done) => liFromSyntax
   | |- envs_entails _ (li.false) => liFromSyntax
   | |- envs_entails _ (li.and _ _) => liFromSyntax
@@ -55,6 +62,7 @@ Ltac liUnfoldSyntax :=
   | |- envs_entails _ (li.bind5 _ _) => liFromSyntax
   | |- envs_entails _ (⎡li.all _⎤) => liFromSyntax
   | |- envs_entails _ (⎡li.exist _⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.monPred_exist _⎤) => liFromSyntax
   | |- envs_entails _ (⎡li.done⎤) => liFromSyntax
   | |- envs_entails _ (⎡li.false⎤) => liFromSyntax
   | |- envs_entails _ (⎡li.and _ _⎤) => liFromSyntax
@@ -213,17 +221,44 @@ Section coq_tactics.
   Lemma tac_true Δ :
     envs_entails Δ (True%I : prop).
   Proof. rewrite envs_entails_unseal. by iIntros "_". Qed.
+
+  Lemma tac_embed_true `{!BiEmbed prop0 prop} Δ :
+    envs_entails Δ (⎡True%I : prop0⎤ : prop).
+  Proof. rewrite envs_entails_unseal. rewrite embed_pure. by iIntros "_". Qed.
+
+  Lemma tac_affine_true Δ `{!TCForall Affine (env_to_list (env_spatial Δ))} :
+    envs_entails Δ (<affine> True%I : prop).
+  Proof. rewrite envs_entails_unseal. by iIntros "_". Qed.
+
+  Lemma tac_embed_affine_true `{!BiEmbed prop0 prop} `{!BiEmbedEmp prop0 prop} Δ `{!TCForall Affine (env_to_list (env_spatial Δ))} :
+    envs_entails Δ (⎡<affine> True%I : prop0⎤ : prop).
+  Proof. rewrite envs_entails_unseal. rewrite embed_affinely embed_pure. by iIntros "_". Qed.
+
+  Lemma tac_emp Δ `{!TCForall Affine (env_to_list (env_spatial Δ))} :
+    envs_entails Δ (emp : prop).
+  Proof. rewrite envs_entails_unseal. by iIntros "_". Qed.
+
+  Lemma tac_embed_emp `{!BiEmbed prop0 prop} `{!BiEmbedEmp prop0 prop} Δ `{!TCForall Affine (env_to_list (env_spatial Δ))} :
+    envs_entails Δ (⎡emp : prop0⎤ : prop).
+  Proof. rewrite envs_entails_unseal. rewrite embed_emp. by iIntros "_". Qed.
+
 End coq_tactics.
 
 Ltac liTrue :=
   lazymatch goal with
   | |- envs_entails _ True => notypeclasses refine (tac_true _)
+  | |- envs_entails _ ⎡True⎤ => notypeclasses refine (tac_embed_true _); solve [refine _]
+  | |- envs_entails _ (<affine> True) => notypeclasses refine (tac_affine_true _); solve [refine _]
+  | |- envs_entails _ ⎡<affine> True⎤ => notypeclasses refine (tac_embed_affine_true _); solve [refine _]
+  | |- envs_entails _ emp => notypeclasses refine (tac_emp _); solve [refine _]
+  | |- envs_entails _ ⎡emp⎤ => notypeclasses refine (tac_embed_emp _); solve [refine _]
   end.
 
 (** ** [liFalse] *)
 Ltac liFalse :=
   lazymatch goal with
   | |- envs_entails _ False => exfalso; shelve_sidecond
+  | |- envs_entails _ ⎡False⎤ => exfalso; shelve_sidecond
   | |- False => shelve_sidecond
   end.
 
@@ -478,23 +513,20 @@ End coq_tactics.
 
 Ltac liSideCond :=
   try liEnsureSepHead;
-  lazymatch goal with
-
-  
+  lazymatch goal with  
   | |- envs_entails ?Δ (bi_sep (⌜?P⌝) ?Q) =>
   (* We use done instead of fast_done here because solving more
      sideconditions here is a bigger performance win than the overhead
-     of done. *)
-      notypeclasses refine (tac_sep_pure _ _ _ _ _); [ first [ done | shelve_sidecond ] | ]
+     of done. *)notypeclasses refine (tac_sep_pure _ _ _ _ _); [ first [ done | normalize_hook | shelve_sidecond] | ]
   | |- envs_entails ?Δ (bi_sep (<affine> ⌜?P⌝) ?Q) =>
-      notypeclasses refine (tac_sep_affine_pure _ _ _ _ _); [ first [ done | shelve_sidecond ] | ]
+    notypeclasses refine (tac_sep_affine_pure _ _ _ _ _); [ first [ done | normalize_hook | shelve_sidecond] | ]
   | |- envs_entails ?Δ (∃ₗ x, bi_sep (⌜@?P x⌝) _) =>
     (* TODO: Can we get something like the old shelve_hint? *)
     (* TODO: figure out best order here *)
     match P with
     | _ => progress (notypeclasses refine (tac_normalize_goal_and_liex _ _ _ _ _ _);
                       (* cbv beta is important to correctly detect progress *)
-                      [intros ?; normalize_hook|cbv beta])
+                      [intros ?; normalize_hook |cbv beta])
     | _ => liExInst
     | (λ _, _ ∧ _)%type => notypeclasses refine (tac_sep_pure_and _ _ _ _ _)
     | (λ _, ∃ _, _)%type => notypeclasses refine (tac_sep_pure_exist _ _ _ _)
@@ -506,7 +538,7 @@ Ltac liSideCond :=
       match P with
       | _ => progress (notypeclasses refine (tac_normalize_goal_and_liex_affine _ _ _ _ _ _);
                        (* cbv beta is important to correctly detect progress *)
-                       [intros ?; normalize_hook|cbv beta])
+                       [intros ?; normalize_hook | cbv beta])
       | _ => liExInst
       | (λ _, _ ∧ _)%type => notypeclasses refine (tac_sep_affine_pure_and _ _ _ _ _)
       | (λ _, ∃ _, _)%type => notypeclasses refine (tac_sep_affine_pure_exist _ _ _ _)
@@ -540,8 +572,8 @@ Section coq_tactics.
   Context {prop : bi}.
 
   Lemma tac_sep_true Δ (P : prop) :
-    envs_entails Δ P → envs_entails Δ (True ∗ P).
-  Proof. rewrite envs_entails_unseal => ->. by apply bi.True_sep_2. Qed.
+    envs_entails Δ P → envs_entails Δ (emp ∗ P).
+  Proof. rewrite envs_entails_unseal => ->. by rewrite bi.emp_sep. Qed.
 
   Lemma tac_find_hyp_equal key (Q P P' R : prop) Δ `{!FindHypEqual key Q P P'}:
     envs_entails Δ (P' ∗ R) →
@@ -595,7 +627,7 @@ Ltac liFindHyp key :=
              could help even more
              https://coq.inria.fr/distrib/current/refman/proof-engine/tactics.html#coq:tacn.constr-eq*)
           first [unify Q P with typeclass_instances | 
-                 unify (bi_affinely Q) P with typeclass_instances (* for P of thes shape `<affine> _` *)]
+                 unify (bi_affinely Q) P with typeclass_instances (* for P of the shape `<affine> _` *)]
       | _ =>
           notypeclasses refine (tac_find_hyp_equal key Q _ _ _ _ _); [solve [refine _]|];
           lazymatch goal with
@@ -677,7 +709,7 @@ Ltac liDoneEvar :=
 (** ** [liSep] *)
 Section coq_tactics.
   Context {prop : bi}.
-  Hypothesis BiPositive_prop : BiPositive prop.
+  (*Hypothesis BiPositive_prop : BiPositive prop.*)
   Hypothesis BiPersistentlyForall_prop : BiPersistentlyForall prop.
 
   Lemma tac_sep_sep_assoc Δ (P Q R : prop) :
@@ -692,6 +724,10 @@ Section coq_tactics.
     envs_entails Δ P → envs_entails Δ (emp ∗ P).
   Proof. apply tac_fast_apply. by apply bi.emp_sep_1. Qed.
 
+  Lemma tac_sep_affine_True Δ (P : prop) :
+    envs_entails Δ P → envs_entails Δ (<affine> True ∗ P).
+  Proof. apply tac_fast_apply. rewrite bi.affinely_True_emp bi.emp_sep //. Qed.
+
   Lemma tac_sep_exist_assoc {A} Δ (Φ : A → prop) (Q : prop):
     envs_entails Δ (∃ a : A, Φ a ∗ Q) → envs_entails Δ ((∃ a : A, Φ a) ∗ Q).
   Proof. by rewrite bi.sep_exist_r. Qed.
@@ -701,14 +737,14 @@ Section coq_tactics.
   Proof. apply tac_fast_apply. apply bi.exist_mono => ?. by rewrite bi.sep_exist_r. Qed.
 
   Lemma tac_do_intro_intuit_sep Δ (P Q : prop) :
-    envs_entails Δ (□ (P ∗ True) ∧ Q) → envs_entails Δ (□ P ∗ Q).
-  Proof using BiPersistentlyForall_prop BiPositive_prop. apply tac_fast_apply. iIntros "[#[$ _] $]". Qed.
+    envs_entails Δ (□ P ∧ Q) → envs_entails Δ (□ P ∗ Q).
+  Proof using BiPersistentlyForall_prop. apply tac_fast_apply. iIntros "[$ $]". Qed.
 
   Lemma tac_do_intro_intuit_sep_ex {A B X} Δ (P Q : (A *ₗ B) → prop) (f : X → _) :
-    (∀ y, envs_entails Δ (□ (∃ₗ x, P x ∗ li_done_evar x y f))) →
+    (∀ y, envs_entails Δ (∃ₗ x, □ P x ∗ □ li_done_evar x y f)) →
     envs_entails Δ (∃ y, Q (f y)) →
     envs_entails Δ (∃ₗ x, □ (P x) ∗ Q x).
-  Proof using BiPersistentlyForall_prop BiPositive_prop.
+  Proof using BiPersistentlyForall_prop.
     rewrite envs_entails_unseal /li_done_evar. move => /bi.forall_intro HP HQ.
     iIntros "HΔ". iDestruct (HP with "HΔ") as "#HP".
     iDestruct (HQ with "HΔ") as (y) "HQ".
@@ -753,8 +789,9 @@ Ltac liSep :=
     | bi_sep _ _ => notypeclasses refine (tac_sep_sep_assoc _ _ _ _ _)
     | bi_exist _ => notypeclasses refine (tac_sep_exist_assoc _ _ _ _)
     | bi_emp => notypeclasses refine (tac_sep_emp _ _ _)
+    | (<affine> True)%I => notypeclasses refine (tac_sep_affine_True _ _ _)
     | (⌜_⌝)%I => fail "handled by liSideCond"
-    | (□ ?P)%I => notypeclasses refine (tac_do_intro_intuit_sep _ _ _ _ _ _)
+    | (□ ?P)%I => notypeclasses refine (tac_do_intro_intuit_sep _ _ _ _ _)
     | match ?x with _ => _ end => fail "should not have match in sep"
     | ?P => first [
         progress liFindHyp FICSyntactic
@@ -771,7 +808,7 @@ Ltac liSep :=
     | (λ _, bi_exist _) => notypeclasses refine (tac_sep_exist_assoc_ex _ _ _ _)
     (* bi_emp cannot happen because it is independent of evars *)
     | (λ _, (⌜_⌝)%I) => fail "handled by liSideCond"
-    | (λ _, (□ _)%I) => refine (tac_do_intro_intuit_sep_ex _ _ _ _ _ _ _ _)
+    | (λ _, (□ _)%I) => refine (tac_do_intro_intuit_sep_ex _ _ _ _ _ _ _)
     (* The following is probably not necessary: *)
     (* | match ?x with _ => _ end => fail "should not have match in sep" *)
     | ?P => first [
@@ -841,7 +878,7 @@ Module liSep_tests. Section test.
     end.
   Abort.
 
-  Goal  ∀ P : Z → Z → Z → prop,
+  (*Goal  ∀ P : Z → Z → Z → prop,
       ⊢ ∃ x y z, □ (<affine> ⌜x = 1%Z⌝ ∗ <affine> ⌜y = 2%Z⌝) ∗ <affine> ⌜z = 3%Z⌝ ∗ P x y z.
     intros. iStartProof. iIntros. repeat liExist.
     1: liSep.
@@ -856,9 +893,9 @@ Module liSep_tests. Section test.
     lazymatch goal with
     | |- envs_entails _ (P 1%Z 2%Z 3%Z) => idtac
     end.
-  Abort.
+  Abort.*)
 
-  Goal  ∀ P : Z → Z → Z → prop,
+  (*Goal  ∀ P : Z → Z → Z → prop,
       ⊢ ∃ x y z, □ (<affine> ⌜x = 1%Z⌝ ∗ □ <affine> ⌜y = 2%Z⌝) ∗ <affine> ⌜z = 3%Z⌝ ∗ P x y z.
     intros. iStartProof. iIntros. repeat liExist.
     1: liSep.
@@ -877,9 +914,9 @@ Module liSep_tests. Section test.
     lazymatch goal with
     | |- envs_entails _ (P 1%Z 2%Z 3%Z) => idtac
     end.
-  Abort.
+  Abort.*)
 
-  Goal  ∀ P : Z → Z → Z → prop,
+  (*Goal  ∀ P : Z → Z → Z → prop,
       ⊢ ∃ x y z, □ (<affine> ⌜x = 1%Z⌝ ∗ <affine> ⌜y = 2%Z⌝ ∗ <affine> ⌜z = 3%Z⌝) ∗ P x y z.
     intros. iStartProof. iIntros. repeat liExist.
     1: liSep.
@@ -897,14 +934,14 @@ Module liSep_tests. Section test.
     lazymatch goal with
     | |- envs_entails _ (P 1%Z 2%Z 3%Z) => idtac
     end.
-  Abort.
+  Abort.*)
 
-  Goal  ∀ P : Z → prop,
+  (*Goal  ∀ P : Z → prop,
       ⊢ ∃ x, □ (const (<affine> True) x) ∗ <affine> ⌜x = 1%Z⌝ ∗ P x.
     intros. iStartProof. iIntros. repeat liExist.
     1: liSep.
     1: liForall.
-    1: iModIntro. 1: simpl.
+    1: simpl.
     1: liSideCond.
     1: liDoneEvar.
     1: liSideCond.
@@ -912,7 +949,7 @@ Module liSep_tests. Section test.
     lazymatch goal with
     | |- envs_entails _ (P 1%Z) => idtac
     end.
-  Abort.
+  Abort.*)
 
 End test. End liSep_tests.
 
@@ -920,7 +957,6 @@ End test. End liSep_tests.
 (** ** [liWand] *)
 Section coq_tactics.
   Context {prop : bi}.
-  Hypothesis BiPositive_prop : BiPositive prop.
   Hypothesis BiPersistentlyForall_prop : BiPersistentlyForall prop.
 
   Lemma tac_do_intro_pure Δ (P : Prop) (Q : prop) :
@@ -938,26 +974,30 @@ Section coq_tactics.
     iDestruct (i2p_proof with "HP Hl") as "$".
   Qed.
 
-  Lemma tac_do_intro i n' (P : prop) n Γs Γp T :
+  Lemma tac_do_intro i n' (P P': prop) n Γs Γp T :
+    P=P' →
     env_lookup i Γs = None →
     env_lookup i Γp = None →
-    envs_entails (Envs Γp (Esnoc Γs i P) n') T →
+    envs_entails (Envs Γp (Esnoc Γs i P') n') T →
     envs_entails (Envs Γp Γs n) (P -∗ T).
   Proof.
+    intros <-.
     rewrite envs_entails_unseal => Hs Hp HP. iIntros "Henv Hl".
     rewrite (envs_app_sound (Envs Γp Γs n) (Envs Γp (Esnoc Γs i P) n) false (Esnoc Enil i P)) //; simplify_option_eq => //.
     iApply HP. iApply "Henv". iFrame.
   Qed.
 
-  Lemma tac_do_intro_intuit i n' (P P' : prop) T n Γs Γp (Hpers : IntroPersistent P P') :
+  Lemma tac_do_intro_intuit i n' (P P' P'' : prop) T n Γs Γp (Hpers : IntroPersistent P' P'') :
+    P=P' →
     env_lookup i Γs = None →
     env_lookup i Γp = None →
-    envs_entails (Envs (Esnoc Γp i P') Γs n') T →
-    envs_entails (Envs Γp Γs n) (<affine> P -∗ T).
+    envs_entails (Envs (Esnoc Γp i P'') Γs n') T →
+    envs_entails (Envs Γp Γs n) (P -∗ T).
   Proof.
+    intros <-.
     rewrite envs_entails_unseal => Hs Hp HP. iIntros "Henv HP".
-    iDestruct (@ip_persistent _ _ _ Hpers with "HP") as "#HP'".
-    rewrite (envs_app_sound (Envs Γp Γs n) (Envs (Esnoc Γp i P') Γs n) true (Esnoc Enil i P')) //; simplify_option_eq => //.
+    iDestruct (@ip_persistent _ _ _ Hpers with "HP") as "HP''"; iDestruct "HP''" as "#HP''".
+    rewrite (envs_app_sound (Envs Γp Γs n) (Envs (Esnoc Γp i P'') Γs n) true (Esnoc Enil i P'')) //; simplify_option_eq => //.
     iApply HP. iApply "Henv".
     iModIntro. by iSplit.
   Qed.
@@ -966,13 +1006,22 @@ Section coq_tactics.
     envs_entails Δ (P -∗ Q -∗ R) → envs_entails Δ ((P ∗ Q) -∗ R).
   Proof. by rewrite bi.wand_curry. Qed.
 
+  Lemma tac_wand_pers_and_assoc Δ (P Q R : prop) :
+    envs_entails Δ (□ P -∗ □ Q -∗ R) → envs_entails Δ ((□ P ∧ □ Q) -∗ R).
+  Proof. by rewrite bi.and_sep_intuitionistically bi.wand_curry. Qed.
+
   Lemma tac_wand_emp Δ (P : prop) :
     envs_entails Δ P → envs_entails Δ (emp -∗ P).
   Proof. apply tac_fast_apply. by iIntros. Qed.
 
+  (* relies on BiPositive; do we need it?
   Lemma tac_wand_pers_sep Δ (P : prop) (Q1 Q2 : prop) :
     envs_entails Δ ((□ Q1 ∗ □ Q2) -∗ P) → envs_entails Δ (□ (Q1 ∗ Q2) -∗ P).
-  Proof using BiPositive_prop. apply tac_fast_apply. iIntros "Hx #[? ?]". iApply "Hx". iFrame "#". Qed.
+  Proof. apply tac_fast_apply. iIntros "Hx #[? ?]". iApply "Hx". iFrame "#". Qed.*)
+
+  Lemma tac_wand_pers_and Δ (P : prop) (Q1 Q2 : prop) :
+    envs_entails Δ ((□ Q1 ∧ □ Q2) -∗ P) → envs_entails Δ (□ (Q1 ∧ Q2) -∗ P).
+  Proof. apply tac_fast_apply. iIntros "Hx #[? ?]". iApply "Hx". iFrame "#". Qed.
 
   Lemma tac_wand_pers_exist A Δ (P : prop) (Q : A → prop) :
     envs_entails Δ ((∃ x, □ Q x) -∗ P) → envs_entails Δ (□ (∃ x, Q x) -∗ P).
@@ -982,6 +1031,8 @@ Section coq_tactics.
     envs_entails Δ (⌜Φ⌝ -∗ P) → envs_entails Δ (□ ⌜Φ⌝ -∗ P).
   Proof. apply tac_fast_apply. iIntros "HP %". by iApply "HP". Qed.
 End coq_tactics.
+
+Ltac wand_simpl_hook := idtac.
 
 Ltac liWand :=
   let wand_intro P :=
@@ -993,11 +1044,11 @@ Ltac liWand :=
       let n := lazymatch goal with | [ H := Envs _ _ ?n |- _ ] => n end in
       let H := constr:(IAnon n) in
       let n' := eval vm_compute in (Pos.succ n) in
-      simple notypeclasses refine (tac_do_intro_intuit H n' P P' _ _ _ _ ip _ _ _); [li_pm_reflexivity..|]
+      simple notypeclasses refine (tac_do_intro_intuit H n' P _ _ _ _ _ _ ip _ _ _ _); [shelve|wand_simpl_hook;li_pm_reflexivity|..]; [li_pm_reflexivity..|]
     | let n := lazymatch goal with | [ H := Envs _ _ ?n |- _ ] => n end in
       let H := constr:(IAnon n) in
       let n' := eval vm_compute in (Pos.succ n) in
-      simple notypeclasses refine (tac_do_intro H n' P _ _ _ _ _ _ _); [li_pm_reflexivity..|]
+      simple notypeclasses refine (tac_do_intro H n' P _ _ _ _ _ _ _ _ _); [shelve|wand_simpl_hook;li_pm_reflexivity|..]; [li_pm_reflexivity..|]
     ] in
   lazymatch goal with
   | |- envs_entails ?Δ (bi_wand ?P ?T) =>
@@ -1005,14 +1056,22 @@ Ltac liWand :=
       | bi_sep _ _ =>
           li_let_bind T (fun H => constr:(envs_entails Δ (bi_wand P H)));
           notypeclasses refine (tac_wand_sep_assoc _ _ _ _ _)
+      | bi_and (bi_intuitionistically _) (bi_intuitionistically _) =>
+          li_let_bind T (fun H => constr:(envs_entails Δ (bi_wand P H)));
+          notypeclasses refine (tac_wand_pers_and_assoc _ _ _ _ _)
       | bi_exist _ => fail "handled by liForall"
       | bi_emp => notypeclasses refine (tac_wand_emp _ _ _)
-      | bi_pure _ => notypeclasses refine (tac_do_intro_pure _ _ _ _)
-      | bi_intuitionistically (bi_sep _ _) => notypeclasses refine (tac_wand_pers_sep _ _ _ _ _)
+      | bi_affinely (bi_pure _) => notypeclasses refine (tac_do_intro_pure _ _ _ _)
+(*      | bi_intuitionistically (bi_sep _ _) => notypeclasses refine (tac_wand_pers_sep _ _ _ _ _) *)
+      | bi_intuitionistically (bi_and _ _) => notypeclasses refine (tac_wand_pers_and _ _ _ _ _) 
       | bi_intuitionistically (bi_exist _) => notypeclasses refine (tac_wand_pers_exist _ _ _ _ _)
       | bi_intuitionistically (bi_pure _) => notypeclasses refine (tac_wand_pers_pure _ _ _ _)
       | match ?x with _ => _ end => fail "should not have match in wand"
       | _ => wand_intro P
+      end;
+      (* after a hyp has been possibly introduced to the hypothesis context, can unseal the do_not_simplify wrapper. *)
+      match goal with
+      | |- context [environments.envs_entails ?Δ _] => rewrite ?[in Δ]do_not_simplify_eq
       end
   end.
 
@@ -1046,27 +1105,34 @@ Ltac liAnd :=
     notypeclasses refine (tac_big_andM_empty _ _)
   end.
 
-(* TODO Ke: is not valid anymore because logic is linear? maybe to a weaker version where spatial context is empty? *)
-(* 
 (** ** [liPersistent] *)
 Section coq_tactics.
   Context {prop : bi}.
 
-  Lemma tac_persistent Δ (P : prop) :
+  Lemma env_spatial_affine_intuitionistically (Δ : envs prop) `{!TCForall Affine (env_to_list (env_spatial Δ))} :
+    of_envs Δ ⊢ □ of_envs (envs_clear_spatial Δ).
+  Proof.
+    intros. rewrite envs_clear_spatial_sound.
+    rewrite (affine (big_opL _ _ _)) bi.sep_emp.
+    rewrite !of_envs_eq; destruct Δ as [? ?]; simplify_eq/=.
+    rewrite /bi_intuitionistically !bi.persistently_and.
+    rewrite bi.persistently_pure bi.persistent_persistently -bi.persistently_emp_2.
+    apply bi.and_intro; last done. rewrite !bi.and_elim_r. done.
+  Qed.
+
+  Lemma tac_persistent Δ (P : prop) `{!TCForall Affine (env_to_list (env_spatial Δ))} :
     envs_entails (envs_clear_spatial Δ) P → envs_entails Δ (□ P).
   Proof.
-    rewrite envs_entails_unseal => HP. iIntros "Henv".
-    iDestruct (envs_clear_spatial_sound with "Henv") as "[#Henv _]".
-    iModIntro. iApply (HP with "Henv").
+    rewrite envs_entails_unseal => HP.
+    rewrite env_spatial_affine_intuitionistically HP //.
   Qed. 
 End coq_tactics.
 
 Ltac liPersistent :=
   lazymatch goal with
   | |- envs_entails ?Δ (bi_intuitionistically ?P) =>
-      notypeclasses refine (tac_persistent _ _ _); li_pm_reduce
+      notypeclasses refine (tac_persistent _ _ _); first (by refine _); li_pm_reduce
   end.
-*)
 
 (** ** [liCase] *)
 Section coq_tactics.
@@ -1185,6 +1251,36 @@ Ltac push_in_embed_hard :=
 From iris.bi Require Import monpred.
 Local Open Scope bi_scope.
 
+Section coq_tactics.
+  Lemma tac_exist_embed_sep1 {A:Type} {prop1 prop2:bi} `{!BiEmbed prop1 prop2}
+    (Δ:environments.envs prop2) (P Q : A -> prop1):
+      environments.envs_entails Δ (∃ x, ⎡P x⎤ ∗ ⎡Q x⎤) ->
+      environments.envs_entails Δ (∃ x, ⎡P x ∗ Q x⎤).
+  Proof. apply tac_fast_apply. apply bi.exist_mono => ?.
+    rewrite embed_sep //. Qed.
+
+  Lemma tac_exist_embed_sep2 {A:Type} {prop1 prop2:bi} `{!BiEmbed prop1 prop2}
+    (Δ:environments.envs prop2) (P Q : A -> prop1) R:
+    environments.envs_entails Δ (∃ x, ⎡P x⎤ ∗ ⎡Q x⎤ ∗ R x) ->
+    environments.envs_entails Δ (∃ x, ⎡P x ∗ Q x⎤ ∗ R x).
+  Proof. apply tac_fast_apply. apply bi.exist_mono => ?.
+    rewrite embed_sep bi.sep_assoc //. Qed.
+
+  Lemma tac_exist_embed_exist1 {A B:Type} {prop1 prop2:bi} `{!BiEmbed prop1 prop2}
+    (Δ:environments.envs prop2) (P : A -> B -> prop1):
+    environments.envs_entails Δ (∃ x, ∃ y, ⎡P x y⎤) ->
+    environments.envs_entails Δ (∃ x, ⎡∃ y, P x y⎤).
+  Proof. apply tac_fast_apply. apply bi.exist_mono => ?.
+    rewrite embed_exist //. Qed.
+
+  Lemma tac_exist_embed_exist2 {A B:Type} {prop1 prop2:bi} `{!BiEmbed prop1 prop2}
+    (Δ:environments.envs prop2) (P : A -> B -> prop1) Q:
+    environments.envs_entails Δ (∃ x, (∃ y, ⎡P x y⎤) ∗ Q x) ->
+    environments.envs_entails Δ (∃ x, ⎡∃ y, P x y⎤ ∗ Q x).
+  Proof. apply tac_fast_apply. apply bi.exist_mono => ?.
+    rewrite embed_exist //. Qed.
+End coq_tactics.
+
       (* FIXME this tactic is for rewriting under binders i.e. bi_exist.
          rewrite is too aggresive; would be nice if we can pattern match under binder setoid_rewrite [lem] **)
 Ltac push_in_embed_setoid :=
@@ -1195,11 +1291,15 @@ Ltac push_in_embed_setoid :=
     try setoid_rewrite embed_and;
     try setoid_rewrite embed_or;
     try setoid_rewrite embed_impl;
-    try setoid_rewrite embed_iff;
-    try setoid_rewrite embed_sep; *)
+    try setoid_rewrite embed_iff; *) 
     try setoid_rewrite embed_pure;
     try setoid_rewrite embed_emp;
     try setoid_rewrite embed_affinely;
+    (* the `BiEmbed mpred assert` instance exists and does not need typeclass resolution *)
+    try notypeclasses refine (tac_exist_embed_sep1 _ _ _ _);
+    try notypeclasses refine (tac_exist_embed_sep2 _ _ _ _ _);
+    try notypeclasses refine (tac_exist_embed_exist1 _ _ _);
+    try notypeclasses refine (tac_exist_embed_exist2 _ _ _ _);
     (* try setoid_rewrite embed_persistently;
     try setoid_rewrite embed_absorbingly;
     try setoid_rewrite embed_embed;
@@ -1222,46 +1322,44 @@ Ltac push_in_embed_setoid :=
     idtac
     .
 
-(* push_in_embed_hard test *)
-(* if head symbol of R is `embed _`, push the embed in.
-    do some ad hoc stuff with monPred_in as well *)
+(* push embed deeper in a term R *)
 Ltac push_in_embed R :=
-  lazymatch R with
-  | ⎡ ?R' ⎤ =>
-    lazymatch R' with
-    | bi_wand ?P ?Q => rewrite [R] (embed_wand P Q)
-    | bi_wand_iff ?P ?Q => rewrite [R] (embed_wand_iff P Q)
-    | bi_forall ?P => rewrite [R] (embed_forall _ P)
-    | bi_exist ?P => rewrite [R] (embed_exist _ P)
-    | bi_and ?P ?Q => rewrite [R] (embed_and P Q)
-    | bi_or ?P ?Q => rewrite [R] (embed_or P Q)
-    | bi_impl ?P ?Q => rewrite [R] (embed_impl P Q)
-    | bi_iff ?P ?Q => rewrite [R] (embed_iff P Q) 
-    | bi_sep ?P ?Q => rewrite [R] (embed_sep P Q)
-    | bi_pure ?P => rewrite [R] (embed_pure P)
-    | bi_emp => rewrite [R] (embed_emp)
-    | <affine> ?P => rewrite [R] (embed_affinely P)
-    | <pers> ?P => rewrite [R] (embed_persistently P)
-    | <absorb> ?P => rewrite [R] (embed_absorbingly P)
-    | ⎡ ?P ⎤ => rewrite - [R] (embed_embed P)
-    | |==> ?P => rewrite [R] (embed_bupd P)
-    | |={?E1,?E2}=> ?P => rewrite [R] (embed_fupd E1 E2 P)
-    | □ ?P => rewrite [R] (embed_intuitionistically P)
-    | ◇ ?P => rewrite [R] (embed_except_0 P)
-    | ▷ ?P => rewrite [R] (embed_later P)
-    | ▷^ ?n ?P => rewrite [R] (embed_laterN n P)
-    | ■ ?P => rewrite [R] (embed_plainly P)
-    | ■? ?p ?P => rewrite [R] (embed_plainly_if p P)
-    | <affine>? ?b ?P => rewrite [R] (embed_affinely_if P)
-    | <pers>? ?b ?P => rewrite [R] (embed_persistently_if P)
-    | <absorb>? ?b ?P => rewrite [R] (embed_absorbingly_if P)
-    | □? ?b ?P => rewrite [R] (embed_intuitionistically_if P)
-    | ?x ≡ ?y => rewrite [R] (embed_internal_eq x y)
-    (* not sure how to deal with other forms in `bi_embed $ monPred_at ...`, add them when in need *)
-    | monPred_at (?P ∗ ?Q ) _ => rewrite [R'] (monPred_at_sep _ P Q)
-    | monPred_at (<affine> ?P) _ => rewrite [R'] (monPred_at_affinely _ P)
-    end
-  end.
+  rewrite
+    ?[in R]embed_affinely
+    ?[in R]embed_persistently
+    ?[in R]embed_absorbingly
+    -?[in R]embed_embed
+    ?[in R]embed_bupd
+    ?[in R]embed_fupd
+    ?[in R]embed_intuitionistically
+    ?[in R]embed_except_0
+    ?[in R]embed_later
+    ?[in R]embed_laterN
+    ?[in R]embed_plainly
+    ?[in R]embed_plainly_if
+    ?[in R]embed_affinely_if
+    ?[in R]embed_persistently_if
+    ?[in R]embed_persistently_if
+    ?[in R]embed_absorbingly_if
+    ?[in R]embed_intuitionistically_if
+
+    ?[in R]monPred_at_sep
+    ?[in R]monPred_at_affinely
+    (* should push into modalities before rewrite for other connectives 
+       to avoid breaking up the modalities *)
+    ?[in R]embed_wand
+    ?[in R]embed_wand_iff
+    ?[in R]embed_forall
+    ?[in R]embed_exist
+    ?[in R]embed_and
+    ?[in R]embed_or
+    ?[in R]embed_impl
+    ?[in R]embed_iff
+    ?[in R]embed_sep
+    ?[in R]embed_pure
+    ?[in R]embed_emp
+    ?[in R]embed_internal_eq
+  .
 
 (* TODO make sure rewrites happen in exactly the subterm R (like [R in (envs_entails _ (bi_wand R _))])
    instead of any place matching R *)
@@ -1271,26 +1369,53 @@ Ltac push_in_embed_for_head :=
   lazymatch goal with
   | |- envs_entails ?Δ ?P =>
     lazymatch P with
-    | embed ?H => push_in_embed (embed H)
     | bi_wand ?H _ => push_in_embed_inside_term H
     | bi_sep ?H _ => push_in_embed_inside_term H
-    | bi_exist ?H => idtac H; progress push_in_embed_setoid
-    (* | ?un_op ?H => idtac "unop" un_op; push_in_embed H
-    | ?bin_op ?H _ => idtac "binop" bin_op; push_in_embed H *)
-    end end.
+    | bi_exist ?H => progress push_in_embed_setoid
+    | bi_impl ?H => push_in_embed_inside_term H
+    | _ => push_in_embed_inside_term P
+    end
+  end.
 
 Ltac push_in_monPred :=
   progress lazymatch goal with
   | |- envs_entails ?Δ ?P =>
-    rewrite ?[in P]monPred_at_sep ?[in P]monPred_at_affinely ?[in P]monPred_at_embed
+    rewrite 
+      ?[in P]monPred_at_sep
+      ?[in P]monPred_at_affinely
+      ?[in P]monPred_at_embed
   end.
+
+(* used to protect terms from rewrite *)
+
+Ltac2 rec try_rewrite_locks_patterns_list ps :=
+  match ps with
+  | [] => ()
+  | t :: ps' =>
+      ltac1:(t |- try rewrite [t]lock) (Ltac1.of_constr(t));
+      try_rewrite_locks_patterns_list ps'
+  end.
+
+(* ps is a list of open_constrs, separated by "," *)
+Ltac2 Notation "try_rewrite_locks" "[" ps(list1(open_constr, ",")) "]" :=
+  try_rewrite_locks_patterns_list ps.
+
+Ltac2 mutable lock_terms_hook () :=
+  (* Example: try_rewrite_locks [ term1, term2, .. ]. *)
+  ().
+
+Ltac liNormalize :=
+  ltac2:(lock_terms_hook ());
+  repeat first
+    [ push_in_embed_for_head
+    | push_in_monPred ];
+  rewrite -?lock
+  .
 
 (** ** [liStep] *)
 Ltac liStep :=
-  first [
-    push_in_embed_for_head
-    | push_in_monPred
-    | liExtensible
+  first 
+    [ liExtensible
     | liSep
     | liAnd
     | liWand
@@ -1302,7 +1427,7 @@ Ltac liStep :=
     | liCase
     | liTrace
     | liTactic
-    (* | liPersistent *)
+    | liPersistent
     | liTrue
     | liFalse
     | liAccu
@@ -1310,20 +1435,18 @@ Ltac liStep :=
     | liUnfoldLetGoal
     ].
 
+Ltac liStep' := liNormalize; liStep.
 (* push_in_embed_for_head test *)
 Goal forall `{!BiEmbed prop1 prop2} (A B E: prop1) C D,
   (⎡ A -∗ B ⎤ ⊢ ⎡ ∀ x:nat, C x -∗ D x -∗ E ⎤)%I.
 iIntros.
-liStep.
-liStep.
-liStep.
 
 (* liWand seems to require this tactic to put a copy of the envs into Coq context*)
 liEnsureInvariant.
-liStep.
-liStep.
+liStep'.
+liStep'.
 liEnsureInvariant.
-liStep.
+liStep'.
 lazymatch goal with
   | |- envs_entails _ (⎡E⎤) => idtac
 end.

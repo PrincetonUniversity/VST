@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 
 # Usage: ./RefinedVST.sh
+# NOTE need to compile RefinedCC first, follow RefinedVST.md
 # Assume path is root of VST
-# Change input path here; path is relevant path to ./refinedVST/typing/frontend_stuff, where the frontend is located
+# path is relevant path to ./refinedVST/typing/frontend_stuff, where the frontend is located
+
+
 c_file="examples/test_f_temps.c"
 
 pushd ./refinedVST/typing/frontend_stuff || exit

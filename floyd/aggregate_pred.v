@@ -1,7 +1,7 @@
+Require Import VST.veric.log_normalize.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Import VST.floyd.base2.
+Require Import VST.floyd.base.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.compact_prod_sum.
 Require Import VST.floyd.mapsto_memory_block.
@@ -783,7 +783,7 @@ Proof.
   assert (forall it, members_union_inj v1 it <-> members_union_inj v0 it)
     by (intro it; specialize (H0 it); tauto).
   iSplit; iApply union_pred_ext_derives; auto;
-  intros; erewrite H1 by eauto; apply derives_refl.
+  intros; erewrite H1 by eauto; apply entails_refl.
 Qed.
 
 Lemma union_pred_derives_const: forall m {A} (P: forall it, A it -> val -> mpred) p v R,
@@ -1217,7 +1217,6 @@ Proof.
   intros.
   unfold array_pred.
   rewrite -> prop_true_andp by auto; clear H1.
-  f_equal.
   remember (Z.to_nat (hi - lo)) as n eqn:HH.
   revert lo HH H H0 v; induction n; intros.
   + simpl.
@@ -1438,7 +1437,7 @@ Proof.
     if_tac; [| congruence].
     solve_mod_modulus.
     unfold alignof.
-   apply derives_refl. 
+   apply entails_refl.
   +
     destruct a1 as [i1 t1|]; try discriminate.
    simpl in PLAIN.

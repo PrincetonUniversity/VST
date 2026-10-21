@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-hiding-delimiting-key".
 Require Import VST.shared.share_alg.
+Set Warnings "notation-overridden,hiding-delimiting-key".
 Require Import VST.msl.eq_dec.
 Require Export VST.msl.shares.
 Require Export VST.veric.shares.

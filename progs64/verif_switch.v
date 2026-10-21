@@ -15,7 +15,7 @@ Definition twice_spec :=
       SEP ()
     POST [ tint ]
       PROP ()
-      LOCAL (temp ret_temp (Vint (Int.repr (n+n))))
+      RETURN (Vint (Int.repr (n+n)))
       SEP ().
 
 
@@ -28,7 +28,7 @@ Definition f_spec :=
       SEP ()
     POST [ tint ]
       PROP ()
-      LOCAL (temp ret_temp (Vint (Int.repr 1)))
+      RETURN (Vint (Int.repr 1))
       SEP ().
 
 

@@ -54,16 +54,19 @@ Section juicy_safety.
 (* The closest match to the Iris approach would be for auth_heap to hold the true full CompCert mem,
    and to run the underlying semantics without any permissions. But that's a poor fit for VST's approach
    to soundness. Instead, our "authoritative" state is still just the current thread's view of the state. *)
-
+(* Note that this doesn't say anything about the environment, because the environment is present in the
+   CompCert state (not the memory). We can build another layer on top of this that connects environment
+   predicates to the environment in the state. *)
 Definition state_interp m z := mem_auth m ∗ ext_auth z.
 
 (* We could bring this more in line with weakestpre, but weakestpre doesn't give us control over the
    masks, so we can't restrict updates around steps. *)
+
 Program Definition jsafe_pre
     (jsafe : coPset -d> Z -d> C -d> iPropO Σ) : coPset -d> Z -d> C -d> iPropO Σ := λ E z c,
   |={E}=> ∀ m, state_interp m z -∗
       (∃ i, ⌜halted Hcore c i ∧ ext_spec_exit Hspec (Some (Vint i)) z m⌝) ∨
-      (|={E}=> ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c') ∨
+      (|={E}=> ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ ▷ |={E}=> (state_interp m' z ∗ jsafe E z c')) ∨
       (∃ e args x, ⌜at_external Hcore c m = Some (e, args) ∧ ext_spec_pre Hspec e x (genv_symb ge) (map proj_xtype (sig_args (ef_sig e))) args z m⌝ ∧
          ▷ (∀ ret m' z', ⌜Val.has_type_list args (map proj_xtype (sig_args (ef_sig e))) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ →
           ⌜ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m'⌝ → |={E}=>
@@ -72,9 +75,9 @@ Program Definition jsafe_pre
 Local Instance jsafe_pre_contractive : Contractive jsafe_pre.
 Proof.
   rewrite /jsafe_pre => n jsafe jsafe' Hsafe E z c.
-  do 13 f_equiv.
+  do 12 f_equiv.
   - f_contractive; repeat f_equiv. apply Hsafe.
-  - f_contractive; repeat f_equiv. apply Hsafe.
+  - f_equiv; f_contractive; repeat f_equiv. apply Hsafe.
 Qed.
 
 Local Definition jsafe_def : coPset -> Z -> C -> iProp Σ := fixpoint jsafe_pre.
@@ -101,9 +104,10 @@ Proof.
   - by iLeft.
   - iRight; iLeft.
     iMod (fupd_mask_subseteq E1) as "Hclose"; first done; iMod "H"; iMod "Hclose" as "_".
-    iDestruct "H" as (???) "[??]"; iIntros "!>".
+    iDestruct "H" as (???) "H"; iIntros "!>".
     iExists _, _; iSplit; first done.
-    iFrame; by iApply "IH".
+    iNext; iMod (fupd_mask_subseteq E1) as "Hclose"; first done; iMod "H" as "($ & ?)"; iMod "Hclose" as "_".
+    by iApply "IH".
   - iRight; iRight.
     iDestruct "H" as (????) "H".
     iExists _, _, _; iSplit; first done.
@@ -139,6 +143,24 @@ Section proofmode_classes.
     AddModal (|={E}=> P) P (jsafe E z c).
   Proof. by rewrite /AddModal fupd_frame_r bi.wand_elim_r fupd_jsafe. Qed.
 
+  Lemma fixpoint_absorbing_3 {PROP : bi} {A1 A2 A3} (F : (A1 -d> A2 -d> A3 -d> PROP) → A1 -d> A2 -d> A3 -d> PROP) `{!Contractive F}:
+    (∀ Φ, (∀ x y z, Absorbing (Φ x y z)) → (∀ x y z, Absorbing (F Φ x y z))) →
+    ∀ x y z, Absorbing (fixpoint F x y z).
+  Proof.
+    intros ?. apply fixpoint_ind.
+    - intros Φ1 Φ2 HΦ ????. by rewrite -(HΦ _ _ _).
+    - exists (λ _ _ _, True%I); apply _.
+    - done.
+    - repeat apply limit_preserving_forall=> ?.
+      apply bi.limit_preserving_entails; intros ??? Hx; rewrite (Hx _ _ _) //.
+  Qed.
+
+  Global Instance absorbing_jsafe E z c : Absorbing (jsafe E z c).
+  Proof.
+    rewrite jsafe_unseal /jsafe_def.
+    apply (@fixpoint_absorbing_3 (iPropI Σ)), _.
+  Qed.
+
 End proofmode_classes.
 
 Lemma jsafe_local_step:
@@ -156,9 +178,9 @@ Proof.
   by iFrame.
 Qed.
 
-Definition jstep E z c c' := ∀ m, state_interp m z ={E}=∗ ∃ m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c'.
+Definition jstep E z c c' := ∀ m, state_interp m z ={E}=∗ ∃ m', ⌜corestep Hcore c m c' m'⌝ ∧ ▷ |={E}=> (state_interp m' z ∗ jsafe E z c').
 
-Definition jstep_ex E z c := ∀ m, state_interp m z ={E}=∗ ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c'.
+Definition jstep_ex E z c := ∀ m, state_interp m z ={E}=∗ ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ ▷ |={E}=> (state_interp m' z ∗ jsafe E z c').
 
 Lemma jstep_exists : forall E z c c', jstep E z c c' ⊢ jstep_ex E z c.
 Proof.
@@ -182,9 +204,8 @@ Proof.
   intros; iIntros "H".
   rewrite jsafe_unfold /jsafe_pre /jstep_ex.
   iIntros "!>" (m) "?"; iRight; iLeft.
-  iMod ("H" with "[$]") as (???) "[??]".
-  iIntros "!>"; iExists _, _; iSplit; first done.
-  by iFrame.
+  iMod ("H" with "[$]") as (???) "H".
+  iIntros "!>"; iExists _, _; iSplit; done.
 Qed.
 
 Lemma jsafe_step_forward_ex:

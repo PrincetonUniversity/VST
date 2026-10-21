@@ -66,11 +66,11 @@ Global Instance sep_list_related_to (prop:bi) A B id ig l f :
 Lemma find_sep_list {prop:bi} id (T : _ → prop):
   find_in_context (FindSepList id) T :-
     pattern: A ig l f, sep_list id A ig l f; return T (sep_list id A ig l f).
-Proof. iIntros "(%&%&%&%&?&?)". iExists _. by iFrame. Qed.
+Proof. iIntros "(%&%&%&%&?&?)". iExists (sep_list _ _ _ _ _). by iFrame. Qed.
 Definition find_sep_list_inst := [instance @find_sep_list with FICSyntactic].
 Global Existing Instance find_sep_list_inst | 1.
 
-Lemma subsume_sep_list_eq {prop:bi} {_:BiPositive prop} {B} A id ig (l1 : list A) (l2 : B → list A) f (T : B → prop) :
+Lemma subsume_sep_list_eq {prop:bi} {B} A id ig (l1 : list A) (l2 : B → list A) f (T : B → prop) :
   subsume (sep_list id A ig l1 f) (λ x : B, sep_list id A ig (l2 x) f) T :-
     ∃ x, exhale <affine> ⌜list_subequiv ig l1 (l2 x)⌝; return T x.
 Proof.
@@ -84,17 +84,21 @@ Proof.
   - case_bool_decide as Hb => //. have [_ /= Heq]:= Hequiv 0. by  move: (Heq Hb) => [->].
   - iDestruct ("IH" $! (f ∘ S) (pred <$> (filter (λ x, x ≠ 0%nat) ig)) l2 with "[//] [%] [Hl]") as "Hl". {
       move => i. split => // Hin. move: (Hequiv (S i)) => [_ /= {}Hequiv]. apply: Hequiv.
-      contradict Hin. apply elem_of_list_fmap. eexists (S i). split => //.
-        by apply elem_of_list_filter.
+      contradict Hin. apply list_elem_of_fmap. eexists (S i). split => //.
+        by apply list_elem_of_filter.
     }
     + iApply (big_sepL_impl with "Hl"). iIntros "!>" (k ??) "Hl".
       case_bool_decide as Hb1; case_bool_decide as Hb2 => //.
-      contradict Hb2. apply elem_of_list_fmap. eexists (S k). split => //.
-      by apply elem_of_list_filter.
+      * contradict Hb2. apply list_elem_of_fmap. eexists (S k). split => //.
+        by apply list_elem_of_filter.
+      * contradict Hb1. move: Hb2 => /list_elem_of_fmap[[|?][? /list_elem_of_filter [??]]] //.
+        by simplify_eq/=.
     + iApply (big_sepL_impl with "Hl"). iIntros "!>" (k ??) "Hl".
       case_bool_decide as Hb1; case_bool_decide as Hb2 => //.
-      contradict Hb2. move: Hb1 => /elem_of_list_fmap[[|?][? /elem_of_list_filter [??]]] //.
-      by simplify_eq/=.
+      * contradict Hb2. move: Hb1 => /list_elem_of_fmap[[|?][? /list_elem_of_filter [??]]] //.
+        by simplify_eq/=.
+      * contradict Hb1. apply list_elem_of_fmap. eexists (S k). split => //.
+        by apply list_elem_of_filter.
 Qed.
 Definition subsume_sep_list_eq_inst := [instance @subsume_sep_list_eq].
 Global Existing Instance subsume_sep_list_eq_inst | 1000.
@@ -108,10 +112,10 @@ Proof.
   unfold CanSolve, sep_list => ?. iIntros "Hsub [<- Hl]".
   rewrite length_insert. iApply "Hsub". iSplit; [done|].
   destruct (decide (i < length l1)%nat). 2: { by rewrite list_insert_ge; [|lia]. }
-  iDestruct (big_sepL_insert_acc with "Hl") as "[? Hl]". { by apply: list_lookup_insert. }
+  iDestruct (big_sepL_insert_acc with "Hl") as "[? Hl]". { by apply: list_lookup_insert_eq. }
   have [//|y ?]:= lookup_lt_is_Some_2 l1 i.
   iDestruct ("Hl" $! y with "[]") as "Hl". { by case_decide. }
-  destruct (bool_decide (i∈ig)); by rewrite list_insert_insert list_insert_id.
+  case_bool_decide; last done; by rewrite list_insert_insert_eq list_insert_id.
 Qed.
 Definition subsume_sep_list_insert_in_ig_inst := [instance @subsume_sep_list_insert_in_ig].
 Global Existing Instance subsume_sep_list_insert_in_ig_inst.
@@ -120,10 +124,10 @@ Lemma subsume_sep_list_insert_not_in_ig {prop:bi} A B id ig i x (l1 : list A) l2
   subsume (sep_list id A ig (<[i := x]>l1) f) (λ x : B, sep_list id A ig (l2 x) f) T
     where `{!CanSolve (i ∉ ig)} :-
       exhale <affine> ⌜i < length l1⌝%nat;
-      inhale <affine> f i x;
+      inhale f i x;
       y ← (sep_list id A (i :: ig) l1 f) :>> (λ x : B, sep_list id A (i :: ig) (l2 x) f);
       ∃ x2, exhale <affine> ⌜l2 y !! i = Some x2⌝;
-      exhale <affine> f i x2;
+      exhale f i x2;
       return T y.
 Proof.
   unfold CanSolve, sep_list. iIntros (?) "[% Hsub] [<- Hl]". rewrite big_sepL_insert // length_insert.
@@ -149,7 +153,7 @@ Global Existing Instance subsume_sep_list_trivial_eq_inst | 5.
 Lemma subsume_sep_list_cons {prop:bi} A B id ig (x1 : A) (l1 : list A) l2 (f : nat → A → prop) (T : B → prop) :
   subsume (sep_list id A ig (x1 :: l1) f) (λ y : B, sep_list id A ig (l2 y) f) T :-
     exhale <affine> ⌜0 ∉ ig⌝;
-    ∀ id', inhale (<affine> f 0%nat x1);
+    ∀ id', inhale (f 0%nat x1);
     inhale (sep_list id' A (pred <$> ig) l1 (λ i, f (S i)));
     ∃ y x2 l2', exhale <affine> ⌜l2 y = x2 :: l2'⌝;
     exhale (<affine> f 0%nat x2);
@@ -161,12 +165,14 @@ Proof.
   iDestruct ("Hs" $! {|sep_list_len := _|} with "H0 [H]") as (??? Heq1) "[? [[%Heq2 H] ?]]".
   { iSplit; [simpl; done|]. iApply (big_sepL_impl with "H"); iIntros "!#" (???) "?".
     case_bool_decide as Hx1 => //; case_bool_decide as Hx2 => //; contradict Hx2.
-    set_unfold. eexists _. split; [|done]. done. }
+    * set_unfold. eexists _. split; [|done]. done.
+    * set_unfold. intros (j & -> & ?). by destruct j. }
   iExists _. iFrame. iSplit. { iPureIntro. rewrite Heq1 /=. by rewrite Heq2. }
   rewrite Heq1 => /=. rewrite bool_decide_false //. iFrame.
   iApply (big_sepL_impl with "H"); iIntros "!#" (???) "?".
   case_bool_decide as Hx1 => //; case_bool_decide as Hx2 => //; contradict Hx2.
-  by move: Hx1 => /(elem_of_list_fmap_2 _ _ _)[[|?]//=[->?]].
+  * by move: Hx1 => /(list_elem_of_fmap _ _ _)[[|?]//=[->?]].
+  * intros ?; contradiction Hx1. apply list_elem_of_fmap. eexists (S k). split => //.
 Qed.
 Definition subsume_sep_list_cons_inst := [instance @subsume_sep_list_cons].
 Global Existing Instance subsume_sep_list_cons_inst | 40.

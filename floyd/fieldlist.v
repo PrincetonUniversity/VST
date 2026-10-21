@@ -1,7 +1,8 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Import VST.floyd.base2.
+Require Import VST.floyd.base.
+(*Require Import VST.floyd.base2.*)
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-Require Import VST.floyd.client_lemmas.
+(*Require Import VST.floyd.client_lemmas.*)
 
 Local Unset SsrRewrite.
 
@@ -164,7 +165,7 @@ Proof.
     - apply IHm; auto.
       simpl in H0.
       rewrite andb_true_iff in H0; tauto.
-Qed.         
+Qed.
 
 Lemma complete_legal_cosu_type_field_type: forall id
   (PLAIN: plain_members (co_members (get_co id)) = true)

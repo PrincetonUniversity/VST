@@ -29,7 +29,7 @@ Proof.
                  Datatypes.id deref_noload force_ptr force_val
                   eval_var eval_id
                  ]
-       in H0|-*; simpl in *;
+       in H0|-*; simpl in *; rewrite ?lookup_empty in H0;
  repeat match goal with
  | _ => reflexivity
  | |- match access_mode ?t with
@@ -133,7 +133,7 @@ all:  destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
  induction e; simpl; intros; subst; unfold_lift; try reflexivity;
  unfold_lift in H0.
 *
- unfold eval_var in *;  simpl in *; congruence.
+ unfold eval_var in *;  simpl in *; rewrite !lookup_empty in H0 |- *; congruence.
 *
   apply eval_expr_any; auto.
   * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
