@@ -334,8 +334,10 @@ COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(fo
 # old version with paco, coq-ext-lib; we now obtain these from opam environment instead of submodules
 # COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) # -Q ../stdpp/theories stdpp -Q ../iris/iris iris -Q ../InteractionTrees/theories ITree -Q ../paco/src Paco -Q ../coq-ext-lib/theories ExtLib -Q ../fcf/src/fcf FCF
 
-
 DEPFLAGS:=$(COQFLAGS)
+
+# Old IfThen Without Bool Coercion: to handle when requiring Rocq >= 9.4
+COQEXTRAFLAGS+=-set "Old IfThen Without Bool Coercion"
 
 COQFLAGS+=$(COQEXTRAFLAGS)
 
