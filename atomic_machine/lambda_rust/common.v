@@ -89,3 +89,11 @@ Inductive bin_op_eval {A : Type} (sigma : gmap loc A)
 | BinOpOffset l z :
     bin_op_eval sigma OffsetOp
       (LitLoc l) (LitInt z) (LitLoc (l +ₗ z)%L).
+
+(** An evaluation context around a non-value is not a value. *)
+
+Lemma fill_item_not_val Ki e : to_val (fill_item Ki e) = None.
+Proof. by destruct Ki. Qed.
+
+Lemma fill_not_val K e : to_val e = None -> to_val (fill K e) = None.
+Proof. revert e. induction K; simpl; eauto using fill_item_not_val. Qed.

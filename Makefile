@@ -811,6 +811,9 @@ lambda-rust-safety: lambda-rust-machine \
 	atomic_machine/lambda_rust/safety_reflection.vo \
 	atomic_machine/lambda_rust/machine_safety.vo
 
+atomic-machine: lambda-rust-equivalence lambda-rust-safety \
+	atomic_machine/clight_at_mach.vo
+
 atomic_machine/lambda_rust/safety_reflection.vo: \
 	atomic_machine/lambda_rust/safety_reflection.v \
 	atomic_machine/lambda_rust/safety.vo

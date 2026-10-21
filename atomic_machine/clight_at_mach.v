@@ -16,6 +16,7 @@ Require Import VST.veric.Clight_evsem.
 Require Import VST.veric.val_lemmas.
 Set Warnings "custom-entry-overridden".
 Require Import VST.atomic_machine.atomic_machine.
+From stdpp Require base.
 
 Import Address Values.
 
@@ -130,6 +131,36 @@ Section ClightInstantiation.
       event_semantics.ev_step evsem_inst c m T c' m' ->
       ev_step_with_mem_ev evsem_inst c m (clight_into_evs T) c' m'.
 
+  (** A halted core ([Returnstate v Kstop]) does not step, call an atomic
+      operation, or spawn. *)
+  Definition clight_final (c : Clight_core.CC_core) : Prop :=
+    Clight_core.cl_halted c <> None.
+
+  Lemma clight_final_inv c : clight_final c -> exists v, c = Clight_core.Returnstate v Clight.Kstop.
+  Proof.
+    unfold clight_final, Clight_core.cl_halted.
+    destruct c as [ | | v [] ]; try congruence; eauto.
+  Qed.
+
+  #[global] Instance clight_final_dec c : base.Decision (clight_final c).
+  Proof.
+    unfold base.Decision, clight_final.
+    destruct (Clight_core.cl_halted c); [ left | right ]; congruence.
+  Defined.
+
+  Lemma clight_final_no_step ge c m T c' m' :
+    clight_final c -> ~ ev_step_with_mem_ev (Clight_evsem.CLC_evsem ge) c m T c' m'.
+  Proof.
+    intros (v & ->)%clight_final_inv Hstep.
+    inversion Hstep as [????? Hev]; subst. inversion Hev.
+  Qed.
+
+  Lemma clight_final_no_external c op k : clight_final c -> ~ clight_external c op k.
+  Proof. intros (v & ->)%clight_final_inv Hext. inversion Hext. Qed.
+
+  Lemma clight_final_no_spawn ge c c' c_new : clight_final c -> ~ clight_spawn ge c c' c_new.
+  Proof. intros (v & ->)%clight_final_inv Hspawn. inversion Hspawn. Qed.
+
   #[global] Instance Clight_language (ge : Clight.genv)
       : @sqlang address val _ _ mem memory_chunk clight_mem_mixin :=
     {| sqlang_thrd_st := Clight_core.CC_core;
@@ -138,8 +169,12 @@ Section ClightInstantiation.
       sqlang_step := ev_step_with_mem_ev (Clight_evsem.CLC_evsem ge);
       sqlang_at_external := clight_external;
       sqlang_spawn := clight_spawn ge;
-      sqlang_final := fun c => Clight_core.cl_halted c <> None;
+      sqlang_final := clight_final;
       sqlang_ValEq := clight_ValEq;
-      sqlang_ValNEq := clight_ValNEq |}.
+      sqlang_ValNEq := clight_ValNEq;
+      sqlang_final_dec := clight_final_dec;
+      sqlang_final_no_step := clight_final_no_step ge;
+      sqlang_final_no_external := clight_final_no_external;
+      sqlang_final_no_spawn := clight_final_no_spawn ge |}.
 
 End ClightInstantiation.

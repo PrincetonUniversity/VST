@@ -243,6 +243,17 @@ Section AtomicMachine.
     (** Value (in)equality for CAS *)
     sqlang_ValEq : Mem -> Val -> Val -> Prop;
     sqlang_ValNEq : Mem -> Val -> Val -> Prop;
+
+    (** Finality is decidable, and a final state does nothing: it neither
+        steps, nor calls an atomic operation, nor spawns.  These make each
+        machine thread a language in Iris's sense (see [iris_adequacy.v]). *)
+    sqlang_final_dec :: forall c, Decision (sqlang_final c);
+    sqlang_final_no_step c m T c' m' :
+      sqlang_final c -> ~ sqlang_step c m T c' m';
+    sqlang_final_no_external c op k :
+      sqlang_final c -> ~ sqlang_at_external c op k;
+    sqlang_final_no_spawn c c' c_new :
+      sqlang_final c -> ~ sqlang_spawn c c' c_new;
   }.
 
   Context {L : sqlang}.
@@ -334,6 +345,74 @@ Section AtomicMachine.
       (Hleast : forall k, k < j -> is_Some (tp !! k)),
       at_step tp m μ (<[j := Running c_new []]> (<[i := Running c' []]> tp)) m μ.
 
+  (** ** Steps of a single thread
+
+      The rules of [at_step] with the thread pool factored out: each rule
+      reads and replaces one thread, and [Spawn] additionally returns the
+      new thread's initial state.  [at_step_thread_step] and
+      [thread_step_at_step] relate the two. *)
+  Inductive thread_step : tstate -> Mem -> rw_map -> tstate -> Mem -> rw_map -> option C -> Prop :=
+
+  | TS_Core_Try : forall m μ c T c' m' μ'
+      (Hstep : sqlang_step c m T c' m')
+      (Hreserve : rsv T μ = Some μ'),
+      thread_step (Running c []) m μ (Running c' T) m' μ' None
+
+  | TS_Core_Commit : forall m μ c T μ'
+      (Hne : T <> [])
+      (Hcommit : fin T μ = Some μ'),
+      thread_step (Running c T) m μ (Running c []) m μ' None
+
+  | TS_SC_Read : forall m μ c ly l v K
+      (Hext : at_external c (ALoad ly l) K)
+      (Hmu : readable μ (layout_to_locs l ly))
+      (Hload : load m l ly = Some v),
+      thread_step (Running c []) m μ (Running (K $ Some v) []) m μ None
+
+  | TS_SC_Write : forall m μ c ly l v m' K
+      (Hext : at_external c (AStore ly l v) K)
+      (Hmu : writable μ (layout_to_locs l ly))
+      (Hstore : store m l ly v = Some m'),
+      thread_step (Running c []) m μ (Running (K None) []) m' μ None
+
+  | TS_SC_Cas_Suc : forall m μ c ly l v_exp v_new v_cur m' K
+      (Hext : at_external c (ACAS ly l v_exp v_new) K)
+      (Hmu : writable μ (layout_to_locs l ly))
+      (Hload : load m l ly = Some v_cur)
+      (Heq : ValEq m v_cur v_exp)
+      (Hstore : store m l ly v_new = Some m'),
+      thread_step (Running c []) m μ (Running (K $ Some Vtrue) []) m' μ None
+
+  | TS_SC_Cas_Fail : forall m μ c ly l v_exp v_new v_cur K
+      (Hext : at_external c (ACAS ly l v_exp v_new) K)
+      (Hmu : readable μ (layout_to_locs l ly))
+      (Hload : load m l ly = Some v_cur)
+      (Hneq : ValNEq m v_cur v_exp),
+      thread_step (Running c []) m μ (Running (K $ Some Vfalse) []) m μ None
+
+  | TS_SC_Cas_Stuck : forall m μ c ly l v_exp v_new v_cur K
+      (Hext : at_external c (ACAS ly l v_exp v_new) K)
+      (Hload : load m l ly = Some v_cur)
+      (Heq : ValEq m v_cur v_exp)
+      (Ho : ~ writable μ (layout_to_locs l ly)),
+      thread_step (Running c []) m μ StuckState m μ None
+
+  | TS_Spawn : forall m μ c c' c_new
+      (Hspawn : sqlang_spawn c c' c_new),
+      thread_step (Running c []) m μ (Running c' []) m μ (Some c_new).
+
+  (** The pool after thread [i] steps to [t'], spawning [os]: a spawned
+      thread goes to index [j], which must be the least unused one. *)
+  Definition pool_after (tp : tpool) (i : nat) (t' : tstate) (os : option C)
+      (j : nat) : tpool :=
+    match os with
+    | None => <[i := t']> tp
+    | Some c_new => <[j := Running c_new []]> (<[i := t']> tp)
+    end.
+
+  Definition least_free (tp : tpool) (j : nat) : Prop :=
+    tp !! j = None /\ forall k, k < j -> is_Some (tp !! k).
+
   (** ** Safety
 
       A singleton pool tests whether this particular thread can step with
@@ -376,6 +455,34 @@ Section AtomicMachine.
     inversion Hstep; subst;
       apply lookup_singleton_Some in Hget as [Hi Hget]; subst t;
       do 3 eexists; eauto using at_step.
+  Qed.
+
+  Lemma at_step_thread_step tp m μ tp' m' μ' :
+    at_step tp m μ tp' m' μ' ->
+    exists i t t' os j, tp !! i = Some t /\ thread_step t m μ t' m' μ' os /\
+      least_free tp j /\ tp' = pool_after tp i t' os j.
+  Proof.
+    destruct (tpool_least_free tp) as (j0 & Hj0).
+    destruct 1.
+    all: do 5 eexists; split_and!; [ eassumption | eauto using thread_step | | reflexivity ].
+    all: first [ exact Hj0 | by split ].
+  Qed.
+
+  Lemma thread_step_at_step tp m μ i t t' m' μ' os j :
+    tp !! i = Some t -> thread_step t m μ t' m' μ' os -> least_free tp j ->
+    at_step tp m μ (pool_after tp i t' os j) m' μ'.
+  Proof. intros Hi Hstep [Hfree Hleast]. destruct Hstep; simpl; eauto using at_step. Qed.
+
+  (** A thread is reducible exactly when it can take a [thread_step]. *)
+  Lemma am_reducible_thread_step t m μ :
+    am_reducible t m μ <-> exists t' m' μ' os, thread_step t m μ t' m' μ' os.
+  Proof.
+    split.
+    - intros (tp' & m' & μ' & (i & t0 & t' & os & j & Hi & Hstep & _ & _)%at_step_thread_step).
+      apply lookup_singleton_Some in Hi as [_ ->]. eauto.
+    - intros (t' & m' & μ' & os & Hstep).
+      destruct (tpool_least_free {[0 := t]}) as (j & Hj).
+      do 3 eexists. eapply thread_step_at_step; [ apply lookup_singleton_eq | exact Hstep | exact Hj ].
   Qed.
 
   Definition am_configuration : Type := (tpool * Mem * rw_map)%type.

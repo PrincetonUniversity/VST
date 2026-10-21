@@ -173,6 +173,33 @@ Inductive lr_spawn : expr -> expr -> expr -> Prop :=
 (** A thread has terminated once it is a value. *)
 Definition lr_final (e : expr) : Prop := is_Some (to_val e).
 
+(** A value does not step, call an atomic operation, or spawn: each of
+    these acts on a redex inside an evaluation context. *)
+
+Lemma lr_step_not_val e m T e' m' : lr_step e m T e' m' -> to_val e = None.
+Proof. destruct 1 as [K e1 ? ? ? ? Hhead]. apply fill_not_val. by destruct Hhead. Qed.
+
+Lemma lr_external_not_val e op k : lr_external e op k -> to_val e = None.
+Proof. destruct 1 as [K e0 op k Hhead]. apply fill_not_val. by destruct Hhead. Qed.
+
+Lemma lr_spawn_not_val e e' e_new : lr_spawn e e' e_new -> to_val e = None.
+Proof. destruct 1. by apply fill_not_val. Qed.
+
+Lemma lr_final_not_val e : lr_final e -> to_val e = None -> False.
+Proof. intros [v Hv] Hn. congruence. Qed.
+
+Global Instance lr_final_dec e : Decision (lr_final e).
+Proof. unfold lr_final. apply _. Defined.
+
+Lemma lr_final_no_step e m T e' m' : lr_final e -> ~ lr_step e m T e' m'.
+Proof. intros Hf Hs%lr_step_not_val. exact (lr_final_not_val _ Hf Hs). Qed.
+
+Lemma lr_final_no_external e op k : lr_final e -> ~ lr_external e op k.
+Proof. intros Hf Hs%lr_external_not_val. exact (lr_final_not_val _ Hf Hs). Qed.
+
+Lemma lr_final_no_spawn e e' e_new : lr_final e -> ~ lr_spawn e e' e_new.
+Proof. intros Hf Hs%lr_spawn_not_val. exact (lr_final_not_val _ Hf Hs). Qed.
+
 #[global] Instance lr_language :
     @sqlang loc val _ _ lr_mem lr_layout lr_memory :=
   {| sqlang_thrd_st := expr;
@@ -183,4 +210,8 @@ Definition lr_final (e : expr) : Prop := is_Some (to_val e).
      sqlang_spawn := lr_spawn;
      sqlang_final := lr_final;
      sqlang_ValEq := lr_val_eq;
-     sqlang_ValNEq := lr_val_neq |}.
+     sqlang_ValNEq := lr_val_neq;
+     sqlang_final_dec := lr_final_dec;
+     sqlang_final_no_step := lr_final_no_step;
+     sqlang_final_no_external := lr_final_no_external;
+     sqlang_final_no_spawn := lr_final_no_spawn |}.

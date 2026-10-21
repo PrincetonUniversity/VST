@@ -27,12 +27,6 @@ Proof. intros v1 v2 H%(f_equal to_val). rewrite !to_of_val in H. by simplify_eq.
 Lemma fill_app K1 K2 e : fill (K1 ++ K2) e = fill K2 (fill K1 e).
 Proof. revert e. induction K1; simpl; auto. Qed.
 
-Lemma fill_item_not_val Ki e : to_val (fill_item Ki e) = None.
-Proof. by destruct Ki. Qed.
-
-Lemma fill_not_val K e : to_val e = None -> to_val (fill K e) = None.
-Proof. revert e. induction K; simpl; eauto using fill_item_not_val. Qed.
-
 Lemma list_expr_val_eq_inv vl1 vl2 e1 e2 el1 el2 :
   to_val e1 = None -> to_val e2 = None ->
   map of_val vl1 ++ e1 :: el1 = map of_val vl2 ++ e2 :: el2 ->
