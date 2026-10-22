@@ -71,6 +71,7 @@ compcert/test/
 *.prof.json.gz
 *.v.d
 .depend
+.depend-files
 .loadpath
 .loadpath-export
 version.v
