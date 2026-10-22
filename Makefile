@@ -824,8 +824,6 @@ cascompcert-imports: cascompcert-force
 # with an incomplete dependency graph.
 cascompcert/%.vo: | cascompcert-imports ;
 
-globsemantics: cascompcert/concurrency/common/GlobSemantics.vo
-
 default_target: vst $(PROGSDIR)
 vst: _CoqProject msl veric floyd simpleconc
 
@@ -864,18 +862,6 @@ lambda-rust-adequacy: lambda-rust-equivalence \
 	atomic_machine/lambda_rust/safety_reflection.vo \
 	atomic_machine/lambda_rust/machine_safety.vo \
 	atomic_machine/lambda_rust/adequacy.vo
-
-atomic_machine/lambda_rust/adequacy.vo: \
-	atomic_machine/lambda_rust/adequacy.v \
-	atomic_machine/lambda_rust/equivalence.vo
-
-atomic_machine/lambda_rust/safety_reflection.vo: \
-	atomic_machine/lambda_rust/safety_reflection.v \
-	atomic_machine/lambda_rust/adequacy.vo
-
-atomic_machine/lambda_rust/machine_safety.vo: \
-	atomic_machine/lambda_rust/machine_safety.v \
-	atomic_machine/lambda_rust/safety_reflection.vo
 
 # TODO:
 #
