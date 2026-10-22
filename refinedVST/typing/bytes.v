@@ -288,14 +288,14 @@ Section uninit.
   Global Instance uninit_objective t: ObjectiveTy (uninit t).
   Proof. constructor; apply _. Qed.
 
-  (*Definition ty_own_var_uninit f x : assert :=
+  Definition ty_own_var_uninit f x : assert :=
     match list_assoc x (f.(fn_params) ++ f.(fn_temps)) with
     | Some cty => x ◁ₜ|cty| (uninit cty)
     | None => match list_assoc x f.(fn_vars) with
               | Some cty => x ◁ₗᵥ|cty| uninit cty
               | None => False
               end
-    end.*)
+    end.
 
 End uninit.
 
