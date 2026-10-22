@@ -321,8 +321,14 @@ endif
 
 # Make CASCompCert's concurrency modules available to VST while retaining the
 # bundled CompCert load path.
+# This must match cascompcert's FOR_VST=true load path.
 ifeq ($(ATOMIC_MACHINE),true)
-  CASCOMPCERT_R_FLAGS = -R cascompcert/concurrency compcert.concurrency
+  CASCOMPCERT_R_FLAGS = \
+    -R cascompcert/x86_cas compcert.x86 \
+    -R cascompcert/cfrontend_cas compcert.cfrontend \
+    -R cascompcert/backend compcert.backend \
+    -R cascompcert/driver compcert.driver \
+    -R cascompcert/concurrency compcert.concurrency
   COMPCERT_R_FLAGS += $(CASCOMPCERT_R_FLAGS)
   EXTFLAGS += $(CASCOMPCERT_R_FLAGS)
 endif
@@ -797,11 +803,26 @@ endif
 CASCOMPCERT_MAKE = $(MAKE) -C cascompcert FOR_VST=true \
   ARCH=$(ARCH) BITSIZE=$(BITSIZE) LIBRARY_FLOCQ=local
 
-.PHONY: cascompcert-force cascompcert-globsemantics
+# The top-level dependency file names imported CASCompCert objects, but it
+# does not contain their internal dependency graph.  Ask CASCompCert to
+# update every object that the atomic-machine development imports in one
+# recursive invocation.
+CASCOMPCERT_IMPORTED_VO = \
+  $(sort $(shell grep '^atomic_machine/' $(DEPEND_FILE) 2>/dev/null | \
+    grep -o 'cascompcert/[^ ]*\.vo\b'))
+CASCOMPCERT_IMPORTED_TARGETS = \
+  $(patsubst cascompcert/%,%,$(CASCOMPCERT_IMPORTED_VO))
+
+.PHONY: cascompcert-force cascompcert-imports
 cascompcert-force:
 
-cascompcert/concurrency/common/GlobSemantics.vo: cascompcert-force
-	+$(CASCOMPCERT_MAKE) concurrency/common/GlobSemantics.vo
+cascompcert-imports: cascompcert-force
+	+$(CASCOMPCERT_MAKE) $(CASCOMPCERT_IMPORTED_TARGETS)
+
+# The recursive invocation above produces these files.  The empty recipe
+# prevents the generic top-level [%.vo] rule from compiling CASCompCert files
+# with an incomplete dependency graph.
+cascompcert/%.vo: | cascompcert-imports ;
 
 globsemantics: cascompcert/concurrency/common/GlobSemantics.vo
 
