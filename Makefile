@@ -995,15 +995,41 @@ _CoqProject _CoqProject-export: Makefile util/coqflags $(COMPCERT_CONFIG)
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
+# The .v dependencies are stored in .depend-files, and .depend is regenerated
+# if any .v file is added, deleted or edited (e.g. imports changed).
+ifeq ($(COMPCERT_NEW),true)
+  DEPEND_SRC = $(filter $(wildcard *), $(DIRS) refinedVST concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf)
+else
+  DEPEND_SRC = $(filter $(wildcard *), $(DIRS) refinedVST)
+endif
+DEPEND_FIND = find $(DEPEND_SRC) -name '*.v' 2>/dev/null | LC_ALL=C sort
+DEPEND_LIST = .depend-files
+
+# Run the staleness check if the condition in [ifeq] is an empty string:
+# 1. make is not restarted (e.g. to remake a stale .depend), and
+# 2. the current make goal is not [depend] or [clean].
+# $(DEPEND_FILE) is stale if some .v file is newer, or a freshly computed
+# $(DEPEND_SRC) differs from the one generated last time, i.e. $(DEPEND_LIST).
+ifeq ($(MAKE_RESTARTS)$(filter depend clean,$(MAKECMDGOALS)),)
+  DEPEND_STALE := $(shell { $(DEPEND_FIND) | cmp -s - $(DEPEND_LIST) || echo moved; \
+    find $(DEPEND_SRC) -name '*.v' -newer $(DEPEND_FILE) -print -quit; } 2>/dev/null)
+endif
+ifneq ($(DEPEND_STALE),)
+$(DEPEND_FILE): depend-force
+endif
+
+.PHONY: depend-force
+depend-force:
+
 .depend depend:
 	@echo 'coqdep ... >.depend'
 ifeq ($(COMPCERT_NEW),true)
 	# DEPENDENCIES VARIANT COMPCERT_NEW
-	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) refinedVST concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(DEPEND_SRC) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 	@echo "" >>.depend
 else
 	# DEPENDENCIES DEFAULT
-	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) refinedVST) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(DEPEND_SRC) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
 ifeq ($(COMPCERT_BUILD_FROM_SRC),true)
 	# DEPENDENCIES TO BUILD COMPCERT FROM SOURCE
@@ -1024,9 +1050,10 @@ ifneq ($(wildcard fcf/src/FCF),)
 	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend
 endif
 	wc .depend
+	$(DEPEND_FIND) >$(DEPEND_LIST)
 
 clean:
-	rm -f $(addprefix veric/version., v vo vos vok glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo */*.vos */*.vok)
+	rm -f $(addprefix veric/version., v vo vos vok glob) .lia.cache .nia.cache floyd/floyd.coq .depend $(DEPEND_LIST) _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo */*.vos */*.vok)
 	for d in compcert compcert_new cascompcert; do \
 	  if [ -d "$$d" ]; then \
 	    find "$$d" -type f \( -name '*.vo' -o -name '*.vos' -o -name '*.vok' -o -name '*.glob' \) -delete; \
