@@ -39,5 +39,5 @@ Record lr_machine_cfg : Type := {
 Definition lr_at_step
     (c1 c2 : lr_machine_cfg) : Prop :=
   @at_step loc val _ _ lr_mem lr_layout lr_memory lr_language
-    (lr_machine_threads c1) (lr_machine_mem c1) (lr_machine_rw c1)
-    (lr_machine_threads c2) (lr_machine_mem c2) (lr_machine_rw c2).
+    (lr_machine_threads c1, lr_machine_mem c1, lr_machine_rw c1)
+    (lr_machine_threads c2, lr_machine_mem c2, lr_machine_rw c2).

@@ -427,7 +427,7 @@ Proof. unfold lr_tpool, tpool. apply lookup_singleton_eq. Qed.
 Lemma lr_red_try c m mu T c' m' mu' :
   lr_step c m T c' m' -> rsv T mu = Some mu' -> am_reducible (lr_running c []) m mu.
 Proof.
-  intros Hstep Hrsv. eexists _, _, _.
+  intros Hstep Hrsv. eexists.
   exact (lr_machine_try _ m mu 0 c T c' m' mu' (lr_singleton_lookup _) Hstep Hrsv).
 Qed.
 
@@ -435,7 +435,7 @@ Lemma lr_red_sc_read c m mu l v K :
   lr_external c (ALoad tt l) K -> mu !! l ≠ Some Wst -> m !! l = Some v ->
   am_reducible (lr_running c []) m mu.
 Proof.
-  intros Hext Hmu Hm. eexists _, _, _.
+  intros Hext Hmu Hm. eexists.
   exact (lr_machine_sc_read _ m mu 0 c l v K (lr_singleton_lookup _) Hext Hmu Hm).
 Qed.
 
@@ -443,7 +443,7 @@ Lemma lr_red_sc_write c m mu l v v' K :
   lr_external c (AStore tt l v) K -> mu !! l = Some (Rst 0) -> m !! l = Some v' ->
   am_reducible (lr_running c []) m mu.
 Proof.
-  intros Hext Hmu Hm. eexists _, _, _.
+  intros Hext Hmu Hm. eexists.
   exact (lr_machine_sc_write _ m mu 0 c l v v' K (lr_singleton_lookup _) Hext Hmu Hm).
 Qed.
 
@@ -452,7 +452,7 @@ Lemma lr_red_cas_suc c m mu l lit_exp lit_new lit_cur K :
   mu !! l = Some (Rst 0) -> m !! l = Some (LitV lit_cur) -> sq_mem.lit_eq m lit_exp lit_cur ->
   am_reducible (lr_running c []) m mu.
 Proof.
-  intros Hext Hmu Hm Heq. eexists _, _, _.
+  intros Hext Hmu Hm Heq. eexists.
   exact (lr_machine_cas_suc _ m mu 0 c l lit_exp lit_new lit_cur K (lr_singleton_lookup _) Hext Hmu Hm Heq).
 Qed.
 
@@ -461,7 +461,7 @@ Lemma lr_red_cas_fail c m mu l lit_exp lit_new lit_cur K :
   mu !! l ≠ Some Wst -> m !! l = Some (LitV lit_cur) -> lit_neq lit_exp lit_cur ->
   am_reducible (lr_running c []) m mu.
 Proof.
-  intros Hext Hmu Hm Hneq. eexists _, _, _.
+  intros Hext Hmu Hm Hneq. eexists.
   exact (lr_machine_cas_fail _ m mu 0 c l lit_exp lit_new lit_cur K (lr_singleton_lookup _) Hext Hmu Hm Hneq).
 Qed.
 
@@ -470,7 +470,7 @@ Lemma lr_red_cas_stuck c m mu l lit_exp lit_new lit_cur K :
   mu !! l ≠ Some (Rst 0) -> m !! l = Some (LitV lit_cur) -> sq_mem.lit_eq m lit_exp lit_cur ->
   am_reducible (lr_running c []) m mu.
 Proof.
-  intros Hext Hmu Hm Heq. eexists _, _, _.
+  intros Hext Hmu Hm Heq. eexists.
   refine (SC_Cas_Stuck _ m mu 0 c tt l (LitV lit_exp) (LitV lit_new) (LitV lit_cur) K
             (lr_singleton_lookup _) Hext Hm _ _).
   - change (lr_val_eq m (LitV lit_cur) (LitV lit_exp)). exact Heq.
@@ -479,7 +479,7 @@ Qed.
 
 Lemma lr_red_spawn K e m mu : am_reducible (lr_running (fill K (Fork e)) []) m mu.
 Proof.
-  eexists _, _, _. eapply (lr_machine_spawn _ m mu 0 K e 1); [ apply lr_singleton_lookup | | ].
+  eexists. eapply (lr_machine_spawn _ m mu 0 K e 1); [ apply lr_singleton_lookup | | ].
   - reflexivity.
   - intros k Hk. assert (k = 0%nat) as -> by lia. by eexists.
 Qed.
@@ -955,7 +955,7 @@ Qed.
 (** * The theorem *)
 
 Lemma lr_am_steps_inv mc q :
-  rtc am_step (lr_am_cfg mc) q ->
+  am_steps (lr_am_cfg mc) q ->
   exists mc', q = lr_am_cfg mc' /\ lr_steps lr_at_step mc mc'.
 Proof.
   intros Hsteps. remember (lr_am_cfg mc) as q0 eqn:Hq0. revert mc Hq0.
@@ -964,8 +964,7 @@ Proof.
   - destruct q2 as [[tp m] mu].
     destruct (IH {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |} eq_refl)
       as (mc' & -> & Hsteps').
-    exists mc'. split; [ done | ]. eapply rtc_l; [ | exact Hsteps' ].
-    destruct mc. exact Hstep.
+    exists mc'. split; [ done | ]. eapply rtc_l; [ | exact Hsteps' ]. exact Hstep.
 Qed.
 
 Lemma lr_back_steps rc mc mc' :

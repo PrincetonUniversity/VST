@@ -207,6 +207,10 @@ Section AtomicMachine.
 
   Definition tpool := gmap nat tstate.
 
+  (** The atomic machine configuration: the thread pool, the shared memory, and
+      the reader/writer count map. *)
+  Definition am_cfg : Type := (tpool * Mem * rw_map)%type.
+
   (** No non-atomic write in progress anywhere in ls. *)
   Definition readable μ (ls : list Loc) : Prop :=
     Forall (fun l => μ !! l <> Some Wst) ls.
@@ -215,33 +219,33 @@ Section AtomicMachine.
   Definition writable μ (ls : list Loc) : Prop :=
     Forall (fun l => μ !! l = Some (Rst 0)) ls.
 
-  Inductive at_step : tpool -> Mem -> rw_map -> tpool -> Mem -> rw_map -> Prop :=
+  Inductive at_step : am_cfg -> am_cfg -> Prop :=
 
   | Core_Try : forall tp m μ i c T c' m' μ'
       (Hget : tp !! i = Some (Running c []))
       (Hstep : sqlang_step c m T c' m')
       (Hreserve : rsv T μ = Some μ'),
-      at_step tp m μ (<[i := Running c' T]> tp) m' μ'
+      at_step (tp, m, μ) (<[i := Running c' T]> tp, m', μ')
     
   | Core_Commit : forall tp m μ i c T μ'
       (Hget : tp !! i = Some (Running c T))
       (Hne : T <> [])
       (Hcommit : fin T μ = Some μ'),
-      at_step tp m μ (<[i := Running c []]> tp) m μ'
+      at_step (tp, m, μ) (<[i := Running c []]> tp, m, μ')
 
   | SC_Read : forall tp m μ i c ly l v K
       (Hget : tp !! i = Some (Running c []))
       (Hext : at_external c (ALoad ly l) K)
       (Hmu : readable μ (layout_to_locs l ly))
       (Hload : load m l ly = Some v),
-      at_step tp m μ (<[i := Running (K $ Some v) []]> tp) m μ
+      at_step (tp, m, μ) (<[i := Running (K $ Some v) []]> tp, m, μ)
 
   | SC_Write : forall tp m μ i c ly l v m' K
       (Hget : tp !! i = Some (Running c []))
       (Hext : at_external c (AStore ly l v) K)
       (Hmu : writable μ (layout_to_locs l ly))
       (Hstore : store m l ly v = Some m'),
-      at_step tp m μ (<[i := Running (K None) []]> tp) m' μ
+      at_step (tp, m, μ) (<[i := Running (K None) []]> tp, m', μ)
 
   | SC_Cas_Suc : forall tp m μ i c ly l v_exp v_new v_cur m' K
       (Hget : tp !! i = Some (Running c []))
@@ -250,7 +254,7 @@ Section AtomicMachine.
       (Hload : load m l ly = Some v_cur)
       (Heq : ValEq m v_cur v_exp)
       (Hstore : store m l ly v_new = Some m'),
-      at_step tp m μ (<[i := Running (K $ Some Vtrue) []]> tp) m' μ
+      at_step (tp, m, μ) (<[i := Running (K $ Some Vtrue) []]> tp, m', μ)
 
   | SC_Cas_Fail : forall tp m μ i c ly l v_exp v_new v_cur K
       (Hget : tp !! i = Some (Running c []))
@@ -258,7 +262,7 @@ Section AtomicMachine.
       (Hmu : readable μ (layout_to_locs l ly))
       (Hload : load m l ly = Some v_cur)
       (Hneq : ValNEq m v_cur v_exp),
-      at_step tp m μ (<[i := Running (K $ Some Vfalse) []]> tp) m μ
+      at_step (tp, m, μ) (<[i := Running (K $ Some Vfalse) []]> tp, m, μ)
 
   (** comparison succeeded, but can't write new value because reserve fails. *)
   | SC_Cas_Stuck : forall tp m μ i c ly l v_exp v_new v_cur K
@@ -267,7 +271,7 @@ Section AtomicMachine.
       (Hload : load m l ly = Some v_cur)
       (Heq : ValEq m v_cur v_exp)
       (Ho : ~ writable μ (layout_to_locs l ly)),
-      at_step tp m μ (<[i := StuckState]> tp) m μ
+      at_step (tp, m, μ) (<[i := StuckState]> tp, m, μ)
 
   (** Thread creation.  The new thread gets the least unused index, so
       a pool whose indices are an initial segment of [nat] stays one. *)
@@ -276,7 +280,9 @@ Section AtomicMachine.
       (Hspawn : sqlang_spawn c c' c_new)
       (Hfree : tp !! j = None)
       (Hleast : forall k, k < j -> is_Some (tp !! k)),
-      at_step tp m μ (<[j := Running c_new []]> (<[i := Running c' []]> tp)) m μ.
+      at_step (tp, m, μ) (<[j := Running c_new []]> (<[i := Running c' []]> tp), m, μ).
+
+  Definition am_steps : relation am_cfg := rtc at_step.
 
   (** ** Safety
 
@@ -285,7 +291,7 @@ Section AtomicMachine.
       inspect only the selected thread, so this does not ask other threads
       to finish their pending accesses first. *)
   Definition am_reducible (t : tstate) (m : Mem) (μ : rw_map) : Prop :=
-    exists tp' m' μ', at_step {[0 := t]} m μ tp' m' μ'.
+    exists q', at_step ({[0 := t]}, m, μ) q'.
 
   (** A singleton reduction really can be scheduled in any pool containing
       this thread, without changing the memory or reservations beforehand. *)
@@ -312,49 +318,39 @@ Section AtomicMachine.
   Qed.
 
   Lemma am_reducible_in_pool tp i t m μ :
-    tp !! i = Some t -> am_reducible t m μ ->
-    exists tp' m' μ', at_step tp m μ tp' m' μ'.
+    tp !! i = Some t -> am_reducible t m μ -> exists q', at_step (tp, m, μ) q'.
   Proof.
-    intros Hlookup (tp' & m' & μ' & Hstep).
+    intros Hlookup (q' & Hstep).
     destruct (tpool_least_free tp) as (j & Hfree & Hleast).
     inversion Hstep; subst;
       apply lookup_singleton_Some in Hget as [Hi Hget]; subst t;
-      do 3 eexists; eauto using at_step.
+      eexists; eauto using at_step.
   Qed.
 
-  Definition am_cfg : Type := (tpool * Mem * rw_map)%type.
-
-  Definition am_step (q q' : am_cfg) : Prop :=
-    let '(tp, m, μ) := q in
-    let '(tp', m', μ') := q' in
-    at_step tp m μ tp' m' μ'.
-
+  (* a thread [t:tstate] is not stuck if the underlying sequential state is final
+  and it has no event to commit, or it can take a step. *)
   Definition am_not_stuck (t : tstate) (m : Mem) (μ : rw_map) : Prop :=
     (exists c, t = Running c [] /\ sqlang_final c) \/ am_reducible t m μ.
 
-  (** Every thread has terminated or can step, in every reachable state.
-      In particular, pending events must still be committed even when the
-      underlying sequential state is final, and [StuckState] is an error. *)
+  (** [q:am_cfg] is safe if every thread in any reachable configurations is not
+      stuck. *)
   Definition am_safe (q : am_cfg) : Prop :=
     forall tp m μ,
-      rtc am_step q (tp, m, μ) ->
+      am_steps q (tp, m, μ) ->
       forall i t, tp !! i = Some t -> am_not_stuck t m μ.
 
   Lemma am_safe_reachable q q' :
-    am_safe q -> rtc am_step q q' -> am_safe q'.
-  Proof.
-    intros Hsafe Hsteps tp m μ Hsteps' i t Hget.
-    eapply Hsafe; [ eapply rtc_trans; eauto | exact Hget ].
-  Qed.
+    am_safe q -> am_steps q q' -> am_safe q'.
+  Proof. intros Hsafe Hsteps tp m μ Hsteps'. apply Hsafe. by eapply rtc_trans. Qed.
 
   Lemma am_stuck_not_reducible m μ : ~ am_reducible StuckState m μ.
   Proof.
-    intros (tp' & m' & μ' & Hstep). inversion Hstep; subst;
+    intros (q' & Hstep). inversion Hstep; subst;
       apply lookup_singleton_Some in Hget as [Hi Hget]; discriminate.
   Qed.
 
   Lemma am_stuck_not_safe q tp m μ i :
-    rtc am_step q (tp, m, μ) -> tp !! i = Some StuckState ->
+    am_steps q (tp, m, μ) -> tp !! i = Some StuckState ->
     ~ am_safe q.
   Proof.
     intros Hsteps Hget Hsafe.
@@ -367,11 +363,11 @@ Section AtomicMachine.
     (am_not_stuck (Running c T) m μ <-> exists μ', fin T μ = Some μ').
   Proof.
     intros Hne. split.
-    - intros [(c' & Heq & _) | (tp' & m' & μ' & Hstep)]; [ congruence | ].
+    - intros [(c' & Heq & _) | (q' & Hstep)]; [ congruence | ].
       inversion Hstep; subst;
         apply lookup_singleton_Some in Hget as [Hi Hget];
         inversion Hget; subst; try contradiction. by eexists.
-    - intros (μ' & Hfin). right. do 3 eexists.
+    - intros (μ' & Hfin). right. eexists.
       eapply Core_Commit with (i := 0);
         [ apply lookup_singleton_eq | exact Hne | exact Hfin ].
   Qed.
@@ -381,12 +377,10 @@ Section AtomicMachine.
     am_safe ({[0 := Running c []]}, m, μ).
   Proof.
     intros Hfinal Hnormal tp m' μ' Hsteps i t Hget.
-    inversion Hsteps; subst.
+    inversion Hsteps as [ | ? q ? Hstep _ ]; subst.
     - apply lookup_singleton_Some in Hget as [Hi Heq]. subst t.
       left. by eexists.
-    - exfalso. apply Hnormal.
-      match goal with H : am_step _ ?q |- _ =>
-        destruct q as [[tp1 m1] μ1]; exists tp1, m1, μ1; exact H end.
+    - exfalso. apply Hnormal. by exists q.
   Qed.
 
 End AtomicMachine.

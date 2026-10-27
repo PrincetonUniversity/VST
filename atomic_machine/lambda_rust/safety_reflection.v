@@ -554,7 +554,7 @@ Proof.
   intros Hheaps Hsafe Hi.
   assert (Hdom' : forall l, m !! l = None -> sigma !! l = None)
     by (intros l; apply (lr_tight_heaps_none _ _ _ l Hheaps)).
-  destruct (Hsafe _ _ _ (rtc_refl _ _) i _ Hi) as [(c & Hc & Hfinal) | (tp' & m' & mu' & Hstep)].
+  destruct (Hsafe _ _ _ (rtc_refl _ _) i _ Hi) as [(c & Hc & Hfinal) | (q' & Hstep)].
   { left. unfold lr_running in Hc. by simplify_eq. }
   right. unfold reducible.
   inversion Hstep; subst;

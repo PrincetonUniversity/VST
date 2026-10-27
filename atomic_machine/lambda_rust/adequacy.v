@@ -32,12 +32,8 @@ Definition lr_reference_safe (rc : list expr * state) : Prop :=
 
 Lemma lr_am_steps mc mc' :
   lr_steps lr_at_step mc mc' ->
-  rtc am_step (lr_am_cfg mc) (lr_am_cfg mc').
-Proof.
-  induction 1 as [ x | x y z Hxy _ IH ]; [ constructor | ].
-  eapply rtc_l with (y := lr_am_cfg y);
-    [ destruct x, y; exact Hxy | exact IH ].
-Qed.
+  am_steps (lr_am_cfg mc) (lr_am_cfg mc').
+Proof. by apply rtc_congruence. Qed.
 
 Lemma lr_am_safe_reachable mc mc' :
   lr_am_safe mc -> lr_steps lr_at_step mc mc' -> lr_am_safe mc'.
@@ -59,7 +55,7 @@ Lemma lr_stable_reducible e sigma m mu :
   lr_stable_heaps_match sigma m mu ->
   am_reducible (lr_running e []) m mu -> reducible e sigma.
 Proof.
-  intros Hstable (tp' & m' & mu' & Hstep).
+  intros Hstable (q' & Hstep).
   pose proof (lr_stable_backward_heaps _ _ _ Hstable) as Hheaps.
   pose proof (lr_backward_heaps_dom _ _ Hheaps) as Hdom.
   inversion Hstep; subst;
@@ -95,7 +91,7 @@ Proof.
     + by eapply lr_backward_heaps_lookup.
     + by eapply lit_eq_dom_ref.
   - inversion Hext as [K0 e0 op k Hhe]; subst. inversion Hhe; subst.
-    simpl in Hload. change (lr_val_neq m' v_cur (LitV lit1)) in Hneq.
+    simpl in Hload. change (lr_val_neq m v_cur (LitV lit1)) in Hneq.
     destruct v_cur as [litl | ]; [ | contradiction ]. simpl in Hneq.
     do 4 eexists. apply Ectx_step'. eapply (CasFailS l 0%nat); eauto.
     + by eapply lr_backward_heaps_lookup.
@@ -168,7 +164,7 @@ Proof. intros Hspawn. inversion Hspawn; subst. by apply fill_not_val. Qed.
 Lemma lr_value_not_reducible v m mu :
   ~ am_reducible (lr_running (of_val v) []) m mu.
 Proof.
-  intros (tp' & m' & mu' & Hstep). inversion Hstep; subst;
+  intros (q' & Hstep). inversion Hstep; subst;
     unfold lr_tpool, tpool in *;
     apply lookup_singleton_Some in Hget as [Hi Hget];
     unfold lr_running in Hget; inversion Hget; subst; try contradiction.
