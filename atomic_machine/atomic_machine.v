@@ -15,6 +15,8 @@
 
  *)
 
+(* FIXME there can be a better name for "machine" in atomic_machine. *)
+
 From Stdlib Require Import Arith.PeanoNat.
 From Stdlib Require Import Strings.String.
 From Stdlib Require Import List.
