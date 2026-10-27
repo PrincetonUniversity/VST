@@ -867,6 +867,7 @@ lambda-rust-reference: _CoqProject \
 lambda-rust-equivalence: lambda-rust-reference \
 	atomic_machine/atomic_machine.vo \
 	atomic_machine/lambda_rust/sq_sem.vo \
+	atomic_machine/lambda_rust/at_sem.vo \
 	atomic_machine/lambda_rust/equivalence.vo
 
 lambda-rust-adequacy: lambda-rust-equivalence \
