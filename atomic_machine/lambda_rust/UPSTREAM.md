@@ -24,7 +24,7 @@ in the paper, is the equivalence target.
 - `reference.v` contains the original combined value/race-state heap,
   `head_step`, an evaluation-context closure, and the concurrent thread-pool
   closure.
-- `event_semantics.v` contains the sequential event semantics used by the
+- `sq_sem.v` contains the sequential event semantics used by the
   atomic-machine instantiation.
 - `equivalence.v` proves the reachability equivalence theorem between stable
   configurations of the two semantics.

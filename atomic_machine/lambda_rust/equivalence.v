@@ -16,7 +16,7 @@ From Stdlib Require Import List Lia.
 From stdpp Require Import gmap list.
 
 Require Import VST.atomic_machine.atomic_machine.
-Require Import VST.atomic_machine.lambda_rust.event_semantics.
+Require Import VST.atomic_machine.lambda_rust.sq_sem.
 
 Import ListNotations.
 
