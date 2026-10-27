@@ -5,7 +5,7 @@
   The two systems expose different administrative states: the atomic machine
   reserves and commits events, while the reference semantics uses [Na2Ord].
   We therefore compare reflexive-transitive reachability between stable
-  configurations, where neither representation has an access in flight.
+  cfgs, where neither representation has an access in flight.
 
   Thread creation is matched by the machine's [Spawn] rule: the reference
   appends the new thread to its list, and the machine gives it the least
@@ -238,7 +238,7 @@ Proof. intros He Ki e' Heq. destruct Ki; simplify_eq/=; eauto. Qed.
     is also syntax, and a program that mentions it directly can decrement a
     reader count it never incremented.  Such a program is stuck on the
     machine (which has no rule for [Na2Ord]) yet may reach a "stable"
-    reference configuration, so the correspondence excludes it. *)
+    reference cfg, so the correspondence excludes it. *)
 
 Fixpoint na2_free (e : expr) : bool :=
   match e with
@@ -407,10 +407,10 @@ Proof.
     by erewrite insert_insert_eq, insert_id.
 Qed.
 
-(** * Correspondence of configurations
+(** * Correspondence of cfgs
 
     Three relations are used.  The theorem is stated for stable
-    configurations: no access in flight, no reserved events, no crashed
+    cfgs: no access in flight, no reserved events, no crashed
     thread, and no syntactic [Na2Ord].  The two directions of the proof use
     two different simulation relations, because the two systems read a
     non-atomic value at different moments: the reference reads at the
@@ -426,9 +426,9 @@ Qed.
       the reference heap is always at [RSt 0] and the reader/writer map
       is unconstrained.  A crashed machine thread matches anything.
 
-    [Na2Ord] must be excluded from stable configurations: a program that
+    [Na2Ord] must be excluded from stable cfgs: a program that
     writes it directly can decrement a reader count it never incremented
-    and thereby reach a reference configuration with [RSt 0] everywhere
+    and thereby reach a reference cfg with [RSt 0] everywhere
     that the machine, which has no rule for [Na2Ord], cannot mirror.
     Similarly, a reference thread that crashed on a racy CAS is
     [fill K stuck_term] forever while the machine's [StuckState] never
@@ -457,8 +457,8 @@ Definition lr_stable_heaps_match
     | None => sigma !! l = None /\ mu !! l = None
     end.
 
-Definition lr_stable_configuration_match
-    (rc : list expr * state) (mc : lr_machine_configuration) : Prop :=
+Definition lr_stable_cfg_match
+    (rc : list expr * state) (mc : lr_machine_cfg) : Prop :=
   let '(threads, sigma) := rc in
   lr_stable_pools_match threads (lr_machine_threads mc) /\
   lr_stable_heaps_match sigma (lr_machine_mem mc) (lr_machine_rw mc).
@@ -492,8 +492,8 @@ Definition lr_forward_heaps_match
     | None => sigma !! l = None /\ mu !! l = None
     end.
 
-Definition lr_forward_configuration_match
-    (rc : list expr * state) (mc : lr_machine_configuration) : Prop :=
+Definition lr_forward_cfg_match
+    (rc : list expr * state) (mc : lr_machine_cfg) : Prop :=
   let '(threads, sigma) := rc in
   lr_pools_match lr_forward_thread_match threads (lr_machine_threads mc) /\
   lr_forward_heaps_match sigma (lr_machine_mem mc) (lr_machine_rw mc).
@@ -511,8 +511,8 @@ Definition lr_backward_heaps_match (sigma : state) (m : lr_mem) : Prop :=
     | None => sigma !! l = None
     end.
 
-Definition lr_backward_configuration_match
-    (rc : list expr * state) (mc : lr_machine_configuration) : Prop :=
+Definition lr_backward_cfg_match
+    (rc : list expr * state) (mc : lr_machine_cfg) : Prop :=
   let '(threads, sigma) := rc in
   lr_pools_match lr_backward_thread_match threads (lr_machine_threads mc) /\
   lr_backward_heaps_match sigma (lr_machine_mem mc).
@@ -522,8 +522,8 @@ Definition lr_backward_configuration_match
     first is the reliable fix. *)
 
 Ltac lr_unfold :=
-  unfold lr_stable_configuration_match, lr_forward_configuration_match,
-    lr_backward_configuration_match,
+  unfold lr_stable_cfg_match, lr_forward_cfg_match,
+    lr_backward_cfg_match,
     lr_stable_heaps_match, lr_forward_heaps_match, lr_backward_heaps_match,
     lr_stable_pools_match, lr_pools_match,
     lr_mem, lr_rw_map, rw_map, lr_tpool, tpool, state in *.
@@ -535,7 +535,7 @@ Ltac lr_heaps_at Hheaps l :=
   specialize (Hheaps l); lr_unfold; destruct (_ !! l) eqn:?; naive_solver.
 
 Lemma lr_stable_forward rc mc :
-  lr_stable_configuration_match rc mc -> lr_forward_configuration_match rc mc.
+  lr_stable_cfg_match rc mc -> lr_forward_cfg_match rc mc.
 Proof.
   destruct rc as (threads, sigma). intros (Hpools & Hheaps). split.
   - eapply lr_pools_match_impl; [ | exact Hpools ]. intros ? ? []. by constructor.
@@ -543,7 +543,7 @@ Proof.
 Qed.
 
 Lemma lr_stable_backward rc mc :
-  lr_stable_configuration_match rc mc -> lr_backward_configuration_match rc mc.
+  lr_stable_cfg_match rc mc -> lr_backward_cfg_match rc mc.
 Proof.
   destruct rc as (threads, sigma). intros (Hpools & Hheaps). split.
   - eapply lr_pools_match_impl; [ | exact Hpools ]. by intros ? ? [].
@@ -556,8 +556,8 @@ Proof. apply not_true_is_false. intros H%na2_free_fill_inv. discriminate. Qed.
 Lemma na2_free_write_na2 K l e : na2_free (fill K (Write Na2Ord (Lit (LitLoc l)) e)) = false.
 Proof. apply not_true_is_false. intros H%na2_free_fill_inv. discriminate. Qed.
 
-(** A forward-matched configuration that is also stably matched is at the
-    stable machine configuration: pending accesses and crashed threads are
+(** A forward-matched cfg that is also stably matched is at the
+    stable machine cfg: pending accesses and crashed threads are
     excluded by stability. *)
 
 Lemma lr_forward_thread_match_stable e c :
@@ -569,8 +569,8 @@ Proof.
 Qed.
 
 Lemma lr_forward_stable_unique rc mc mc' :
-  lr_forward_configuration_match rc mc' ->
-  lr_stable_configuration_match rc mc ->
+  lr_forward_cfg_match rc mc' ->
+  lr_stable_cfg_match rc mc ->
   mc' = mc.
 Proof.
   destruct rc as (threads, sigma). destruct mc as [tp m mu], mc' as [tp' m' mu'].
@@ -588,8 +588,8 @@ Proof.
 Qed.
 
 Lemma lr_backward_stable_unique rc rc' mc :
-  lr_backward_configuration_match rc' mc ->
-  lr_stable_configuration_match rc mc ->
+  lr_backward_cfg_match rc' mc ->
+  lr_stable_cfg_match rc mc ->
   rc' = rc.
 Proof.
   destruct rc as (threads, sigma), rc' as (threads', sigma'). destruct mc as [tp m mu].
@@ -699,7 +699,7 @@ Lemma bin_op_eval_dom_ref {A : Type} (m : gmap loc A) (sigma : state) op lit1 li
   sq_mem.bin_op_eval m op lit1 lit2 lit' -> bin_op_eval sigma op lit1 lit2 lit'.
 Proof. intros Hdom Hev. apply bin_op_eval_equiv. by eapply sq_mem_bin_op_eval_dom. Qed.
 
-(** ** Machine steps on configurations *)
+(** ** Machine steps on cfgs *)
 
 Lemma lr_machine_try tp m mu i c T c' m' mu' :
   tp !! i = Some (lr_running c []) ->
@@ -820,7 +820,7 @@ Proof. intros. eapply Spawn; eauto. constructor. Qed.
 (** * Forward simulation: reference steps are matched by machine steps *)
 
 (** Packaging of a forward step: the machine steps come first so that
-    they determine the target configuration before the matching goals. *)
+    they determine the target cfg before the matching goals. *)
 
 Lemma lr_forward_pack threads tp m mu i e2 sigma2 tp2 m2 mu2 :
   lr_steps lr_at_step
@@ -829,7 +829,7 @@ Lemma lr_forward_pack threads tp m mu i e2 sigma2 tp2 m2 mu2 :
   lr_pools_match lr_forward_thread_match (<[i := e2]> threads) tp2 ->
   lr_forward_heaps_match sigma2 m2 mu2 ->
   exists mc',
-    lr_forward_configuration_match (<[i := e2]> threads, sigma2) mc' /\
+    lr_forward_cfg_match (<[i := e2]> threads, sigma2) mc' /\
     lr_steps lr_at_step
       {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |} mc'.
 Proof. intros. eexists. split; [ | eassumption ]. by split. Qed.
@@ -844,9 +844,9 @@ Lemma lr_forward_pools_same threads tp i K e1 e2 :
 Proof. intros. apply lr_pools_match_insert; auto. constructor. eauto using na2_free_fill. Qed.
 
 Lemma lr_forward_step rc rc' mc :
-  lr_forward_configuration_match rc mc ->
+  lr_forward_cfg_match rc mc ->
   erased_step rc rc' ->
-  exists mc', lr_forward_configuration_match rc' mc' /\ lr_steps lr_at_step mc mc'.
+  exists mc', lr_forward_cfg_match rc' mc' /\ lr_steps lr_at_step mc mc'.
 Proof.
   destruct rc as (threads, sigma). destruct mc as [tp m mu].
   intros (Hpools & Hheaps) Hstep. simpl in Hpools, Hheaps.
@@ -1027,7 +1027,7 @@ Lemma lr_backward_pack threads sigma tp' m' mu' i e2 sigma2 :
   lr_pools_match lr_backward_thread_match (<[i := e2]> threads) tp' ->
   lr_backward_heaps_match sigma2 m' ->
   exists rc',
-    lr_backward_configuration_match rc'
+    lr_backward_cfg_match rc'
       {| lr_machine_threads := tp'; lr_machine_mem := m'; lr_machine_rw := mu' |} /\
     lr_steps erased_step (threads, sigma) rc'.
 Proof. intros. eexists. split; [ | eassumption ]. by split. Qed.
@@ -1036,7 +1036,7 @@ Lemma lr_backward_pack_refl threads sigma tp' m' mu' :
   lr_pools_match lr_backward_thread_match threads tp' ->
   lr_backward_heaps_match sigma m' ->
   exists rc',
-    lr_backward_configuration_match rc'
+    lr_backward_cfg_match rc'
       {| lr_machine_threads := tp'; lr_machine_mem := m'; lr_machine_rw := mu' |} /\
     lr_steps erased_step (threads, sigma) rc'.
 Proof. intros. exists (threads, sigma). split; [ by split | constructor ]. Qed.
@@ -1049,9 +1049,9 @@ Ltac lr_backward_thread Hpools Hget He :=
   simpl in Hec; subst e.
 
 Lemma lr_backward_step rc mc mc' :
-  lr_backward_configuration_match rc mc ->
+  lr_backward_cfg_match rc mc ->
   lr_at_step mc mc' ->
-  exists rc', lr_backward_configuration_match rc' mc' /\ lr_steps erased_step rc rc'.
+  exists rc', lr_backward_cfg_match rc' mc' /\ lr_steps erased_step rc rc'.
 Proof.
   destruct rc as (threads, sigma). destruct mc as [tp m mu], mc' as [tp' m' mu'].
   intros (Hpools & Hheaps) Hstep. simpl in Hpools, Hheaps.
@@ -1144,9 +1144,9 @@ Qed.
 (** * Reachability *)
 
 Lemma lr_forward_steps rc rc' mc :
-  lr_forward_configuration_match rc mc ->
+  lr_forward_cfg_match rc mc ->
   lr_steps erased_step rc rc' ->
-  exists mc', lr_forward_configuration_match rc' mc' /\ lr_steps lr_at_step mc mc'.
+  exists mc', lr_forward_cfg_match rc' mc' /\ lr_steps lr_at_step mc mc'.
 Proof.
   intros Hmatch Hsteps. revert mc Hmatch.
   induction Hsteps as [ x | x y z Hxy Hyz IH ]; intros mc Hmatch; [ eauto using rtc_refl | ].
@@ -1155,9 +1155,9 @@ Proof.
 Qed.
 
 Lemma lr_backward_steps rc mc mc' :
-  lr_backward_configuration_match rc mc ->
+  lr_backward_cfg_match rc mc ->
   lr_steps lr_at_step mc mc' ->
-  exists rc', lr_backward_configuration_match rc' mc' /\ lr_steps erased_step rc rc'.
+  exists rc', lr_backward_cfg_match rc' mc' /\ lr_steps erased_step rc rc'.
 Proof.
   intros Hmatch Hsteps. revert rc Hmatch.
   induction Hsteps as [ x | x y z Hxy Hyz IH ]; intros rc Hmatch; [ eauto using rtc_refl | ].
@@ -1166,13 +1166,13 @@ Proof.
 Qed.
 
 (**
-  Reachability agrees between corresponding stable configurations.  A proof
+  Reachability agrees between corresponding stable cfgs.  A proof
   may pass through the administrative states omitted by
-  [lr_stable_configuration_match].
+  [lr_stable_cfg_match].
 *)
 Theorem lambda_rust_reachability_equivalence rc1 mc1 rc2 mc2 :
-  lr_stable_configuration_match rc1 mc1 ->
-  lr_stable_configuration_match rc2 mc2 ->
+  lr_stable_cfg_match rc1 mc1 ->
+  lr_stable_cfg_match rc2 mc2 ->
   (lr_steps erased_step rc1 rc2 <->
    lr_steps lr_at_step mc1 mc2).
 Proof.

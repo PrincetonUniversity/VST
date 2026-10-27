@@ -2,8 +2,8 @@
 
     The reference predicate below is the safety component of RustBelt/Iris
     adequacy (with a trivial result postcondition).  The current simulations
-    prove reachability between stable configurations, not preservation of
-    safety at all intermediate configurations.  Accordingly, the bridge
+    prove reachability between stable cfgs, not preservation of
+    safety at all intermediate cfgs.  Accordingly, the bridge
     proved here explicitly restricts its observations to stable states.
     [safety_reflection.v] and [machine_safety.v] prove the full safety
     equivalence. *)
@@ -17,12 +17,12 @@ Require Import VST.atomic_machine.lambda_rust.equivalence.
 Import ListNotations.
 Set Default Proof Using "Type".
 
-Definition lr_am_configuration (mc : lr_machine_configuration)
-    : @am_configuration loc val _ _ lr_mem lr_layout lr_memory lr_language :=
+Definition lr_am_cfg (mc : lr_machine_cfg)
+    : @am_cfg loc val _ _ lr_mem lr_layout lr_memory lr_language :=
   (lr_machine_threads mc, lr_machine_mem mc, lr_machine_rw mc).
 
-Definition lr_am_safe (mc : lr_machine_configuration) : Prop :=
-  am_safe (lr_am_configuration mc).
+Definition lr_am_safe (mc : lr_machine_cfg) : Prop :=
+  am_safe (lr_am_cfg mc).
 
 (** This uses the full reference [step], including thread creation. *)
 Definition lr_reference_safe (rc : list expr * state) : Prop :=
@@ -32,12 +32,10 @@ Definition lr_reference_safe (rc : list expr * state) : Prop :=
 
 Lemma lr_am_steps mc mc' :
   lr_steps lr_at_step mc mc' ->
-  rtc am_step (lr_am_configuration mc) (lr_am_configuration mc').
+  rtc am_step (lr_am_cfg mc) (lr_am_cfg mc').
 Proof.
-  rewrite /lr_at_step .
-  intros. rewrite /lr_steps.
   induction 1 as [ x | x y z Hxy _ IH ]; [ constructor | ].
-  eapply rtc_l with (y := lr_am_configuration y);
+  eapply rtc_l with (y := lr_am_cfg y);
     [ destruct x, y; exact Hxy | exact IH ].
 Qed.
 
@@ -124,10 +122,10 @@ Qed.
     equivalence.  The stable endpoint restriction is essential to the scope
     of this theorem. *)
 Theorem lr_am_safe_reference_stable rc0 mc0 (threads : list expr) (sigma : state) mc :
-  lr_stable_configuration_match rc0 mc0 ->
+  lr_stable_cfg_match rc0 mc0 ->
   lr_am_safe mc0 ->
   rtc erased_step rc0 (threads, sigma) ->
-  lr_stable_configuration_match (threads, sigma) mc ->
+  lr_stable_cfg_match (threads, sigma) mc ->
   forall e, e ∈ threads -> not_stuck e sigma.
 Proof.
   intros Hinitial Hsafe Hsteps Hstable e He.
@@ -188,7 +186,7 @@ Qed.
 
 Theorem lr_forward_match_does_not_reflect_safety :
   exists rc mc,
-    lr_forward_configuration_match rc mc /\
+    lr_forward_cfg_match rc mc /\
     lr_am_safe mc /\ ~ lr_reference_safe rc.
 Proof.
   exists ([stuck_term], ∅),

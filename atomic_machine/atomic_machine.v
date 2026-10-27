@@ -5,7 +5,7 @@
     machine with a lambda-Rust-style reader/writer race detector (the `rw_map`)
     and SC atomic operations.
 
-    A machine configuration is <<(tp, m, μ)>> where [tp] is a thread pool,
+    A machine cfg is <<(tp, m, μ)>> where [tp] is a thread pool,
     [m] a CompCert memory, and [μ] a reader/writer state map.  A thread
     performs a sequential step in two phases: [Core_Try] runs a single thread
     step and "reserve permissions" by updating the "rw_map" and emits a trace of
@@ -322,9 +322,9 @@ Section AtomicMachine.
       do 3 eexists; eauto using at_step.
   Qed.
 
-  Definition am_configuration : Type := (tpool * Mem * rw_map)%type.
+  Definition am_cfg : Type := (tpool * Mem * rw_map)%type.
 
-  Definition am_step (q q' : am_configuration) : Prop :=
+  Definition am_step (q q' : am_cfg) : Prop :=
     let '(tp, m, μ) := q in
     let '(tp', m', μ') := q' in
     at_step tp m μ tp' m' μ'.
@@ -335,7 +335,7 @@ Section AtomicMachine.
   (** Every thread has terminated or can step, in every reachable state.
       In particular, pending events must still be committed even when the
       underlying sequential state is final, and [StuckState] is an error. *)
-  Definition am_safe (q : am_configuration) : Prop :=
+  Definition am_safe (q : am_cfg) : Prop :=
     forall tp m μ,
       rtc am_step q (tp, m, μ) ->
       forall i t, tp !! i = Some t -> am_not_stuck t m μ.

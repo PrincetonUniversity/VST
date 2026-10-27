@@ -5,7 +5,7 @@
   The two systems expose different administrative states: the atomic machine
   reserves and commits events, while the reference semantics uses [Na2Ord].
   We therefore compare reflexive-transitive reachability between stable
-  configurations, where neither representation has an access in flight.
+  cfgs, where neither representation has an access in flight.
 
   The atomic machine does not yet provide a thread-spawn rule, so the
   reference transition below is restricted to steps that spawn no threads.
@@ -44,14 +44,14 @@ Definition lr_stuck : lr_tstate :=
 
 Set Primitive Projections.
 
-Record lr_machine_configuration : Type := {
+Record lr_machine_cfg : Type := {
   lr_machine_threads : lr_tpool;
   lr_machine_mem : lr_mem;
   lr_machine_rw : lr_rw_map;
 }.
 
 Definition lr_at_step
-    (c1 c2 : lr_machine_configuration) : Prop :=
+    (c1 c2 : lr_machine_cfg) : Prop :=
   @at_step loc val _ _ lr_mem lr_layout lr_memory lr_language
     (lr_machine_threads c1) (lr_machine_mem c1) (lr_machine_rw c1)
     (lr_machine_threads c2) (lr_machine_mem c2) (lr_machine_rw c2).

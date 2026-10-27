@@ -27,14 +27,14 @@ in the paper, is the equivalence target.
 - `sq_sem.v` contains the sequential event semantics used by the
   atomic-machine instantiation.
 - `equivalence.v` proves the reachability equivalence theorem between stable
-  configurations of the two semantics.
+  cfgs of the two semantics.
 - `adequacy.v` instantiates generic `am_safe`, defines reference safety, and
   proves that AM safety implies reference progress at reachable stable
-  configurations. It also gives a checked counterexample to transporting full
+  cfgs. It also gives a checked counterexample to transporting full
   safety through the forward relation of `equivalence.v`. Both are superseded
   by the next two files.
 - `safety_reflection.v` proves that AM safety implies reference safety from
-  stably matched initial configurations.
+  stably matched initial cfgs.
 - `machine_safety.v` proves the converse, and states the equivalence
   `lr_safety_equivalence`.
 - `races.v` contains the original next-access and non-racing predicates.
@@ -50,19 +50,19 @@ definitions used by both semantics live in `common.v`.
 
 `atomic_machine.v` defines `am_safe final` for an arbitrary `sqlang`. The
 termination predicate is an explicit parameter, instantiated in `adequacy.v`
-by `is_Some (to_val e)`. In every reachable machine configuration, each thread
+by `is_Some (to_val e)`. In every reachable machine cfg, each thread
 must either have terminated with no pending events or be able to step with
 the current shared memory and reservations. A singleton-pool reduction tests
 the selected thread; `am_reducible_in_pool` proves that such a reduction can
 be scheduled in any pool containing it. `StuckState` is never safe.
 
 `lr_reference_safe` is the safety component of reference RustBelt/Iris
-adequacy: every thread in every reachable reference configuration is a value
+adequacy: every thread in every reachable reference cfg is a value
 or can take a primitive step. This definition uses the full reference
 semantics, including forks. It does not impose a result postcondition.
 
 `lr_safety_equivalence` states that, from stably matched initial
-configurations, `lr_am_safe mc <-> lr_reference_safe rc`. Both directions are
+cfgs, `lr_am_safe mc <-> lr_reference_safe rc`. Both directions are
 simulations whose relation matches in-flight accesses: a reference thread
 after its first (`Na1Ord`) half corresponds to a machine thread after
 `Core_Try` with the pending event, and the reader/writer map mirrors the
@@ -74,7 +74,7 @@ deallocation keeps its reservations until it commits. Each direction uses the
 safety hypothesis at every step, not only at the end: a pending access keeps
 its lock (otherwise its thread could not finish), and a step without a
 counterpart on the other side (a racy `CAS`) leads to an unsafe
-configuration.
+cfg.
 
 Build the safety definitions and proofs with `make lambda-rust-adequacy`.
 

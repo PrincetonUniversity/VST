@@ -3,7 +3,7 @@
     [am_safe] for the lambda-Rust instance of the atomic machine implies
     [lr_reference_safe] (with Iris's [lrust_lang]'s [erased_step], i.e. [step]
     but with observations erased, including thread creation) from any pair of
-    tightly matched initial configurations, in particular from stably matched
+    tightly matched initial cfgs, in particular from stably matched
     ones.
 
     The proof is a forward simulation (the reference drives) with a
@@ -18,7 +18,7 @@
 
     [am_safe] is used throughout, not only at the end:
     - a reference step with no matching machine step (a racy [CAS]) is
-      a step to a machine configuration that is not safe;
+      a step to a machine cfg that is not safe;
     - a pending access never loses its lock (a [Free] of the location or
       an unmatched decrement would leave the pending machine thread unable
       to commit), which keeps the value a pending read has already
@@ -79,15 +79,15 @@ Inductive lr_tight_thread_match (m : lr_mem) : expr -> lr_tstate -> Prop :=
       (fill K (Write Na2Ord (Lit (LitLoc l)) e))
       (lr_running (fill K (Lit LitPoison)) [lr_write_event l]).
 
-Definition lr_tight_configuration_match
-    (rc : list expr * state) (mc : lr_machine_configuration) : Prop :=
+Definition lr_tight_cfg_match
+    (rc : list expr * state) (mc : lr_machine_cfg) : Prop :=
   let '(threads, sigma) := rc in
   lr_pools_match (lr_tight_thread_match (lr_machine_mem mc))
     threads (lr_machine_threads mc) /\
   lr_tight_heaps_match sigma (lr_machine_mem mc) (lr_machine_rw mc).
 
 Lemma lr_stable_tight rc mc :
-  lr_stable_configuration_match rc mc -> lr_tight_configuration_match rc mc.
+  lr_stable_cfg_match rc mc -> lr_tight_cfg_match rc mc.
 Proof.
   destruct rc as (threads, sigma). intros (Hpools & Hheaps). split.
   - eapply lr_pools_match_impl; [ | exact Hpools ]. intros ? ? []. by constructor.
@@ -97,7 +97,7 @@ Proof.
 Qed.
 
 Ltac lr_tight_unfold :=
-  unfold lr_tight_configuration_match, lr_tight_heaps_match in *; lr_unfold.
+  unfold lr_tight_cfg_match, lr_tight_heaps_match in *; lr_unfold.
 
 (** * Heaps *)
 
@@ -213,7 +213,7 @@ Proof.
     inversion Hthread; subst; unfold lr_running in *; simplify_eq; by eexists.
 Qed.
 
-(** A pending thread in a safe configuration can commit, so its location
+(** A pending thread in a safe cfg can commit, so its location
     is locked. *)
 Lemma lr_safe_pending_locked mc j t l :
   lr_am_safe mc -> lr_machine_threads mc !! j = Some t -> lr_pending t l ->
@@ -310,7 +310,7 @@ Qed.
 
 (** * Reference steps *)
 
-(** A machine step to a configuration with a [StuckState] thread
+(** A machine step to a cfg with a [StuckState] thread
     contradicts safety. *)
 Lemma lr_safe_no_stuck_step mc tp' m' mu' i :
   lr_am_safe mc ->
@@ -329,7 +329,7 @@ Lemma lr_tight_pack threads tp m mu i e2 sigma2 tp2 m2 mu2 :
   lr_pools_match (lr_tight_thread_match m2) (<[i := e2]> threads) tp2 ->
   lr_tight_heaps_match sigma2 m2 mu2 ->
   exists mc',
-    lr_tight_configuration_match (<[i := e2]> threads ++ [], sigma2) mc' /\
+    lr_tight_cfg_match (<[i := e2]> threads ++ [], sigma2) mc' /\
     lr_steps lr_at_step
       {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |} mc'.
 Proof. intros. eexists. rewrite app_nil_r. split; [ | eassumption ]. by split. Qed.
@@ -337,10 +337,10 @@ Proof. intros. eexists. rewrite app_nil_r. split; [ | eassumption ]. by split. Q
 (** * The simulation step *)
 
 Lemma lr_tight_step rc rc' mc :
-  lr_tight_configuration_match rc mc ->
+  lr_tight_cfg_match rc mc ->
   lr_am_safe mc ->
   erased_step rc rc' ->
-  exists mc', lr_tight_configuration_match rc' mc' /\ lr_steps lr_at_step mc mc'.
+  exists mc', lr_tight_cfg_match rc' mc' /\ lr_steps lr_at_step mc mc'.
 Proof.
   destruct rc as (threads, sigma). destruct mc as [tp m mu].
   intros (Hpools & Hheaps) Hsafe Hstep. simpl in Hpools, Hheaps.
@@ -532,10 +532,10 @@ Proof.
 Qed.
 
 Lemma lr_tight_steps rc rc' mc :
-  lr_tight_configuration_match rc mc ->
+  lr_tight_cfg_match rc mc ->
   lr_am_safe mc ->
   rtc erased_step rc rc' ->
-  exists mc', lr_tight_configuration_match rc' mc' /\ lr_am_safe mc'.
+  exists mc', lr_tight_cfg_match rc' mc' /\ lr_am_safe mc'.
 Proof.
   intros Hmatch Hsafe Hsteps. revert mc Hmatch Hsafe.
   induction Hsteps as [ x | x y z Hxy Hyz IH ]; intros mc Hmatch Hsafe; [ eauto | ].
@@ -543,7 +543,7 @@ Proof.
   exact (IH mc1 Hmatch1 (lr_am_safe_reachable _ _ Hsafe Hsteps1)).
 Qed.
 
-(** * Progress reflection at a single configuration *)
+(** * Progress reflection at a single cfg *)
 
 Lemma lr_tight_same_not_stuck tp m mu sigma i e :
   lr_tight_heaps_match sigma m mu ->
@@ -645,7 +645,7 @@ Proof.
 Qed.
 
 Lemma lr_tight_not_stuck rc mc :
-  lr_tight_configuration_match rc mc -> lr_am_safe mc ->
+  lr_tight_cfg_match rc mc -> lr_am_safe mc ->
   forall e, e ∈ rc.1 -> not_stuck e rc.2.
 Proof.
   destruct rc as (threads, sigma), mc as [tp m mu].
@@ -671,7 +671,7 @@ Qed.
 (** * The theorem *)
 
 Theorem lr_am_safe_reference_safe rc0 mc0 :
-  lr_tight_configuration_match rc0 mc0 ->
+  lr_tight_cfg_match rc0 mc0 ->
   lr_am_safe mc0 ->
   lr_reference_safe rc0.
 Proof.
@@ -681,7 +681,7 @@ Proof.
 Qed.
 
 Corollary lr_am_safe_reference_safe_stable rc0 mc0 :
-  lr_stable_configuration_match rc0 mc0 ->
+  lr_stable_cfg_match rc0 mc0 ->
   lr_am_safe mc0 ->
   lr_reference_safe rc0.
 Proof. intros Hmatch. apply lr_am_safe_reference_safe, lr_stable_tight, Hmatch. Qed.

@@ -1,7 +1,7 @@
 (** * Reference safety implies machine safety
 
     [lr_reference_safe] implies [am_safe] for the lambda-Rust instance of
-    the atomic machine, from stably matched initial configurations.  This
+    the atomic machine, from stably matched initial cfgs.  This
     is the converse of [safety_reflection.v].
 
     The proof is a backward simulation (the machine drives) with the same
@@ -24,7 +24,7 @@
       frees its location, which keeps the value a pending read obtained on
       the machine side equal to the one the reference will read;
     - a machine step with no matching reference step (a racy [CAS]) is
-      matched by a reference step to, or from, an unsafe configuration. *)
+      matched by a reference step to, or from, an unsafe cfg. *)
 
 From Stdlib Require Import List Lia.
 From stdpp Require Import gmap list.
@@ -89,8 +89,8 @@ Definition lr_frees_ok (tp : lr_tpool) (m : lr_mem) (mu : lr_rw_map) : Prop :=
      tp !! j = Some (lr_running c T) -> tp !! j' = Some (lr_running c' T') ->
      lr_free_event l ∈ T -> lr_free_event l ∈ T' -> False).
 
-Definition lr_back_configuration_match
-    (rc : list expr * state) (mc : lr_machine_configuration) : Prop :=
+Definition lr_back_cfg_match
+    (rc : list expr * state) (mc : lr_machine_cfg) : Prop :=
   let '(threads, sigma) := rc in
   lr_pools_match (lr_back_thread_match (lr_machine_mem mc))
     threads (lr_machine_threads mc) /\
@@ -98,7 +98,7 @@ Definition lr_back_configuration_match
   lr_frees_ok (lr_machine_threads mc) (lr_machine_mem mc) (lr_machine_rw mc).
 
 Lemma lr_stable_back rc mc :
-  lr_stable_configuration_match rc mc -> lr_back_configuration_match rc mc.
+  lr_stable_cfg_match rc mc -> lr_back_cfg_match rc mc.
 Proof.
   destruct rc as (threads, sigma). intros (Hpools & Hheaps). split; [ | split ].
   - eapply lr_pools_match_impl; [ | exact Hpools ]. intros ? ? []. by constructor.
@@ -558,7 +558,7 @@ Lemma lr_back_pack threads sigma threads2 sigma2 tp2 m2 mu2 :
   lr_back_heaps_match sigma2 m2 mu2 ->
   lr_frees_ok tp2 m2 mu2 ->
   exists rc',
-    lr_back_configuration_match rc'
+    lr_back_cfg_match rc'
       {| lr_machine_threads := tp2; lr_machine_mem := m2; lr_machine_rw := mu2 |} /\
     lr_steps erased_step (threads, sigma) rc'.
 Proof. intros. exists (threads2, sigma2). split; [ | done ]. by split; [ | split ]. Qed.
@@ -573,10 +573,10 @@ Qed.
 (** * The simulation step *)
 
 Lemma lr_back_step rc mc mc' :
-  lr_back_configuration_match rc mc ->
+  lr_back_cfg_match rc mc ->
   lr_reference_safe rc ->
   lr_at_step mc mc' ->
-  exists rc', lr_back_configuration_match rc' mc' /\ lr_steps erased_step rc rc'.
+  exists rc', lr_back_cfg_match rc' mc' /\ lr_steps erased_step rc rc'.
 Proof.
   destruct rc as (threads, sigma). destruct mc as [tp m mu], mc' as [tp' m' mu'].
   intros (Hpools & Hheaps & Hfrees) Hsafe Hstep. simpl in Hpools, Hheaps, Hfrees.
@@ -881,10 +881,10 @@ Proof.
       eapply lr_frees_ok_nofree; [ exact Hfrees | intros ? [] % elem_of_nil | done ].
 Qed.
 
-(** * Progress reflection at a single configuration *)
+(** * Progress reflection at a single cfg *)
 
 Lemma lr_back_not_stuck rc mc :
-  lr_back_configuration_match rc mc -> lr_reference_safe rc ->
+  lr_back_cfg_match rc mc -> lr_reference_safe rc ->
   forall i t, lr_machine_threads mc !! i = Some t ->
   am_not_stuck t (lr_machine_mem mc) (lr_machine_rw mc).
 Proof.
@@ -955,10 +955,10 @@ Qed.
 (** * The theorem *)
 
 Lemma lr_am_steps_inv mc q :
-  rtc am_step (lr_am_configuration mc) q ->
-  exists mc', q = lr_am_configuration mc' /\ lr_steps lr_at_step mc mc'.
+  rtc am_step (lr_am_cfg mc) q ->
+  exists mc', q = lr_am_cfg mc' /\ lr_steps lr_at_step mc mc'.
 Proof.
-  intros Hsteps. remember (lr_am_configuration mc) as q0 eqn:Hq0. revert mc Hq0.
+  intros Hsteps. remember (lr_am_cfg mc) as q0 eqn:Hq0. revert mc Hq0.
   induction Hsteps as [ q | q1 q2 q3 Hstep _ IH ]; intros mc ->.
   - exists mc. split; [ done | constructor ].
   - destruct q2 as [[tp m] mu].
@@ -969,10 +969,10 @@ Proof.
 Qed.
 
 Lemma lr_back_steps rc mc mc' :
-  lr_back_configuration_match rc mc ->
+  lr_back_cfg_match rc mc ->
   lr_reference_safe rc ->
   lr_steps lr_at_step mc mc' ->
-  exists rc', lr_back_configuration_match rc' mc' /\ lr_reference_safe rc'.
+  exists rc', lr_back_cfg_match rc' mc' /\ lr_reference_safe rc'.
 Proof.
   intros Hmatch Hsafe Hsteps. revert rc Hmatch Hsafe.
   induction Hsteps as [ x | x y z Hxy Hyz IH ]; intros rc Hmatch Hsafe; [ eauto | ].
@@ -981,27 +981,27 @@ Proof.
 Qed.
 
 Theorem lr_reference_safe_am_safe rc0 mc0 :
-  lr_back_configuration_match rc0 mc0 ->
+  lr_back_cfg_match rc0 mc0 ->
   lr_reference_safe rc0 ->
   lr_am_safe mc0.
 Proof.
   intros Hmatch Hsafe tp m mu Hsteps i t Hi.
   destruct (lr_am_steps_inv _ _ Hsteps) as (mc & Hmc & Hsteps').
-  destruct mc as [tp' m' mu']. unfold lr_am_configuration in Hmc. simpl in Hmc. simplify_eq.
+  destruct mc as [tp' m' mu']. unfold lr_am_cfg in Hmc. simpl in Hmc. simplify_eq.
   destruct (lr_back_steps _ _ _ Hmatch Hsafe Hsteps') as (rc & Hmatch' & Hsafe').
   exact (lr_back_not_stuck _ _ Hmatch' Hsafe' i t Hi).
 Qed.
 
 Corollary lr_reference_safe_am_safe_stable rc0 mc0 :
-  lr_stable_configuration_match rc0 mc0 ->
+  lr_stable_cfg_match rc0 mc0 ->
   lr_reference_safe rc0 ->
   lr_am_safe mc0.
 Proof. intros Hmatch. apply lr_reference_safe_am_safe, lr_stable_back, Hmatch. Qed.
 
 (** Together with [safety_reflection.v]: from stably matched initial
-    configurations, the machine is safe exactly when the reference is. *)
+    cfgs, the machine is safe exactly when the reference is. *)
 Theorem lr_safety_equivalence rc0 mc0 :
-  lr_stable_configuration_match rc0 mc0 ->
+  lr_stable_cfg_match rc0 mc0 ->
   lr_am_safe mc0 <-> lr_reference_safe rc0.
 Proof.
   intros Hmatch. split.
