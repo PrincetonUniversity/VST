@@ -194,3 +194,4 @@ Definition lr_final (e : expr) : Prop := is_Some (to_val e).
      sqlang_final := lr_final;
      sqlang_ValEq := lr_val_eq;
      sqlang_ValNEq := lr_val_neq |}.
+#[global] Existing Instance lr_language.

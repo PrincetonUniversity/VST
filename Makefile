@@ -875,6 +875,13 @@ lambda-rust-adequacy: lambda-rust-equivalence \
 	atomic_machine/lambda_rust/machine_safety.vo \
 	atomic_machine/lambda_rust/adequacy.vo
 
+lambda-rust-logic: lambda-rust-adequacy \
+	atomic_machine/lambda_rust/logic/sq_logic.vo \
+	atomic_machine/lambda_rust/logic/sq_adequacy.vo \
+	atomic_machine/lambda_rust/logic/at_logic.vo \
+	atomic_machine/lambda_rust/logic/at_adequacy.vo \
+	atomic_machine/lambda_rust/logic/logic_equivalence.vo
+
 # TODO:
 #
 # Add conclib_coqlib, conclib_sublist, and conclib_veric to the targets
