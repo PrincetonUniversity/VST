@@ -131,8 +131,9 @@ Section ClightInstantiation.
       ev_step_with_mem_ev evsem_inst c m (clight_into_evs T) c' m'.
 
   #[global] Instance Clight_language (ge : Clight.genv)
-      : @sqlang address val _ _ mem memory_chunk clight_mem_mixin :=
-    {| sqlang_thrd_st := Clight_core.CC_core;
+      : @sqlang address val _ _ mem memory_chunk :=
+    {| sqlang_memory := clight_mem_mixin;
+      sqlang_thrd_st := Clight_core.CC_core;
       sqlang_true_val := Values.Vtrue;
       sqlang_false_val := Values.Vfalse;
       sqlang_step := ev_step_with_mem_ev (Clight_evsem.CLC_evsem ge);

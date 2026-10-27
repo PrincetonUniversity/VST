@@ -16,7 +16,7 @@ From Stdlib Require Import List Lia.
 From stdpp Require Import gmap list.
 
 Require Import VST.atomic_machine.atomic_machine.
-Require Import VST.atomic_machine.lambda_rust.at_sem.
+Require Import VST.atomic_machine.lambda_rust.sq_sem.
 
 Import ListNotations.
 
@@ -31,8 +31,8 @@ Notation lr_steps := rtc (only parsing).
     The reference pool is a list, the machine pool a finite map.  All
     index juggling is confined to the lemmas of this section. *)
 
-Definition lr_pools_match (R : expr -> lr_tstate -> Prop)
-    (threads : list expr) (tp : lr_tpool) : Prop :=
+Definition lr_pools_match (R : expr -> tstate -> Prop)
+    (threads : list expr) (tp : tpool) : Prop :=
   forall i,
     match threads !! i, tp !! i with
     | Some e, Some c => R e c
@@ -54,7 +54,7 @@ Lemma lr_pools_match_insert R threads tp i e c :
   lr_pools_match R threads tp -> is_Some (threads !! i) -> R e c ->
   lr_pools_match R (<[i := e]> threads) (<[i := c]> tp).
 Proof.
-  intros H Hi HR j. unfold lr_tpool, tpool in *. destruct (decide (i = j)) as [<- | Hne].
+  intros H Hi HR j. unfold tpool in *. destruct (decide (i = j)) as [<- | Hne].
   - erewrite list_lookup_insert_eq, lookup_insert_eq; [ exact HR | by apply lookup_lt_is_Some_1 ].
   - erewrite list_lookup_insert_ne, lookup_insert_ne; auto. apply H.
 Qed.
@@ -63,7 +63,7 @@ Lemma lr_pools_match_insert_r R threads tp i e c :
   lr_pools_match R threads tp -> threads !! i = Some e -> R e c ->
   lr_pools_match R threads (<[i := c]> tp).
 Proof.
-  intros H He HR j. unfold lr_tpool, tpool in *. destruct (decide (i = j)) as [<- | Hne].
+  intros H He HR j. unfold tpool in *. destruct (decide (i = j)) as [<- | Hne].
   - by erewrite lookup_insert_eq, He.
   - rewrite lookup_insert_ne; auto. apply H.
 Qed.
@@ -109,10 +109,10 @@ Lemma lr_pools_match_snoc R threads tp e c :
   lr_pools_match R threads tp -> R e c ->
   lr_pools_match R (threads ++ [e]) (<[length threads := c]> tp).
 Proof.
-  intros H HR k. unfold lr_tpool, tpool in *.
+  intros H HR k. specialize (H k). unfold tpool in *.
   destruct (decide (k = length threads)) as [-> | Hne].
   - erewrite lookup_insert_eq, lookup_app_r, Nat.sub_diag by lia. exact HR.
-  - erewrite lookup_insert_ne by done. specialize (H k).
+  - erewrite lookup_insert_ne by done.
     destruct (decide (k < length threads)%nat).
     + by rewrite lookup_app_l.
     + erewrite lookup_app_r by lia. rewrite list_lookup_singleton.
@@ -339,9 +339,9 @@ Qed.
 
 (** Reserving and finishing the machine's allocation/deallocation events.
     [setoid_rewrite] rather than [rewrite]: the lookups elaborate at
-    [lr_rw_map] and [gmap], which [rewrite] treats as distinct. *)
+    [rw_map] and [gmap], which [rewrite] treats as distinct. *)
 
-Lemma lr_rsv_alloc_events (mu : lr_rw_map) l n :
+Lemma lr_rsv_alloc_events (mu : rw_map) l n :
   (forall z, mu !! (l +ₗ z)%L = None) ->
   rsv (lr_alloc_events l n) mu = Some (alloc_gmap (Rst 0) l n mu).
 Proof.
@@ -353,21 +353,21 @@ Proof.
   pose proof (Hnone 0%Z) as H0. rewrite shift_loc_0 in H0. by setoid_rewrite H0.
 Qed.
 
-Lemma lr_fin_alloc_events (mu : lr_rw_map) l n :
+Lemma lr_fin_alloc_events (mu : rw_map) l n :
   atomic_machine.fin (lr_alloc_events l n) mu = Some mu.
 Proof.
   revert l. induction n as [ | n IH ]; intros l; [ done | ].
   unfold lr_alloc_events, atomic_machine.fin in *. simpl. by rewrite IH.
 Qed.
 
-Lemma lr_rsv_free_events (mu : lr_rw_map) l n :
+Lemma lr_rsv_free_events (mu : rw_map) l n :
   rsv (lr_free_events l n) mu = Some mu.
 Proof.
   revert l. induction n as [ | n IH ]; intros l; [ done | ].
   unfold lr_free_events, rsv in *. simpl. by rewrite IH.
 Qed.
 
-Lemma lr_fin_free_events (mu : lr_rw_map) l n :
+Lemma lr_fin_free_events (mu : rw_map) l n :
   (forall z, (0 <= z < Z.of_nat n)%Z -> is_Some (mu !! (l +ₗ z)%L)) ->
   atomic_machine.fin (lr_free_events l n) mu = Some (free_gmap l n mu).
 Proof.
@@ -387,21 +387,21 @@ Proof. destruct n; [ lia | discriminate ]. Qed.
 
 (** Reserving and immediately finishing a single non-atomic access
     returns the reader/writer map to its starting point. *)
-Lemma lr_rsv_fin_read (mu : lr_rw_map) l :
+Lemma lr_rsv_fin_read (mu : rw_map) l :
   mu !! l = Some (Rst 0) ->
   exists mu', rsv [lr_read_event l] mu = Some mu' /\ atomic_machine.fin [lr_read_event l] mu' = Some mu.
 Proof.
-  intros Hl. unfold lr_rw_map, rw_map in *. eexists. split.
+  intros Hl. unfold rw_map in *. eexists. split.
   - unfold rsv. simpl. unfold rsv_Read. by setoid_rewrite Hl.
   - unfold atomic_machine.fin. simpl. unfold fin_Read, rw_map. rewrite lookup_insert_eq. simpl.
     by erewrite insert_insert_eq, insert_id.
 Qed.
 
-Lemma lr_rsv_fin_write (mu : lr_rw_map) l :
+Lemma lr_rsv_fin_write (mu : rw_map) l :
   mu !! l = Some (Rst 0) ->
   exists mu', rsv [lr_write_event l] mu = Some mu' /\ atomic_machine.fin [lr_write_event l] mu' = Some mu.
 Proof.
-  intros Hl. unfold lr_rw_map, rw_map in *. eexists. split.
+  intros Hl. unfold rw_map in *. eexists. split.
   - unfold rsv. simpl. unfold rsv_Write. by setoid_rewrite Hl.
   - unfold atomic_machine.fin. simpl. unfold fin_Write, rw_map. rewrite lookup_insert_eq. simpl.
     by erewrite insert_insert_eq, insert_id.
@@ -437,17 +437,17 @@ Qed.
 Definition lr_crashed (e : expr) : Prop :=
   exists K, e = fill K stuck_term.
 
-Inductive lr_stable_thread_match : expr -> lr_tstate -> Prop :=
+Inductive lr_stable_thread_match : expr -> tstate -> Prop :=
 | LRStableRunning e :
     na2_free e = true ->
     ~ lr_crashed e ->
-    lr_stable_thread_match e (lr_running e []).
+    lr_stable_thread_match e (Running e []).
 
-Definition lr_stable_pools_match : list expr -> lr_tpool -> Prop :=
+Definition lr_stable_pools_match : list expr -> tpool -> Prop :=
   lr_pools_match lr_stable_thread_match.
 
 Definition lr_stable_heaps_match
-    (sigma : state) (m : lr_mem) (mu : lr_rw_map) : Prop :=
+    (sigma : state) (m : lr_mem) (mu : rw_map) : Prop :=
   forall l,
     match m !! l with
     | Some v =>
@@ -458,31 +458,31 @@ Definition lr_stable_heaps_match
     end.
 
 Definition lr_stable_cfg_match
-    (rc : list expr * state) (mc : lr_machine_cfg) : Prop :=
+    (rc : list expr * state) (mc : am_cfg) : Prop :=
   let '(threads, sigma) := rc in
-  lr_stable_pools_match threads (lr_machine_threads mc) /\
-  lr_stable_heaps_match sigma (lr_machine_mem mc) (lr_machine_rw mc).
+  lr_stable_pools_match threads (mc.1.1) /\
+  lr_stable_heaps_match sigma (mc.1.2) (mc.2).
 
-Inductive lr_forward_thread_match : expr -> lr_tstate -> Prop :=
+Inductive lr_forward_thread_match : expr -> tstate -> Prop :=
 | LRForwardSame e :
     na2_free e = true ->
-    lr_forward_thread_match e (lr_running e [])
+    lr_forward_thread_match e (Running e [])
 | LRForwardReadNa2 K l :
     na2_free (fill K (Read Na1Ord (Lit (LitLoc l)))) = true ->
     lr_forward_thread_match
       (fill K (Read Na2Ord (Lit (LitLoc l))))
-      (lr_running (fill K (Read Na1Ord (Lit (LitLoc l)))) [])
+      (Running (fill K (Read Na1Ord (Lit (LitLoc l)))) [])
 | LRForwardWriteNa2 K l e v :
     to_val e = Some v ->
     na2_free (fill K (Write Na1Ord (Lit (LitLoc l)) e)) = true ->
     lr_forward_thread_match
       (fill K (Write Na2Ord (Lit (LitLoc l)) e))
-      (lr_running (fill K (Write Na1Ord (Lit (LitLoc l)) e)) [])
+      (Running (fill K (Write Na1Ord (Lit (LitLoc l)) e)) [])
 | LRForwardStuck K c :
     lr_forward_thread_match (fill K stuck_term) c.
 
 Definition lr_forward_heaps_match
-    (sigma : state) (m : lr_mem) (mu : lr_rw_map) : Prop :=
+    (sigma : state) (m : lr_mem) (mu : rw_map) : Prop :=
   forall l,
     match m !! l with
     | Some v =>
@@ -493,12 +493,12 @@ Definition lr_forward_heaps_match
     end.
 
 Definition lr_forward_cfg_match
-    (rc : list expr * state) (mc : lr_machine_cfg) : Prop :=
+    (rc : list expr * state) (mc : am_cfg) : Prop :=
   let '(threads, sigma) := rc in
-  lr_pools_match lr_forward_thread_match threads (lr_machine_threads mc) /\
-  lr_forward_heaps_match sigma (lr_machine_mem mc) (lr_machine_rw mc).
+  lr_pools_match lr_forward_thread_match threads (mc.1.1) /\
+  lr_forward_heaps_match sigma (mc.1.2) (mc.2).
 
-Definition lr_backward_thread_match (e : expr) (c : lr_tstate) : Prop :=
+Definition lr_backward_thread_match (e : expr) (c : tstate) : Prop :=
   match c with
   | Running e' _ => e = e'
   | StuckState => True
@@ -512,21 +512,17 @@ Definition lr_backward_heaps_match (sigma : state) (m : lr_mem) : Prop :=
     end.
 
 Definition lr_backward_cfg_match
-    (rc : list expr * state) (mc : lr_machine_cfg) : Prop :=
+    (rc : list expr * state) (mc : am_cfg) : Prop :=
   let '(threads, sigma) := rc in
-  lr_pools_match lr_backward_thread_match threads (lr_machine_threads mc) /\
-  lr_backward_heaps_match sigma (lr_machine_mem mc).
+  lr_pools_match lr_backward_thread_match threads (mc.1.1) /\
+  lr_backward_heaps_match sigma (mc.1.2).
 
-(** The type aliases ([lr_mem], [lr_tpool], ...) make stdpp's [rewrite]
+(** The type aliases ([lr_mem], [tpool], ...) make stdpp's [rewrite]
     fail to recognise lookups elaborated at the alias; unfolding them
     first is the reliable fix. *)
 
 Ltac lr_unfold :=
-  unfold lr_stable_cfg_match, lr_forward_cfg_match,
-    lr_backward_cfg_match,
-    lr_stable_heaps_match, lr_forward_heaps_match, lr_backward_heaps_match,
-    lr_stable_pools_match, lr_pools_match,
-    lr_mem, lr_rw_map, rw_map, lr_tpool, tpool, state in *.
+  unfold lr_stable_cfg_match, lr_forward_cfg_match, lr_backward_cfg_match, lr_stable_heaps_match, lr_forward_heaps_match, lr_backward_heaps_match, lr_stable_pools_match, lr_pools_match, lr_mem, rw_map, tpool, state in *.
 
 (** Pointwise reasoning about a heap relation: specialize at the location
     under consideration, then split on the machine heap. *)
@@ -561,7 +557,7 @@ Proof. apply not_true_is_false. intros H%na2_free_fill_inv. discriminate. Qed.
     excluded by stability. *)
 
 Lemma lr_forward_thread_match_stable e c :
-  na2_free e = true -> ~ lr_crashed e -> lr_forward_thread_match e c -> c = lr_running e [].
+  na2_free e = true -> ~ lr_crashed e -> lr_forward_thread_match e c -> c = Running e [].
 Proof.
   intros Hna2 Hcrash Hm. inversion Hm; subst;
     [ done | by rewrite na2_free_read_na2 in Hna2 | by rewrite na2_free_write_na2 in Hna2 | ].
@@ -573,7 +569,7 @@ Lemma lr_forward_stable_unique rc mc mc' :
   lr_stable_cfg_match rc mc ->
   mc' = mc.
 Proof.
-  destruct rc as (threads, sigma). destruct mc as [tp m mu], mc' as [tp' m' mu'].
+  destruct rc as (threads, sigma). destruct mc as [[tp m] mu], mc' as [[tp' m'] mu'].
   intros (Hpools' & Hheaps') (Hpools & Hheaps). lr_unfold. simpl in *.
   assert (m' = m) as ->.
   { apply map_eq. intros l. specialize (Hheaps l). specialize (Hheaps' l).
@@ -581,7 +577,7 @@ Proof.
   assert (mu' = mu) as ->.
   { apply map_eq. intros l. specialize (Hheaps l). specialize (Hheaps' l).
     destruct (m !! l); intuition congruence. }
-  f_equal. apply (map_eq (M := gmap nat)). intros i.
+  do 2 f_equal. apply (map_eq (M := gmap nat)). intros i.
   specialize (Hpools i). specialize (Hpools' i).
   destruct (threads !! i), (tp !! i), (tp' !! i); try done.
   inversion Hpools; subst. by rewrite (lr_forward_thread_match_stable _ _ H H0 Hpools').
@@ -592,7 +588,7 @@ Lemma lr_backward_stable_unique rc rc' mc :
   lr_stable_cfg_match rc mc ->
   rc' = rc.
 Proof.
-  destruct rc as (threads, sigma), rc' as (threads', sigma'). destruct mc as [tp m mu].
+  destruct rc as (threads, sigma), rc' as (threads', sigma'). destruct mc as [[tp m] mu].
   intros (Hpools' & Hheaps') (Hpools & Hheaps). lr_unfold. simpl in *. f_equal.
   - apply list_eq. intros i. specialize (Hpools i). specialize (Hpools' i).
     destruct (tp !! i), (threads !! i), (threads' !! i); try done.
@@ -702,87 +698,79 @@ Proof. intros Hdom Hev. apply bin_op_eval_equiv. by eapply sq_mem_bin_op_eval_do
 (** ** Machine steps on cfgs *)
 
 Lemma lr_machine_try tp m mu i c T c' m' mu' :
-  tp !! i = Some (lr_running c []) ->
+  tp !! i = Some (Running c []) ->
   lr_step c m T c' m' ->
   rsv T mu = Some mu' ->
-  lr_at_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads := <[i := lr_running c' T]> tp;
-       lr_machine_mem := m'; lr_machine_rw := mu' |}.
+  at_step
+    (tp, m, mu)
+    (<[i := Running c' T]> tp, m', mu').
 Proof. intros. eapply Core_Try; eassumption. Qed.
 
 Lemma lr_machine_commit tp m mu i c T mu' :
-  tp !! i = Some (lr_running c T) ->
+  tp !! i = Some (Running c T) ->
   T ≠ [] ->
   atomic_machine.fin T mu = Some mu' ->
-  lr_at_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads := <[i := lr_running c []]> tp;
-       lr_machine_mem := m; lr_machine_rw := mu' |}.
+  at_step
+    (tp, m, mu)
+    (<[i := Running c []]> tp, m, mu').
 Proof. intros. eapply Core_Commit; eassumption. Qed.
 
 Lemma lr_machine_pure_steps tp m mu i c c' m' :
-  tp !! i = Some (lr_running c []) ->
+  tp !! i = Some (Running c []) ->
   lr_step c m [] c' m' ->
-  lr_steps lr_at_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads := <[i := lr_running c' []]> tp;
-       lr_machine_mem := m'; lr_machine_rw := mu |}.
+  lr_steps at_step
+    (tp, m, mu)
+    (<[i := Running c' []]> tp, m', mu).
 Proof. intros. apply rtc_once. eapply lr_machine_try; eauto. Qed.
 
 Lemma lr_machine_try_commit_steps tp m mu i c T c' m' mu' mu'' :
-  tp !! i = Some (lr_running c []) ->
+  tp !! i = Some (Running c []) ->
   lr_step c m T c' m' ->
   T ≠ [] ->
   rsv T mu = Some mu' ->
   atomic_machine.fin T mu' = Some mu'' ->
-  lr_steps lr_at_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads := <[i := lr_running c' []]> tp;
-       lr_machine_mem := m'; lr_machine_rw := mu'' |}.
+  lr_steps at_step
+    (tp, m, mu)
+    (<[i := Running c' []]> tp, m', mu'').
 Proof.
-  intros Hget Hstep HT Hrsv Hfin. unfold lr_tpool, tpool in *.
-  rewrite <- (insert_insert_eq tp i (lr_running c' []) (lr_running c' T)).
+  intros Hget Hstep HT Hrsv Hfin. unfold tpool in *.
+  rewrite <- (insert_insert_eq tp i (Running c' []) (Running c' T)).
   eapply rtc_l; [ eapply lr_machine_try; eauto | apply rtc_once ].
-  eapply lr_machine_commit; eauto. unfold lr_tpool, tpool. apply lookup_insert_eq.
+  eapply lr_machine_commit; eauto. unfold tpool. apply lookup_insert_eq.
 Qed.
 
 Lemma lr_machine_sc_read tp m mu i c l v K :
-  tp !! i = Some (lr_running c []) ->
+  tp !! i = Some (Running c []) ->
   lr_external c (ALoad tt l) K ->
   mu !! l ≠ Some Wst ->
   m !! l = Some v ->
-  lr_at_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads := <[i := lr_running (K (Some v)) []]> tp;
-       lr_machine_mem := m; lr_machine_rw := mu |}.
+  at_step
+    (tp, m, mu)
+    (<[i := Running (K (Some v)) []]> tp, m, mu).
 Proof. intros. eapply SC_Read; eauto. by repeat constructor. Qed.
 
 Lemma lr_machine_sc_write tp m mu i c l v v' K :
-  tp !! i = Some (lr_running c []) ->
+  tp !! i = Some (Running c []) ->
   lr_external c (AStore tt l v) K ->
   mu !! l = Some (Rst 0) ->
   m !! l = Some v' ->
-  lr_at_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads := <[i := lr_running (K None) []]> tp;
-       lr_machine_mem := <[l := v]> m; lr_machine_rw := mu |}.
+  at_step
+    (tp, m, mu)
+    (<[i := Running (K None) []]> tp, <[l := v]> m, mu).
 Proof.
   intros ? ? Hmu Hm. eapply SC_Write; eauto; [ by repeat constructor | ].
   simpl. lr_unfold. by rewrite Hm.
 Qed.
 
 Lemma lr_machine_cas_suc tp m mu i c l lit_exp lit_new lit_cur K :
-  tp !! i = Some (lr_running c []) ->
+  tp !! i = Some (Running c []) ->
   lr_external c (ACAS tt l (LitV lit_exp) (LitV lit_new)) K ->
   mu !! l = Some (Rst 0) ->
   m !! l = Some (LitV lit_cur) ->
   sq_mem.lit_eq m lit_exp lit_cur ->
-  lr_at_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads :=
-         <[i := lr_running (K (Some (LitV (lit_of_bool true)))) []]> tp;
-       lr_machine_mem := <[l := LitV lit_new]> m; lr_machine_rw := mu |}.
+  at_step
+    (tp, m, mu)
+    (<[i := Running (K (Some (LitV (lit_of_bool true)))) []]> tp, <[l := LitV lit_new]> m, mu).
 Proof.
   intros Hget Hext Hmu Hm Heq.
   refine (SC_Cas_Suc tp m mu i c tt l (LitV lit_exp) (LitV lit_new) (LitV lit_cur) _ K
@@ -791,16 +779,14 @@ Proof.
 Qed.
 
 Lemma lr_machine_cas_fail tp m mu i c l lit_exp lit_new lit_cur K :
-  tp !! i = Some (lr_running c []) ->
+  tp !! i = Some (Running c []) ->
   lr_external c (ACAS tt l (LitV lit_exp) (LitV lit_new)) K ->
   mu !! l ≠ Some Wst ->
   m !! l = Some (LitV lit_cur) ->
   lit_neq lit_exp lit_cur ->
-  lr_at_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads :=
-         <[i := lr_running (K (Some (LitV (lit_of_bool false)))) []]> tp;
-       lr_machine_mem := m; lr_machine_rw := mu |}.
+  at_step
+    (tp, m, mu)
+    (<[i := Running (K (Some (LitV (lit_of_bool false)))) []]> tp, m, mu).
 Proof.
   intros Hget Hext Hmu Hm Hneq.
   refine (SC_Cas_Fail tp m mu i c tt l (LitV lit_exp) (LitV lit_new) (LitV lit_cur) K
@@ -808,13 +794,11 @@ Proof.
 Qed.
 
 Lemma lr_machine_spawn tp m mu i K e j :
-  tp !! i = Some (lr_running (fill K (Fork e)) []) ->
+  tp !! i = Some (Running (fill K (Fork e)) []) ->
   tp !! j = None -> (forall k, (k < j)%nat -> is_Some (tp !! k)) ->
-  lr_at_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads :=
-         <[j := lr_running e []]> (<[i := lr_running (fill K (Lit LitPoison)) []]> tp);
-       lr_machine_mem := m; lr_machine_rw := mu |}.
+  at_step
+    (tp, m, mu)
+    (<[j := Running e []]> (<[i := Running (fill K (Lit LitPoison)) []]> tp), m, mu).
 Proof. intros. eapply Spawn; eauto. constructor. Qed.
 
 (** * Forward simulation: reference steps are matched by machine steps *)
@@ -823,15 +807,15 @@ Proof. intros. eapply Spawn; eauto. constructor. Qed.
     they determine the target cfg before the matching goals. *)
 
 Lemma lr_forward_pack threads tp m mu i e2 sigma2 tp2 m2 mu2 :
-  lr_steps lr_at_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads := tp2; lr_machine_mem := m2; lr_machine_rw := mu2 |} ->
+  lr_steps at_step
+    (tp, m, mu)
+    (tp2, m2, mu2) ->
   lr_pools_match lr_forward_thread_match (<[i := e2]> threads) tp2 ->
   lr_forward_heaps_match sigma2 m2 mu2 ->
   exists mc',
     lr_forward_cfg_match (<[i := e2]> threads, sigma2) mc' /\
-    lr_steps lr_at_step
-      {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |} mc'.
+    lr_steps at_step
+      (tp, m, mu) mc'.
 Proof. intros. eexists. split; [ | eassumption ]. by split. Qed.
 
 (** The common case: both sides step in lockstep under the same context. *)
@@ -840,15 +824,15 @@ Lemma lr_forward_pools_same threads tp i K e1 e2 :
   lr_pools_match lr_forward_thread_match threads tp -> is_Some (threads !! i) ->
   na2_free (fill K e1) = true -> na2_free e2 = true ->
   lr_pools_match lr_forward_thread_match
-    (<[i := fill K e2]> threads) (<[i := lr_running (fill K e2) []]> tp).
+    (<[i := fill K e2]> threads) (<[i := Running (fill K e2) []]> tp).
 Proof. intros. apply lr_pools_match_insert; auto. constructor. eauto using na2_free_fill. Qed.
 
 Lemma lr_forward_step rc rc' mc :
   lr_forward_cfg_match rc mc ->
   erased_step rc rc' ->
-  exists mc', lr_forward_cfg_match rc' mc' /\ lr_steps lr_at_step mc mc'.
+  exists mc', lr_forward_cfg_match rc' mc' /\ lr_steps at_step mc mc'.
 Proof.
-  destruct rc as (threads, sigma). destruct mc as [tp m mu].
+  destruct rc as (threads, sigma). destruct mc as [[tp m] mu].
   intros (Hpools & Hheaps) Hstep. simpl in Hpools, Hheaps.
   apply lr_reference_step_inv in Hstep as (i & e1 & e2 & sigma2 & spawned & Hi & Hprim & ->).
   destruct (lr_pools_match_lookup_l _ _ _ _ _ Hpools Hi) as (c & Hc & Hthread).
@@ -1028,7 +1012,7 @@ Lemma lr_backward_pack threads sigma tp' m' mu' i e2 sigma2 :
   lr_backward_heaps_match sigma2 m' ->
   exists rc',
     lr_backward_cfg_match rc'
-      {| lr_machine_threads := tp'; lr_machine_mem := m'; lr_machine_rw := mu' |} /\
+      (tp', m', mu') /\
     lr_steps erased_step (threads, sigma) rc'.
 Proof. intros. eexists. split; [ | eassumption ]. by split. Qed.
 
@@ -1037,7 +1021,7 @@ Lemma lr_backward_pack_refl threads sigma tp' m' mu' :
   lr_backward_heaps_match sigma m' ->
   exists rc',
     lr_backward_cfg_match rc'
-      {| lr_machine_threads := tp'; lr_machine_mem := m'; lr_machine_rw := mu' |} /\
+      (tp', m', mu') /\
     lr_steps erased_step (threads, sigma) rc'.
 Proof. intros. exists (threads, sigma). split; [ by split | constructor ]. Qed.
 
@@ -1050,12 +1034,12 @@ Ltac lr_backward_thread Hpools Hget He :=
 
 Lemma lr_backward_step rc mc mc' :
   lr_backward_cfg_match rc mc ->
-  lr_at_step mc mc' ->
+  at_step mc mc' ->
   exists rc', lr_backward_cfg_match rc' mc' /\ lr_steps erased_step rc rc'.
 Proof.
-  destruct rc as (threads, sigma). destruct mc as [tp m mu], mc' as [tp' m' mu'].
+  destruct rc as (threads, sigma). destruct mc as [[tp m] mu], mc' as [[tp' m'] mu'].
   intros (Hpools & Hheaps) Hstep. simpl in Hpools, Hheaps.
-  unfold lr_at_step in Hstep. simpl in Hstep.
+  simpl in Hstep.
   pose proof (lr_backward_heaps_dom _ _ Hheaps) as Hdom.
   inversion Hstep; subst; lr_backward_thread Hpools Hget He;
     assert (Hsome : is_Some (threads !! i)) by (by eexists).
@@ -1146,7 +1130,7 @@ Qed.
 Lemma lr_forward_steps rc rc' mc :
   lr_forward_cfg_match rc mc ->
   lr_steps erased_step rc rc' ->
-  exists mc', lr_forward_cfg_match rc' mc' /\ lr_steps lr_at_step mc mc'.
+  exists mc', lr_forward_cfg_match rc' mc' /\ lr_steps at_step mc mc'.
 Proof.
   intros Hmatch Hsteps. revert mc Hmatch.
   induction Hsteps as [ x | x y z Hxy Hyz IH ]; intros mc Hmatch; [ eauto using rtc_refl | ].
@@ -1156,7 +1140,7 @@ Qed.
 
 Lemma lr_backward_steps rc mc mc' :
   lr_backward_cfg_match rc mc ->
-  lr_steps lr_at_step mc mc' ->
+  lr_steps at_step mc mc' ->
   exists rc', lr_backward_cfg_match rc' mc' /\ lr_steps erased_step rc rc'.
 Proof.
   intros Hmatch Hsteps. revert rc Hmatch.
@@ -1174,7 +1158,7 @@ Theorem lambda_rust_reachability_equivalence rc1 mc1 rc2 mc2 :
   lr_stable_cfg_match rc1 mc1 ->
   lr_stable_cfg_match rc2 mc2 ->
   (lr_steps erased_step rc1 rc2 <->
-   lr_steps lr_at_step mc1 mc2).
+   lr_steps at_step mc1 mc2).
 Proof.
   intros Hmatch1 Hmatch2.  split; intros Hsteps.
   - destruct (lr_forward_steps _ _ _ (lr_stable_forward _ _ Hmatch1) Hsteps)

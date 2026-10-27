@@ -28,10 +28,12 @@ Require Import stdpp.gmap.
     threads are between Try and Commit of a step that reads the byte;
     [Wst] means some thread is mid-step on a write to it. *)
 
+Class Location := location : Type.
+Global Typeclasses Transparent Location.
 
 Section RWMap.
 
-  Context {Loc : Type}.
+  Context {Loc : Location}.
   Context {LocEqDec : EqDecision Loc}.
   Context {LocCountable : @Countable Loc _}.
 
@@ -146,9 +148,10 @@ Section Memory.
 
 End Memory.
 
-Section AtomicMachine.
+Section SeqLang.
 
-  Context `{mem_inst: !@Memory Loc Val LocEqDec LocCountable Mem Layout}.
+  Context {Loc Val : Type} {LocEqDec : EqDecision Loc} {LocCountable : Countable Loc}
+    {Mem Layout : Type}.
 
   Local Notation mem_ev := (mem_ev(Loc:=Loc)).
   Local Notation rw_map := (rw_map(Loc:=Loc)).
@@ -159,7 +162,9 @@ Section AtomicMachine.
   | ACAS : Layout -> Loc -> Val (* expected val *) ->
           Val (* new val*) -> atomic_op.
 
-  Class sqlang {mem_inst : @Memory Loc Val LocEqDec LocCountable Mem Layout} : Type := {
+  Class sqlang : Type := {
+    (* the shared memory *)
+    sqlang_memory :: @Memory Loc Val LocEqDec LocCountable Mem Layout;
     (* thread local state *)
     sqlang_thrd_st : Type;
     (* events emitted by the underlying sequential semantics *)
@@ -188,8 +193,14 @@ Section AtomicMachine.
     sqlang_ValEq : Mem -> Val -> Val -> Prop;
     sqlang_ValNEq : Mem -> Val -> Val -> Prop;
   }.
+End SeqLang.
 
-  Context {L : sqlang}.
+Section AtomicMachine.
+
+  Context `{L : !@sqlang Loc Val LocEqDec LocCountable Mem Layout}.
+
+  Local Notation mem_ev := (mem_ev(Loc:=Loc)).
+  Local Notation rw_map := (rw_map(Loc:=Loc)).
 
   Local Notation C := sqlang_thrd_st.
   Local Notation at_external := sqlang_at_external.

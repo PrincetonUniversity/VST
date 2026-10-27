@@ -11,33 +11,17 @@
 From Stdlib Require Import List Lia.
 From stdpp Require Import gmap list.
 Require Import VST.atomic_machine.atomic_machine.
-Require Import VST.atomic_machine.lambda_rust.at_sem.
+Require Import VST.atomic_machine.lambda_rust.sq_sem.
 Require Import VST.atomic_machine.lambda_rust.equivalence.
 
 Import ListNotations.
 Set Default Proof Using "Type".
-
-Definition lr_am_cfg (mc : lr_machine_cfg)
-    : @am_cfg loc val _ _ lr_mem lr_layout lr_memory lr_language :=
-  (lr_machine_threads mc, lr_machine_mem mc, lr_machine_rw mc).
-
-Definition lr_am_safe (mc : lr_machine_cfg) : Prop :=
-  am_safe (lr_am_cfg mc).
 
 (** This uses the full reference [step], including thread creation. *)
 Definition lr_reference_safe (rc : list expr * state) : Prop :=
   forall (threads : list expr) (sigma : state),
     rtc erased_step rc (threads, sigma) ->
     forall e, e ∈ threads -> not_stuck e sigma.
-
-Lemma lr_am_steps mc mc' :
-  lr_steps lr_at_step mc mc' ->
-  am_steps (lr_am_cfg mc) (lr_am_cfg mc').
-Proof. by apply rtc_congruence. Qed.
-
-Lemma lr_am_safe_reachable mc mc' :
-  lr_am_safe mc -> lr_steps lr_at_step mc mc' -> lr_am_safe mc'.
-Proof. intros Hsafe Hsteps. eapply am_safe_reachable; eauto using lr_am_steps. Qed.
 
 Lemma lr_stable_backward_heaps sigma m mu :
   lr_stable_heaps_match sigma m mu -> lr_backward_heaps_match sigma m.
@@ -53,15 +37,15 @@ Qed.
     steps to hide a machine step. *)
 Lemma lr_stable_reducible e sigma m mu :
   lr_stable_heaps_match sigma m mu ->
-  am_reducible (lr_running e []) m mu -> reducible e sigma.
+  am_reducible (Running e []) m mu -> reducible e sigma.
 Proof.
   intros Hstable (q' & Hstep).
   pose proof (lr_stable_backward_heaps _ _ _ Hstable) as Hheaps.
   pose proof (lr_backward_heaps_dom _ _ Hheaps) as Hdom.
   inversion Hstep; subst;
-    unfold lr_tpool, tpool in *;
+    unfold tpool in *;
     apply lookup_singleton_Some in Hget as [Hi Hget];
-    unfold lr_running in Hget; inversion Hget; subst.
+    inversion Hget; subst.
   - change (lr_step c m T c' m') in Hstep0.
     inversion Hstep0 as [K e1 ? ? e2 ? Hhead]; subst.
     inversion Hhead; subst; unfold reducible.
@@ -110,7 +94,7 @@ Lemma lr_stable_not_stuck e t sigma m mu :
 Proof.
   intros Hheaps Hthread Hsafe. inversion Hthread; subst.
   destruct Hsafe as [(c & Hc & Hfinal) | Hred].
-  - left. unfold lr_running in Hc. by inversion Hc; subst.
+  - left. by inversion Hc; subst.
   - right. by eapply lr_stable_reducible.
 Qed.
 
@@ -119,7 +103,7 @@ Qed.
     of this theorem. *)
 Theorem lr_am_safe_reference_stable rc0 mc0 (threads : list expr) (sigma : state) mc :
   lr_stable_cfg_match rc0 mc0 ->
-  lr_am_safe mc0 ->
+  am_safe mc0 ->
   rtc erased_step rc0 (threads, sigma) ->
   lr_stable_cfg_match (threads, sigma) mc ->
   forall e, e ∈ threads -> not_stuck e sigma.
@@ -127,8 +111,8 @@ Proof.
   intros Hinitial Hsafe Hsteps Hstable e He.
   pose proof (proj1 (lambda_rust_reachability_equivalence _ _ _ _ Hinitial Hstable)
     Hsteps) as Hmachine.
-  pose proof (lr_am_safe_reachable _ _ Hsafe Hmachine) as Hsafe'.
-  destruct mc as [tp m mu]. destruct Hstable as [Hpools Hheaps]. simpl in *.
+  pose proof (am_safe_reachable _ _ Hsafe Hmachine) as Hsafe'.
+  destruct mc as [[tp m] mu]. destruct Hstable as [Hpools Hheaps]. simpl in *.
   apply list_elem_of_lookup_1 in He as [i He].
   destruct (lr_pools_match_lookup_l _ _ _ _ _ Hpools He) as (t & Ht & Hthread).
   eapply lr_stable_not_stuck; [ exact Hheaps | exact Hthread | ].
@@ -162,12 +146,12 @@ Lemma lr_spawn_not_val e e' e_new :
 Proof. intros Hspawn. inversion Hspawn; subst. by apply fill_not_val. Qed.
 
 Lemma lr_value_not_reducible v m mu :
-  ~ am_reducible (lr_running (of_val v) []) m mu.
+  ~ am_reducible (Running (of_val v) []) m mu.
 Proof.
   intros (q' & Hstep). inversion Hstep; subst;
-    unfold lr_tpool, tpool in *;
+    unfold tpool in *;
     apply lookup_singleton_Some in Hget as [Hi Hget];
-    unfold lr_running in Hget; inversion Hget; subst; try contradiction.
+    inversion Hget; subst; try contradiction.
   all: try (apply lr_step_not_val in Hstep0; by rewrite to_of_val in Hstep0).
   all: try (apply lr_external_not_val in Hext; by rewrite to_of_val in Hext).
   all: apply lr_spawn_not_val in Hspawn; by rewrite to_of_val in Hspawn.
@@ -183,18 +167,16 @@ Qed.
 Theorem lr_forward_match_does_not_reflect_safety :
   exists rc mc,
     lr_forward_cfg_match rc mc /\
-    lr_am_safe mc /\ ~ lr_reference_safe rc.
+    am_safe mc /\ ~ lr_reference_safe rc.
 Proof.
   exists ([stuck_term], ∅),
-    {| lr_machine_threads := {[0%nat := lr_running (of_val (LitV LitPoison)) []]};
-       lr_machine_mem := ∅;
-       lr_machine_rw := ∅ |}.
+    ({[0%nat := Running (of_val (LitV LitPoison)) []]}, ∅, ∅).
   split.
   - split.
-    + intros [ | i]; unfold lr_tpool, tpool; simpl.
+    + intros [ | i]; unfold tpool; simpl.
       * rewrite lookup_singleton_eq. apply (LRForwardStuck []).
       * rewrite lookup_singleton_ne; [ done | lia ].
-    + intros l. unfold lr_mem, lr_rw_map, rw_map, state.
+    + intros l. unfold lr_mem, rw_map, state.
       by rewrite !lookup_empty.
   - split.
     + apply am_safe_final_singleton.

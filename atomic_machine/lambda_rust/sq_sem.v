@@ -18,6 +18,10 @@ Open Scope loc_scope.
 
 Set Default Proof Using "Type".
 
+(** lambda-Rust's location type.  A hint rather than an [Instance], so that
+    the inferred location type is [loc] itself, not a constant equal to it. *)
+#[global] Hint Extern 0 Location => exact loc : typeclass_instances.
+
 (** The reader/writer state is maintained separately by the atomic machine. *)
 Definition lr_mem : Type := gmap loc val.
 Definition lr_layout : Type := unit.
@@ -178,9 +182,10 @@ Inductive lr_spawn : expr -> expr -> expr -> Prop :=
 (** A thread has terminated once it is a value. *)
 Definition lr_final (e : expr) : Prop := is_Some (to_val e).
 
-#[global] Instance lr_language :
-    @sqlang loc val _ _ lr_mem lr_layout lr_memory :=
-  {| sqlang_thrd_st := expr;
+#[global] Canonical Structure lr_language :
+    @sqlang loc val _ _ lr_mem lr_layout :=
+  {| sqlang_memory := lr_memory;
+     sqlang_thrd_st := expr;
      sqlang_true_val := LitV (lit_of_bool true);
      sqlang_false_val := LitV (lit_of_bool false);
      sqlang_step := lr_step;
