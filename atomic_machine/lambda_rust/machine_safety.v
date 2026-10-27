@@ -575,7 +575,7 @@ Qed.
 Lemma lr_back_step rc mc mc' :
   lr_back_configuration_match rc mc ->
   lr_reference_safe rc ->
-  lr_machine_step mc mc' ->
+  lr_at_step mc mc' ->
   exists rc', lr_back_configuration_match rc' mc' /\ lr_steps erased_step rc rc'.
 Proof.
   destruct rc as (threads, sigma). destruct mc as [tp m mu], mc' as [tp' m' mu'].
@@ -583,7 +583,7 @@ Proof.
   pose proof (lr_reference_safe_now _ Hsafe) as Hok. simpl in Hok.
   assert (Hdom : forall l, m !! l = None -> sigma !! l = None)
     by (intros l; apply (lr_back_heaps_none _ _ _ l Hheaps)).
-  unfold lr_machine_step in Hstep. simpl in Hstep.
+  unfold lr_at_step in Hstep. simpl in Hstep.
   inversion Hstep; subst;
     destruct (lr_pools_match_lookup_r _ _ _ _ _ Hpools Hget) as (e & He & Hthread);
     assert (Hsome : is_Some (threads !! i)) by (by eexists).
@@ -956,7 +956,7 @@ Qed.
 
 Lemma lr_am_steps_inv mc q :
   rtc am_step (lr_am_configuration mc) q ->
-  exists mc', q = lr_am_configuration mc' /\ lr_steps lr_machine_step mc mc'.
+  exists mc', q = lr_am_configuration mc' /\ lr_steps lr_at_step mc mc'.
 Proof.
   intros Hsteps. remember (lr_am_configuration mc) as q0 eqn:Hq0. revert mc Hq0.
   induction Hsteps as [ q | q1 q2 q3 Hstep _ IH ]; intros mc ->.
@@ -971,7 +971,7 @@ Qed.
 Lemma lr_back_steps rc mc mc' :
   lr_back_configuration_match rc mc ->
   lr_reference_safe rc ->
-  lr_steps lr_machine_step mc mc' ->
+  lr_steps lr_at_step mc mc' ->
   exists rc', lr_back_configuration_match rc' mc' /\ lr_reference_safe rc'.
 Proof.
   intros Hmatch Hsafe Hsteps. revert rc Hmatch Hsafe.

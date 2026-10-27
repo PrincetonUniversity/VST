@@ -314,7 +314,7 @@ Qed.
     contradicts safety. *)
 Lemma lr_safe_no_stuck_step mc tp' m' mu' i :
   lr_am_safe mc ->
-  lr_machine_step mc {| lr_machine_threads := tp'; lr_machine_mem := m'; lr_machine_rw := mu' |} ->
+  lr_at_step mc {| lr_machine_threads := tp'; lr_machine_mem := m'; lr_machine_rw := mu' |} ->
   tp' !! i = Some lr_stuck -> False.
 Proof.
   intros Hsafe Hstep Hi.
@@ -323,14 +323,14 @@ Proof.
 Qed.
 
 Lemma lr_tight_pack threads tp m mu i e2 sigma2 tp2 m2 mu2 :
-  lr_steps lr_machine_step
+  lr_steps lr_at_step
     {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
     {| lr_machine_threads := tp2; lr_machine_mem := m2; lr_machine_rw := mu2 |} ->
   lr_pools_match (lr_tight_thread_match m2) (<[i := e2]> threads) tp2 ->
   lr_tight_heaps_match sigma2 m2 mu2 ->
   exists mc',
     lr_tight_configuration_match (<[i := e2]> threads ++ [], sigma2) mc' /\
-    lr_steps lr_machine_step
+    lr_steps lr_at_step
       {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |} mc'.
 Proof. intros. eexists. rewrite app_nil_r. split; [ | eassumption ]. by split. Qed.
 
@@ -340,7 +340,7 @@ Lemma lr_tight_step rc rc' mc :
   lr_tight_configuration_match rc mc ->
   lr_am_safe mc ->
   erased_step rc rc' ->
-  exists mc', lr_tight_configuration_match rc' mc' /\ lr_steps lr_machine_step mc mc'.
+  exists mc', lr_tight_configuration_match rc' mc' /\ lr_steps lr_at_step mc mc'.
 Proof.
   destruct rc as (threads, sigma). destruct mc as [tp m mu].
   intros (Hpools & Hheaps) Hsafe Hstep. simpl in Hpools, Hheaps.
@@ -458,7 +458,7 @@ Proof.
       { intros z Hz. erewrite Z2Nat.id in Hz by lia.
         destruct (proj2 (H1 z) Hz) as [[st v] Hs].
         destruct (lr_tight_heaps_lookup _ _ _ _ _ _ Hheaps Hs) as (_ & _ & Hmu & _). by eexists. }
-      assert (Hsteps : lr_steps lr_machine_step
+      assert (Hsteps : lr_steps lr_at_step
         {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
         {| lr_machine_threads := <[i := lr_running (fill K (Lit LitPoison)) []]> tp;
            lr_machine_mem := free_gmap l (Z.to_nat n) m;

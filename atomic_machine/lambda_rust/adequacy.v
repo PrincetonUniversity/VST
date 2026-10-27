@@ -31,16 +31,18 @@ Definition lr_reference_safe (rc : list expr * state) : Prop :=
     forall e, e ∈ threads -> not_stuck e sigma.
 
 Lemma lr_am_steps mc mc' :
-  lr_steps lr_machine_step mc mc' ->
+  lr_steps lr_at_step mc mc' ->
   rtc am_step (lr_am_configuration mc) (lr_am_configuration mc').
 Proof.
+  rewrite /lr_at_step .
+  intros. rewrite /lr_steps.
   induction 1 as [ x | x y z Hxy _ IH ]; [ constructor | ].
   eapply rtc_l with (y := lr_am_configuration y);
     [ destruct x, y; exact Hxy | exact IH ].
 Qed.
 
 Lemma lr_am_safe_reachable mc mc' :
-  lr_am_safe mc -> lr_steps lr_machine_step mc mc' -> lr_am_safe mc'.
+  lr_am_safe mc -> lr_steps lr_at_step mc mc' -> lr_am_safe mc'.
 Proof. intros Hsafe Hsteps. eapply am_safe_reachable; eauto using lr_am_steps. Qed.
 
 Lemma lr_stable_backward_heaps sigma m mu :

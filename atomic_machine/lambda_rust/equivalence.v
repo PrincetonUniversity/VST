@@ -705,7 +705,7 @@ Lemma lr_machine_try tp m mu i c T c' m' mu' :
   tp !! i = Some (lr_running c []) ->
   lr_step c m T c' m' ->
   rsv T mu = Some mu' ->
-  lr_machine_step
+  lr_at_step
     {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
     {| lr_machine_threads := <[i := lr_running c' T]> tp;
        lr_machine_mem := m'; lr_machine_rw := mu' |}.
@@ -715,7 +715,7 @@ Lemma lr_machine_commit tp m mu i c T mu' :
   tp !! i = Some (lr_running c T) ->
   T ≠ [] ->
   atomic_machine.fin T mu = Some mu' ->
-  lr_machine_step
+  lr_at_step
     {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
     {| lr_machine_threads := <[i := lr_running c []]> tp;
        lr_machine_mem := m; lr_machine_rw := mu' |}.
@@ -724,7 +724,7 @@ Proof. intros. eapply Core_Commit; eassumption. Qed.
 Lemma lr_machine_pure_steps tp m mu i c c' m' :
   tp !! i = Some (lr_running c []) ->
   lr_step c m [] c' m' ->
-  lr_steps lr_machine_step
+  lr_steps lr_at_step
     {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
     {| lr_machine_threads := <[i := lr_running c' []]> tp;
        lr_machine_mem := m'; lr_machine_rw := mu |}.
@@ -736,7 +736,7 @@ Lemma lr_machine_try_commit_steps tp m mu i c T c' m' mu' mu'' :
   T ≠ [] ->
   rsv T mu = Some mu' ->
   atomic_machine.fin T mu' = Some mu'' ->
-  lr_steps lr_machine_step
+  lr_steps lr_at_step
     {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
     {| lr_machine_threads := <[i := lr_running c' []]> tp;
        lr_machine_mem := m'; lr_machine_rw := mu'' |}.
@@ -752,7 +752,7 @@ Lemma lr_machine_sc_read tp m mu i c l v K :
   lr_external c (ALoad tt l) K ->
   mu !! l ≠ Some Wst ->
   m !! l = Some v ->
-  lr_machine_step
+  lr_at_step
     {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
     {| lr_machine_threads := <[i := lr_running (K (Some v)) []]> tp;
        lr_machine_mem := m; lr_machine_rw := mu |}.
@@ -763,7 +763,7 @@ Lemma lr_machine_sc_write tp m mu i c l v v' K :
   lr_external c (AStore tt l v) K ->
   mu !! l = Some (Rst 0) ->
   m !! l = Some v' ->
-  lr_machine_step
+  lr_at_step
     {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
     {| lr_machine_threads := <[i := lr_running (K None) []]> tp;
        lr_machine_mem := <[l := v]> m; lr_machine_rw := mu |}.
@@ -778,7 +778,7 @@ Lemma lr_machine_cas_suc tp m mu i c l lit_exp lit_new lit_cur K :
   mu !! l = Some (Rst 0) ->
   m !! l = Some (LitV lit_cur) ->
   sq_mem.lit_eq m lit_exp lit_cur ->
-  lr_machine_step
+  lr_at_step
     {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
     {| lr_machine_threads :=
          <[i := lr_running (K (Some (LitV (lit_of_bool true)))) []]> tp;
@@ -796,7 +796,7 @@ Lemma lr_machine_cas_fail tp m mu i c l lit_exp lit_new lit_cur K :
   mu !! l ≠ Some Wst ->
   m !! l = Some (LitV lit_cur) ->
   lit_neq lit_exp lit_cur ->
-  lr_machine_step
+  lr_at_step
     {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
     {| lr_machine_threads :=
          <[i := lr_running (K (Some (LitV (lit_of_bool false)))) []]> tp;
@@ -810,7 +810,7 @@ Qed.
 Lemma lr_machine_spawn tp m mu i K e j :
   tp !! i = Some (lr_running (fill K (Fork e)) []) ->
   tp !! j = None -> (forall k, (k < j)%nat -> is_Some (tp !! k)) ->
-  lr_machine_step
+  lr_at_step
     {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
     {| lr_machine_threads :=
          <[j := lr_running e []]> (<[i := lr_running (fill K (Lit LitPoison)) []]> tp);
@@ -823,14 +823,14 @@ Proof. intros. eapply Spawn; eauto. constructor. Qed.
     they determine the target configuration before the matching goals. *)
 
 Lemma lr_forward_pack threads tp m mu i e2 sigma2 tp2 m2 mu2 :
-  lr_steps lr_machine_step
+  lr_steps lr_at_step
     {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
     {| lr_machine_threads := tp2; lr_machine_mem := m2; lr_machine_rw := mu2 |} ->
   lr_pools_match lr_forward_thread_match (<[i := e2]> threads) tp2 ->
   lr_forward_heaps_match sigma2 m2 mu2 ->
   exists mc',
     lr_forward_configuration_match (<[i := e2]> threads, sigma2) mc' /\
-    lr_steps lr_machine_step
+    lr_steps lr_at_step
       {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |} mc'.
 Proof. intros. eexists. split; [ | eassumption ]. by split. Qed.
 
@@ -846,7 +846,7 @@ Proof. intros. apply lr_pools_match_insert; auto. constructor. eauto using na2_f
 Lemma lr_forward_step rc rc' mc :
   lr_forward_configuration_match rc mc ->
   erased_step rc rc' ->
-  exists mc', lr_forward_configuration_match rc' mc' /\ lr_steps lr_machine_step mc mc'.
+  exists mc', lr_forward_configuration_match rc' mc' /\ lr_steps lr_at_step mc mc'.
 Proof.
   destruct rc as (threads, sigma). destruct mc as [tp m mu].
   intros (Hpools & Hheaps) Hstep. simpl in Hpools, Hheaps.
@@ -1050,12 +1050,12 @@ Ltac lr_backward_thread Hpools Hget He :=
 
 Lemma lr_backward_step rc mc mc' :
   lr_backward_configuration_match rc mc ->
-  lr_machine_step mc mc' ->
+  lr_at_step mc mc' ->
   exists rc', lr_backward_configuration_match rc' mc' /\ lr_steps erased_step rc rc'.
 Proof.
   destruct rc as (threads, sigma). destruct mc as [tp m mu], mc' as [tp' m' mu'].
   intros (Hpools & Hheaps) Hstep. simpl in Hpools, Hheaps.
-  unfold lr_machine_step in Hstep. simpl in Hstep.
+  unfold lr_at_step in Hstep. simpl in Hstep.
   pose proof (lr_backward_heaps_dom _ _ Hheaps) as Hdom.
   inversion Hstep; subst; lr_backward_thread Hpools Hget He;
     assert (Hsome : is_Some (threads !! i)) by (by eexists).
@@ -1146,7 +1146,7 @@ Qed.
 Lemma lr_forward_steps rc rc' mc :
   lr_forward_configuration_match rc mc ->
   lr_steps erased_step rc rc' ->
-  exists mc', lr_forward_configuration_match rc' mc' /\ lr_steps lr_machine_step mc mc'.
+  exists mc', lr_forward_configuration_match rc' mc' /\ lr_steps lr_at_step mc mc'.
 Proof.
   intros Hmatch Hsteps. revert mc Hmatch.
   induction Hsteps as [ x | x y z Hxy Hyz IH ]; intros mc Hmatch; [ eauto using rtc_refl | ].
@@ -1156,7 +1156,7 @@ Qed.
 
 Lemma lr_backward_steps rc mc mc' :
   lr_backward_configuration_match rc mc ->
-  lr_steps lr_machine_step mc mc' ->
+  lr_steps lr_at_step mc mc' ->
   exists rc', lr_backward_configuration_match rc' mc' /\ lr_steps erased_step rc rc'.
 Proof.
   intros Hmatch Hsteps. revert rc Hmatch.
@@ -1174,7 +1174,7 @@ Theorem lambda_rust_reachability_equivalence rc1 mc1 rc2 mc2 :
   lr_stable_configuration_match rc1 mc1 ->
   lr_stable_configuration_match rc2 mc2 ->
   (lr_steps erased_step rc1 rc2 <->
-   lr_steps lr_machine_step mc1 mc2).
+   lr_steps lr_at_step mc1 mc2).
 Proof.
   intros Hmatch1 Hmatch2.  split; intros Hsteps.
   - destruct (lr_forward_steps _ _ _ (lr_stable_forward _ _ Hmatch1) Hsteps)

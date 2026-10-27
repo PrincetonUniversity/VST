@@ -50,7 +50,7 @@ Record lr_machine_configuration : Type := {
   lr_machine_rw : lr_rw_map;
 }.
 
-Definition lr_machine_step
+Definition lr_at_step
     (c1 c2 : lr_machine_configuration) : Prop :=
   @at_step loc val _ _ lr_mem lr_layout lr_memory lr_language
     (lr_machine_threads c1) (lr_machine_mem c1) (lr_machine_rw c1)
