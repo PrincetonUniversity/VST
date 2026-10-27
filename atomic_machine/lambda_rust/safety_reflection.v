@@ -1,9 +1,10 @@
 (** * Machine safety implies reference safety
 
     [am_safe] for the lambda-Rust instance of the atomic machine implies
-    [lr_reference_safe] (with the full reference [step], including
-    thread creation) from any pair of tightly matched initial
-    configurations, in particular from stably matched ones.
+    [lr_reference_safe] (with Iris's [lrust_lang]'s [erased_step], i.e. [step]
+    but with observations erased, including thread creation) from any pair of
+    tightly matched initial configurations, in particular from stably matched
+    ones.
 
     The proof is a forward simulation (the reference drives) with a
     relation in which the two sides agree on which accesses are in flight:
@@ -28,12 +29,11 @@ From Stdlib Require Import List Lia.
 From stdpp Require Import gmap list.
 Require Import VST.atomic_machine.atomic_machine.
 Require Import VST.atomic_machine.lambda_rust.event_semantics.
-Require Import VST.atomic_machine.lambda_rust.reference.
 Require Import VST.atomic_machine.lambda_rust.equivalence.
 Require Import VST.atomic_machine.lambda_rust.adequacy.
 
 Import ListNotations.
-Open Scope lambda_rust_loc_scope.
+Open Scope loc_scope.
 Set Default Proof Using "Type".
 
 (** * The relation *)
@@ -80,7 +80,7 @@ Inductive lr_tight_thread_match (m : lr_mem) : expr -> lr_tstate -> Prop :=
       (lr_running (fill K (Lit LitPoison)) [lr_write_event l]).
 
 Definition lr_tight_configuration_match
-    (rc : configuration) (mc : lr_machine_configuration) : Prop :=
+    (rc : list expr * state) (mc : lr_machine_configuration) : Prop :=
   let '(threads, sigma) := rc in
   lr_pools_match (lr_tight_thread_match (lr_machine_mem mc))
     threads (lr_machine_threads mc) /\
@@ -149,19 +149,19 @@ Qed.
 Lemma lr_tight_heaps_alloc sigma m mu l n :
   lr_tight_heaps_match sigma m mu ->
   lr_tight_heaps_match
-    (init_mem (RSt 0, LitV LitPoison) l n sigma)
-    (init_mem (LitV LitPoison) l n m)
-    (init_mem (Rst 0) l n mu).
+    (init_mem l n sigma)
+    (alloc_gmap (LitV LitPoison) l n m)
+    (alloc_gmap (Rst 0) l n mu).
 Proof.
-  intros Hheaps l'. specialize (Hheaps l'). lr_tight_unfold. rewrite !lookup_init_mem.
+  intros Hheaps l'. specialize (Hheaps l'). lr_tight_unfold. rewrite init_mem_equiv !sq_mem_lookup_init_mem.
   case_decide; [ | done ]. split; [ | done ]. exists (RSt 0), (LitV LitPoison). auto.
 Qed.
 
 Lemma lr_tight_heaps_free sigma m mu l n :
   lr_tight_heaps_match sigma m mu ->
-  lr_tight_heaps_match (free_mem l n sigma) (free_mem l n m) (free_mem l n mu).
+  lr_tight_heaps_match (free_mem l n sigma) (free_gmap l n m) (free_gmap l n mu).
 Proof.
-  intros Hheaps l'. specialize (Hheaps l'). lr_tight_unfold. rewrite !lookup_free_mem.
+  intros Hheaps l'. specialize (Hheaps l'). lr_tight_unfold. rewrite free_mem_equiv !sq_mem_lookup_free_mem.
   by case_decide.
 Qed.
 
@@ -174,8 +174,8 @@ Proof. intros Hl. unfold lr_rw_map, rw_map in *. unfold rsv. simpl. unfold rsv_R
 
 Lemma lr_fin_read (mu : lr_rw_map) l n :
   mu !! l = Some (Rst (S n)) ->
-  fin [lr_read_event l] mu = Some (<[l := Rst n]> mu).
-Proof. intros Hl. unfold lr_rw_map, rw_map in *. unfold fin. simpl. unfold fin_Read. by setoid_rewrite Hl. Qed.
+  atomic_machine.fin [lr_read_event l] mu = Some (<[l := Rst n]> mu).
+Proof. intros Hl. unfold lr_rw_map, rw_map in *. unfold atomic_machine.fin. simpl. unfold fin_Read. by setoid_rewrite Hl. Qed.
 
 Lemma lr_rsv_write (mu : lr_rw_map) l :
   mu !! l = Some (Rst 0) ->
@@ -184,8 +184,8 @@ Proof. intros Hl. unfold lr_rw_map, rw_map in *. unfold rsv. simpl. unfold rsv_W
 
 Lemma lr_fin_write (mu : lr_rw_map) l :
   mu !! l = Some Wst ->
-  fin [lr_write_event l] mu = Some (<[l := Rst 0]> mu).
-Proof. intros Hl. unfold lr_rw_map, rw_map in *. unfold fin. simpl. unfold fin_Write. by setoid_rewrite Hl. Qed.
+  atomic_machine.fin [lr_write_event l] mu = Some (<[l := Rst 0]> mu).
+Proof. intros Hl. unfold lr_rw_map, rw_map in *. unfold atomic_machine.fin. simpl. unfold fin_Write. by setoid_rewrite Hl. Qed.
 
 Lemma lr_rsv_read_inv (mu mu' : lr_rw_map) l :
   rsv [lr_read_event l] mu = Some mu' -> exists n, mu !! l = Some (Rst n).
@@ -217,14 +217,14 @@ Qed.
     is locked. *)
 Lemma lr_safe_pending_locked mc j t l :
   lr_am_safe mc -> lr_machine_threads mc !! j = Some t -> lr_pending t l ->
-  exists st, lr_machine_rw mc !! l = Some st /\ st <> Rst 0.
+  exists st, lr_machine_rw mc !! l = Some st /\ st ≠ Rst 0.
 Proof.
   intros Hsafe Hj (c & Ht).
   pose proof (Hsafe _ _ _ (rtc_refl _ _) j t Hj) as Hns.
   destruct Ht as [-> | ->].
   all: apply am_pending_not_stuck in Hns as (mu' & Hfin); [ | discriminate ].
   all: revert Hfin; destruct mc as [tp m mu]; simpl.
-  all: unfold lr_rw_map, rw_map in *; unfold fin; simpl.
+  all: unfold lr_rw_map, rw_map in *; unfold atomic_machine.fin; simpl.
   all: unfold fin_Read, fin_Write; destruct (_ !! l) as [[[ | n] | ] | ] eqn:Hl; simpl;
     intros Hf; try discriminate Hf.
   all: eexists; split; [ reflexivity | discriminate ].
@@ -285,27 +285,27 @@ Qed.
 Lemma lr_frame_alloc threads tp m l n (x : val) :
   lr_pools_match (lr_tight_thread_match m) threads tp ->
   (forall z, m !! (l +ₗ z)%L = None) ->
-  lr_frame tp m (init_mem x l n m).
+  lr_frame tp m (alloc_gmap x l n m).
 Proof.
   intros Hpools Hfresh j t l' Hj Hpend.
   destruct (lr_pools_match_lookup_r _ _ _ _ _ Hpools Hj) as (e & _ & Hthread).
   pose proof (lr_tight_thread_pending_some _ _ _ _ Hthread Hpend) as Hsome.
-  unfold lr_mem in *. rewrite lookup_init_mem. case_decide as Hin; [ | done ].
+  unfold lr_mem in *. rewrite sq_mem_lookup_init_mem. case_decide as Hin; [ | done ].
   destruct (loc_in_range_shift _ _ _ Hin) as (z & ->).
   rewrite Hfresh in Hsome. by destruct Hsome.
 Qed.
 
 (** Freeing: a pending thread at a freed location could no longer commit. *)
 Lemma lr_frame_free tp tp' m mu l n :
-  lr_am_safe {| lr_machine_threads := tp'; lr_machine_mem := free_mem l n m;
-                lr_machine_rw := free_mem l n mu |} ->
+  lr_am_safe {| lr_machine_threads := tp'; lr_machine_mem := free_gmap l n m;
+                lr_machine_rw := free_gmap l n mu |} ->
   (forall j t l', tp !! j = Some t -> lr_pending t l' -> tp' !! j = Some t) ->
-  lr_frame tp m (free_mem l n m).
+  lr_frame tp m (free_gmap l n m).
 Proof.
   intros Hsafe Htp j t l' Hj Hpend.
   destruct (lr_safe_pending_locked _ _ _ _ Hsafe (Htp _ _ _ Hj Hpend) Hpend) as (st & Hst & _).
-  simpl in Hst. unfold lr_mem, lr_rw_map, rw_map in *. rewrite lookup_free_mem in Hst.
-  rewrite lookup_free_mem. by case_decide.
+  simpl in Hst. unfold lr_mem, lr_rw_map, rw_map in *. rewrite sq_mem_lookup_free_mem in Hst.
+  rewrite sq_mem_lookup_free_mem. by case_decide.
 Qed.
 
 (** * Reference steps *)
@@ -318,7 +318,7 @@ Lemma lr_safe_no_stuck_step mc tp' m' mu' i :
   tp' !! i = Some lr_stuck -> False.
 Proof.
   intros Hsafe Hstep Hi.
-  pose proof (lr_am_safe_reachable _ _ Hsafe (lr_steps_one _ _ _ Hstep)) as Hsafe'.
+  pose proof (lr_am_safe_reachable _ _ Hsafe (rtc_once _ _ Hstep)) as Hsafe'.
   exact (am_stuck_not_safe _ _ _ _ _ (rtc_refl _ _) Hi Hsafe').
 Qed.
 
@@ -339,7 +339,7 @@ Proof. intros. eexists. rewrite app_nil_r. split; [ | eassumption ]. by split. Q
 Lemma lr_tight_step rc rc' mc :
   lr_tight_configuration_match rc mc ->
   lr_am_safe mc ->
-  step rc rc' ->
+  erased_step rc rc' ->
   exists mc', lr_tight_configuration_match rc' mc' /\ lr_steps lr_machine_step mc mc'.
 Proof.
   destruct rc as (threads, sigma). destruct mc as [tp m mu].
@@ -353,7 +353,7 @@ Proof.
     by (intros l; apply (lr_tight_heaps_none _ _ _ l Hheaps)).
   inversion Hthread; subst.
   - (* [LRTightSame] *)
-    inversion Hprim as [K e1' ? e2' ? ? Hhead HK]; subst.
+    apply prim_step_inv in Hprim as (K & e1' & e2' & <- & <- & Hhead).
     assert (Hna2 : na2_free e1' = true) by eauto using na2_free_fill_inv.
     inversion Hhead; subst.
     + (* BinOp *)
@@ -374,7 +374,7 @@ Proof.
     + (* ReadSc *)
       destruct (lr_tight_heaps_lookup _ _ _ _ _ _ Hheaps H0) as (v' & Hm & Hmu & [ [=] | <- ] & Hv).
       eapply lr_tight_pack; [ | | exact Hheaps ].
-      * apply lr_steps_one. eapply lr_machine_sc_read;
+      * apply rtc_once. eapply lr_machine_sc_read;
           [ exact Hc | by apply LREctxExternal, LRReadScE | | exact Hm ].
         unfold lr_rw_map, rw_map in *. by rewrite Hmu.
       * eapply lr_tight_pools_update; [ exact Hpools | apply lr_frame_refl | done | ].
@@ -382,12 +382,12 @@ Proof.
     + (* ReadNa1: the machine tries now. *)
       destruct (lr_tight_heaps_lookup _ _ _ _ _ _ Hheaps H0) as (v' & Hm & Hmu & [ [=] | <- ] & Hv).
       eapply lr_tight_pack.
-      * apply lr_steps_one. eapply lr_machine_try with (T := [lr_read_event l]);
+      * apply rtc_once. eapply lr_machine_try with (T := [lr_read_event l]);
           [ exact Hc | | by apply lr_rsv_read ].
         apply LREctxStep. by apply LRReadNaS.
       * eapply lr_tight_pools_update; [ exact Hpools | apply lr_frame_refl | done | ].
         constructor; [ by eapply na2_free_fill | exact Hm ].
-      * unfold lr_mem in *. rewrite <- (insert_id m l v) by exact Hm.
+      * unfold lr_mem in *. erewrite <- (insert_id m l v) by exact Hm.
         by apply (lr_tight_heaps_insert _ _ _ l (RSt (S n)) v v); [ | right | ].
     + (* ReadNa2: excluded by [na2_free]. *)
       discriminate.
@@ -395,17 +395,17 @@ Proof.
       destruct (lr_tight_heaps_lookup _ _ _ _ _ _ Hheaps H1) as (v'' & Hm & Hmu & [ [=] | <- ] & _).
       simpl in Hna2. rewrite <- (of_to_val e v H0) in Hna2.
       eapply lr_tight_pack.
-      * apply lr_steps_one. eapply lr_machine_sc_write;
+      * apply rtc_once. eapply lr_machine_sc_write;
           [ exact Hc | by apply LREctxExternal, LRWriteScE | exact Hmu | exact Hm ].
       * eapply lr_tight_pools_update; [ exact Hpools | by eapply lr_frame_write | done | ].
         constructor. by eapply na2_free_fill.
-      * unfold lr_rw_map, rw_map in *. rewrite <- (insert_id mu l (Rst 0)) by exact Hmu.
+      * unfold lr_rw_map, rw_map in *. erewrite <- (insert_id mu l (Rst 0)) by exact Hmu.
         by apply (lr_tight_heaps_insert _ _ _ l (RSt 0) v v); [ | right | ].
     + (* WriteNa1: the machine tries now, writing already. *)
       destruct (lr_tight_heaps_lookup _ _ _ _ _ _ Hheaps H1) as (v'' & Hm & Hmu & [ [=] | <- ] & _).
       simpl in Hna2. rewrite <- (of_to_val e v H0) in Hna2.
       eapply lr_tight_pack.
-      * apply lr_steps_one. eapply lr_machine_try with (T := [lr_write_event l]);
+      * apply rtc_once. eapply lr_machine_try with (T := [lr_write_event l]);
           [ exact Hc | | by apply lr_rsv_write ].
         apply LREctxStep. eapply LRWriteNaS; [ exact H0 | exact Hm ].
       * eapply lr_tight_pools_update; [ exact Hpools | by eapply lr_frame_write | done | ].
@@ -417,19 +417,19 @@ Proof.
     + (* CasFail *)
       destruct (lr_tight_heaps_lookup _ _ _ _ _ _ Hheaps H2) as (v' & Hm & Hmu & [ [=] | <- ] & _).
       eapply lr_tight_pack; [ | | exact Hheaps ].
-      * apply lr_steps_one. eapply lr_machine_cas_fail;
-          [ exact Hc | by apply LREctxExternal, LRCasE | | exact Hm | by eapply lit_neq_dom ].
+      * apply rtc_once. eapply lr_machine_cas_fail;
+          [ exact Hc | by apply LREctxExternal, LRCasE | | exact Hm | done ].
         unfold lr_rw_map, rw_map in *. by rewrite Hmu.
       * eapply lr_tight_pools_update; [ exact Hpools | apply lr_frame_refl | done | ].
         constructor. by eapply na2_free_fill.
     + (* CasSuc *)
       destruct (lr_tight_heaps_lookup _ _ _ _ _ _ Hheaps H2) as (v' & Hm & Hmu & [ [=] | <- ] & _).
       eapply lr_tight_pack.
-      * apply lr_steps_one. eapply lr_machine_cas_suc;
+      * apply rtc_once. eapply lr_machine_cas_suc;
           [ exact Hc | by apply LREctxExternal, LRCasE | exact Hmu | exact Hm | by eapply lit_eq_dom ].
       * eapply lr_tight_pools_update; [ exact Hpools | by eapply lr_frame_write | done | ].
         constructor. by eapply na2_free_fill.
-      * unfold lr_rw_map, rw_map in *. rewrite <- (insert_id mu l (Rst 0)) by exact Hmu.
+      * unfold lr_rw_map, rw_map in *. erewrite <- (insert_id mu l (Rst 0)) by exact Hmu.
         by apply (lr_tight_heaps_insert _ _ _ l (RSt 0) (LitV lit2) (LitV lit2)); [ | right | ].
     + (* CasStuck: the machine crashes too, contradicting safety. *)
       exfalso.
@@ -455,14 +455,14 @@ Proof.
       * by apply lr_tight_heaps_alloc.
     + (* Free: try and commit together; nothing may be pending there. *)
       assert (Hmurange : forall z, (0 <= z < Z.of_nat (Z.to_nat n))%Z -> is_Some (mu !! (l +ₗ z)%L)).
-      { intros z Hz. rewrite Z2Nat.id in Hz by lia.
+      { intros z Hz. erewrite Z2Nat.id in Hz by lia.
         destruct (proj2 (H1 z) Hz) as [[st v] Hs].
         destruct (lr_tight_heaps_lookup _ _ _ _ _ _ Hheaps Hs) as (_ & _ & Hmu & _). by eexists. }
       assert (Hsteps : lr_steps lr_machine_step
         {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
         {| lr_machine_threads := <[i := lr_running (fill K (Lit LitPoison)) []]> tp;
-           lr_machine_mem := free_mem l (Z.to_nat n) m;
-           lr_machine_rw := free_mem l (Z.to_nat n) mu |}).
+           lr_machine_mem := free_gmap l (Z.to_nat n) m;
+           lr_machine_rw := free_gmap l (Z.to_nat n) mu |}).
       { eapply lr_machine_try_commit_steps with (T := lr_free_events l (Z.to_nat n));
           [ exact Hc | | apply lr_free_events_nonempty; lia
           | apply lr_rsv_free_events | by apply lr_fin_free_events ].
@@ -488,33 +488,33 @@ Proof.
       simpl in Hna2.
       destruct (tpool_least_free tp) as (j & Hj & Hleast).
       pose proof (lr_pools_match_least_free _ _ _ _ Hpools Hj Hleast) as ->.
-      eexists. split; [ split | apply lr_steps_one; by eapply lr_machine_spawn ].
+      eexists. split; [ split | apply rtc_once; by eapply lr_machine_spawn ].
       * simpl. rewrite <- (length_insert threads i (fill K (Lit LitPoison))).
         apply lr_pools_match_snoc; [ | by constructor ].
         eapply lr_tight_pools_update; [ exact Hpools | apply lr_frame_refl | done | ].
         constructor. by eapply na2_free_fill.
       * exact Hheaps.
   - (* [LRTightRead]: the second half; the machine commits. *)
-    inversion Hprim as [K' e1' ? e2' ? ? Hhead HK]; subst.
+    apply prim_step_inv in Hprim as (K' & e1' & e2' & HK & <- & Hhead).
     destruct (fill_redex_unique K' K e1' (Read Na2Ord (Lit (LitLoc l)))
                 (head_step_redex_shape _ _ _ _ _ Hhead) (na2_read_redex_shape l)
-                (head_step_not_val _ _ _ _ _ Hhead) eq_refl HK) as (-> & ->).
+                (val_stuck _ _ _ _ _ _ Hhead) eq_refl HK) as (-> & ->).
     inversion Hhead; subst.
     match goal with Hs : sigma !! l = Some (RSt (S ?k), ?w) |- _ =>
       rename k into n; rename w into v0;
       destruct (lr_tight_heaps_lookup _ _ _ _ _ _ Hheaps Hs) as (v' & Hm & Hmu & [ [=] | <- ] & Hv) end.
     match goal with Hmv : m !! l = Some v |- _ => rewrite Hm in Hmv; injection Hmv as <- end.
     eapply lr_tight_pack.
-    + apply lr_steps_one. eapply lr_machine_commit; [ exact Hc | done | by apply lr_fin_read ].
+    + apply rtc_once. eapply lr_machine_commit; [ exact Hc | done | by apply lr_fin_read ].
     + eapply lr_tight_pools_update; [ exact Hpools | apply lr_frame_refl | done | ].
       by constructor.
-    + unfold lr_mem in *. rewrite <- (insert_id m l v0) by exact Hm.
+    + unfold lr_mem in *. erewrite <- (insert_id m l v0) by exact Hm.
       by apply (lr_tight_heaps_insert _ _ _ l (RSt n) v0 v0); [ | right | ].
   - (* [LRTightWrite] *)
-    inversion Hprim as [K' e1' ? e2' ? ? Hhead HK]; subst.
+    apply prim_step_inv in Hprim as (K' & e1' & e2' & HK & <- & Hhead).
     destruct (fill_redex_unique K' K e1' (Write Na2Ord (Lit (LitLoc l)) e)
                 (head_step_redex_shape _ _ _ _ _ Hhead) (na2_write_redex_shape l e v H)
-                (head_step_not_val _ _ _ _ _ Hhead) eq_refl HK) as (-> & ->).
+                (val_stuck _ _ _ _ _ _ Hhead) eq_refl HK) as (-> & ->).
     inversion Hhead; subst.
     (* The value being written is the one the machine already stored. *)
     match goal with Hv0 : to_val e = Some ?w |- _ =>
@@ -524,17 +524,17 @@ Proof.
     match goal with Hmv : m !! l = Some v |- _ => rewrite Hmv in Hm end.
     injection Hm as <-.
     eapply lr_tight_pack.
-    + apply lr_steps_one. eapply lr_machine_commit; [ exact Hc | done | by apply lr_fin_write ].
+    + apply rtc_once. eapply lr_machine_commit; [ exact Hc | done | by apply lr_fin_write ].
     + eapply lr_tight_pools_update; [ exact Hpools | apply lr_frame_refl | done | ].
       by constructor.
-    + unfold lr_mem in *. rewrite <- (insert_id m l v) by assumption.
+    + unfold lr_mem in *. erewrite <- (insert_id m l v) by assumption.
       by apply (lr_tight_heaps_insert _ _ _ l (RSt 0) v v); [ | right | ].
 Qed.
 
 Lemma lr_tight_steps rc rc' mc :
   lr_tight_configuration_match rc mc ->
   lr_am_safe mc ->
-  rtc step rc rc' ->
+  rtc erased_step rc rc' ->
   exists mc', lr_tight_configuration_match rc' mc' /\ lr_am_safe mc'.
 Proof.
   intros Hmatch Hsafe Hsteps. revert mc Hmatch Hsafe.
@@ -549,7 +549,7 @@ Lemma lr_tight_same_not_stuck tp m mu sigma i e :
   lr_tight_heaps_match sigma m mu ->
   lr_am_safe {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |} ->
   tp !! i = Some (lr_running e []) ->
-  lr_reference_not_stuck e sigma.
+  not_stuck e sigma.
 Proof.
   intros Hheaps Hsafe Hi.
   assert (Hdom' : forall l, m !! l = None -> sigma !! l = None)
@@ -565,35 +565,35 @@ Proof.
   - change (lr_step c m T c' m') in Hstep0.
     inversion Hstep0 as [K e1 ? ? e2 ? Hhead]; subst.
     inversion Hhead; subst.
-    + do 3 eexists. apply EctxStep, BinOpS. by eapply bin_op_eval_dom.
-    + do 3 eexists. apply EctxStep. by eapply BetaS.
+    + do 4 eexists. apply Ectx_step', BinOpS. by eapply bin_op_eval_dom_ref.
+    + do 4 eexists. apply Ectx_step'. by eapply BetaS.
     + destruct (lr_rsv_read_inv _ _ _ Hreserve) as (n & Hmu).
       destruct (lr_tight_heaps_lookup_m _ _ _ _ _ Hheaps H) as ([ | n' ] & v0 & Hs & Hmu' & Hv & _);
         unfold lr_rw_map, rw_map in *; rewrite Hmu in Hmu'; simpl in Hmu'; simplify_eq.
       destruct Hv as [ [=] | <- ].
-      do 3 eexists. apply EctxStep. by eapply ReadNa1S.
+      do 4 eexists. apply Ectx_step'. by eapply ReadNa1S.
     + apply lr_rsv_write_inv in Hreserve as Hmu.
       destruct (lr_tight_heaps_lookup_m _ _ _ _ _ Hheaps H0) as ([ | n' ] & v0 & Hs & Hmu' & Hv & _);
         unfold lr_rw_map, rw_map in *; rewrite Hmu in Hmu'; simpl in Hmu'; simplify_eq.
-      do 3 eexists. apply EctxStep. by eapply WriteNa1S.
-    + do 3 eexists. apply EctxStep, AllocS; [ done | ]. intros z. apply Hdom', H0.
-    + do 3 eexists. apply EctxStep, FreeS; [ done | ].
+      do 4 eexists. apply Ectx_step'. by eapply WriteNa1S.
+    + do 4 eexists. apply Ectx_step', AllocS; [ done | ]. intros z. apply Hdom', H0.
+    + do 4 eexists. apply Ectx_step', FreeS; [ done | ].
       intros z. rewrite (lr_tight_heaps_is_Some _ _ _ _ Hheaps). apply H0.
-    + do 3 eexists. apply EctxStep. by eapply CaseS.
+    + do 4 eexists. apply Ectx_step'. by eapply CaseS.
   - (* SC_Read *)
     inversion Hext as [K0 e0 op k Hhe]; subst. inversion Hhe; subst. simpl in Hload, Hmu.
     apply Forall_inv in Hmu.
     destruct (lr_tight_heaps_lookup_m _ _ _ _ _ Hheaps Hload) as ([ | n' ] & v0 & Hs & Hmu' & Hv & _);
       unfold lr_rw_map, rw_map in *; rewrite Hmu' in Hmu; simpl in Hmu; [ done | ].
     destruct Hv as [ [=] | -> ].
-    do 3 eexists. apply EctxStep. by eapply ReadScS.
+    do 4 eexists. apply Ectx_step'. by eapply ReadScS.
   - (* SC_Write *)
     inversion Hext as [K0 e0 op k Hhe]; subst. inversion Hhe; subst. simpl in Hstore, Hmu.
     apply Forall_inv in Hmu.
     destruct (m !! l) as [v' | ] eqn:Hm; simplify_eq.
     destruct (lr_tight_heaps_lookup_m _ _ _ _ _ Hheaps Hm) as ([ | n' ] & v0 & Hs & Hmu' & _ & _);
       unfold lr_rw_map, rw_map in *; rewrite Hmu' in Hmu; simpl in Hmu; simplify_eq.
-    do 3 eexists. apply EctxStep. by eapply WriteScS.
+    do 4 eexists. apply Ectx_step'. by eapply WriteScS.
   - (* SC_Cas_Suc *)
     inversion Hext as [K0 e0 op k Hhe]; subst. inversion Hhe; subst.
     simpl in Hload, Hmu. apply Forall_inv in Hmu.
@@ -602,7 +602,7 @@ Proof.
     destruct (lr_tight_heaps_lookup_m _ _ _ _ _ Hheaps Hload) as ([ | n' ] & v0 & Hs & Hmu' & Hv & _);
       unfold lr_rw_map, rw_map in *; rewrite Hmu' in Hmu; simpl in Hmu; simplify_eq.
     destruct Hv as [ [=] | -> ].
-    do 3 eexists. apply EctxStep. eapply CasSucS; eauto. by eapply lit_eq_dom.
+    do 4 eexists. apply Ectx_step'. eapply CasSucS; eauto. by eapply lit_eq_dom_ref.
   - (* SC_Cas_Fail *)
     inversion Hext as [K0 e0 op k Hhe]; subst. inversion Hhe; subst.
     simpl in Hload, Hmu. apply Forall_inv in Hmu.
@@ -611,34 +611,34 @@ Proof.
     destruct (lr_tight_heaps_lookup_m _ _ _ _ _ Hheaps Hload) as ([ | n' ] & v0 & Hs & Hmu' & Hv & _);
       unfold lr_rw_map, rw_map in *; rewrite Hmu' in Hmu; simpl in Hmu; [ done | ].
     destruct Hv as [ [=] | -> ].
-    do 3 eexists. apply EctxStep. eapply CasFailS; eauto. by eapply lit_neq_dom.
+    do 4 eexists. apply Ectx_step'. eapply CasFailS; eauto.
   - (* SC_Cas_Stuck: reducible, but only to a crash; taking the step in
        the full pool contradicts safety. *)
     exfalso. eapply (lr_safe_no_stuck_step _ (<[i := lr_stuck]> tp) m mu i Hsafe).
     + exact (SC_Cas_Stuck tp m mu i _ ly l v_exp v_new v_cur K Hi Hext Hload Heq Ho).
     + unfold lr_tpool, tpool. apply lookup_insert_eq.
   - (* Spawn *)
-    inversion Hspawn; subst. do 3 eexists. apply EctxStep, ForkS.
+    inversion Hspawn; subst. do 4 eexists. apply Ectx_step', ForkS.
 Qed.
 
 Lemma lr_fin_read_inv (mu mu' : lr_rw_map) l :
-  fin [lr_read_event l] mu = Some mu' -> exists n, mu !! l = Some (Rst (S n)).
+  atomic_machine.fin [lr_read_event l] mu = Some mu' -> exists n, mu !! l = Some (Rst (S n)).
 Proof.
-  unfold lr_rw_map, rw_map in *. unfold fin. simpl. unfold fin_Read.
+  unfold lr_rw_map, rw_map in *. unfold atomic_machine.fin. simpl. unfold fin_Read.
   destruct (_ !! l) as [[[ | n] | ] | ] eqn:Hl; simpl; intros Hf; try discriminate Hf; eauto.
 Qed.
 
 Lemma lr_fin_write_inv (mu mu' : lr_rw_map) l :
-  fin [lr_write_event l] mu = Some mu' -> mu !! l = Some Wst.
+  atomic_machine.fin [lr_write_event l] mu = Some mu' -> mu !! l = Some Wst.
 Proof.
-  unfold lr_rw_map, rw_map in *. unfold fin. simpl. unfold fin_Write.
+  unfold lr_rw_map, rw_map in *. unfold atomic_machine.fin. simpl. unfold fin_Write.
   destruct (_ !! l) as [[[ | n] | ] | ] eqn:Hl; simpl; intros Hf; try discriminate Hf; reflexivity.
 Qed.
 
 Lemma lr_safe_pending_fin tp m mu j c ev :
   lr_am_safe {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |} ->
   tp !! j = Some (lr_running c [ev]) ->
-  exists mu', fin [ev] mu = Some mu'.
+  exists mu', atomic_machine.fin [ev] mu = Some mu'.
 Proof.
   intros Hsafe Hj. pose proof (Hsafe _ _ _ (rtc_refl _ _) j _ Hj) as Hns.
   by apply am_pending_not_stuck in Hns.
@@ -646,7 +646,7 @@ Qed.
 
 Lemma lr_tight_not_stuck rc mc :
   lr_tight_configuration_match rc mc -> lr_am_safe mc ->
-  forall e, e ∈ rc.1 -> lr_reference_not_stuck e rc.2.
+  forall e, e ∈ rc.1 -> not_stuck e rc.2.
 Proof.
   destruct rc as (threads, sigma), mc as [tp m mu].
   intros (Hpools & Hheaps) Hsafe e He. simpl in *.
@@ -659,13 +659,13 @@ Proof.
     apply lr_fin_read_inv in Hfin as (n & Hmu).
     destruct (lr_tight_heaps_lookup_m _ _ _ _ _ Hheaps H0) as ([ | n' ] & v0 & Hs & Hmu' & _ & _);
       unfold lr_rw_map, rw_map in *; rewrite Hmu in Hmu'; simpl in Hmu'; simplify_eq.
-    right. do 3 eexists. apply EctxStep. by eapply ReadNa2S.
+    right. do 4 eexists. apply Ectx_step'. by eapply ReadNa2S.
   - (* A pending write can commit, so the reference lock is [WSt]. *)
     destruct (lr_safe_pending_fin _ _ _ _ _ _ Hsafe Ht) as (mu' & Hfin).
     apply lr_fin_write_inv in Hfin as Hmu.
     destruct (lr_tight_heaps_lookup_m _ _ _ _ _ Hheaps H1) as ([ | n' ] & v0 & Hs & Hmu' & _ & _);
       unfold lr_rw_map, rw_map in *; rewrite Hmu in Hmu'; simpl in Hmu'; simplify_eq.
-    right. do 3 eexists. apply EctxStep. by eapply WriteNa2S.
+    right. do 4 eexists. apply Ectx_step'. by eapply WriteNa2S.
 Qed.
 
 (** * The theorem *)
@@ -675,9 +675,9 @@ Theorem lr_am_safe_reference_safe rc0 mc0 :
   lr_am_safe mc0 ->
   lr_reference_safe rc0.
 Proof.
-  intros Hmatch Hsafe threads sigma Hsteps.
+  intros Hmatch Hsafe threads sigma Hsteps e He.
   destruct (lr_tight_steps _ _ _ Hmatch Hsafe Hsteps) as (mc & Hmatch' & Hsafe').
-  exact (lr_tight_not_stuck _ _ Hmatch' Hsafe').
+  exact (lr_tight_not_stuck _ _ Hmatch' Hsafe' e He).
 Qed.
 
 Corollary lr_am_safe_reference_safe_stable rc0 mc0 :

@@ -14,7 +14,7 @@ Require Export VST.atomic_machine.lambda_rust.common.
 
 Import ListNotations.
 Open Scope Z_scope.
-Open Scope lambda_rust_loc_scope.
+Open Scope loc_scope.
 
 Set Default Proof Using "Type".
 
@@ -64,14 +64,14 @@ Definition lr_free_events (l : loc) (n : nat) : list lr_mem_ev :=
 Definition lr_val_eq
     (m : lr_mem) (v_cur v_exp : val) : Prop :=
   match v_exp, v_cur with
-  | LitV l_exp, LitV l_cur => lit_eq m l_exp l_cur
+  | LitV l_exp, LitV l_cur => sq_mem.lit_eq m l_exp l_cur
   | _, _ => False
   end.
 
 Definition lr_val_neq
     (m : lr_mem) (v_cur v_exp : val) : Prop :=
   match v_exp, v_cur with
-  | LitV l_exp, LitV l_cur => lit_neq m l_exp l_cur
+  | LitV l_exp, LitV l_cur => lit_neq l_exp l_cur
   | _, _ => False
   end.
 
@@ -79,7 +79,7 @@ Definition lr_val_neq
 Inductive lr_head_step
     : expr -> lr_mem -> list lr_mem_ev -> expr -> lr_mem -> Prop :=
 | LRBinOpS op l1 l2 l' m :
-    bin_op_eval m op l1 l2 l' ->
+    sq_mem.bin_op_eval m op l1 l2 l' ->
     lr_head_step
       (BinOp op (Lit l1) (Lit l2)) m []
       (Lit l') m
@@ -108,7 +108,7 @@ Inductive lr_head_step
       (Alloc (Lit (LitInt n))) m
       (lr_alloc_events l (Z.to_nat n))
       (Lit (LitLoc l))
-      (init_mem (LitV LitPoison) l (Z.to_nat n) m)
+      (alloc_gmap (LitV LitPoison) l (Z.to_nat n) m)
 | LRFreeS n l m :
     0 < n ->
     (forall z,
@@ -116,7 +116,7 @@ Inductive lr_head_step
     lr_head_step
       (Free (Lit (LitInt n)) (Lit (LitLoc l))) m
       (lr_free_events l (Z.to_nat n))
-      (Lit LitPoison) (free_mem l (Z.to_nat n) m)
+      (Lit LitPoison) (free_gmap l (Z.to_nat n) m)
 | LRCaseS i el e m :
     0 <= i ->
     el !! Z.to_nat i = Some e ->

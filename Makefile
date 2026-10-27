@@ -361,6 +361,17 @@ ifneq ($(wildcard fcf/src/FCF),)
 EXTFLAGS:=$(EXTFLAGS) -Q fcf/src/FCF FCF
 endif#
 
+# ##### lambda-rust Flags #####
+
+# if the lambda-rust submodule is downloaded (checks for
+# lambda-rust/lambda-rust/lang), set up flags
+ifneq ($(wildcard lambda-rust/lambda-rust/lang),)
+LRUST_FLAGS = -Q lambda-rust/lifetime lrust.lifetime \
+  -Q lambda-rust/lambda-rust/lang lrust.lang \
+  -Q lambda-rust/lambda-rust/typing lrust.typing
+EXTFLAGS:=$(EXTFLAGS) $(LRUST_FLAGS)
+endif
+
 # ##### PaCo (Parameterized Coinduction) Flags #####
 
 # the following commented out, because we get from opam instead of submodules
@@ -768,6 +779,8 @@ INSTALL_FILES=$(sort $(INSTALL_FILES_SRC) $(INSTALL_FILES_VO))
 # This line sets COQF depending on the folder of the input file $<
 # If the folder name contains compcert, $(COMPCERT_R_FLAGS) is added, otherwise not.
 %.vo: COQF=$(if $(findstring $(COMPCERT_SRC_DIR), $(dir $<)), $(COMPCERT_R_FLAGS) $(COQEXTRAFLAGS), $(COQFLAGS) $(PROFILE_FLAGS))
+# The warnings lambda-rust's _CoqProject disables.
+lambda-rust/%.vo: COQF+=-w -notation-overridden,-redundant-canonical-projection,-notation-incompatible-prefix
 
 # If CompCert changes, all .vo files need to be recompiled
 %.vo: $(COMPCERT_CONFIG)
@@ -848,10 +861,8 @@ endif
 files: _CoqProject $(FILES:.v=.vo)
 
 lambda-rust-reference: _CoqProject \
-	atomic_machine/lambda_rust/syntax.vo \
 	atomic_machine/lambda_rust/common.vo \
-	atomic_machine/lambda_rust/reference.vo \
-	atomic_machine/lambda_rust/races.vo
+	lambda-rust/lambda-rust/lang/races.vo
 
 lambda-rust-equivalence: lambda-rust-reference \
 	atomic_machine/atomic_machine.vo \
@@ -1035,12 +1046,15 @@ endif
 ifneq ($(wildcard fcf/src/FCF),)
 	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend
 endif
+ifneq ($(LRUST_FLAGS),)
+	$(COQDEP) $(LRUST_FLAGS) `find lambda-rust/lifetime lambda-rust/lambda-rust -name "*.v"` >>.depend
+endif
 	wc .depend
 	$(DEPEND_FIND) >$(DEPEND_LIST)
 
 clean:
 	rm -f $(addprefix veric/version., v vo vos vok glob) .lia.cache .nia.cache floyd/floyd.coq .depend $(DEPEND_LIST) _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo */*.vos */*.vok)
-	for d in compcert compcert_new cascompcert; do \
+	for d in compcert compcert_new cascompcert lambda-rust; do \
 	  if [ -d "$$d" ]; then \
 	    find "$$d" -type f \( -name '*.vo' -o -name '*.vos' -o -name '*.vok' -o -name '*.glob' \) -delete; \
 	  fi; \

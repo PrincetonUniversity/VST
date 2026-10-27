@@ -16,7 +16,6 @@ From stdpp Require Import gmap list.
 
 Require Import VST.atomic_machine.atomic_machine.
 Require Import VST.atomic_machine.lambda_rust.event_semantics.
-Require Import VST.atomic_machine.lambda_rust.reference.
 
 Import ListNotations.
 
@@ -59,9 +58,9 @@ Definition lr_machine_step
 
 (** The non-spawning fragment of the reference transition relation. *)
 
-Inductive lr_reference_step : configuration -> configuration -> Prop :=
+Inductive lr_reference_step : list expr * state -> list expr * state -> Prop :=
 | LRReferenceStep t1 e1 t2 sigma1 e2 sigma2 :
-    prim_step e1 sigma1 e2 sigma2 [] ->
+    prim_step e1 sigma1 [] e2 sigma2 [] ->
     lr_reference_step
       (t1 ++ e1 :: t2, sigma1)
       (t1 ++ e2 :: t2, sigma2).

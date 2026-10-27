@@ -12,7 +12,6 @@ From Stdlib Require Import List Lia.
 From stdpp Require Import gmap list.
 Require Import VST.atomic_machine.atomic_machine.
 Require Import VST.atomic_machine.lambda_rust.event_semantics.
-Require Import VST.atomic_machine.lambda_rust.reference.
 Require Import VST.atomic_machine.lambda_rust.equivalence.
 
 Import ListNotations.
@@ -25,22 +24,19 @@ Definition lr_am_configuration (mc : lr_machine_configuration)
 Definition lr_am_safe (mc : lr_machine_configuration) : Prop :=
   am_safe (lr_am_configuration mc).
 
-Definition lr_reference_not_stuck (e : expr) (sigma : state) : Prop :=
-  lr_final e \/ reducible e sigma.
-
 (** This uses the full reference [step], including thread creation. *)
-Definition lr_reference_safe (rc : configuration) : Prop :=
-  forall threads sigma,
-    rtc step rc (threads, sigma) ->
-    forall e, e ∈ threads -> lr_reference_not_stuck e sigma.
+Definition lr_reference_safe (rc : list expr * state) : Prop :=
+  forall (threads : list expr) (sigma : state),
+    rtc erased_step rc (threads, sigma) ->
+    forall e, e ∈ threads -> not_stuck e sigma.
 
 Lemma lr_am_steps mc mc' :
   lr_steps lr_machine_step mc mc' ->
   rtc am_step (lr_am_configuration mc) (lr_am_configuration mc').
 Proof.
-  induction 1; [ constructor | ].
+  induction 1 as [ x | x y z Hxy _ IH ]; [ constructor | ].
   eapply rtc_l with (y := lr_am_configuration y);
-    [ destruct x, y; exact H | exact IHlr_steps ].
+    [ destruct x, y; exact Hxy | exact IH ].
 Qed.
 
 Lemma lr_am_safe_reachable mc mc' :
@@ -73,49 +69,48 @@ Proof.
   - change (lr_step c m T c' m') in Hstep0.
     inversion Hstep0 as [K e1 ? ? e2 ? Hhead]; subst.
     inversion Hhead; subst; unfold reducible.
-    + do 3 eexists. apply EctxStep, BinOpS. by eapply bin_op_eval_dom.
-    + do 3 eexists. apply EctxStep. by eapply BetaS.
-    + do 3 eexists. apply EctxStep, (ReadNa1S l 0%nat).
+    + do 4 eexists. apply Ectx_step', BinOpS. by eapply bin_op_eval_dom_ref.
+    + do 4 eexists. apply Ectx_step'. by eapply BetaS.
+    + do 4 eexists. apply Ectx_step', (ReadNa1S l 0%nat).
       by eapply lr_backward_heaps_lookup.
-    + do 3 eexists. apply EctxStep. eapply WriteNa1S; [ exact H | ].
+    + do 4 eexists. apply Ectx_step'. eapply WriteNa1S; [ exact H | ].
       by eapply lr_backward_heaps_lookup.
-    + do 3 eexists. apply EctxStep, AllocS; [ done | ].
+    + do 4 eexists. apply Ectx_step', AllocS; [ done | ].
       intros z. apply Hdom, H0.
-    + do 3 eexists. apply EctxStep, FreeS; [ done | ].
+    + do 4 eexists. apply Ectx_step', FreeS; [ done | ].
       intros z. rewrite (lr_backward_heaps_is_Some _ _ _ Hheaps). apply H0.
-    + do 3 eexists. apply EctxStep. by eapply CaseS.
+    + do 4 eexists. apply Ectx_step'. by eapply CaseS.
   - contradiction.
   - inversion Hext as [K0 e0 op k Hhe]; subst. inversion Hhe; subst. simpl in Hload.
-    do 3 eexists. apply EctxStep, (ReadScS l 0%nat).
+    do 4 eexists. apply Ectx_step', (ReadScS l 0%nat).
     by eapply lr_backward_heaps_lookup.
   - inversion Hext as [K0 e0 op k Hhe]; subst. inversion Hhe; subst. simpl in Hstore.
     destruct (m !! l) as [v' | ] eqn:Hm; simplify_eq.
-    do 3 eexists. apply EctxStep. eapply WriteScS; [ done | ].
+    do 4 eexists. apply Ectx_step'. eapply WriteScS; [ done | ].
     by eapply lr_backward_heaps_lookup.
   - inversion Hext as [K0 e0 op k Hhe]; subst. inversion Hhe; subst.
     simpl in Hload, Hstore. change (lr_val_eq m v_cur (LitV lit1)) in Heq.
     destruct v_cur as [litl | ]; [ | contradiction ]. simpl in Heq.
-    do 3 eexists. apply EctxStep. eapply CasSucS; eauto.
+    do 4 eexists. apply Ectx_step'. eapply CasSucS; eauto.
     + by eapply lr_backward_heaps_lookup.
-    + by eapply lit_eq_dom.
+    + by eapply lit_eq_dom_ref.
   - inversion Hext as [K0 e0 op k Hhe]; subst. inversion Hhe; subst.
     simpl in Hload. change (lr_val_neq m' v_cur (LitV lit1)) in Hneq.
     destruct v_cur as [litl | ]; [ | contradiction ]. simpl in Hneq.
-    do 3 eexists. apply EctxStep. eapply (CasFailS l 0%nat); eauto.
+    do 4 eexists. apply Ectx_step'. eapply (CasFailS l 0%nat); eauto.
     + by eapply lr_backward_heaps_lookup.
-    + by eapply lit_neq_dom.
   - exfalso. apply Ho. destruct ly. simpl in Hload. simpl.
     apply Forall_singleton. specialize (Hstable l).
     unfold lr_stable_heaps_match in Hstable. rewrite Hload in Hstable.
     tauto.
   - (* Spawn *)
-    inversion Hspawn; subst. do 3 eexists. apply EctxStep, ForkS.
+    inversion Hspawn; subst. do 4 eexists. apply Ectx_step', ForkS.
 Qed.
 
 Lemma lr_stable_not_stuck e t sigma m mu :
   lr_stable_heaps_match sigma m mu ->
   lr_stable_thread_match e t ->
-  am_not_stuck t m mu -> lr_reference_not_stuck e sigma.
+  am_not_stuck t m mu -> not_stuck e sigma.
 Proof.
   intros Hheaps Hthread Hsafe. inversion Hthread; subst.
   destruct Hsafe as [(c & Hc & Hfinal) | Hred].
@@ -126,12 +121,12 @@ Qed.
 (** A consequence of full AM safety, using the existing stable reachability
     equivalence.  The stable endpoint restriction is essential to the scope
     of this theorem. *)
-Theorem lr_am_safe_reference_stable rc0 mc0 threads sigma mc :
+Theorem lr_am_safe_reference_stable rc0 mc0 (threads : list expr) (sigma : state) mc :
   lr_stable_configuration_match rc0 mc0 ->
   lr_am_safe mc0 ->
-  lr_steps step rc0 (threads, sigma) ->
+  rtc erased_step rc0 (threads, sigma) ->
   lr_stable_configuration_match (threads, sigma) mc ->
-  forall e, e ∈ threads -> lr_reference_not_stuck e sigma.
+  forall e, e ∈ threads -> not_stuck e sigma.
 Proof.
   intros Hinitial Hsafe Hsteps Hstable e He.
   pose proof (proj1 (lambda_rust_reachability_equivalence _ _ _ _ Hinitial Hstable)
@@ -182,11 +177,11 @@ Proof.
   all: apply lr_spawn_not_val in Hspawn; by rewrite to_of_val in Hspawn.
 Qed.
 
-Lemma lr_stuck_term_not_safe sigma :
-  ~ lr_reference_not_stuck stuck_term sigma.
+Lemma lr_stuck_term_not_safe (sigma : state) :
+  ~ not_stuck stuck_term sigma.
 Proof.
-  intros [[v Hv] | (e' & sigma' & spawned & Hstep)]; [ discriminate | ].
-  exact (crashed_no_step [] sigma e' sigma' spawned Hstep).
+  intros [[v Hv] | (kappa & e' & sigma' & spawned & Hstep)]; [ discriminate | ].
+  exact (stuck_irreducible [] sigma kappa e' sigma' spawned Hstep).
 Qed.
 
 Theorem lr_forward_match_does_not_reflect_safety :
