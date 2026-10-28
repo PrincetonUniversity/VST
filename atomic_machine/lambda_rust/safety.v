@@ -16,13 +16,6 @@ Import ListNotations.
 Open Scope lambda_rust_loc_scope.
 Set Default Proof Using "Type".
 
-Definition lr_am_configuration (mc : lr_machine_configuration)
-    : @am_configuration loc val _ _ lr_mem lr_layout lr_memory lr_language :=
-  (lr_machine_threads mc, lr_machine_mem mc, lr_machine_rw mc).
-
-Definition lr_am_safe (mc : lr_machine_configuration) : Prop :=
-  am_safe (lr_am_configuration mc).
-
 Definition lr_reference_not_stuck (e : expr) (sigma : state) : Prop :=
   lr_final e \/ reducible e sigma.
 
@@ -31,33 +24,6 @@ Definition lr_reference_safe (rc : configuration) : Prop :=
   forall threads sigma,
     rtc step rc (threads, sigma) ->
     forall e, e ∈ threads -> lr_reference_not_stuck e sigma.
-
-Lemma lr_am_steps mc mc' :
-  rtc lr_machine_step mc mc' ->
-  rtc am_step (lr_am_configuration mc) (lr_am_configuration mc').
-Proof.
-  induction 1; [ constructor | ].
-  eapply rtc_l with (y := lr_am_configuration y);
-    [ destruct x, y; exact H | exact IHrtc ].
-Qed.
-
-Lemma lr_am_steps_inv mc q :
-  rtc am_step (lr_am_configuration mc) q ->
-  exists mc', q = lr_am_configuration mc' /\ rtc lr_machine_step mc mc'.
-Proof.
-  intros Hsteps. remember (lr_am_configuration mc) as q0 eqn:Hq0. revert mc Hq0.
-  induction Hsteps as [ q | q1 q2 q3 Hstep _ IH ]; intros mc ->.
-  - exists mc. split; [ done | constructor ].
-  - destruct q2 as [[tp m] mu].
-    destruct (IH {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |} eq_refl)
-      as (mc' & -> & Hsteps').
-    exists mc'. split; [ done | ]. eapply rtc_l; [ | exact Hsteps' ].
-    destruct mc. exact Hstep.
-Qed.
-
-Lemma lr_am_safe_reachable mc mc' :
-  lr_am_safe mc -> rtc lr_machine_step mc mc' -> lr_am_safe mc'.
-Proof. intros Hsafe Hsteps. eapply am_safe_reachable; eauto using lr_am_steps. Qed.
 
 (** * The simulation relation
 
@@ -250,8 +216,8 @@ Qed.
 (** A pending thread in a safe configuration can commit, so its location
     is locked. *)
 Lemma lr_safe_pending_locked mc j t l :
-  lr_am_safe mc -> lr_machine_threads mc !! j = Some t -> lr_pending t l ->
-  exists st, lr_machine_rw mc !! l = Some st /\ st <> Rst 0.
+  am_safe mc -> am_threads mc !! j = Some t -> lr_pending t l ->
+  exists st, am_rw mc !! l = Some st /\ st <> Rst 0.
 Proof.
   intros Hsafe Hj (c & Ht).
   pose proof (Hsafe _ _ _ (rtc_refl _ _) j t Hj) as Hns.

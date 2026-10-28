@@ -36,19 +36,8 @@ Definition lr_running (e : expr) (T : list lr_mem_ev) : lr_tstate :=
 Definition lr_stuck : lr_tstate :=
   @StuckState loc val _ _ lr_mem lr_layout lr_memory lr_language.
 
-Set Primitive Projections.
-
-Record lr_machine_configuration : Type := {
-  lr_machine_threads : lr_tpool;
-  lr_machine_mem : lr_mem;
-  lr_machine_rw : lr_rw_map;
-}.
-
-Definition lr_machine_step
-    (c1 c2 : lr_machine_configuration) : Prop :=
-  @at_step loc val _ _ lr_mem lr_layout lr_memory lr_language
-    (lr_machine_threads c1) (lr_machine_mem c1) (lr_machine_rw c1)
-    (lr_machine_threads c2) (lr_machine_mem c2) (lr_machine_rw c2).
+Notation lr_machine_configuration :=
+  (@am_configuration loc val _ _ lr_mem lr_layout lr_memory lr_language).
 (** * Thread pools
 
     The reference pool is a list, the machine pool a finite map.  All
@@ -266,8 +255,8 @@ Definition lr_stable_heaps_match
 Definition lr_stable_configuration_match
     (rc : configuration) (mc : lr_machine_configuration) : Prop :=
   let '(threads, sigma) := rc in
-  lr_stable_pools_match threads (lr_machine_threads mc) /\
-  lr_stable_heaps_match sigma (lr_machine_mem mc) (lr_machine_rw mc).
+  lr_stable_pools_match threads (am_threads mc) /\
+  lr_stable_heaps_match sigma (am_mem mc) (am_rw mc).
 
 (** The type aliases ([lr_mem], [lr_tpool], ...) make stdpp's [rewrite]
     fail to recognise lookups elaborated at the alias; unfolding them
@@ -276,7 +265,7 @@ Definition lr_stable_configuration_match
 Ltac lr_unfold :=
   unfold lr_stable_configuration_match, lr_stable_heaps_match,
     lr_stable_pools_match, lr_pools_match,
-    lr_mem, lr_rw_map, rw_map, lr_tpool, tpool, thread_pool, state in *.
+    lr_tpool, tpool, thread_pool, state, lr_tstate, lr_mem, lr_rw_map, rw_map in *.
 
 (** ** Machine steps on configurations *)
 
@@ -284,29 +273,29 @@ Lemma lr_machine_try tp m mu i c T c' m' mu' :
   tp !! i = Some (lr_running c []) ->
   lr_step c m T c' m' ->
   rsv T mu = Some mu' ->
-  lr_machine_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads := <[i := lr_running c' T]> tp;
-       lr_machine_mem := m'; lr_machine_rw := mu' |}.
+  am_step
+    {| am_threads := tp; am_mem := m; am_rw := mu |}
+    {| am_threads := <[i := lr_running c' T]> tp;
+       am_mem := m'; am_rw := mu' |}.
 Proof. intros. eapply Core_Try; eassumption. Qed.
 
 Lemma lr_machine_commit tp m mu i c T mu' :
   tp !! i = Some (lr_running c T) ->
   T <> [] ->
   fin T mu = Some mu' ->
-  lr_machine_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads := <[i := lr_running c []]> tp;
-       lr_machine_mem := m; lr_machine_rw := mu' |}.
+  am_step
+    {| am_threads := tp; am_mem := m; am_rw := mu |}
+    {| am_threads := <[i := lr_running c []]> tp;
+       am_mem := m; am_rw := mu' |}.
 Proof. intros. eapply Core_Commit; eassumption. Qed.
 
 Lemma lr_machine_pure_steps tp m mu i c c' m' :
   tp !! i = Some (lr_running c []) ->
   lr_step c m [] c' m' ->
-  rtc lr_machine_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads := <[i := lr_running c' []]> tp;
-       lr_machine_mem := m'; lr_machine_rw := mu |}.
+  rtc am_step
+    {| am_threads := tp; am_mem := m; am_rw := mu |}
+    {| am_threads := <[i := lr_running c' []]> tp;
+       am_mem := m'; am_rw := mu |}.
 Proof. intros. apply rtc_once. eapply lr_machine_try; eauto. Qed.
 
 Lemma lr_machine_try_commit_steps tp m mu i c T c' m' mu' mu'' :
@@ -315,10 +304,10 @@ Lemma lr_machine_try_commit_steps tp m mu i c T c' m' mu' mu'' :
   T <> [] ->
   rsv T mu = Some mu' ->
   fin T mu' = Some mu'' ->
-  rtc lr_machine_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads := <[i := lr_running c' []]> tp;
-       lr_machine_mem := m'; lr_machine_rw := mu'' |}.
+  rtc am_step
+    {| am_threads := tp; am_mem := m; am_rw := mu |}
+    {| am_threads := <[i := lr_running c' []]> tp;
+       am_mem := m'; am_rw := mu'' |}.
 Proof.
   intros Hget Hstep HT Hrsv Hfin. unfold lr_tpool, tpool in *.
   rewrite <- (insert_insert_eq tp i (lr_running c' []) (lr_running c' T)).
@@ -331,10 +320,10 @@ Lemma lr_machine_sc_read tp m mu i c l v K :
   lr_external c (ALoad tt l) K ->
   mu !! l <> Some Wst ->
   m !! l = Some v ->
-  lr_machine_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads := <[i := lr_running (K (Some v)) []]> tp;
-       lr_machine_mem := m; lr_machine_rw := mu |}.
+  am_step
+    {| am_threads := tp; am_mem := m; am_rw := mu |}
+    {| am_threads := <[i := lr_running (K (Some v)) []]> tp;
+       am_mem := m; am_rw := mu |}.
 Proof. intros. eapply SC_Read; eauto. by repeat constructor. Qed.
 
 Lemma lr_machine_sc_write tp m mu i c l v v' K :
@@ -342,10 +331,10 @@ Lemma lr_machine_sc_write tp m mu i c l v v' K :
   lr_external c (AStore tt l v) K ->
   mu !! l = Some (Rst 0) ->
   m !! l = Some v' ->
-  lr_machine_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads := <[i := lr_running (K None) []]> tp;
-       lr_machine_mem := <[l := v]> m; lr_machine_rw := mu |}.
+  am_step
+    {| am_threads := tp; am_mem := m; am_rw := mu |}
+    {| am_threads := <[i := lr_running (K None) []]> tp;
+       am_mem := <[l := v]> m; am_rw := mu |}.
 Proof.
   intros ? ? Hmu Hm. eapply SC_Write; eauto; [ by repeat constructor | ].
   simpl. lr_unfold. by rewrite Hm.
@@ -357,11 +346,11 @@ Lemma lr_machine_cas_suc tp m mu i c l lit_exp lit_new lit_cur K :
   mu !! l = Some (Rst 0) ->
   m !! l = Some (LitV lit_cur) ->
   lit_eq m lit_exp lit_cur ->
-  lr_machine_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads :=
+  am_step
+    {| am_threads := tp; am_mem := m; am_rw := mu |}
+    {| am_threads :=
          <[i := lr_running (K (Some (LitV (lit_of_bool true)))) []]> tp;
-       lr_machine_mem := <[l := LitV lit_new]> m; lr_machine_rw := mu |}.
+       am_mem := <[l := LitV lit_new]> m; am_rw := mu |}.
 Proof.
   intros Hget Hext Hmu Hm Heq.
   refine (SC_Cas_Suc tp m mu i c tt l (LitV lit_exp) (LitV lit_new) (LitV lit_cur) _ K
@@ -375,11 +364,11 @@ Lemma lr_machine_cas_fail tp m mu i c l lit_exp lit_new lit_cur K :
   mu !! l <> Some Wst ->
   m !! l = Some (LitV lit_cur) ->
   lit_neq m lit_exp lit_cur ->
-  lr_machine_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads :=
+  am_step
+    {| am_threads := tp; am_mem := m; am_rw := mu |}
+    {| am_threads :=
          <[i := lr_running (K (Some (LitV (lit_of_bool false)))) []]> tp;
-       lr_machine_mem := m; lr_machine_rw := mu |}.
+       am_mem := m; am_rw := mu |}.
 Proof.
   intros Hget Hext Hmu Hm Hneq.
   refine (SC_Cas_Fail tp m mu i c tt l (LitV lit_exp) (LitV lit_new) (LitV lit_cur) K
@@ -389,10 +378,10 @@ Qed.
 Lemma lr_machine_spawn tp m mu i K e j :
   tp !! i = Some (lr_running (fill K (Fork e)) []) ->
   tp !! j = None -> (forall k, (k < j)%nat -> is_Some (tp !! k)) ->
-  lr_machine_step
-    {| lr_machine_threads := tp; lr_machine_mem := m; lr_machine_rw := mu |}
-    {| lr_machine_threads :=
+  am_step
+    {| am_threads := tp; am_mem := m; am_rw := mu |}
+    {| am_threads :=
          <[j := lr_running e []]> (<[i := lr_running (fill K (Lit LitPoison)) []]> tp);
-       lr_machine_mem := m; lr_machine_rw := mu |}.
+       am_mem := m; am_rw := mu |}.
 Proof. intros. eapply Spawn; eauto. constructor. Qed.
 

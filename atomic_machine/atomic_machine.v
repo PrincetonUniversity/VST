@@ -485,12 +485,15 @@ Section AtomicMachine.
       do 3 eexists. eapply thread_step_at_step; [ apply lookup_singleton_eq | exact Hstep | exact Hj ].
   Qed.
 
-  Definition am_configuration : Type := (tpool * Mem * rw_map)%type.
+  #[projections(primitive)]
+  Record am_configuration : Type := AMConfig {
+    am_threads : tpool;
+    am_mem : Mem;
+    am_rw : rw_map;
+  }.
 
   Definition am_step (q q' : am_configuration) : Prop :=
-    let '(tp, m, μ) := q in
-    let '(tp', m', μ') := q' in
-    at_step tp m μ tp' m' μ'.
+    at_step (am_threads q) (am_mem q) (am_rw q) (am_threads q') (am_mem q') (am_rw q').
 
   Definition am_not_stuck (t : tstate) (m : Mem) (μ : rw_map) : Prop :=
     (exists c, t = Running c [] /\ sqlang_final c) \/ am_reducible t m μ.
@@ -500,7 +503,7 @@ Section AtomicMachine.
       underlying sequential state is final, and [StuckState] is an error. *)
   Definition am_safe (q : am_configuration) : Prop :=
     forall tp m μ,
-      rtc am_step q (tp, m, μ) ->
+      rtc am_step q (AMConfig tp m μ) ->
       forall i t, tp !! i = Some t -> am_not_stuck t m μ.
 
   Lemma am_safe_reachable q q' :
@@ -517,7 +520,7 @@ Section AtomicMachine.
   Qed.
 
   Lemma am_stuck_not_safe q tp m μ i :
-    rtc am_step q (tp, m, μ) -> tp !! i = Some StuckState ->
+    rtc am_step q (AMConfig tp m μ) -> tp !! i = Some StuckState ->
     ~ am_safe q.
   Proof.
     intros Hsteps Hget Hsafe.
@@ -541,7 +544,7 @@ Section AtomicMachine.
 
   Lemma am_safe_final_singleton c m μ :
     sqlang_final c -> ~ am_reducible (Running c []) m μ ->
-    am_safe ({[0 := Running c []]}, m, μ).
+    am_safe (AMConfig {[0 := Running c []]} m μ).
   Proof.
     intros Hfinal Hnormal tp m' μ' Hsteps i t Hget.
     inversion Hsteps; subst.
@@ -549,7 +552,7 @@ Section AtomicMachine.
       left. by eexists.
     - exfalso. apply Hnormal.
       match goal with H : am_step _ ?q |- _ =>
-        destruct q as [[tp1 m1] μ1]; exists tp1, m1, μ1; exact H end.
+        destruct q as [tp1 m1 μ1]; exists tp1, m1, μ1; exact H end.
   Qed.
 
 End AtomicMachine.
