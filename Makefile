@@ -70,6 +70,20 @@ COMPCERT ?= bundled
 ZLIST ?= bundled
 ARCH ?= 
 BITSIZE ?= 64
+ATOMIC_MACHINE ?= false
+# detects change 
+DEPEND_FILE = .depend
+
+# Currently only supports bundled compcert. cascompcert shares common files in
+# VST/compcert, so when cascompcert is used as a dependency of VST, for those
+# commmon files, it uses the VST copy over the cascompcert copy, including
+# flocq.
+ifeq ($(ATOMIC_MACHINE),true)
+  ifneq ($(COMPCERT),bundled)
+    $(error ATOMIC_MACHINE=true requires COMPCERT=bundled)
+  endif
+  override FLOCQ = bundled
+endif
 
 # # Internal variables #
 # Set to true if the bundled CompCert is used
@@ -305,6 +319,20 @@ else
   EXTFLAGS=
 endif
 
+# Make CASCompCert's concurrency modules available to VST while retaining the
+# bundled CompCert load path.
+# This must match cascompcert's FOR_VST=true load path.
+ifeq ($(ATOMIC_MACHINE),true)
+  CASCOMPCERT_R_FLAGS = \
+    -R cascompcert/x86_cas compcert.x86 \
+    -R cascompcert/cfrontend_cas compcert.cfrontend \
+    -R cascompcert/backend compcert.backend \
+    -R cascompcert/driver compcert.driver \
+    -R cascompcert/concurrency compcert.concurrency
+  COMPCERT_R_FLAGS += $(CASCOMPCERT_R_FLAGS)
+  EXTFLAGS += $(CASCOMPCERT_R_FLAGS)
+endif
+
 # Compcert Clightgen flags
 
 CGFLAGS =  -DCOMPCERT -short-idents
@@ -332,6 +360,17 @@ CGFLAGS =  -DCOMPCERT -short-idents
 ifneq ($(wildcard fcf/src/FCF),)
 EXTFLAGS:=$(EXTFLAGS) -Q fcf/src/FCF FCF
 endif#
+
+# ##### lambda-rust Flags #####
+
+# if the lambda-rust submodule is downloaded (checks for
+# lambda-rust/lambda-rust/lang), set up flags
+ifneq ($(wildcard lambda-rust/lambda-rust/lang),)
+LRUST_FLAGS = -Q lambda-rust/lifetime lrust.lifetime \
+  -Q lambda-rust/lambda-rust/lang lrust.lang \
+  -Q lambda-rust/lambda-rust/typing lrust.typing
+EXTFLAGS:=$(EXTFLAGS) $(LRUST_FLAGS)
+endif
 
 # ##### PaCo (Parameterized Coinduction) Flags #####
 
@@ -409,6 +448,7 @@ $(info COMPCERT_INFO_PATH_REF=$(COMPCERT_INFO_PATH_REF))
 $(info COMPCERT_EXPLICIT_PATH=$(COMPCERT_EXPLICIT_PATH))
 $(info COMPCERT_BUILD_FROM_SRC=$(COMPCERT_BUILD_FROM_SRC))
 $(info COMPCERT_NEW=$(COMPCERT_NEW))
+$(info ATOMIC_MACHINE=$(ATOMIC_MACHINE))
 $(info COQFLAGS=$(COQFLAGS))
 $(info COMPCERT_R_FLAGS=$(COMPCERT_R_FLAGS))
 $(info FLOCQ=$(FLOCQ))
@@ -747,6 +787,8 @@ RC_INSTALL_FILES=$(sort $(RC_INSTALL_FILES_SRC) $(RC_INSTALL_FILES_VO))
 # This line sets COQF depending on the folder of the input file $<
 # If the folder name contains compcert, $(COMPCERT_R_FLAGS) is added, otherwise not.
 %.vo: COQF=$(if $(findstring $(COMPCERT_SRC_DIR), $(dir $<)), $(COMPCERT_R_FLAGS) $(COQEXTRAFLAGS), $(COQFLAGS) $(PROFILE_FLAGS))
+# The warnings lambda-rust's _CoqProject disables.
+lambda-rust/%.vo: COQF+=-w -notation-overridden,-redundant-canonical-projection,-notation-incompatible-prefix
 
 # If CompCert changes, all .vo files need to be recompiled
 %.vo: $(COMPCERT_CONFIG)
@@ -776,6 +818,33 @@ endif
 
 # ########## Targets ##########
 
+# Compile CASCompCert targets with its own dependency graph while sharing the
+# bundled VST/compcert tree.  The force prerequisite makes the child Makefile,
+# rather than this wrapper, decide whether an existing .vo is current.
+CASCOMPCERT_MAKE = $(MAKE) -C cascompcert FOR_VST=true \
+  ARCH=$(ARCH) BITSIZE=$(BITSIZE) LIBRARY_FLOCQ=local
+
+# The top-level dependency file names imported CASCompCert objects, but it
+# does not contain their internal dependency graph.  Ask CASCompCert to
+# update every object that the atomic-machine development imports in one
+# recursive invocation.
+CASCOMPCERT_IMPORTED_VO = \
+  $(sort $(shell grep '^atomic_machine/' $(DEPEND_FILE) 2>/dev/null | \
+    grep -o 'cascompcert/[^ ]*\.vo\b'))
+CASCOMPCERT_IMPORTED_TARGETS = \
+  $(patsubst cascompcert/%,%,$(CASCOMPCERT_IMPORTED_VO))
+
+.PHONY: cascompcert-force cascompcert-imports
+cascompcert-force:
+
+cascompcert-imports: cascompcert-force
+	+$(CASCOMPCERT_MAKE) $(CASCOMPCERT_IMPORTED_TARGETS)
+
+# The recursive invocation above produces these files.  The empty recipe
+# prevents the generic top-level [%.vo] rule from compiling CASCompCert files
+# with an incomplete dependency graph.
+cascompcert/%.vo: | cascompcert-imports ;
+
 default_target: vst $(PROGSDIR)
 vst: _CoqProject msl veric floyd simpleconc
 
@@ -800,35 +869,31 @@ endif
 files: _CoqProject $(FILES:.v=.vo)
 
 lambda-rust-reference: _CoqProject \
-	atomic_machine/lambda_rust/syntax.vo \
 	atomic_machine/lambda_rust/common.vo \
-	atomic_machine/lambda_rust/reference.vo \
-	atomic_machine/lambda_rust/races.vo
+	lambda-rust/lambda-rust/lang/races.vo
 
-lambda-rust-machine: lambda-rust-reference \
+lambda-rust-equivalence: lambda-rust-reference \
 	atomic_machine/atomic_machine.vo \
-	atomic_machine/lambda_rust/event_semantics.vo \
-	atomic_machine/lambda_rust/lang_facts.vo \
-	atomic_machine/lambda_rust/machine.vo
-
-lambda-rust-equivalence: lambda-rust-machine \
+	atomic_machine/lambda_rust/sq_sem.vo \
+	atomic_machine/lambda_rust/at_sem.vo \
 	atomic_machine/lambda_rust/equivalence.vo
 
-lambda-rust-safety: lambda-rust-machine \
-	atomic_machine/lambda_rust/safety.vo \
+lambda-rust-adequacy: lambda-rust-equivalence \
 	atomic_machine/lambda_rust/safety_reflection.vo \
-	atomic_machine/lambda_rust/machine_safety.vo
+	atomic_machine/lambda_rust/machine_safety.vo \
+	atomic_machine/lambda_rust/adequacy.vo
 
-atomic-machine: lambda-rust-equivalence lambda-rust-safety \
-	atomic_machine/clight_at_mach.vo
+lambda-rust-logic: lambda-rust-adequacy \
+	atomic_machine/lambda_rust/logic/sq_logic.vo \
+	atomic_machine/lambda_rust/logic/sq_adequacy.vo \
+	atomic_machine/lambda_rust/logic/at_logic.vo \
+	atomic_machine/lambda_rust/logic/at_adequacy.vo
 
-atomic_machine/lambda_rust/safety_reflection.vo: \
-	atomic_machine/lambda_rust/safety_reflection.v \
-	atomic_machine/lambda_rust/safety.vo
-
-atomic_machine/lambda_rust/machine_safety.vo: \
-	atomic_machine/lambda_rust/machine_safety.v \
-	atomic_machine/lambda_rust/safety_reflection.vo
+# The CASCompCert-based theory needs ATOMIC_MACHINE=true (and a configured
+# cascompcert submodule).
+atomic-machine: lambda-rust-logic \
+	atomic_machine/clight_am/clight_at_mach.vo \
+	$(if $(filter true,$(ATOMIC_MACHINE)),atomic_machine/clight_am/theory/ClightAM_DRF.vo)
 
 # TODO:
 #
@@ -957,15 +1022,41 @@ _CoqProject _CoqProject-export: Makefile util/coqflags $(COMPCERT_CONFIG)
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
+# The .v dependencies are stored in .depend-files, and .depend is regenerated
+# if any .v file is added, deleted or edited (e.g. imports changed).
+ifeq ($(COMPCERT_NEW),true)
+  DEPEND_SRC = $(filter $(wildcard *), $(DIRS) refinedVST concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf)
+else
+  DEPEND_SRC = $(filter $(wildcard *), $(DIRS) refinedVST)
+endif
+DEPEND_FIND = find $(DEPEND_SRC) -name '*.v' 2>/dev/null | LC_ALL=C sort
+DEPEND_LIST = .depend-files
+
+# Run the staleness check if the condition in [ifeq] is an empty string:
+# 1. make is not restarted (e.g. to remake a stale .depend), and
+# 2. the current make goal is not [depend] or [clean].
+# $(DEPEND_FILE) is stale if some .v file is newer, or a freshly computed
+# $(DEPEND_SRC) differs from the one generated last time, i.e. $(DEPEND_LIST).
+ifeq ($(MAKE_RESTARTS)$(filter depend clean,$(MAKECMDGOALS)),)
+  DEPEND_STALE := $(shell { $(DEPEND_FIND) | cmp -s - $(DEPEND_LIST) || echo moved; \
+    find $(DEPEND_SRC) -name '*.v' -newer $(DEPEND_FILE) -print -quit; } 2>/dev/null)
+endif
+ifneq ($(DEPEND_STALE),)
+$(DEPEND_FILE): depend-force
+endif
+
+.PHONY: depend-force
+depend-force:
+
 .depend depend:
 	@echo 'coqdep ... >.depend'
 ifeq ($(COMPCERT_NEW),true)
 	# DEPENDENCIES VARIANT COMPCERT_NEW
-	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) refinedVST concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(DEPEND_SRC) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 	@echo "" >>.depend
 else
 	# DEPENDENCIES DEFAULT
-	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) refinedVST) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(DEPEND_SRC) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
 ifeq ($(COMPCERT_BUILD_FROM_SRC),true)
 	# DEPENDENCIES TO BUILD COMPCERT FROM SOURCE
@@ -985,11 +1076,15 @@ endif
 ifneq ($(wildcard fcf/src/FCF),)
 	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend
 endif
+ifneq ($(LRUST_FLAGS),)
+	$(COQDEP) $(LRUST_FLAGS) `find lambda-rust/lifetime lambda-rust/lambda-rust -name "*.v"` >>.depend
+endif
 	wc .depend
+	$(DEPEND_FIND) >$(DEPEND_LIST)
 
 clean:
-	rm -f $(addprefix veric/version., v vo vos vok glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo */*.vos */*.vok)
-	for d in compcert compcert_new cascompcert; do \
+	rm -f $(addprefix veric/version., v vo vos vok glob) .lia.cache .nia.cache floyd/floyd.coq .depend $(DEPEND_LIST) _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo */*.vos */*.vok)
+	for d in compcert compcert_new cascompcert lambda-rust; do \
 	  if [ -d "$$d" ]; then \
 	    find "$$d" -type f \( -name '*.vo' -o -name '*.vos' -o -name '*.vok' -o -name '*.glob' \) -delete; \
 	  fi; \

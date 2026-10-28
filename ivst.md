@@ -39,3 +39,11 @@ Additionally, to generate `_CoqProject`:
 ```(bash)
 make _CoqProject
 ```
+
+## Atomic Machine
+(The project related to this section is WIP)
+
+Requires the `cascompcert` and `lambda-rust` submodules.
+```(bash)
+make atomic-machine
+```

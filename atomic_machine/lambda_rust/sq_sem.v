@@ -14,9 +14,13 @@ Require Export VST.atomic_machine.lambda_rust.common.
 
 Import ListNotations.
 Open Scope Z_scope.
-Open Scope lambda_rust_loc_scope.
+Open Scope loc_scope.
 
 Set Default Proof Using "Type".
+
+(** lambda-Rust's location type.  A hint rather than an [Instance], so that
+    the inferred location type is [loc] itself, not a constant equal to it. *)
+#[global] Hint Extern 0 Location => exact loc : typeclass_instances.
 
 (** The reader/writer state is maintained separately by the atomic machine. *)
 Definition lr_mem : Type := gmap loc val.
@@ -36,12 +40,17 @@ Definition lr_layout : Type := unit.
 
 Local Notation lr_mem_ev := (@mem_ev loc).
 
-(** The machine's event constructors, renamed because lambda-Rust's [Read],
-    [Write], [Alloc] and [Free] are expression constructors. *)
-Notation lr_read_event := (@VST.atomic_machine.atomic_machine.Read loc).
-Notation lr_write_event := (@VST.atomic_machine.atomic_machine.Write loc).
-Notation lr_alloc_event := (@VST.atomic_machine.atomic_machine.Alloc loc).
-Notation lr_free_event := (@VST.atomic_machine.atomic_machine.Free loc).
+Definition lr_read_event (l : loc) : lr_mem_ev :=
+  VST.atomic_machine.atomic_machine.Read l.
+
+Definition lr_write_event (l : loc) : lr_mem_ev :=
+  VST.atomic_machine.atomic_machine.Write l.
+
+Definition lr_alloc_event (l : loc) : lr_mem_ev :=
+  VST.atomic_machine.atomic_machine.Alloc l.
+
+Definition lr_free_event (l : loc) : lr_mem_ev :=
+  VST.atomic_machine.atomic_machine.Free l.
 
 (** The locations in the half-open range starting at [l] with length [n]. *)
 Fixpoint lr_locs (l : loc) (n : nat) : list loc :=
@@ -59,14 +68,14 @@ Definition lr_free_events (l : loc) (n : nat) : list lr_mem_ev :=
 Definition lr_val_eq
     (m : lr_mem) (v_cur v_exp : val) : Prop :=
   match v_exp, v_cur with
-  | LitV l_exp, LitV l_cur => lit_eq m l_exp l_cur
+  | LitV l_exp, LitV l_cur => sq_mem.lit_eq m l_exp l_cur
   | _, _ => False
   end.
 
 Definition lr_val_neq
     (m : lr_mem) (v_cur v_exp : val) : Prop :=
   match v_exp, v_cur with
-  | LitV l_exp, LitV l_cur => lit_neq m l_exp l_cur
+  | LitV l_exp, LitV l_cur => lit_neq l_exp l_cur
   | _, _ => False
   end.
 
@@ -74,7 +83,7 @@ Definition lr_val_neq
 Inductive lr_head_step
     : expr -> lr_mem -> list lr_mem_ev -> expr -> lr_mem -> Prop :=
 | LRBinOpS op l1 l2 l' m :
-    bin_op_eval m op l1 l2 l' ->
+    sq_mem.bin_op_eval m op l1 l2 l' ->
     lr_head_step
       (BinOp op (Lit l1) (Lit l2)) m []
       (Lit l') m
@@ -103,7 +112,7 @@ Inductive lr_head_step
       (Alloc (Lit (LitInt n))) m
       (lr_alloc_events l (Z.to_nat n))
       (Lit (LitLoc l))
-      (init_mem (LitV LitPoison) l (Z.to_nat n) m)
+      (alloc_gmap (LitV LitPoison) l (Z.to_nat n) m)
 | LRFreeS n l m :
     0 < n ->
     (forall z,
@@ -111,7 +120,7 @@ Inductive lr_head_step
     lr_head_step
       (Free (Lit (LitInt n)) (Lit (LitLoc l))) m
       (lr_free_events l (Z.to_nat n))
-      (Lit LitPoison) (free_mem l (Z.to_nat n) m)
+      (Lit LitPoison) (free_gmap l (Z.to_nat n) m)
 | LRCaseS i el e m :
     0 <= i ->
     el !! Z.to_nat i = Some e ->
@@ -173,36 +182,10 @@ Inductive lr_spawn : expr -> expr -> expr -> Prop :=
 (** A thread has terminated once it is a value. *)
 Definition lr_final (e : expr) : Prop := is_Some (to_val e).
 
-(** A value does not step, call an atomic operation, or spawn: each of
-    these acts on a redex inside an evaluation context. *)
-
-Lemma lr_step_not_val e m T e' m' : lr_step e m T e' m' -> to_val e = None.
-Proof. destruct 1 as [K e1 ? ? ? ? Hhead]. apply fill_not_val. by destruct Hhead. Qed.
-
-Lemma lr_external_not_val e op k : lr_external e op k -> to_val e = None.
-Proof. destruct 1 as [K e0 op k Hhead]. apply fill_not_val. by destruct Hhead. Qed.
-
-Lemma lr_spawn_not_val e e' e_new : lr_spawn e e' e_new -> to_val e = None.
-Proof. destruct 1. by apply fill_not_val. Qed.
-
-Lemma lr_final_not_val e : lr_final e -> to_val e = None -> False.
-Proof. intros [v Hv] Hn. congruence. Qed.
-
-Global Instance lr_final_dec e : Decision (lr_final e).
-Proof. unfold lr_final. apply _. Defined.
-
-Lemma lr_final_no_step e m T e' m' : lr_final e -> ~ lr_step e m T e' m'.
-Proof. intros Hf Hs%lr_step_not_val. exact (lr_final_not_val _ Hf Hs). Qed.
-
-Lemma lr_final_no_external e op k : lr_final e -> ~ lr_external e op k.
-Proof. intros Hf Hs%lr_external_not_val. exact (lr_final_not_val _ Hf Hs). Qed.
-
-Lemma lr_final_no_spawn e e' e_new : lr_final e -> ~ lr_spawn e e' e_new.
-Proof. intros Hf Hs%lr_spawn_not_val. exact (lr_final_not_val _ Hf Hs). Qed.
-
-#[global] Instance lr_language :
-    @sqlang loc val _ _ lr_mem lr_layout lr_memory :=
-  {| sqlang_thrd_st := expr;
+#[global] Canonical Structure lr_language :
+    @sqlang loc val _ _ lr_mem lr_layout :=
+  {| sqlang_memory := lr_memory;
+     sqlang_thrd_st := expr;
      sqlang_true_val := LitV (lit_of_bool true);
      sqlang_false_val := LitV (lit_of_bool false);
      sqlang_step := lr_step;
@@ -210,8 +193,5 @@ Proof. intros Hf Hs%lr_spawn_not_val. exact (lr_final_not_val _ Hf Hs). Qed.
      sqlang_spawn := lr_spawn;
      sqlang_final := lr_final;
      sqlang_ValEq := lr_val_eq;
-     sqlang_ValNEq := lr_val_neq;
-     sqlang_final_dec := lr_final_dec;
-     sqlang_final_no_step := lr_final_no_step;
-     sqlang_final_no_external := lr_final_no_external;
-     sqlang_final_no_spawn := lr_final_no_spawn |}.
+     sqlang_ValNEq := lr_val_neq |}.
+#[global] Existing Instance lr_language.

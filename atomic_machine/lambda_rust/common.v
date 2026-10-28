@@ -12,36 +12,39 @@
 From Stdlib Require Import ZArith.
 From stdpp Require Import base gmap.
 
-Require Export VST.atomic_machine.lambda_rust.syntax.
+From lrust.lang Require Export lang.
 
 Open Scope Z_scope.
-Open Scope lambda_rust_loc_scope.
+Open Scope loc_scope.
 
 Set Default Proof Using "Type".
 
-(** Initialize and free a consecutive range of heap cells. *)
+(** Initialize and free a consecutive range of gmap cells. *)
 
-Fixpoint init_mem {A : Type}
+Fixpoint alloc_gmap {A : Type}
     (initial : A) (l : loc) (n : nat) (sigma : gmap loc A)
     : gmap loc A :=
   match n with
   | O => sigma
   | S n =>
-      <[l := initial]> (init_mem initial (l +ₗ 1)%L n sigma)
+      <[l := initial]> (alloc_gmap initial (l +ₗ 1)%L n sigma)
   end.
 
-Fixpoint free_mem {A : Type}
+Fixpoint free_gmap {A : Type}
     (l : loc) (n : nat) (sigma : gmap loc A) : gmap loc A :=
   match n with
   | O => sigma
-  | S n => delete l (free_mem (l +ₗ 1)%L n sigma)
+  | S n => delete l (free_gmap (l +ₗ 1)%L n sigma)
   end.
+
+(** The literal relations keep upstream's names, so they are qualified. *)
+
+Module sq_mem.
 
 (**
   Equality of dangling pointers is intentionally nondeterministic.  The cell
   type is irrelevant: only whether a location is allocated is observed.
 *)
-
 Inductive lit_eq {A : Type} (sigma : gmap loc A)
     : base_lit -> base_lit -> Prop :=
 | IntRefl z :
@@ -54,19 +57,6 @@ Inductive lit_eq {A : Type} (sigma : gmap loc A)
 | LocUnallocR l1 l2 :
     sigma !! l2 = None ->
     lit_eq sigma (LitLoc l1) (LitLoc l2).
-
-Inductive lit_neq {A : Type} (sigma : gmap loc A)
-    : base_lit -> base_lit -> Prop :=
-| IntNeq z1 z2 :
-    z1 <> z2 ->
-    lit_neq sigma (LitInt z1) (LitInt z2)
-| LocNeq l1 l2 :
-    l1 <> l2 ->
-    lit_neq sigma (LitLoc l1) (LitLoc l2)
-| LocNeqNullR l :
-    lit_neq sigma (LitLoc l) (LitInt 0)
-| LocNeqNullL l :
-    lit_neq sigma (LitInt 0) (LitLoc l).
 
 Inductive bin_op_eval {A : Type} (sigma : gmap loc A)
     : bin_op -> base_lit -> base_lit -> base_lit -> Prop :=
@@ -84,16 +74,28 @@ Inductive bin_op_eval {A : Type} (sigma : gmap loc A)
     lit_eq sigma l1 l2 ->
     bin_op_eval sigma EqOp l1 l2 (lit_of_bool true)
 | BinOpEqFalse l1 l2 :
-    lit_neq sigma l1 l2 ->
+    lit_neq l1 l2 ->
     bin_op_eval sigma EqOp l1 l2 (lit_of_bool false)
 | BinOpOffset l z :
     bin_op_eval sigma OffsetOp
       (LitLoc l) (LitInt z) (LitLoc (l +ₗ z)%L).
 
-(** An evaluation context around a non-value is not a value. *)
+End sq_mem.
 
-Lemma fill_item_not_val Ki e : to_val (fill_item Ki e) = None.
-Proof. by destruct Ki. Qed.
+(** The definitions mostly coincide with lambda-rust's when [sigma := state]. *)
 
-Lemma fill_not_val K e : to_val e = None -> to_val (fill K e) = None.
-Proof. revert e. induction K; simpl; eauto using fill_item_not_val. Qed.
+Lemma init_mem_equiv l n (sigma : state) :
+  init_mem l n sigma = alloc_gmap (RSt 0, LitV LitPoison) l n sigma.
+Proof. revert l. induction n as [ | n IH ]; intros l; simpl; [ done | by rewrite IH ]. Qed.
+
+Lemma free_mem_equiv l n (sigma : state) :
+  free_mem l n sigma = free_gmap l n sigma.
+Proof. revert l. induction n as [ | n IH ]; intros l; simpl; [ done | by rewrite IH ]. Qed.
+
+Lemma lit_eq_equiv (sigma : state) lit1 lit2 :
+  lit_eq sigma lit1 lit2 <-> sq_mem.lit_eq sigma lit1 lit2.
+Proof. split; destruct 1; eauto using lit_eq, sq_mem.lit_eq. Qed.
+
+Lemma bin_op_eval_equiv (sigma : state) op lit1 lit2 lit' :
+  bin_op_eval sigma op lit1 lit2 lit' <-> sq_mem.bin_op_eval sigma op lit1 lit2 lit'.
+Proof. split; destruct 1; constructor; by try apply lit_eq_equiv. Qed.

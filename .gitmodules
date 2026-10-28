@@ -5,3 +5,6 @@
 	path = cascompcert
 	url = git@github.com:dkxb/CompCert.git
 	branch = ccc_on_3.17
+[submodule "lambda-rust"]
+	path = lambda-rust
+	url = https://gitlab.mpi-sws.org/iris/lambda-rust.git
