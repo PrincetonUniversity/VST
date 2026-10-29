@@ -779,6 +779,12 @@ RC_INSTALL_FILES=$(sort $(RC_INSTALL_FILES_SRC) $(RC_INSTALL_FILES_VO))
 
 # ########## Rules ##########
 
+# Delegate CASCompCert objects to its dependency graph before the generic
+# %.vo rule below.  GNU make 3.81 selects the first matching pattern rule.
+# The recursive build produces these files, so the empty recipe prevents
+# compiling them here with an incomplete dependency graph.
+cascompcert/%.vo: | cascompcert-imports ;
+
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
 # from progs/verif_reverse.v
@@ -839,11 +845,6 @@ cascompcert-force:
 
 cascompcert-imports: cascompcert-force
 	+$(CASCOMPCERT_MAKE) $(CASCOMPCERT_IMPORTED_TARGETS)
-
-# The recursive invocation above produces these files.  The empty recipe
-# prevents the generic top-level [%.vo] rule from compiling CASCompCert files
-# with an incomplete dependency graph.
-cascompcert/%.vo: | cascompcert-imports ;
 
 default_target: vst $(PROGSDIR)
 vst: _CoqProject msl veric floyd simpleconc
