@@ -97,6 +97,14 @@ Section ClightInstantiation.
         (ACAS Mint32 (b, Ptrofs.unsigned ofs) v_exp v_new)
         (fun ov => Clight_core.Returnstate (force_val ov) k).
 
+  (** Return from an atomic external: the post-call continuation applied to
+      the returned value. *)
+  Inductive clight_after_external
+      : Clight_core.CC_core -> option val -> Clight_core.CC_core -> Prop :=
+  | ClightAfterExternal c op k ov :
+      clight_external c op k ->
+      clight_after_external c ov (k ov).
+
   (** Thread creation through the [spawn] external: the new thread calls
       the given function pointer on the given argument, as in
       [Clight_core.cl_initial_core]. *)
@@ -138,6 +146,7 @@ Section ClightInstantiation.
       sqlang_false_val := Values.Vfalse;
       sqlang_step := ev_step_with_mem_ev (Clight_evsem.CLC_evsem ge);
       sqlang_at_external := clight_external;
+      sqlang_after_external := clight_after_external;
       sqlang_spawn := clight_spawn ge;
       sqlang_final := fun c => Clight_core.cl_halted c <> None;
       sqlang_ValEq := clight_ValEq;

@@ -171,6 +171,12 @@ Section SeqLang.
       sqlang_thrd_st -> atomic_op ->
       (option Val -> sqlang_thrd_st) -> Prop;
 
+    (** Return from an atomic operation: [sqlang_after_external c ov c']
+        means that [c], at an atomic operation, continues as [c'] once the
+        operation returns [ov]. *)
+    sqlang_after_external :
+      sqlang_thrd_st -> option Val -> sqlang_thrd_st -> Prop;
+
     (** Thread creation: [sqlang_spawn c c' c_new] means that [c] is
         about to spawn a new thread starting at [c_new] and continue as
         [c']. *)

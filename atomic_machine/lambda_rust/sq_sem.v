@@ -173,6 +173,13 @@ Inductive lr_external
       (fill K e) op
       (fun ov => fill K (k ov)).
 
+(** Return from an SC operation: the thread continues as the operation's
+    continuation applied to the returned value. *)
+Inductive lr_after_external : expr -> option val -> expr -> Prop :=
+| LRAfterExternal e op k ov :
+    lr_external e op k ->
+    lr_after_external e ov (k ov).
+
 (** [Fork] at the head of an evaluation context: the parent continues
     with [LitPoison], as in the reference [ForkS]. *)
 Inductive lr_spawn : expr -> expr -> expr -> Prop :=
@@ -190,6 +197,7 @@ Definition lr_final (e : expr) : Prop := is_Some (to_val e).
      sqlang_false_val := LitV (lit_of_bool false);
      sqlang_step := lr_step;
      sqlang_at_external := lr_external;
+     sqlang_after_external := lr_after_external;
      sqlang_spawn := lr_spawn;
      sqlang_final := lr_final;
      sqlang_ValEq := lr_val_eq;
