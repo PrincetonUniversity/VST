@@ -114,9 +114,10 @@ Notation "a1 | a2" := (Ebinop Oor a1%expr a2%expr _) (only printing, a2 at level
 Notation "a1 / a2" := (Ebinop Odiv a1%expr a2%expr _) (only printing, format "'[hv  ' a1  '/' /  a2 ']'", at level 40, left associativity) : expr_scope.
 Notation "a1 << a2" := (Ebinop Oshl a1%expr a2%expr _) (only printing, a2 at level 14, left associativity (* XXX Is LtoR the same as left associativity in Coq? *), at level 15, format "'[hv  ' a1  '/' <<  a2 ']'") : expr_scope.
 Notation "a1 & a2" := (Ebinop Oand a1%expr a2%expr _) (only printing, a2 at level 17, left associativity (* XXX Is LtoR the same as left associativity in Coq? *), at level 18, format "'[hv  ' a1  '/' &  a2 ']'") : expr_scope.
-Notation "a1 != a2" := (Ebinop Cop.One a1%expr a2%expr _) (only printing, a2 at level 16, left associativity (* XXX Is LtoR the same as left associativity in Coq? *), at level 17, format "'[hv  ' a1  '/' !=  a2 ']'") : expr_scope.
+(* != and == sit at level 70 like < above, not at their C precedence: ssreflect declares both at level 70, Stdlib's SetoidClass declares == there, and Rocq 9.1 rejects an only printing notation at a different level once such a declaration is imported (rocq-prover/rocq#12465). *)
+Notation "a1 != a2" := (Ebinop Cop.One a1%expr a2%expr _) (only printing, at level 70, no associativity, format "'[hv  ' a1  '/' !=  a2 ']'") : expr_scope.
 Notation "a1 * a2" := (Ebinop Omul a1%expr a2%expr _) (only printing, format "'[hv  ' a1  '/' *  a2 ']'", at level 40, left associativity) : expr_scope.
-Notation "a1 == a2" := (Ebinop Oeq a1%expr a2%expr _) (only printing, a2 at level 16, left associativity (* XXX Is LtoR the same as left associativity in Coq? *), at level 17, format "'[hv  ' a1  '/' ==  a2 ']'") : expr_scope.
+Notation "a1 == a2" := (Ebinop Oeq a1%expr a2%expr _) (only printing, at level 70, no associativity, format "'[hv  ' a1  '/' ==  a2 ']'") : expr_scope.
 Notation "a1 + a2" := (Ebinop Oadd a1%expr a2%expr _) (only printing, format "'[hv  ' a1  '/' +  a2 ']'", at level 50, left associativity) : expr_scope.
 Notation "& a1" := (Eaddrof a1%expr _) (only printing, a1 at level 11, right associativity (* XXX Is RtoL the same as right associativity in Coq? *), at level 11, format "'[hv  ' & a1 ']'") : expr_scope.
 Notation "'__builtin_fabs' a1" := (Eunop Oabsfloat a1%expr _) (only printing, a1 at level 11, right associativity (* XXX Is RtoL the same as right associativity in Coq? *), at level 11, format "'[hv  ' '__builtin_fabs' a1 ']'") : expr_scope.
