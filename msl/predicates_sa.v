@@ -64,16 +64,16 @@ Declare Scope pred_derives.
 Notation "P '|--' Q" := (derives P%pred Q%pred) (at level 80, no associativity) : pred_derives.
 Open Scope pred_derives.
 Notation "'EX' x .. y , P " :=
-  (exp (fun x => .. (exp (fun y => P%pred)) ..)) (at level 65, x binder, y binder, right associativity) : pred.
+  (exp (fun x => .. (exp (fun y => P%pred)) ..)) (at level 15, x binder, y binder, P at level 65, right associativity) : pred.
 Notation "'ALL' x .. y , P " :=
-  (allp (fun x => .. (allp (fun y => P%pred)) ..)) (at level 65, x binder, y binder, right associativity) : pred.
+  (allp (fun x => .. (allp (fun y => P%pred)) ..)) (at level 15, x binder, y binder, P at level 65, right associativity) : pred.
 Infix "||" := orp (at level 50, left associativity) : pred.
 Infix "&&" := andp (at level 40, left associativity) : pred.
 Notation "P '-->' Q" := (imp P Q) (at level 55, right associativity) : pred.
 Notation "P '<-->' Q" := (andp (imp P Q) (imp Q P)) (at level 57, no associativity) : pred.
 Notation "P '*' Q" := (sepcon P Q) : pred.
 Notation "P '-*' Q" := (wand P Q) (at level 60, right associativity) : pred.
-Notation "'!!' e" := (prop e) (at level 15) : pred.
+Notation "'!!' e" := (prop e) (at level 9, e at level 15) : pred.
 
 Definition precise {A}  {JA: Join A}{PA: Perm_alg A}  (P: pred A) : Prop :=
      forall w w1 w2, P w1 -> P w2 -> join_sub w1 w -> join_sub w2 w -> w1=w2.

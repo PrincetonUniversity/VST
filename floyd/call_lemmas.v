@@ -759,7 +759,7 @@ Definition call_setup2
   (Ppre: list Prop) (Rpre: list mpred)
   GV' gv args :=
  call_setup1 cs Qtemp Qvar GV a Delta P Q R' fs argsig retty cc A Pre Post NEPre NEPost bl vl (*Qactuals*) /\
- PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)) /\
+ (PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R))) /\
   Pre ts witness = PROPx Ppre (LAMBDAx gv args (SEPx Rpre)) /\
   local2ptree (map gvars gv) = (PTree.empty _, PTree.empty _, nil, GV') /\
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (firstn (length argsig) vl=args) /\
@@ -798,7 +798,7 @@ Definition call_setup2_nil
   (Ppre: list Prop) (Rpre: list mpred)
   GV' gv args:=
  call_setup1 cs Qtemp Qvar GV a Delta P Q R' fs argsig retty cc A Pre Post NEPre NEPost bl vl (*Qactuals*) /\
- PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)) /\
+ (PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R))) /\
   Pre nil witness = PROPx Ppre (LAMBDAx gv args (SEPx Rpre)) /\
   local2ptree (map gvars gv) = (PTree.empty _, PTree.empty _, nil, GV') /\
 

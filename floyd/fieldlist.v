@@ -664,7 +664,7 @@ Proof.
  intros.
  intro. induction ids. inv H0.
  simpl in *. destruct H0. subst i.
- assert (a =? a = true)%positive.
+ assert ((a =? a) = true)%positive.
  apply Pos_eqb_eq. auto. rewrite H0 in H. simpl in H. inv H.
  destruct (i =? a)%positive. simpl in H. inv H.   auto.
 Defined.

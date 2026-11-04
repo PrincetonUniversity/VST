@@ -3520,7 +3520,7 @@ Lemma fold_another_var_block:
   forall {cs: compspecs} Delta P Q R P' Q' R' i (t: type) vbs T1 T2 GV p,
   local2ptree Q = (T1,T2,[],GV) ->
   complete_legal_cosu_type t = true ->
-  sizeof t <? Ptrofs.modulus = true ->
+  (sizeof t <? Ptrofs.modulus) = true ->
   is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
   (var_types Delta) ! i = Some t ->
   T2 ! i = Some (t,p) ->

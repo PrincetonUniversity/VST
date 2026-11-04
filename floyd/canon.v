@@ -85,10 +85,10 @@ Definition PARAMSx (vals:list val)(X : argsassert): argsassert :=
 Arguments PARAMSx vals _ : simpl never.
 
 Notation " 'PARAMS' ( x ; .. ; y )  z" := (PARAMSx (cons x%logic .. (cons y%logic nil) ..) z%assert4)
-         (at level 9) : assert3.
+         (at level 9, z at level 9) : assert3.
 
-Notation " 'PARAMS' ( )  z" := (PARAMSx nil z%assert4) (at level 9) : assert3.
-Notation " 'PARAMS' ()  z" := (PARAMSx nil z%assert4) (at level 9) : assert3.
+Notation " 'PARAMS' ( )  z" := (PARAMSx nil z%assert4) (at level 9, z at level 9) : assert3.
+Notation " 'PARAMS' ()  z" := (PARAMSx nil z%assert4) (at level 9, z at level 9) : assert3.
 
 Notation " 'GLOBALS' ( x ; .. ; y )  z" := (GLOBALSx (cons x%logic .. (cons y%logic nil) ..) z%assert5)
          (at level 9) : assert4.
@@ -497,10 +497,10 @@ Notation "'EX' x .. y , P " :=
     ..
     (@exp (environ->mpred) _ _ (fun y => P%assert))
     ..
-    )) (at level 65, x binder, y binder, right associativity) : assert.
+    )) (at level 15, x binder, y binder, P at level 65, right associativity) : assert.
 
 Notation " 'ENTAIL' d ',' P '|--' Q " :=
-  (@derives (environ->mpred) _ (andp (local (tc_environ d)) P%assert) Q%assert) (at level 99, P at level 79, Q at level 79).
+  (@derives (environ->mpred) _ (andp (local (tc_environ d)) P%assert) Q%assert) (at level 79, P at level 79, Q at level 79).
 
 Arguments semax {CS} {Espec} Delta Pre%_assert cmd Post%_assert.
 
