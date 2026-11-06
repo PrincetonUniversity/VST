@@ -765,6 +765,20 @@ endif
 default_target: vst $(PROGSDIR)
 vst: _CoqProject msl veric floyd simpleconc
 
+.PHONY: test-jmeq-universes
+test-jmeq-universes: tests/jmeq_universes.vo tests/jmeq_import_monomorphic.vo tests/jmeq_import_polymorphic.vo
+
+tests/jmeq_universes.vo tests/jmeq_import_monomorphic.vo tests/jmeq_import_polymorphic.vo: floyd/jmeq_lemmas.vo
+
+test: test-jmeq-universes
+
+.PHONY: test-reptype-funspec
+test-reptype-funspec: tests/reptype_funspec.vo
+
+tests/reptype_funspec.vo: floyd/proofauto.vo
+
+test: test-reptype-funspec
+
 ifeq ($(BITSIZE),64)
 test: vst progs64
 	@# need this tab here to turn off special behavior of 'test' target
