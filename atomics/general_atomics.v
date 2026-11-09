@@ -17,7 +17,7 @@ Definition tele_unwrap {A} (x : tele_arg (TeleS (fun _ : A => TeleO))) :=
   end.
 
 Definition atomic_shift {A B} (a : A -> mpred) Eo Ei (b : A -> B -> mpred) (Q : B -> mpred) : mpred :=
-  @atomic_update mpredI _ [tele _ : A] [tele _ : B] Eo Ei (λ.. x, a (tele_unwrap x)) (λ.. x y, b (tele_unwrap x) (tele_unwrap y)) (λ.. x y, Q (tele_unwrap y)).
+  @atomic_update _ mpredI _ [tele _ : A] [tele _ : B] Eo Ei (λ.. x, a (tele_unwrap x)) (λ.. x y, b (tele_unwrap x) (tele_unwrap y)) (λ.. x y, Q (tele_unwrap y)).
 
 Lemma atomic_commit_fupd : forall {A B} (a : A -> mpred) Eo Ei (b : A -> B -> mpred) (Q : B -> mpred) R R',
   (forall x, R * a x |-- |==> (EX y, b x y * R' y)) ->
@@ -48,7 +48,13 @@ Lemma atomic_shift_mask_weaken {A B} Eo1 Eo2 Ei a (b : A -> B -> mpred) Q :
   atomic_shift a Eo1 Ei b Q |-- atomic_shift a Eo2 Ei b Q.
 Proof.
   intros; unfold atomic_shift.
-  apply atomic_update_mask_weaken; auto.
+  (* [iris] [atomic_update_mask_weaken] (iris/bi/lib/atomic.v) is now stated as a
+     wand, [atomic_update Eo1 .. -* atomic_update Eo2 ..], where it used to be an
+     entailment.  At the top level that reads [emp |-- _ -* _], which no longer
+     matches a goal of the form [_ |-- _], hence the unify failure naming
+     [emp ⊢ atomic_update ?Eo1 .. -∗ ..].  Same statement, so introduce the
+     hypothesis and apply it through the wand. *)
+  iIntros "AU"; iApply (atomic_update_mask_weaken with "AU"); auto.
 Qed.
 
 (* use iInv instead of applying this lemma *)
