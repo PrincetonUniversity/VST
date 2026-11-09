@@ -17,7 +17,7 @@ Definition tele_unwrap {A} (x : tele_arg (TeleS (fun _ : A => TeleO))) :=
   end.
 
 Definition atomic_shift {A B} (a : A -> mpred) Eo Ei (b : A -> B -> mpred) (Q : B -> mpred) : mpred :=
-  @atomic_update mpredI _ [tele _ : A] [tele _ : B] Eo Ei (λ.. x, a (tele_unwrap x)) (λ.. x y, b (tele_unwrap x) (tele_unwrap y)) (λ.. x y, Q (tele_unwrap y)).
+  @atomic_update _ mpredI _ [tele _ : A] [tele _ : B] Eo Ei (λ.. x, a (tele_unwrap x)) (λ.. x y, b (tele_unwrap x) (tele_unwrap y)) (λ.. x y, Q (tele_unwrap y)).
 
 Lemma atomic_commit_fupd : forall {A B} (a : A -> mpred) Eo Ei (b : A -> B -> mpred) (Q : B -> mpred) R R',
   (forall x, R * a x |-- |==> (EX y, b x y * R' y)) ->

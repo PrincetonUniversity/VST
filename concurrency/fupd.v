@@ -41,14 +41,14 @@ Proof.
   destruct (type_is_volatile); try apply timeless_FF.
   destruct p; try apply timeless_FF.
   if_tac.
-  - apply (@bi.or_timeless mpredI).
-    + apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply address_mapsto_timeless].
-    + apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI)|].
-      apply (@bi.exist_timeless mpredI); intro; apply address_mapsto_timeless.
-  - apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply nonlock_permission_bytes_timeless].
+  - apply (@bi.or_timeless _ mpredI).
+    + apply (@bi.and_timeless _ mpredI); [apply (@bi.pure_timeless _ mpredI) | apply address_mapsto_timeless].
+    + apply (@bi.and_timeless _ mpredI); [apply (@bi.pure_timeless _ mpredI)|].
+      apply (@bi.exist_timeless _ mpredI); intro; apply address_mapsto_timeless.
+  - apply (@bi.and_timeless _ mpredI); [apply (@bi.pure_timeless _ mpredI) | apply nonlock_permission_bytes_timeless].
 Qed.
 
-#[export] Instance emp_timeless : (@Timeless mpredI) emp.
+#[export] Instance emp_timeless : (@Timeless _ mpredI) emp.
 Proof.
   apply timeless'_timeless, emp_timeless.
 Qed.
@@ -67,7 +67,7 @@ Lemma memory_block_timeless : forall sh n p,
 Proof.
   intros.
   destruct p; try apply timeless_FF.
-  apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply memory_block'_timeless].
+  apply (@bi.and_timeless _ mpredI); [apply (@bi.pure_timeless _ mpredI) | apply memory_block'_timeless].
 Qed.
 
 Lemma struct_pred_timeless : forall {CS : compspecs} sh m f t off
@@ -83,16 +83,16 @@ Proof.
   - inv IH. destruct m.
     + unfold withspacer, at_offset; simpl.
       if_tac; auto.
-      apply (@bi.sep_timeless mpredI); auto.
+      apply (@bi.sep_timeless _ mpredI); auto.
       unfold spacer.
       if_tac.
       * apply emp_timeless.
       * unfold at_offset; apply memory_block_timeless.
     + rewrite struct_pred_cons2.
-      apply (@bi.sep_timeless mpredI); auto.
+      apply (@bi.sep_timeless _ mpredI); auto.
       unfold withspacer, at_offset; simpl.
       if_tac; auto.
-      apply (@bi.sep_timeless mpredI); auto.
+      apply (@bi.sep_timeless _ mpredI); auto.
       unfold spacer.
       if_tac.
       * apply emp_timeless.
@@ -112,7 +112,7 @@ Proof.
   - inv IH. destruct m.
     + unfold withspacer, at_offset; simpl.
       if_tac; auto.
-      apply (@bi.sep_timeless mpredI); auto.
+      apply (@bi.sep_timeless _ mpredI); auto.
       unfold spacer.
       if_tac.
       * apply emp_timeless.
@@ -121,7 +121,7 @@ Proof.
       destruct v; auto.
       unfold withspacer, at_offset; simpl.
       if_tac; auto.
-      apply (@bi.sep_timeless mpredI); auto.
+      apply (@bi.sep_timeless _ mpredI); auto.
       unfold spacer.
       if_tac.
       * apply emp_timeless.
@@ -137,14 +137,14 @@ Proof.
   - simple_if_tac; [apply memory_block_timeless | apply mapsto_timeless].
   - simple_if_tac; [apply memory_block_timeless | apply mapsto_timeless].
   - simple_if_tac; [apply memory_block_timeless | apply mapsto_timeless].
-  - apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI)|].
+  - apply (@bi.and_timeless _ mpredI); [apply (@bi.pure_timeless _ mpredI)|].
     rewrite Z.sub_0_r.
     forget (Z.to_nat (Z.max 0 z)) as n.
     set (lo := 0) at 1.
     clearbody lo.
     revert lo; induction n; simpl; intros.
     + apply emp_timeless.
-    + apply (@bi.sep_timeless mpredI), IHn.
+    + apply (@bi.sep_timeless _ mpredI), IHn.
       unfold at_offset; apply IH.
   - apply struct_pred_timeless; auto.
   - apply union_pred_timeless; auto.
@@ -152,7 +152,7 @@ Qed.
 
 #[export] Instance field_at_timeless : forall {CS : compspecs} sh t gfs v p, Timeless (field_at sh t gfs v p).
 Proof.
-  intros; apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply data_at_rec_timeless].
+  intros; apply (@bi.and_timeless _ mpredI); [apply (@bi.pure_timeless _ mpredI) | apply data_at_rec_timeless].
 Qed.
 
 Definition funspec_sub' (f1 f2 : funspec): Prop :=

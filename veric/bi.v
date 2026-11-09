@@ -1,4 +1,5 @@
 From iris.bi Require Import interface.
+From iris.algebra Require Export stepindex_finite.
 From iris.proofmode Require Export proofmode.
 
 (* undo some "simpl never" settings from std++ *)
@@ -218,7 +219,7 @@ Qed.
 
 Lemma mpred_bi_persistently_mixin :
   BiPersistentlyMixin
-    derives emp andp (@exp _ _) sepcon persistently.
+    derives emp andp sepcon persistently.
 Proof.
   split.
   - intros ????; hnf in *.
@@ -231,10 +232,6 @@ Proof.
     apply resource_at_core_identity.
   - unfold persistently; intros.
     unseal_derives; intros ??; auto.
-  - intros.
-    unseal_derives; intros ??; simpl in *.
-    destruct H as [b ?].
-    exists b; auto.
   - intros.
     unseal_derives; intros ? (? & ? & J & ? & ?); simpl in *.
     eapply pred_upclosed, H.
@@ -318,6 +315,15 @@ Canonical Structure mpredI : bi :=
   {| bi_ofe_mixin := mpred_ofe_mixin; bi_bi_mixin := mpred_bi_mixin;
      bi_bi_persistently_mixin := mpred_bi_persistently_mixin;
      bi_bi_later_mixin := mpred_bi_later_mixin |}.
+
+(* Iris moved this law out of [BiPersistentlyMixin] into an extension class. *)
+Global Instance mpred_persistently_exist : BiPersistentlyExist mpredI.
+Proof.
+  intros A Ψ; change (persistently (exp Ψ) |-- exp (fun a => persistently (Ψ a))).
+  unseal_derives; intros ??; simpl in *.
+  destruct H as [b ?].
+  exists b; auto.
+Qed.
 
 (* an Iris extension that is satisfied by most but not all BI instances *)
 Global Instance mpred_later_contractive : BiLaterContractive mpredI.
