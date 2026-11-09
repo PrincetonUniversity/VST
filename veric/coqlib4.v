@@ -562,7 +562,7 @@ Arguments opt2list [A] _.
 
 Definition isSome {A} (o: option A) := match o with Some _ => True | None => False end.
 
-Definition isSome_dec: forall {A} (P: option A), isSome P + ~ isSome P.
+Definition isSome_dec: forall {A} (P: option A), isSome P + (~ isSome P).
 Proof.
   intros.
   destruct P; simpl; auto.

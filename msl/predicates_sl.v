@@ -398,7 +398,7 @@ split; auto.
 exists x; auto.
 Qed.
 
-Lemma extend_later : forall P, (%|>P = |>%P)%pred.
+Lemma extend_later : forall P, (%|>P = |>(%P))%pred.
 Proof.
   intros; rewrite later_commute; auto.
 Qed.

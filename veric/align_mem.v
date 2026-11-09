@@ -812,7 +812,7 @@ Lemma legal_alignas_type_divide: forall t,
   (hardware_alignof ha_env t | alignof cenv t).
 Proof.
   intros.
-  assert (hardware_alignof ha_env t <=? alignof cenv t = true).
+  assert ((hardware_alignof ha_env t <=? alignof cenv t) = true).
   {
     destruct t; simpl in H |- *;
     solve [inv H | rewrite andb_true_iff in H; tauto].

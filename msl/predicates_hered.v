@@ -452,16 +452,16 @@ Declare Scope pred_derives.
 Notation "P '|--' Q" := (derives P%pred Q%pred) (at level 80, no associativity) : pred_derives.
 Open Scope pred_derives.
 Notation "'EX' x .. y , P " :=
-  (exp (fun x => .. (exp (fun y => P%pred)) ..)) (at level 65, x binder, y binder, right associativity) : pred.
+  (exp (fun x => .. (exp (fun y => P%pred)) ..)) (at level 15, x binder, y binder, P at level 65, right associativity) : pred.
 Notation "'ALL' x .. y , P " :=
-  (allp (fun x => .. (allp (fun y => P%pred)) ..)) (at level 65, x binder, y binder, right associativity) : pred.
+  (allp (fun x => .. (allp (fun y => P%pred)) ..)) (at level 15, x binder, y binder, P at level 65, right associativity) : pred.
 Infix "||" := orp (at level 50, left associativity) : pred.
 Infix "&&" := andp (at level 40, left associativity) : pred.
 Notation "P '-->' Q" := (imp P Q) (at level 55, right associativity) : pred.
 Notation "P '<-->' Q" := (andp (imp P Q) (imp Q P)) (at level 57, no associativity) : pred.
 (* Notation "'[]' e" := (box necM e) (at level 30, right associativity): pred. *)
 Notation "'|>' e" := (box laterM e) (at level 20, right associativity): pred.
-Notation "'!!' e" := (prop e) (at level 15) : pred.
+Notation "'!!' e" := (prop e) (at level 9, e at level 15) : pred.
 
 (* Rules for the propositional connectives *)
 Lemma modus_ponens  : forall (X P Q:pred),
@@ -1539,16 +1539,16 @@ Declare Scope pred_derives.
 Notation "P '|--' Q" := (derives P%pred Q%pred) (at level 80, no associativity) : pred_derives.
 Open Scope pred_derives.
 Notation "'EX' x .. y , P " :=
-  (exp (fun x => .. (exp (fun y => P%pred)) ..)) (at level 65, x binder, y binder, right associativity) : pred.
+  (exp (fun x => .. (exp (fun y => P%pred)) ..)) (at level 15, x binder, y binder, P at level 65, right associativity) : pred.
 Notation "'ALL' x .. y , P " :=
-  (allp (fun x => .. (allp (fun y => P%pred)) ..)) (at level 65, x binder, y binder, right associativity) : pred.
+  (allp (fun x => .. (allp (fun y => P%pred)) ..)) (at level 15, x binder, y binder, P at level 65, right associativity) : pred.
 Infix "||" := orp (at level 50, left associativity) : pred.
 Infix "&&" := andp (at level 40, left associativity) : pred.
 Notation "P '-->' Q" := (imp P Q) (at level 55, right associativity) : pred.
 Notation "P '<-->' Q" := (andp (imp P Q) (imp Q P)) (at level 57, no associativity) : pred.
 (* Notation "'[]' e" := (box necM e) (at level 30, right associativity): pred. *)
 Notation "'|>' e" := (box laterM e) (at level 20, right associativity): pred.
-Notation "'!!' e" := (prop e) (at level 15) : pred.
+Notation "'!!' e" := (prop e) (at level 9, e at level 15) : pred.
 
 Ltac slurp :=
  apply imp_lem0;

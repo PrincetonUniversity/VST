@@ -105,14 +105,14 @@ Declare Scope logic_derives.
 Notation "P '|--' Q" := (derives P%logic Q%logic) (at level 80, no associativity) : logic_derives.
 Open Scope logic_derives.
 Notation "'EX' x .. y , P " :=
-  (exp (fun x => .. (exp (fun y => P%logic)) ..)) (at level 65, x binder, y binder, right associativity) : logic.
+  (exp (fun x => .. (exp (fun y => P%logic)) ..)) (at level 15, x binder, y binder, P at level 65, right associativity) : logic.
 Notation "'ALL' x .. y , P " :=
-  (allp (fun x => .. (allp (fun y => P%logic)) ..)) (at level 65, x binder, y binder, right associativity) : logic.
+  (allp (fun x => .. (allp (fun y => P%logic)) ..)) (at level 15, x binder, y binder, P at level 65, right associativity) : logic.
 Infix "||" := orp (at level 50, left associativity) : logic.
 Infix "&&" := andp (at level 40, left associativity) : logic.
 Notation "P '-->' Q" := (imp P Q) (at level 55, right associativity) : logic.
 Notation "P '<-->' Q" := (andp (imp P Q) (imp Q P)) (at level 57, no associativity) : logic.
-Notation "'!!' e" := (prop e) (at level 15) : logic.
+Notation "'!!' e" := (prop e) (at level 9, e at level 15) : logic.
 
 Class SepLog (A: Type) {ND: NatDed A} := mkSepLog {
   emp: A;
