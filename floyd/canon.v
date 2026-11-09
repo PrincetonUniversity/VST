@@ -282,7 +282,7 @@ Proof.
     unfold_lift.
     rewrite !prop_and.
     rewrite !approx_andp.
-    f_equal; auto.
+    f_equal; auto; apply H0.
 Qed.
 
 Lemma PROPx_args_super_non_expansive: forall A P Q,
@@ -301,7 +301,7 @@ Proof.
   + simpl.
     rewrite !prop_and.
     rewrite !approx_andp.
-    f_equal; auto.
+    f_equal; auto; apply (H0 n ts x gargs).
 Qed.
 
 Lemma LOCALx_super_non_expansive': forall A Q R,
@@ -345,7 +345,7 @@ Proof.
   + simpl.
     rewrite !prop_and.
     rewrite !approx_andp.
-    f_equal; auto.
+    f_equal; auto; apply (H0 n ts x rho).
 Qed.
 
 Lemma PROPx_super_non_expansive': forall A P Q,
