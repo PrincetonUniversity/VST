@@ -1,16 +1,9 @@
 Require Import Stdlib.Setoids.Setoid.
 Require Import VST.msl.Extensionality.
 
-(******************************************
+Local Set Universe Polymorphism.
 
-Copied From Stdlib.Logic.JMeq.
-
-No longer involving JMeq_eq, which is potentially inconsistenty with homotopy
-type theory.
-
-TODO: let reflexivity, symmetry and transitivity work again.
-
-******************************************)
+(* Adapted from Stdlib.Logic.JMeq. *)
 
 Definition JMeq {A:Type} (x:A) {B:Type} (y: B): Prop :=
   {H: @eq Type A B | @eq_rect Type A (fun T: Type => T) x B H = y}.
@@ -159,12 +152,6 @@ Qed.
 Notation sym_JMeq := JMeq_sym (only parsing).
 Notation trans_JMeq := JMeq_trans (only parsing).
 
-(******************************************
-
-The following is the original floyd/jmeq_lemmas.v
-
-******************************************)
-
 Lemma eq_rect_JMeq: forall (A:Type) (x y: A) (F: A -> Type) (v: F x) (H: x = y), JMeq (eq_rect x F v y H) v.
 Proof.
   intros.
@@ -257,7 +244,7 @@ Proof.
                                                 | eq_refl => @eq_refl B (f x1 x2)
                                                 end
           end).
-  exists (f_equal2 _ _ _ sum _ _ _ _ H0 H).
+  exists (f_equal2 _ _ _ (fun X Y : Type => sum X Y) _ _ _ _ H0 H).
   destruct H, H0.
   rewrite <- H1.
   unfold f_equal2.
@@ -277,7 +264,7 @@ Proof.
                                                 | eq_refl => @eq_refl B (f x1 x2)
                                                 end
           end).
-  exists (f_equal2 _ _ _ sum _ _ _ _ H H0).
+  exists (f_equal2 _ _ _ (fun X Y : Type => sum X Y) _ _ _ _ H H0).
   destruct H, H0.
   rewrite <- H1.
   unfold f_equal2.
@@ -323,7 +310,7 @@ Proof.
                                                 | eq_refl => @eq_refl B (f x1 x2)
                                                 end
           end).
-  exists (f_equal2 _ _ _ prod _ _ _ _ H H0).
+  exists (f_equal2 _ _ _ (fun X Y : Type => prod X Y) _ _ _ _ H H0).
   destruct H, H0.
   rewrite <- H1, <- H2.
   unfold f_equal2.
