@@ -904,6 +904,8 @@ endif
 veric/version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	util/make_version ${BITSIZE} ${COMPCERT_VERSION}
 
+floyd/proofauto.vo: veric/version.vo
+
 _CoqProject _CoqProject-export: Makefile util/coqflags $(COMPCERT_CONFIG)
 	echo $(COQFLAGS) > _CoqProject
 	util/coqflags > _CoqProject-export
