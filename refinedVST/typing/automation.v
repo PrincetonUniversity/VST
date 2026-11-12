@@ -108,6 +108,18 @@ Proof. by intros ->. Qed.
 #[export] Instance vlong_inj_inst i1 i2:
   TCEq i1 i2 -> TCEq (Vlong i1) (Vlong i2) | 0.
 Proof. by intros ->. Qed.
+
+#[export] Instance  int64_ptrofs_repr_done_inst (z1 z2 : Z):
+  TCDone (z1 = z2) -> TCEq (Ptrofs.repr z1) (Int64.repr z2) | 1.
+Proof. by intros ->. Qed.
+
+#[export] Instance int64_ptrofs_repr_inj_inst (z1 z2 : Z):
+  TCSolve (z1 = z2) -> TCEq (Ptrofs.repr z1) (Int64.repr z2) | 10.
+Proof. by intros ->. Qed.
+
+#[export] Instance vlong_vptrofs_inj_inst i1 i2:
+  TCEq i1 i2 -> TCEq (Vptrofs i1) (Vlong i2) | 0.
+Proof. by intros ->. Qed.
 (* combines the original solver `autorewrite with lithium_rewrite; exact: eq_refl` with more automation. *)
 Ltac normalize_hook ::= solve [repeat solver_with_TCEq].
 
