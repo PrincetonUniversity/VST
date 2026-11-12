@@ -85,7 +85,7 @@ Ltac solver_with_TCEq :=
 Class TCSolve (P : Prop) : Prop := tc_rep_lia_proof: P.
 #[export] Hint Extern 10 (TCSolve ?P) => (change P; solver) : typeclass_instances.
 
-#[export] Instance TCDone_TCEq (z1 z2 : Z):
+#[export] Instance int_repr_done_inst (z1 z2 : Z):
   TCDone (z1 = z2) -> TCEq (Int.repr z1) (Int.repr z2) | 1.
 Proof. by intros ->. Qed.
 
@@ -97,6 +97,17 @@ Proof. by intros ->. Qed.
   TCEq i1 i2 -> TCEq (Vint i1) (Vint i2) | 0.
 Proof. by intros ->. Qed.
 
+#[export] Instance  int64_repr_done_inst (z1 z2 : Z):
+  TCDone (z1 = z2) -> TCEq (Int64.repr z1) (Int64.repr z2) | 1.
+Proof. by intros ->. Qed.
+
+#[export] Instance int64_repr_inj_inst (z1 z2 : Z):
+  TCSolve (z1 = z2) -> TCEq (Int64.repr z1) (Int64.repr z2) | 10.
+Proof. by intros ->. Qed.
+
+#[export] Instance vlong_inj_inst i1 i2:
+  TCEq i1 i2 -> TCEq (Vlong i1) (Vlong i2) | 0.
+Proof. by intros ->. Qed.
 (* combines the original solver `autorewrite with lithium_rewrite; exact: eq_refl` with more automation. *)
 Ltac normalize_hook ::= solve [repeat solver_with_TCEq].
 
