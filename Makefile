@@ -912,6 +912,10 @@ lambda-rust-logic: lambda-rust-adequacy \
 	atomic_machine/lambda_rust/logic/sqex_adequacy.vo \
 	atomic_machine/lambda_rust/logic/sqex_increment.vo \
 	atomic_machine/lambda_rust/logic/sqex_shared_reads.vo \
+	atomic_machine/lambda_rust/logic/sqex_global_view.vo \
+	atomic_machine/lambda_rust/logic/sqfp_logic.vo \
+	atomic_machine/lambda_rust/logic/sqfp_adequacy.vo \
+	atomic_machine/lambda_rust/logic/sqfp_examples.vo \
 	atomic_machine/lambda_rust/logic/at_logic.vo \
 	atomic_machine/lambda_rust/logic/at_adequacy.vo
 

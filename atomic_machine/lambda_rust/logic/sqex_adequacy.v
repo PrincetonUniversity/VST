@@ -20,14 +20,18 @@ Definition sq_mu (m : lr_mem) : rw_map := (fun _ => Rst 0) <$> m.
 Definition sqex_pool (tp : list sq_expr) : tpool :=
   map_seq 0%nat ((fun e => Running e []) <$> tp).
 
+(** If thread [i] in state [t] has returned a value [v], then [v] satisfies
+    the postcondition of thread [i] in [φs] (if it has one). *)
+Definition postcond_ok (φs : list (sq_val -> Prop)) (i : nat) (t : tstate) : Prop :=
+  forall e v φ, t = Running e [] -> to_val e = Some v -> φs !! i = Some φ -> φ v.
+
 (** Every reachable thread is safe; returned values satisfy their
     postconditions. Initially allocated locations have no reservations. *)
 Definition at_sem_adequate (tp : list sq_expr) (φs : list (sq_val -> Prop)) (m : lr_mem) : Prop :=
   forall tp' m' mu',
     am_steps (AMCfg (sqex_pool tp) m (sq_mu m)) (AMCfg tp' m' mu') ->
     (forall i t, tp' !! i = Some t -> am_not_stuck t m' mu') /\
-    (forall i e v φ, tp' !! i = Some (Running e []) -> to_val e = Some v ->
-       φs !! i = Some φ -> φ v).
+    (forall i t, tp' !! i = Some t -> postcond_ok φs i t).
 
 (** Allocate the shared heap authority and the initial thread's full fragment. *)
 Lemma sqex_heap_init_full `{!lrSqGpreS Σ, !invGS Σ} m :
@@ -113,9 +117,7 @@ Proof.
       (AMCfg tp' m' mu')) in Hrtc.
     destruct (rtc_nsteps_1 _ _ Hrtc) as [n Hsteps].
     assert (Hendpoint : forall i t, tp' !! i = Some t ->
-      am_not_stuck t m' mu' /\
-        (i = 0%nat -> forall e0 v, t = Running e0 [] ->
-          to_val e0 = Some v -> φ v)).
+      am_not_stuck t m' mu' /\ postcond_ok [φ] i t).
     { intros i t Hi. apply (pure_soundness (PROP := iPropI Σ)).
       apply (step_fupdN_soundness_lc (Σ := Σ) _ (S n) 0).
       intros Hinv. iIntros "_".
@@ -129,15 +131,12 @@ Proof.
       iMod ("Hrun" $! n tp' m' mu' i t with "[] []") as "Hrun"; [done | done | ].
       iModIntro. iApply (step_fupdN_wand with "Hrun").
       iIntros "[%Hsafe Hpost]". iSplit; first done.
-      iIntros (-> e0 v Heq Hv).
+      iIntros (e0 v φ0 Heq Hv [-> <-]%list_lookup_singleton_Some).
       iApply ("Hpost" $! (SqexThread e (sq_full_heap m) (fun v => ⌜φ v⌝)%I)
         e0 v with "[] [] []"); done. }
-    split.
-    - intros i t Hi. exact (proj1 (Hendpoint i t Hi)).
-    - intros i e0 v φ0 Hi Hv Hφ.
-      destruct i as [|i]; simpl in Hφ; last discriminate.
-      inversion Hφ; subst φ0.
-      exact (proj2 (Hendpoint 0%nat (Running e0 []) Hi) eq_refl e0 v eq_refl Hv).
+    split; intros i t Hi.
+    - exact (proj1 (Hendpoint i t Hi)).
+    - exact (proj2 (Hendpoint i t Hi)).
   }
   clear dependent Σ.
   intros Σ Hgs C tp0 m0 mu0.
