@@ -57,8 +57,8 @@ Theorem at_adequacy Σ `{!lrAtGpreS Σ} (e : expr) (m : lr_mem) (φ : at_val -> 
   adequate NotStuck (Running e [] : lr_tstate) ((m, at_init_mu m) : at_state) (fun v _ => φ v).
 Proof.
   intros Hwp; eapply (wp_adequacy _ _); iIntros (??).
-  iMod (own_alloc (● sq_heap_cells m (sq_full_heap m))) as (vγ) "Hvγ";
-    first by apply auth_auth_valid, sq_full_heap_valid.
+  iMod (own_alloc (● sq_heap_cells m)) as (vγ) "Hvγ";
+    first by apply auth_auth_valid, sq_heap_cells_valid.
   iMod (own_alloc (● (∅ : sq_freeableUR))) as (fγ) "Hfγ";
     first by apply auth_auth_valid.
   iMod (ghost_map_alloc_empty (K := nat) (V := loc * Qp * val)) as (rγ) "Hrγ".
@@ -70,8 +70,8 @@ Proof.
   iModIntro. iExists (fun σ _ => at_si (lrAtGS0 := Hat) σ.1 σ.2), (fun _ => True%I).
   iSplitL.
   { iSplitL "Hvγ Hfγ".
-    { iExists (sq_full_heap m), ∅. iFrame. iPureIntro.
-      split; [apply sq_full_heap_rel | intros ?? Hb; by rewrite lookup_empty in Hb]. }
+    { iExists ∅. iFrame. iPureIntro.
+      intros ?? Hb; by rewrite lookup_empty in Hb. }
     iExists ∅, ∅, ∅. iFrame. rewrite !big_sepM_empty. iPureIntro. split_and!; try done.
     apply at_resv_rel_init. }
   by iApply (Hwp Hat).

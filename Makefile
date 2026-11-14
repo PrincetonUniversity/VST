@@ -894,28 +894,9 @@ lambda-rust-logic: lambda-rust-adequacy \
 	atomic_machine/lambda_rust/logic/sq_logic.vo \
 	atomic_machine/lambda_rust/logic/sq_adequacy.vo \
 	atomic_machine/lambda_rust/logic/sqex_logic.vo \
-	atomic_machine/lambda_rust/logic/sqex_rules.vo \
-	atomic_machine/lambda_rust/logic/sqex_resources.vo \
-	atomic_machine/lambda_rust/logic/sqex_pool.vo \
-	atomic_machine/lambda_rust/logic/sqex_resource_split.vo \
-	atomic_machine/lambda_rust/logic/sqex_seq_frame.vo \
 	atomic_machine/lambda_rust/logic/sqex_pending.vo \
-	atomic_machine/lambda_rust/logic/sqex_pool_steps.vo \
-	atomic_machine/lambda_rust/logic/sqex_pool_resources.vo \
-	atomic_machine/lambda_rust/logic/sqex_pool_rebuild.vo \
-	atomic_machine/lambda_rust/logic/sqex_external_steps.vo \
-	atomic_machine/lambda_rust/logic/sqex_seq_resources.vo \
-	atomic_machine/lambda_rust/logic/sqex_auth_full.vo \
-	atomic_machine/lambda_rust/logic/sqex_seq_later.vo \
-	atomic_machine/lambda_rust/logic/sqex_seq_perm.vo \
-	atomic_machine/lambda_rust/logic/sqex_seq_step.vo \
 	atomic_machine/lambda_rust/logic/sqex_adequacy.vo \
-	atomic_machine/lambda_rust/logic/sqex_increment.vo \
-	atomic_machine/lambda_rust/logic/sqex_shared_reads.vo \
-	atomic_machine/lambda_rust/logic/sqex_global_view.vo \
-	atomic_machine/lambda_rust/logic/sqfp_logic.vo \
-	atomic_machine/lambda_rust/logic/sqfp_adequacy.vo \
-	atomic_machine/lambda_rust/logic/sqfp_examples.vo \
+	atomic_machine/lambda_rust/logic/sqex_examples.vo \
 	atomic_machine/lambda_rust/logic/at_logic.vo \
 	atomic_machine/lambda_rust/logic/at_adequacy.vo
 

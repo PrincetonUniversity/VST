@@ -33,14 +33,14 @@ Theorem sq_adequacy Σ `{!lrSqGpreS Σ} (e : sq_expr) (m : lr_mem) (φ : sq_val 
   adequate NotStuck e m (fun v _ => φ v).
 Proof.
   intros Hwp; eapply (wp_adequacy _ _); iIntros (??).
-  iMod (own_alloc (● sq_heap_cells m (sq_full_heap m))) as (vγ) "Hvγ";
-    first by apply auth_auth_valid, sq_full_heap_valid.
+  iMod (own_alloc (● sq_heap_cells m)) as (vγ) "Hvγ";
+    first by apply auth_auth_valid, sq_heap_cells_valid.
   iMod (own_alloc (● (∅ : sq_freeableUR))) as (fγ) "Hfγ";
     first by apply auth_auth_valid.
   set (Hheap := SqHeapGS _ _ _ vγ fγ).
   iModIntro. iExists (fun m _ => sq_heap m), (fun _ => True%I). iSplitL.
-  { iExists (sq_full_heap m), ∅. iFrame. iPureIntro.
-    split; [apply sq_full_heap_rel | intros ?? Hnone; by rewrite lookup_empty in Hnone]. }
+  { iExists ∅. iFrame. iPureIntro.
+    intros ?? Hnone; by rewrite lookup_empty in Hnone. }
   by iApply (Hwp (LrSqGS _ _ Hheap)).
 Qed.
 
