@@ -1,164 +1,214 @@
-(** * EXWP: a footprint logic for lambda-Rust threads of the atomic machine
+(** * EXWP: a weakest precondition for lambda-Rust threads of the atomic machine
 
     EXWP is a weakest precondition for one lambda-Rust thread of the atomic
-    machine [at_step] ([atomic_machine.v] instantiated with [lr_language]):
-    - sequential steps are those of [sq_sem.v], with the shared heap
-      [sq_heap m] as state interpretation;
-    - after a step with trace [T], the thread hands over the points-to
-      footprint of [T] ([fp_tokens T ds]) and receives it back at Commit;
-    - external calls (the SC atomics and Fork) go through [ExtCallSpecs].
-    Footprints of reads are fractional points-to, footprints of writes are
-    full points-to (also for same-value writes). Allocation needs no token:
-    its reservation never conflicts with another thread's. Free needs none
-    either: the freed cells leave memory, so a pending access to them would
-    hold a fragment that contradicts the new state interpretation.
+    machine [am_step] ([atomic_machine.v] instantiated with [lr_language]).
+    External calls (the SC atomics and Fork) go through [ExtSpecs]; the
+    contracts [lr_ext_specs] and the rules for the SC operations and Fork are
+    at the end of this file.
 
-    The contracts [lr_ext_specs] of the SC operations and Fork are at the end
-    of this file. The adequacy proof in [sqex_adequacy.v] holds the
-    footprints of pending threads, so data races become ordinary validity
-    conflicts in the logic; [sqex_examples.v] uses the rules. *)
+    A sequential (core) step is a single machine step. Races are predicted
+    from the configuration before a step, so the thread must own the
+    footprint of each of its possible steps beforehand ([fp_tokens T]):
+    fractional points-to for reads, full points-to for writes and frees,
+    nothing for allocations. The sequential case is therefore the weakest
+    precondition [sq_step] of one core step, whose successor satisfies EXWP.
+    Every rule for a core step is lifted by the single rule [exwp_core_step],
+    whose side condition [CoreRedex e] is discharged by instance search; the
+    rules and instances for the operations of [sq_logic.v] are in
+    [sqex_lr_logic.v]. *)
 
 From iris.algebra Require Import auth gmap.
 From iris.proofmode Require Import proofmode coq_tactics reduction.
 From iris.program_logic Require Export weakestpre.
+From iris.program_logic Require Import language ectx_language.
 From lrust.lang Require Import tactics.
 Require Import VST.atomic_machine.atomic_machine.
-Require Import VST.atomic_machine.lambda_rust.logic.at_logic.
-Require Import VST.atomic_machine.lambda_rust.adequacy.
-Require Import VST.atomic_machine.lambda_rust.equivalence.
 Require Export VST.atomic_machine.lambda_rust.logic.sq_logic.
+Require Export VST.atomic_machine.lambda_rust.logic.lr_lemmas.
 
 Set Default Proof Using "Type".
 #[local] Set Warnings "-redundant-canonical-projection".
 
-(** A collection of Hoare specifications. The argument type contains each
-    operation's logical parameters. Preconditions may require verification
-    of spawned threads. EXWP supplies their WPs under a later; the
-    precondition itself is required now, inside the opening fancy update. *)
-Class ExtCallSpecs `(L : @sqlang Loc Val LocEqDec LocCountable Mem Layout Expr)
+(** The specification of one external call: the type of its logical
+    parameters, its precondition, and its postcondition on the returned
+    value. The precondition may require the verification of spawned
+    threads: EXWP supplies their WPs [W] under a later; the precondition
+    itself is required now, inside the opening fancy update. *)
+Record ExtSpec `(L : @sqlang Loc Val LocEqDec LocCountable Mem Layout Expr)
     (Σ : gFunctors) := {
-  ext_spec_args : @atomic_op Loc Val Layout Expr -> Type;
-  ext_spec_pre : forall op, ext_spec_args op ->
+  ext_args : Type;
+  ext_pre : ext_args ->
     ((@sqlang_thrd_st _ _ _ _ _ _ _ L) -d> iPropO Σ) -n> iPropO Σ;
-  ext_spec_post : forall op, ext_spec_args op -> option Val -> iProp Σ
+  ext_post : ext_args -> option Val -> iProp Σ
 }.
+
+Global Arguments ext_args {_ _ _ _ _ _ _ _ _} _.
+Global Arguments ext_pre {_ _ _ _ _ _ _ _ _} _ _.
+Global Arguments ext_post {_ _ _ _ _ _ _ _ _} _ _ _.
+
+(** The specifications of all external calls: a specification for each. *)
+Class ExtSpecs `(L : @sqlang Loc Val LocEqDec LocCountable Mem Layout Expr)
+    (Σ : gFunctors) :=
+  ext_spec : @atomic_op Loc Val Layout Expr -> ExtSpec L Σ.
+
+Notation ext_spec_args op := (ext_args (ext_spec op)).
+Notation ext_spec_pre op := (ext_pre (ext_spec op)).
+Notation ext_spec_post op := (ext_post (ext_spec op)).
 
 Local Existing Instance lrSqGS_invGS.
 
-(** ** Evaluation contexts and external calls *)
-
-Lemma lr_external_det e op1 k1 op2 k2 :
-  lr_external e op1 k1 -> lr_external e op2 k2 ->
-  op2 = op1 /\ forall ov, k2 ov = k1 ov.
-Proof.
-  intros H1 H2. destruct H1 as [K1 e1 op1 k1 H1].
-  inversion H2 as [K2 e2 op2x k2x Hh Heq]; subst.
-  destruct (fill_redex_unique K2 K1 e2 e1
-    (lr_head_external_redex_shape _ _ _ Hh)
-    (lr_head_external_redex_shape _ _ _ H1)
-    (lr_head_external_not_val _ _ _ Hh)
-    (lr_head_external_not_val _ _ _ H1) Heq) as [-> ->].
-  destruct H1; inversion Hh; subst; split; congruence.
-Qed.
-
-Lemma lr_external_fill K e op k :
-  lr_external e op k -> exists k',
-    lr_external (fill K e) op k' /\ forall ov, k' ov = fill K (k ov).
-Proof.
-  intros H. destruct H as [K' e op k Hh].
-  exists (fun ov => fill (K' ++ K) (k ov)).
-  rewrite -fill_app. split; [by constructor | intro ov; by rewrite fill_app].
-Qed.
-
-Lemma lr_external_fill_inv K e op k :
-  to_val e = None -> lr_external (fill K e) op k ->
-  exists k', lr_external e op k' /\ forall ov, k ov = fill K (k' ov).
-Proof.
-  intros Hv He. inversion He as [K' r op' kr Hh Heq]; subst.
-  destruct (fill_decompose K K' e r (lr_head_external_redex_shape _ _ _ Hh)
-    (lr_head_external_not_val _ _ _ Hh) Hv (eq_sym Heq)) as (K'' & -> & ->).
-  exists (fun ov => fill K'' (kr ov)). split; first by constructor.
-  intro ov. by rewrite fill_app.
-Qed.
+(** ** Footprints *)
 
 Section footprints.
   Context `{!sq_heapGS Σ}.
 
-  (** The ownership witnessing one access. The data [d] records the fraction
-      and the value, so the returned tokens are exactly the handed-over ones. *)
-  Definition fp_event (ev : @mem_ev loc) (d : Qp * val) : iProp Σ :=
-    match ev with
-    | atomic_machine.Read l => l ↦{d.1} d.2
-    | atomic_machine.Write l => l ↦ d.2
-    | atomic_machine.Alloc _ | atomic_machine.Free _ => True
+  (** Ownership of a location: fractional to read it, full to modify (write &
+      free) it. *)
+  Definition fp_own (l : loc) (w : bool) : iProp Σ :=
+    (if w then ∃ v, l ↦ v else ∃ q v, l ↦{q} v)%I.
+
+  Lemma fp_own_full l v w : l ↦ v ⊢ fp_own l w.
+  Proof. iIntros "Hl". destruct w; rewrite /fp_own; by iExists _; try iExists _. Qed.
+
+  (** Two owners of a location, one of them writing, are incompatible. *)
+  Lemma fp_own_excl l w1 w2 :
+    w1 = true \/ w2 = true -> fp_own l w1 -∗ fp_own l w2 -∗ False.
+  Proof.
+    iIntros (Hw) "H1 H2". rewrite /fp_own.
+    destruct w1, w2; [ | | | destruct Hw as [H|H]; discriminate ].
+    - iDestruct "H1" as (v1) "H1". iDestruct "H2" as (v2) "H2".
+      iDestruct (sq_pointsto_valid_2 with "H1 H2") as %[Hq _].
+      exfalso. exact (Qp.not_add_le_l 1 1 Hq).
+    - iDestruct "H1" as (v1) "H1". iDestruct "H2" as (q2 v2) "H2".
+      iDestruct (sq_pointsto_valid_2 with "H1 H2") as %[Hq _].
+      exfalso. exact (Qp.not_add_le_l 1 q2 Hq).
+    - iDestruct "H1" as (q1 v1) "H1". iDestruct "H2" as (v2) "H2".
+      iDestruct (sq_pointsto_valid_2 with "H1 H2") as %[Hq _].
+      exfalso. exact (Qp.not_add_le_r q1 1 Hq).
+  Qed.
+
+  (** The ownership needed for one non-atomic event, before the step. *)
+  Definition fp_event (ev : @mem_ev loc) : iProp Σ :=
+    match ev_need_full_loc (NA ev) with
+    | Some (l, w) => fp_own l w
+    | None => True
     end.
 
-  Definition fp_tokens (T : list (@mem_ev loc)) (ds : list (Qp * val)) : iProp Σ :=
-    [∗ list] ev; d ∈ T; ds, fp_event ev d.
+  Definition fp_tokens (T : list (@mem_ev loc)) : iProp Σ :=
+    [∗ list] ev ∈ T, fp_event ev.
 
-  Lemma fp_tokens_nil : ⊢ fp_tokens [] [].
+  Lemma fp_tokens_nil : ⊢ fp_tokens [].
   Proof. by rewrite /fp_tokens. Qed.
 
-  Lemma fp_tokens_nil_inv ds : fp_tokens [] ds -∗ ⌜ds = []⌝.
-  Proof. rewrite /fp_tokens big_sepL2_nil_inv_l. by iIntros "->". Qed.
-
-  Lemma fp_tokens_read T ds l :
-    lr_read_event l ∈ T -> fp_tokens T ds ⊢ ∃ q v, l ↦{q} v ∗ True.
+  Lemma fp_tokens_elem T ev l w :
+    ev ∈ T -> ev_need_full_loc (NA ev) = Some (l, w) -> fp_tokens T ⊢ fp_own l w.
   Proof.
-    intros (k & Hk)%list_elem_of_lookup. iIntros "Htok".
-    iDestruct (big_sepL2_length with "Htok") as %Hlen.
-    destruct (lookup_lt_is_Some_2 ds k) as [d Hd].
-    { rewrite -Hlen. by apply lookup_lt_Some with (lr_read_event l). }
-    iDestruct (big_sepL2_lookup with "Htok") as "Hl"; [exact Hk | exact Hd | ].
-    iExists d.1, d.2. by iFrame.
-  Qed.
-
-  Lemma fp_tokens_write T ds l :
-    lr_write_event l ∈ T -> fp_tokens T ds ⊢ ∃ v, l ↦ v ∗ True.
-  Proof.
-    intros (k & Hk)%list_elem_of_lookup. iIntros "Htok".
-    iDestruct (big_sepL2_length with "Htok") as %Hlen.
-    destruct (lookup_lt_is_Some_2 ds k) as [d Hd].
-    { rewrite -Hlen. by apply lookup_lt_Some with (lr_write_event l). }
-    iDestruct (big_sepL2_lookup with "Htok") as "Hl"; [exact Hk | exact Hd | ].
-    iExists d.2. by iFrame.
-  Qed.
-
-  (** Conflicts between a fragment and a set of footprint tokens. *)
-  Lemma fp_tokens_read_excl T ds l q v :
-    fp_tokens T ds -∗ l ↦{q} v -∗ ⌜lr_write_event l ∉ T⌝.
-  Proof.
-    iIntros "Htok Hl %Hin".
-    iDestruct (fp_tokens_write with "Htok") as (w) "[Hw _]"; first done.
-    iDestruct (sq_pointsto_valid_2 with "Hw Hl") as %[Hq _].
-    exfalso. exact (Qp.not_add_le_l 1 q Hq).
-  Qed.
-
-  Lemma fp_tokens_write_excl T ds l v :
-    fp_tokens T ds -∗ l ↦ v -∗ ⌜lr_write_event l ∉ T ∧ lr_read_event l ∉ T⌝.
-  Proof.
-    iIntros "Htok Hl". iSplit.
-    - iApply (fp_tokens_read_excl with "Htok Hl").
-    - iIntros (Hin).
-      iDestruct (fp_tokens_read with "Htok") as (q w) "[Hw _]"; first done.
-      iDestruct (sq_pointsto_valid_2 with "Hl Hw") as %[Hq _].
-      exfalso. exact (Qp.not_add_le_l 1 q Hq).
-  Qed.
-
-  Lemma fp_tokens_allocated T ds m l :
-    sq_heap m -∗ fp_tokens T ds -∗
-    ⌜lr_read_event l ∈ T \/ lr_write_event l ∈ T -> is_Some (m !! l)⌝.
-  Proof.
-    iIntros "Hm Htok" ([Hin|Hin]).
-    - iDestruct (fp_tokens_read with "Htok") as (q w) "[Hw _]"; first done.
-      iDestruct (sq_heap_read with "Hm Hw") as %Hw. by eauto.
-    - iDestruct (fp_tokens_write with "Htok") as (w) "[Hw _]"; first done.
-      iDestruct (sq_heap_read with "Hm Hw") as %Hw. by eauto.
+    intros Hin Hacc. iIntros "Hfp".
+    iDestruct (big_sepL_elem_of with "Hfp") as "Hev"; first exact Hin.
+    by rewrite /fp_event Hacc.
   Qed.
 End footprints.
 
+
+
+(** A step of [sq_lang] is a sequential step of [sq_sem.v]. *)
+Lemma sq_prim_step_lr_step (e : sq_expr) m κ e' m' efs :
+  prim_step e m κ e' m' efs <-> lr_step e m κ e' m' /\ efs = [].
+Proof.
+  split.
+  - intros [K e1 e2 -> -> Hs]. inversion Hs; subst. split; [ by apply LREctxStep | done ].
+  - intros [[K e1 ? ? e2 ? Hh] ->]. apply (Ectx_step' (Λ := sq_ectx_lang) K). by apply SqHeadStep.
+Qed.
+
+(** ** Core steps
+
+    [sq_step e Ψ] is the weakest precondition of one core (sequential) step
+    of [e], whose successor satisfies [Ψ]. It is the conjunction of
+    - the step clause: given [sq_heap m1], [e] can step, and every step
+      yields [sq_heap m2] and [Ψ] of the successor;
+    - the footprint clause: every step, from any memory, has its footprint
+      in the thread's ownership before the step.
+    The conjunction is non-separating: the footprint is only inspected to
+    refute races, so the same resources justify both clauses. EXWP lifts
+    every rule for a core step with the single rule [exwp_core_step], whose
+    side condition is the class [CoreRedex]. *)
+
+(** [e] is a core redex: not a value, and not an external call. The
+    instances for the operations of [sq_logic.v] are in [sqex_lr_logic.v]. *)
+Class CoreRedex (e : sq_expr) : Prop := {
+  core_redex_not_val : to_val e = None;
+  core_redex_not_external op k : ~ lr_external e op k;
+}.
+
+(** A pure step is a core step. *)
+Lemma pure_step_core_redex e1 e2 : @pure_step sq_lang e1 e2 -> CoreRedex e1.
+Proof.
+  intros [Hsafe _]. destruct (Hsafe ∅) as (e' & m' & efs & Hs). split.
+  - exact (language.val_stuck _ _ _ _ _ _ Hs).
+  - apply sq_prim_step_lr_step in Hs as [Hs _].
+    intros op k He. by eapply lr_step_external_disjoint.
+Qed.
+
+Section core_steps.
+  Context `{!sq_heapGS Σ}.
+
+  Definition sq_step (e : sq_expr) (Ψ : sq_expr -> iProp Σ) : iProp Σ :=
+    (∀ m1, sq_heap m1 ==∗
+      ⌜exists T e2 m2, lr_step e m1 T e2 m2⌝ ∗
+      ∀ T e2 m2, ⌜lr_step e m1 T e2 m2⌝ -∗ ▷ |==> sq_heap m2 ∗ Ψ e2) ∧
+    (∀ m1 T e2 m2, ⌜lr_step e m1 T e2 m2⌝ ==∗ fp_tokens T).
+
+  Lemma sq_step_wand e Ψ Ψ' :
+    sq_step e Ψ -∗ ▷ (∀ e', Ψ e' -∗ Ψ' e') -∗ sq_step e Ψ'.
+  Proof.
+    rewrite /sq_step. iIntros "H HΨ". iSplit.
+    - iDestruct "H" as "[H _]". iIntros (m) "Hm".
+      iMod ("H" with "Hm") as "[$ H]". iModIntro.
+      iIntros (T e2 m2 Hs). iSpecialize ("H" $! T e2 m2 with "[//]").
+      iNext. iMod "H" as "[$ H]". iModIntro. by iApply "HΨ".
+    - by iDestruct "H" as "[_ H]".
+  Qed.
+
+  (** A step under an evaluation context is a step of the redex. *)
+  Lemma sq_step_fill K e Ψ :
+    to_val e = None ->
+    sq_step e (λ e', Ψ (fill K e')) ⊢ sq_step (fill K e) Ψ.
+  Proof.
+    intros Hv. rewrite /sq_step. iIntros "H". iSplit.
+    - iDestruct "H" as "[H _]". iIntros (m) "Hm".
+      iMod ("H" with "Hm") as "[%Hr H]". iModIntro. iSplit.
+      { iPureIntro. destruct Hr as (T & e2 & m2 & Hs).
+        exists T, (fill K e2), m2. destruct Hs. rewrite -!fill_app. by constructor. }
+      iIntros (T e2 m2 Hs).
+      destruct (lr_step_fill_inv _ _ _ _ _ _ Hv Hs) as (e2' & -> & Hs').
+      by iApply ("H" $! T e2' m2 with "[//]").
+    - iDestruct "H" as "[_ H]". iIntros (m T e2 m2 Hs).
+      destruct (lr_step_fill_inv _ _ _ _ _ _ Hv Hs) as (e2' & -> & Hs').
+      by iApply ("H" $! m T e2' m2 with "[//]").
+  Qed.
+
+  Lemma sq_step_pure e1 e2 Ψ :
+    @pure_step sq_lang e1 e2 -> ▷ Ψ e2 ⊢ sq_step e1 Ψ.
+  Proof.
+    intros [Hsafe Hdet]. rewrite /sq_step. iIntros "HΨ". iSplit.
+    - iIntros (m) "Hm". iModIntro. iSplit.
+      { iPureIntro. destruct (Hsafe m) as (e' & m' & efs & [Hs _]%sq_prim_step_lr_step).
+        eauto. }
+      iIntros (T e' m' Hs).
+      destruct (Hdet m T e' m' []) as (-> & -> & -> & _).
+      { by apply sq_prim_step_lr_step. }
+      iNext. iModIntro. iFrame.
+    - iIntros (m T e' m' Hs).
+      destruct (Hdet m T e' m' []) as (-> & -> & -> & _).
+      { by apply sq_prim_step_lr_step. }
+      iModIntro. iApply fp_tokens_nil.
+  Qed.
+End core_steps.
+
+(** ** The weakest precondition *)
+
 Section exwp_pre.
-  Context `{!lrSqGS Σ} (specs : ExtCallSpecs lr_language Σ).
+  Context `{!lrSqGS Σ} (specs : ExtSpecs lr_language Σ).
   Local Existing Instance specs.
 
   Definition exwp_pre
@@ -167,11 +217,10 @@ Section exwp_pre.
     match to_val e1 with
     | Some v => |==> Φ v
     | None => |==>
-        (⌜forall op k, ~ lr_external e1 op k⌝ ∗
-         ∀ m1, sq_heap m1 ==∗
-          ⌜exists T e2 m2, lr_step e1 m1 T e2 m2⌝ ∗
-          ∀ T e2 m2, ⌜lr_step e1 m1 T e2 m2⌝ -∗ ▷ |==>
-            sq_heap m2 ∗ ∃ ds, fp_tokens T ds ∗ (fp_tokens T ds -∗ exwp E e2 Φ)) ∨
+        (* A core step is a step of [sq_step]: as in Iris's wp, except that
+           a NA step needs to show that it has "enough" points-tos to emit
+           its events. *)
+        (⌜forall op k, ~ lr_external e1 op k⌝ ∗ sq_step e1 (λ e2, exwp E e2 Φ)) ∨
         (∃ op k, ⌜lr_external e1 op k⌝ ∗
           |={E,∅}=> ∃ x : ext_spec_args op,
             ext_spec_pre op x (λ ef, ▷ exwp ⊤ ef (λ _, True)) ∗
@@ -180,12 +229,12 @@ Section exwp_pre.
 
   Global Instance exwp_pre_contractive : Contractive exwp_pre.
   Proof.
-    rewrite /exwp_pre /= => n wp wp' Hwp E e1 Φ.
+    rewrite /exwp_pre /sq_step /= => n wp wp' Hwp E e1 Φ.
     repeat (f_contractive || f_equiv); first [apply Hwp | intros ef; f_contractive; apply Hwp].
   Qed.
 End exwp_pre.
 
-Definition exwp `{!lrSqGS Σ, !ExtCallSpecs lr_language Σ} :
+Definition exwp `{!lrSqGS Σ, !ExtSpecs lr_language Σ} :
     coPset -> sq_expr -> (sq_val -> iProp Σ) -> iProp Σ :=
   fixpoint (exwp_pre _).
 Global Arguments exwp {Σ _ _} E e%_E Φ%_I.
@@ -206,7 +255,7 @@ Notation "'{{{' P } } } 'EXWP' e @ E {{{ 'RET' pat ; Q } } }" :=
   (∀ Φ, ⊢ P -∗ ▷ (Q -∗ Φ pat%V) -∗ EXWP e @ E {{ Φ }}) : stdpp_scope.
 
 Section exwp.
-  Context `{!lrSqGS Σ, !ExtCallSpecs lr_language Σ}.
+  Context `{!lrSqGS Σ, !ExtSpecs lr_language Σ}.
 
   Lemma exwp_unfold E e Φ :
     EXWP e @ E {{ Φ }} ⊣⊢ exwp_pre _ exwp E e Φ.
@@ -218,34 +267,41 @@ Section exwp.
   Lemma exwp_value E v Φ : Φ v ⊢ EXWP of_val v @ E {{ Φ }}.
   Proof. rewrite exwp_value_bupd. apply bupd_intro. Qed.
 
+  (** A value given as an expression, e.g. a literal. *)
+  Lemma exwp_value' E e v Φ `{!@IntoVal sq_lang e v} : Φ v ⊢ EXWP e @ E {{ Φ }}.
+  Proof. rewrite -(@into_val sq_lang e v). apply exwp_value. Qed.
+
   Lemma bupd_exwp E e Φ : (|==> EXWP e @ E {{ Φ }}) ⊢ EXWP e @ E {{ Φ }}.
   Proof. rewrite exwp_unfold /exwp_pre. destruct (to_val e); apply bupd_trans. Qed.
 
   Lemma exwp_seq_unfold E e Φ :
     to_val e = None -> (forall op k, ~ lr_external e op k) ->
     EXWP e @ E {{ Φ }} ⊣⊢
-      (∀ m1, sq_heap m1 ==∗
-        ⌜exists T e2 m2, lr_step e m1 T e2 m2⌝ ∗
-        ∀ T e2 m2, ⌜lr_step e m1 T e2 m2⌝ -∗ ▷ |==>
-          sq_heap m2 ∗ ∃ ds, fp_tokens T ds ∗ (fp_tokens T ds -∗ EXWP e2 @ E {{ Φ }})).
+      ((∀ m1, sq_heap m1 ==∗
+         ⌜exists T e2 m2, lr_step e m1 T e2 m2⌝ ∗
+         ∀ T e2 m2, ⌜lr_step e m1 T e2 m2⌝ -∗ ▷ |==>
+           sq_heap m2 ∗ EXWP e2 @ E {{ Φ }}) ∧
+       (∀ m1 T e2 m2, ⌜lr_step e m1 T e2 m2⌝ ==∗ fp_tokens T)).
   Proof.
-    intros Hv Hext. rewrite exwp_unfold /exwp_pre Hv.
+    intros Hv Hext. rewrite exwp_unfold /exwp_pre /sq_step Hv.
     iSplit.
-    - iIntros "H" (m) "Hm".
-      iMod "H" as "[[_ Hseq] | (%op & %k & %Hcall & _)]".
-      + by iApply "Hseq".
-      + exfalso. by eapply Hext.
+    - iIntros "H". iSplit.
+      + iIntros (m) "Hm".
+        iMod "H" as "[[_ [Hseq _]] | (%op & %k & %Hcall & _)]".
+        * by iApply "Hseq".
+        * exfalso. by eapply Hext.
+      + iIntros (m T e2 m2 Hs).
+        iMod "H" as "[[_ [_ Hfp]] | (%op & %k & %Hcall & _)]".
+        * by iApply "Hfp".
+        * exfalso. by eapply Hext.
     - iIntros "H !>". iLeft. iFrame. done.
   Qed.
 
-  Lemma exwp_lift_step E e Φ :
-    to_val e = None -> (forall op k, ~ lr_external e op k) ->
-    (∀ m1, sq_heap m1 ==∗
-      ⌜exists T e2 m2, lr_step e m1 T e2 m2⌝ ∗
-      ∀ T e2 m2, ⌜lr_step e m1 T e2 m2⌝ -∗ ▷ |==>
-        sq_heap m2 ∗ ∃ ds, fp_tokens T ds ∗ (fp_tokens T ds -∗ EXWP e2 @ E {{ Φ }})) ⊢
-    EXWP e @ E {{ Φ }}.
-  Proof. intros Hv Hext. by rewrite (exwp_seq_unfold _ _ _ Hv Hext). Qed.
+  Lemma exwp_core_step E e Φ `{!CoreRedex e} :
+    sq_step e (λ e2, EXWP e2 @ E {{ Φ }}) ⊢ EXWP e @ E {{ Φ }}.
+  Proof.
+    by rewrite (exwp_seq_unfold _ _ _ core_redex_not_val core_redex_not_external) /sq_step.
+  Qed.
 
   Lemma exwp_lift_external E e op k Φ :
     lr_external e op k ->
@@ -287,19 +343,9 @@ Section exwp.
       { iPureIntro. intros op k He.
         destruct (lr_external_fill_inv _ _ _ _ Hv He) as (k' & He' & _).
         by eapply Hno. }
-      iIntros (m) "Hm". iMod ("Hseq" with "Hm") as "[%Hr Hstep]".
-      iModIntro. iSplit.
-      { iPureIntro. destruct Hr as (T & e2 & m2 & Hs).
-        exists T, (fill K e2), m2. destruct Hs. rewrite -!fill_app. by constructor. }
-      iIntros (T e2 m2 Hs).
-      inversion Hs as [K' r m0 T0 r' m0' Hh Heq]; subst.
-      destruct (fill_decompose K K' e r (lr_head_step_redex_shape _ _ _ _ _ Hh)
-        (lr_head_step_not_val _ _ _ _ _ Hh) Hv (eq_sym Heq)) as (K'' & -> & ->).
-      iDestruct ("Hstep" $! T (fill K'' r') m2 with "[%]") as "Hstep".
-      { by constructor. }
-      iNext. iMod "Hstep" as "[Hm (%ds & Htok & Hwp)]".
-      iModIntro. iFrame "Hm". iExists ds. iFrame "Htok". iIntros "Htok".
-      rewrite fill_app. iApply "IH". by iApply "Hwp".
+      iApply sq_step_fill; first done.
+      iApply (sq_step_wand with "Hseq"). iIntros "!>" (e') "Hwp".
+      by iApply "IH".
     - destruct (lr_external_fill K _ _ _ He) as (k' & He' & Hk).
       iRight. iExists op, k'. iSplit; first done.
       iMod "Hspec" as (x) "[Hpre Hcont]". iModIntro. iExists x. iFrame "Hpre".
@@ -310,20 +356,8 @@ Section exwp.
   Lemma exwp_pure_step E e1 e2 Φ :
     @pure_step sq_lang e1 e2 -> ▷ EXWP e2 @ E {{ Φ }} ⊢ EXWP e1 @ E {{ Φ }}.
   Proof.
-    intros [Hsafe Hdet].
-    assert (Hv : to_val e1 = None).
-    { destruct (Hsafe ∅) as (e' & m' & efs & Hs). exact (language.val_stuck _ _ _ _ _ _ Hs). }
-    iIntros "Hwp". iApply exwp_lift_step; first done.
-    { destruct (Hsafe ∅) as (e' & m' & efs & [Hs _]%sq_prim_step_lr_step).
-      intros op k He. by eapply lr_step_external_disjoint. }
-    iIntros (m) "Hm". iModIntro. iSplit.
-    { iPureIntro. destruct (Hsafe m) as (e' & m' & efs & [Hs _]%sq_prim_step_lr_step).
-      eauto. }
-    iIntros (T e' m' Hs).
-    destruct (Hdet m T e' m' []) as (-> & -> & -> & _).
-    { by apply sq_prim_step_lr_step. }
-    iNext. iModIntro. iFrame "Hm". iExists []. iSplit; first by iApply fp_tokens_nil.
-    by iIntros "_".
+    intros Hpure. have ? := pure_step_core_redex _ _ Hpure.
+    iIntros "Hwp". iApply exwp_core_step. by iApply sq_step_pure.
   Qed.
 
   Lemma exwp_pure_steps E e1 e2 Φ n :
@@ -335,98 +369,6 @@ Section exwp.
     iNext. by iApply IH.
   Qed.
 
-  (** The access rules hand over exactly the points-to they use. *)
-  Lemma exwp_read_na E l q v :
-    l ↦{q} v -∗ EXWP (Read Na1Ord (Lit (LitLoc l))) @ E
-      {{ w, ⌜w = v⌝ ∗ l ↦{q} v }}.
-  Proof.
-    iIntros "Hl". iApply exwp_lift_step; first done.
-    { intros op k He. apply lr_external_head in He; [inversion He | solve_redex_shape]. }
-    iIntros (m) "Hm".
-    iDestruct (sq_heap_read with "Hm Hl") as %Hl.
-    iModIntro. iSplit.
-    { iPureIntro. do 3 eexists. apply (LREctxStep []). by apply LRReadNaS. }
-    iIntros (T e2 m2 Hs). apply lr_step_head in Hs; last solve_redex_shape.
-    inversion Hs; subst. simplify_map_eq. iNext.
-    iModIntro. iFrame "Hm". iExists [(q, v)]. rewrite /fp_tokens /=.
-    iFrame "Hl". iIntros "[Hl _]". iApply exwp_value. by iFrame.
-  Qed.
-
-  Lemma exwp_write_na E l v v' :
-    l ↦ v -∗ EXWP (Write Na1Ord (Lit (LitLoc l)) (of_val v')) @ E
-      {{ _, l ↦ v' }}.
-  Proof.
-    iIntros "Hl". iApply exwp_lift_step; first done.
-    { intros op k He. apply lr_external_head in He; [inversion He | solve_redex_shape]. }
-    iIntros (m) "Hm".
-    iDestruct (sq_heap_read with "Hm Hl") as %Hl.
-    iModIntro. iSplit.
-    { iPureIntro. do 3 eexists. apply (LREctxStep []).
-      econstructor; [apply to_of_val | exact Hl]. }
-    iIntros (T e2 m2 Hs). apply lr_step_head in Hs; last solve_redex_shape.
-    inversion Hs; subst.
-    match goal with H : to_val (of_val _) = Some _ |- _ =>
-      rewrite to_of_val in H; injection H as <- end.
-    iNext. iMod (sq_heap_write with "Hm Hl") as "[Hm Hl]".
-    iModIntro. iFrame "Hm". iExists [(1%Qp, v')]. rewrite /fp_tokens /=.
-    iFrame "Hl". iIntros "[Hl _]". by iApply (exwp_value _ (LitV LitPoison)).
-  Qed.
-
-  Lemma exwp_alloc E Φ :
-    (▷ ∀ l, l ↦ LitV LitPoison -∗ †l…1 -∗ Φ (LitV (LitLoc l))) -∗
-    EXWP (Alloc (Lit (LitInt 1))) @ E {{ Φ }}.
-  Proof.
-    iIntros "HΦ". iApply exwp_lift_step; first done.
-    { intros op k He. apply lr_external_head in He; [inversion He | solve_redex_shape]. }
-    iIntros (m) "Hm". iModIntro. iSplit.
-    { iPureIntro. destruct (sq_alloc_fresh m) as [l Hl].
-      do 3 eexists. apply (LREctxStep []). apply LRAllocS; [lia | done]. }
-    iIntros (T e2 m2 Hs). apply lr_step_head in Hs; last solve_redex_shape.
-    inversion Hs; subst. iNext.
-    iMod (sq_heap_alloc _ _ 1 with "Hm") as "[Hm [Hfree Hl]]"; [lia | done | ].
-    rewrite sq_pointsto_vec_cons. iDestruct "Hl" as "[Hl _]".
-    iModIntro. iFrame "Hm". iExists [(1%Qp, LitV LitPoison)].
-    rewrite /fp_tokens /=. iSplit; first done. iIntros "_".
-    iApply (exwp_value _ (LitV (LitLoc l))). iApply ("HΦ" with "Hl Hfree").
-  Qed.
-End exwp.
-
-(** Deallocation hands over no token: after the step the cells are no longer
-    in memory, which already excludes every conflicting pending access. *)
-Section exwp_free.
-  Context `{!lrSqGS Σ, !ExtCallSpecs lr_language Σ}.
-
-  Lemma fp_tokens_free l n :
-    ⊢ fp_tokens (lr_free_events l n) (replicate n (1%Qp, LitV LitPoison)).
-  Proof.
-    revert l. induction n as [|n IH]=> l; first by iApply fp_tokens_nil.
-    rewrite /fp_tokens /=. iSplit; first done. iApply IH.
-  Qed.
-
-  Lemma exwp_free E (n : Z) l vl :
-    n = length vl ->
-    l ↦∗ vl -∗ †l…(length vl) -∗
-    EXWP (Free (Lit (LitInt n)) (Lit (LitLoc l))) @ E {{ _, True }}.
-  Proof.
-    iIntros (Hn) "Hl Hf". iApply exwp_lift_step; first done.
-    { intros op k He. apply lr_external_head in He; [inversion He | solve_redex_shape]. }
-    iIntros (m) "Hm".
-    iMod (sq_heap_free _ _ _ n Hn with "Hm Hl Hf") as "(%Hpos & %Hdom & Hm)".
-    iModIntro. iSplit.
-    { iPureIntro. do 3 eexists. apply (LREctxStep []). by apply LRFreeS. }
-    iIntros (T e2 m2 Hs). apply lr_step_head in Hs; last solve_redex_shape.
-    inversion Hs; subst. iNext. iModIntro. iFrame "Hm".
-    iExists (replicate (Z.to_nat (length vl)) (1%Qp, LitV LitPoison)).
-    iSplitR; first by iApply fp_tokens_free. iIntros "_".
-    by iApply (exwp_value _ (LitV LitPoison)).
-  Qed.
-End exwp_free.
-
-(** ** Derived rules used by the examples *)
-
-Section exwp_derived.
-  Context `{!lrSqGS Σ, !ExtCallSpecs lr_language Σ}.
-
   Lemma exwp_wand E e Φ Ψ :
     EXWP e @ E {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ EXWP e @ E {{ Ψ }}.
   Proof.
@@ -435,12 +377,9 @@ Section exwp_derived.
     destruct (to_val e) as [v|].
     { iMod "Hwp". iModIntro. by iApply "HΦ". }
     iMod "Hwp" as "[[%Hno Hseq] | (%op & %k & %He & Hspec)]"; iModIntro.
-    - iLeft. iSplit; first done. iIntros (m) "Hm".
-      iMod ("Hseq" with "Hm") as "[$ Hstep]". iModIntro.
-      iIntros (T e2 m2 Hs). iSpecialize ("Hstep" $! T e2 m2 with "[//]"). iNext.
-      iMod "Hstep" as "[Hm (%ds & Htok & Hwp)]". iModIntro. iFrame "Hm".
-      iExists ds. iFrame "Htok". iIntros "Htok".
-      iApply ("IH" with "[Hwp Htok] HΦ"). by iApply "Hwp".
+    - iLeft. iSplit; first done.
+      iApply (sq_step_wand with "Hseq"). iIntros "!>" (e') "Hwp".
+      iApply ("IH" with "Hwp HΦ").
     - iRight. iExists op, k. iSplit; first done.
       iMod "Hspec" as (x) "[Hpre Hcont]". iModIntro. iExists x. iFrame "Hpre".
       iNext. iIntros (ov) "Hpost". iMod ("Hcont" with "Hpost") as "Hwp". iModIntro.
@@ -464,16 +403,14 @@ Section exwp_derived.
     apply of_to_val in Hv as <-. rewrite !exwp_value_bupd.
     iMod "Hwp" as ">HΦ". by iModIntro.
   Qed.
-End exwp_derived.
+End exwp.
 
-From iris.proofmode Require Import coq_tactics reduction.
-
-Lemma tac_exwp_bind `{!lrSqGS Σ, !ExtCallSpecs lr_language Σ} K Δ E Φ e :
+Lemma tac_exwp_bind `{!lrSqGS Σ, !ExtSpecs lr_language Σ} K Δ E Φ e :
   envs_entails Δ (EXWP e @ E {{ v, EXWP fill K (of_val v) @ E {{ Φ }} }})%I ->
   envs_entails Δ (EXWP fill K e @ E {{ Φ }}).
 Proof. rewrite envs_entails_unseal => ->. apply exwp_bind. Qed.
 
-Lemma tac_exwp_pure `{!lrSqGS Σ, !ExtCallSpecs lr_language Σ} K Δ Δ' E e1 e2 φ n Φ :
+Lemma tac_exwp_pure `{!lrSqGS Σ, !ExtSpecs lr_language Σ} K Δ Δ' E e1 e2 φ n Φ :
   @PureExec sq_lang φ n e1 e2 -> φ ->
   MaybeIntoLaterNEnvs n Δ Δ' ->
   envs_entails Δ' (EXWP fill K e2 @ E {{ Φ }}) ->
@@ -502,50 +439,49 @@ Tactic Notation "exwp_pure" open_constr(efoc) :=
 
 (** The contracts used by the SC examples. CAS compares integer values and
     requires full ownership, whether the comparison succeeds or fails. *)
-Definition lr_ext_args (op : @atomic_op loc val lr_layout expr) : Type :=
-  match op with
-  | ALoad _ _ => Qp * val
-  | AStore _ _ _ => val
-  | ACAS _ _ _ _ => Z * Z
-  | ASpawn _ => unit
-  end.
-
-Section concurrent_specs.
+Section ext_specs.
   Context `{!lrSqGS Σ}.
 
-  Definition lr_ext_pre (op : @atomic_op loc val lr_layout expr) :
-      lr_ext_args op -> (sq_expr -> iProp Σ) -> iProp Σ :=
-    match op as op return lr_ext_args op -> (sq_expr -> iProp Σ) -> iProp Σ with
-    | ALoad _ l => fun qv _ => l ↦{qv.1} qv.2
-    | AStore _ l _ => fun v _ => l ↦ v
-    | ACAS _ l v_exp _ => fun x _ =>
-        ⌜v_exp = LitV (LitInt x.2)⌝ ∗ l ↦ LitV (LitInt x.1)
-    | ASpawn e => fun _ W => W e
-    end%I.
+  (** An SC read of [l]: a fraction [q] of [l ↦ v], returned with [v]. *)
+  Definition lr_load_spec (l : loc) : ExtSpec lr_language Σ := {|
+    ext_args := Qp * val;
+    ext_pre qv := cconst (l ↦{qv.1} qv.2)%I;
+    ext_post qv ov := (⌜ov = Some qv.2⌝ ∗ l ↦{qv.1} qv.2)%I |}.
 
-  Local Instance lr_ext_pre_ne op x :
-    NonExpansive (lr_ext_pre op x : (sq_expr -d> iPropO Σ) -> iPropO Σ).
-  Proof. intros n W W' HW. destruct op; simpl; done. Qed.
+  (** An SC write of [v] to [l]: full ownership of [l]. *)
+  Definition lr_store_spec (l : loc) (v : val) : ExtSpec lr_language Σ := {|
+    ext_args := val;
+    ext_pre v' := cconst (l ↦ v')%I;
+    ext_post _ ov := (⌜ov = None⌝ ∗ l ↦ v)%I |}.
 
-  Definition lr_ext_post (op : @atomic_op loc val lr_layout expr) :
-      lr_ext_args op -> option val -> iProp Σ :=
-    match op as op return lr_ext_args op -> option val -> iProp Σ with
-    | ALoad _ l => fun qv ov => ⌜ov = Some qv.2⌝ ∗ l ↦{qv.1} qv.2
-    | AStore _ l v => fun _ ov => ⌜ov = None⌝ ∗ l ↦ v
-    | ACAS _ l _ v_new => fun x ov =>
-        ⌜ov = Some (LitV (lit_of_bool (bool_decide (x.1 = x.2))))⌝ ∗
-        l ↦ (if decide (x.1 = x.2) then v_new else LitV (LitInt x.1))
-    | ASpawn _ => fun _ ov => ⌜ov = None⌝
-    end%I.
+  (** A CAS on an integer cell: full ownership, whether it succeeds or not. *)
+  Definition lr_cas_spec (l : loc) (v_exp v_new : val) : ExtSpec lr_language Σ := {|
+    ext_args := Z * Z;
+    ext_pre x := cconst (⌜v_exp = LitV (LitInt x.2)⌝ ∗ l ↦ LitV (LitInt x.1))%I;
+    ext_post x ov :=
+      (⌜ov = Some (LitV (lit_of_bool (bool_decide (x.1 = x.2))))⌝ ∗
+       l ↦ (if decide (x.1 = x.2) then v_new else LitV (LitInt x.1)))%I |}.
 
-  Definition lr_ext_specs : ExtCallSpecs lr_language Σ :=
-    {| ext_spec_args := lr_ext_args;
-       ext_spec_pre op x := OfeMor (lr_ext_pre op x :
-         (sq_expr -d> iPropO Σ) -> iPropO Σ);
-       ext_spec_post := lr_ext_post |}.
-End concurrent_specs.
+  Local Instance lr_spawn_pre_ne (e : sq_expr) :
+    NonExpansive (λ W : sq_expr -d> iPropO Σ, W e).
+  Proof. intros n W W' HW. apply HW. Qed.
 
-(** The SC external rules. *)
+  (** Spawning [e]: the WP of [e]. *)
+  Definition lr_spawn_spec (e : sq_expr) : ExtSpec lr_language Σ := {|
+    ext_args := unit;
+    ext_pre _ := OfeMor (λ W : sq_expr -d> iPropO Σ, W e);
+    ext_post _ ov := ⌜ov = None⌝%I |}.
+
+  Definition lr_ext_specs : ExtSpecs lr_language Σ := λ op,
+    match op with
+    | ALoad _ l => lr_load_spec l
+    | AStore _ l v => lr_store_spec l v
+    | ACAS _ l v_exp v_new => lr_cas_spec l v_exp v_new
+    | ASpawn e => lr_spawn_spec e
+    end.
+End ext_specs.
+
+(** Proof rules. *)
 Section concurrent_rules.
   Context `{!lrSqGS Σ}.
   Local Existing Instance lr_ext_specs.

@@ -1,391 +1,309 @@
-(** * Adequacy of EXWP for the atomic machine
-
-    [at_sem_adequate] is safety of the atomic machine started from a list of
-    threads: every reachable thread can step or has finished, and returned
-    values satisfy their postconditions ([postcond_ok]).
-
-    The proof is a standard Iris adequacy argument: an invariant holding the
-    shared state interpretation [sq_heap m] and, for every thread, its EXWP
-    (possibly waiting for the footprint of a pending trace) is preserved by
-    each machine step and implies that every thread can step. Thread WPs are
-    used only through [exwp_unfold]; the state interpretation only through
-    the [sq_heap] lemmas.
-
-    The reader/writer bookkeeping is the pure [sqex_pending] development. *)
-
+(** * Adequacy of EXWP for the atomic machine. *)
 From stdpp Require Import relations.
 From iris.algebra Require Import auth gmap frac.
 From iris.proofmode Require Import proofmode.
 Require Import VST.atomic_machine.atomic_machine.
-Require Import VST.atomic_machine.lambda_rust.logic.at_logic.
-Require Import VST.atomic_machine.lambda_rust.adequacy.
-Require Import VST.atomic_machine.lambda_rust.equivalence.
-Require Import VST.atomic_machine.lambda_rust.logic.sqex_pending.
-Require Export VST.atomic_machine.lambda_rust.logic.sq_adequacy.
 Require Export VST.atomic_machine.lambda_rust.logic.sqex_logic.
 
-Set Default Proof Using "Type".
+Set Default Proof Using "Type*".
 #[local] Set Warnings "-redundant-canonical-projection".
 Local Existing Instance lrSqGS_invGS.
-Local Existing Instance lr_ext_specs.
+
+Class lrSqGpreS Σ := LrSqGpreS {
+  lrSqGpreS_inv :: invGpreS Σ;
+  lrSqGpreS_heap :: inG Σ (authR sq_heapUR);
+  lrSqGpreS_heap_freeable :: inG Σ (authR sq_freeableUR)
+}.
+
+Definition lrSqΣ : gFunctors :=
+  #[invΣ;
+    GFunctor (constRF (authR sq_heapUR));
+    GFunctor (constRF (authR sq_freeableUR))].
+Global Instance subG_lrSqGpreS {Σ} : subG lrSqΣ Σ -> lrSqGpreS Σ.
+Proof. solve_inG. Qed.
 
 (** ** The statement *)
 
-(** Every allocated location is unreserved. *)
-Definition sq_mu (m : lr_mem) : rw_map := (fun _ => Rst 0) <$> m.
+Notation sqex_tpool := (am_tpool (L := lr_language)).
 
-Definition sqex_pool (tp : list sq_expr) : tpool :=
-  map_seq 0%nat ((fun e => Running e []) <$> tp).
+Definition sqex_pool (es : list sq_expr) : sqex_tpool := map_seq 0%nat es.
 
-(** If thread [i] in state [t] has returned a value [v], then [v] satisfies
-    the postcondition of thread [i] in [φs] (if it has one). *)
-Definition postcond_ok (φs : list (sq_val -> Prop)) (i : nat) (t : tstate) : Prop :=
-  forall e v φ, t = Running e [] -> to_val e = Some v -> φs !! i = Some φ -> φ v.
+(** If thread [i] has returned a value [v], then [v] satisfies the
+    postcondition of thread [i] in [φs] (if it has one). *)
+Definition postcond_ok (φs : list (sq_val -> Prop)) (i : nat) (e : sq_expr) : Prop :=
+  forall v φ, to_val e = Some v -> φs !! i = Some φ -> φ v.
 
-(** Every reachable thread is safe; returned values satisfy their
-    postconditions. Initially allocated locations have no reservations. *)
-Definition at_sem_adequate (tp : list sq_expr) (φs : list (sq_val -> Prop)) (m : lr_mem) : Prop :=
-  forall tp' m' mu',
-    am_steps (AMCfg (sqex_pool tp) m (sq_mu m)) (AMCfg tp' m' mu') ->
-    (forall i t, tp' !! i = Some t -> am_not_stuck t m' mu') /\
-    (forall i t, tp' !! i = Some t -> postcond_ok φs i t).
+Definition at_sem_adequate (es : list sq_expr) (φs : list (sq_val -> Prop)) (m : lr_mem) : Prop :=
+  forall tp' m',
+    am_steps (AMCfg (sqex_pool es) m) (AMCfg tp' m') ->
+    ~ am_race (AMCfg tp' m') /\
+    (forall i e, tp' !! i = Some e -> am_not_stuck e m') /\
+    (forall i e, tp' !! i = Some e -> postcond_ok φs i e).
 
-(** ** Pure reservation facts *)
+(** The adequacy works for any external calls, as long as their specs satisfy
+  the properties defined below. *)
+Section ext_sound.
+  Context `{!lrSqGS Σ} (spec : ExtSpec lr_language Σ)
+    (op : @atomic_op loc val lr_layout expr).
 
-Lemma sqex_cell_readable v r f st :
-  sqex_reservation_cell (Some v) r 0 f st -> exists n, st = Some (Rst n).
-Proof. inversion 1; eauto. Qed.
+  (** PRE and SI imply that the call has a corr. at_step. *)
+  Definition ext_enabled : Prop :=
+    forall (e : sq_expr) k x (W : sq_expr -> iProp Σ) m,
+      lr_external e op k ->
+      ⊢ ext_pre spec x W -∗ sq_heap m -∗
+        ⌜exists evs e' m' o, at_step e m evs e' m' o⌝.
 
-Lemma sqex_cell_writable v f st :
-  sqex_reservation_cell (Some v) 0 0 f st -> st = Some (Rst 0).
-Proof. by inversion 1. Qed.
+  (** PRE and SI can be updated to POST, SI' and WP of the spawned thread (encoded as [W]). *)
+  Definition ext_step : Prop :=
+    forall (e : sq_expr) k x (W : sq_expr -> iProp Σ) m evs e' m' o,
+      lr_external e op k -> at_step e m evs e' m' o ->
+      ⊢ ext_pre spec x W -∗ sq_heap m ==∗
+        ∃ ov, ⌜e' = k ov⌝ ∗ sq_heap m' ∗ ext_post spec x ov ∗ from_option W True o.
 
-Lemma sqex_reservations_readable m D mu l :
-  sqex_reservations m D mu -> is_Some (m !! l) -> lr_write_event l ∉ D ->
-  exists n, mu !! l = Some (Rst n).
-Proof.
-  intros Hres [v Hv] Hw. specialize (Hres l). rewrite Hv in Hres.
-  have Hw0 : sqex_trace_count SqexWrite l D = 0%nat by apply sqex_trace_count_zero.
-  rewrite Hw0 in Hres. by eapply sqex_cell_readable.
-Qed.
+  (** For each emitted event, the precondition owns enough points-to to
+      emit it. (FIXME: is this too strict?) *)
+  Definition ext_footprint : Prop :=
+    forall (e : sq_expr) k x (W : sq_expr -> iProp Σ) m evs e' m' o ev l w,
+      lr_external e op k -> at_step e m evs e' m' o -> ev ∈ evs ->
+      ev_need_full_loc ev = Some (l, w) ->
+      ⊢ ext_pre spec x W -∗ fp_own l w.
+End ext_sound.
 
-Lemma sqex_reservations_writable m D mu l :
-  sqex_reservations m D mu -> is_Some (m !! l) ->
-  lr_write_event l ∉ D -> lr_read_event l ∉ D -> mu !! l = Some (Rst 0).
-Proof.
-  intros Hres [v Hv] Hw Hr. specialize (Hres l). rewrite Hv in Hres.
-  have Hw0 : sqex_trace_count SqexWrite l D = 0%nat by apply sqex_trace_count_zero.
-  have Hr0 : sqex_trace_count SqexRead l D = 0%nat by apply sqex_trace_count_zero.
-  rewrite Hw0 Hr0 in Hres. by eapply sqex_cell_writable.
-Qed.
+(** Soundness of one external call. *)
+Record ExtSound `{!lrSqGS Σ} (spec : ExtSpec lr_language Σ)
+    (op : @atomic_op loc val lr_layout expr) : Prop := {
+  ext_enabled_pf : ext_enabled spec op;
+  ext_step_pf : ext_step spec op;
+  ext_footprint_pf : ext_footprint spec op;
+}.
 
-Lemma sqex_pending_ready tp i e :
-  tp !! i = Some (Running e []) ->
-  sqex_pending_events tp ≡ₚ sqex_pending_events (delete i tp).
-Proof. intros Hi. by rewrite (sqex_pending_events_delete _ _ _ _ Hi). Qed.
+(** Soundness of all external call specs. *)
+Class ExtSpecsSound `{!lrSqGS Σ} (specs : ExtSpecs lr_language Σ) := {
+  ext_specs_enabled op : ext_enabled (specs op) op;
+  ext_specs_step op : ext_step (specs op) op;
+  ext_specs_footprint op : ext_footprint (specs op) op;
+}.
 
-Lemma sqex_step_free e m T e' m' l :
-  lr_step e m T e' m' -> lr_free_event l ∈ T ->
-  is_Some (m !! l) /\ m' !! l = None.
-Proof.
-  intros Hstep Hin. destruct (lr_step_mem_effect _ _ _ _ _ Hstep) as
-    [m0|m0 k Hk|m0 k v Hk|m0 k n Hfresh|m0 k n Hall].
-  - inversion Hin.
-  - apply list_elem_of_singleton in Hin. discriminate.
-  - apply list_elem_of_singleton in Hin. discriminate.
-  - apply list_elem_of_fmap in Hin as (k' & Heq & _). discriminate.
-  - apply list_elem_of_fmap in Hin as (k' & Heq & Hk').
-    injection Heq as <-.
-    destruct (sqex_locs_member_range _ _ _ Hk') as (z & Hz & ->).
-    split; first by apply Hall.
-    rewrite sq_mem_lookup_free_mem decide_True //.
-    unfold loc_in_range, shift_loc. simpl. split; [done | lia].
-Qed.
+(** Inverts a machine step of an external call [op] whose continuation is
+    [k]: the step is one for [op], with a continuation equal to [k] ([Hk]). *)
+Local Ltac lr_ext_inv He Hst :=
+  inversion Hst; subst;
+  try (exfalso; by eapply lr_step_external_disjoint);
+  match goal with H : sqlang_at_external _ _ _ |- _ =>
+    destruct (lr_external_det _ _ _ _ _ He H) as [Hop Hk]; try discriminate Hop;
+    injection Hop; intros; subst
+  end.
 
-Lemma sqex_lit_eq_int (m : lr_mem) z1 z2 : sq_mem.lit_eq m (LitInt z1) (LitInt z2) -> z1 = z2.
-Proof. by inversion 1. Qed.
+Section lr_ext_specs_sound.
+  Context `{!lrSqGS Σ}.
 
-Lemma sqex_lit_neq_int z1 z2 : lit_neq (LitInt z1) (LitInt z2) -> z1 ≠ z2.
-Proof. by inversion 1. Qed.
+  Lemma lr_load_sound ly l : ExtSound (lr_load_spec l) (ALoad ly l).
+  Proof.
+    split.
+    - intros e k [q w] W m He. iIntros "Hpre Hm". simpl.
+      iDestruct (sq_heap_read with "Hm Hpre") as %Hw. iPureIntro.
+      do 4 eexists. eapply SC_Read; [exact He | exact Hw].
+    - intros e k [q w] W m evs e' m' o He Hst. iIntros "Hpre Hm".
+      lr_ext_inv He Hst. simpl.
+      iDestruct (sq_heap_read with "Hm Hpre") as %Hw.
+      simpl in Hload. rewrite Hload in Hw. injection Hw as <-.
+      iModIntro. iExists (Some v). iFrame. by rewrite Hk.
+    - intros e k [q w] W m evs e' m' o ev l' w' He Hst Hin Hacc. iIntros "Hpre".
+      lr_ext_inv He Hst.
+      simpl in Hin. apply list_elem_of_singleton in Hin as ->. injection Hacc as <- <-.
+      rewrite /fp_own. by iExists q, w.
+  Qed.
 
-Lemma sqex_singleton_lookup (t : tstate) : ({[0%nat := t]} : tpool) !! 0%nat = Some t.
-Proof. apply (lookup_singleton_eq (M := gmap nat)). Qed.
+  Lemma lr_store_sound ly l v : ExtSound (lr_store_spec l v) (AStore ly l v).
+  Proof.
+    split.
+    - intros e k w W m He. iIntros "Hpre Hm". simpl.
+      iDestruct (sq_heap_read with "Hm Hpre") as %Hw. iPureIntro.
+      do 4 eexists. eapply SC_Write; [exact He | by rewrite /= Hw].
+    - intros e k w W m evs e' m' o He Hst. iIntros "Hpre Hm".
+      lr_ext_inv He Hst. simpl.
+      iDestruct (sq_heap_read with "Hm Hpre") as %Hw.
+      rewrite /= Hw in Hstore. injection Hstore as <-.
+      iMod (sq_heap_write with "Hm Hpre") as "[Hm Hl]".
+      iModIntro. iExists None. iFrame. by rewrite Hk.
+    - intros e k w W m evs e' m' o ev l' w' He Hst Hin Hacc. iIntros "Hpre".
+      lr_ext_inv He Hst.
+      simpl in Hin. apply list_elem_of_singleton in Hin as ->. injection Hacc as <- <-.
+      by iApply fp_own_full.
+  Qed.
 
-Lemma sqex_singleton_lookup_1 (t : tstate) : ({[0%nat := t]} : tpool) !! 1%nat = None.
-Proof. by apply (lookup_singleton_ne (M := gmap nat)). Qed.
+  Lemma lr_cas_sound ly l v_exp v_new :
+    ExtSound (lr_cas_spec l v_exp v_new) (ACAS ly l v_exp v_new).
+  Proof.
+    split.
+    - intros e k [z_cur z_exp] W m He. iIntros "Hpre Hm". simpl.
+      iDestruct "Hpre" as "[-> Hl]".
+      iDestruct (sq_heap_read with "Hm Hl") as %Hw. iPureIntro.
+      destruct (decide (z_cur = z_exp)) as [<-|Hne].
+      + do 4 eexists. eapply (SC_Cas_Suc _ _ _ _ _ _ (LitV (LitInt z_cur)));
+          [exact He | exact Hw | | by rewrite /= Hw].
+        change (sq_mem.lit_eq m (LitInt z_cur) (LitInt z_cur)). constructor.
+      + do 4 eexists. eapply (SC_Cas_Fail _ _ _ _ _ _ (LitV (LitInt z_cur)));
+          [exact He | exact Hw | ].
+        change (lit_neq (LitInt z_exp) (LitInt z_cur)). constructor. done.
+    - intros e k [z_cur z_exp] W m evs e' m' o He Hst. iIntros "Hpre Hm".
+      lr_ext_inv He Hst; simpl; iDestruct "Hpre" as "[-> Hl]";
+        iDestruct (sq_heap_read with "Hm Hl") as %Hw;
+        simpl in Hload; rewrite Hload in Hw; injection Hw as ->.
+      + (* Success *)
+        apply lr_lit_eq_int in Heq. subst.
+        rewrite /= Hload in Hstore. injection Hstore as <-.
+        iMod (sq_heap_write with "Hm Hl") as "[Hm Hl]".
+        iModIntro. iExists (Some (LitV (lit_of_bool true))). iFrame.
+        rewrite bool_decide_true // decide_True //. iFrame. by rewrite Hk.
+      + (* Failure *)
+        apply lr_lit_neq_int in Hneq.
+        have Hne : z_cur ≠ z_exp by intros ?; apply Hneq.
+        iModIntro. iExists (Some (LitV (lit_of_bool false))). iFrame.
+        rewrite bool_decide_false // decide_False //. iFrame. by rewrite Hk.
+    - intros e k [z_cur z_exp] W m evs e' m' o ev l' w' He Hst Hin Hacc. iIntros "Hpre".
+      lr_ext_inv He Hst;
+        simpl in Hin; apply list_elem_of_singleton in Hin as ->; injection Hacc as <- <-;
+        iDestruct "Hpre" as "[_ Hl]"; by iApply fp_own_full.
+  Qed.
+
+  Lemma lr_spawn_sound e_new : ExtSound (lr_spawn_spec e_new) (ASpawn e_new).
+  Proof.
+    split.
+    - intros e k [] W m He. iIntros "Hpre Hm". iPureIntro.
+      do 4 eexists. by eapply Spawn.
+    - (* The precondition is the spawned thread's [W]. *)
+      intros e k [] W m evs e' m' o He Hst. iIntros "Hpre Hm".
+      lr_ext_inv He Hst. iModIntro. iExists None. iFrame. by rewrite Hk.
+    - intros e k [] W m evs e' m' o ev l' w' He Hst Hin Hacc.
+      lr_ext_inv He Hst. by apply elem_of_nil in Hin.
+  Qed.
+
+  Lemma lr_ext_sound op : ExtSound (lr_ext_specs op) op.
+  Proof.
+    destruct op as [ly l|ly l v|ly l v_exp v_new|e];
+      [apply lr_load_sound | apply lr_store_sound | apply lr_cas_sound | apply lr_spawn_sound].
+  Qed.
+
+  Global Instance lr_ext_specs_sound : ExtSpecsSound lr_ext_specs.
+  Proof.
+    split; intros op; [apply ext_enabled_pf | apply ext_step_pf | apply ext_footprint_pf];
+      apply lr_ext_sound.
+  Qed.
+End lr_ext_specs_sound.
+
+(** ** Footprints of predicted steps *)
+
+Section footprints.
+  Context `{!lrSqGS Σ, specs : !ExtSpecs lr_language Σ, !ExtSpecsSound specs}.
+
+  (** A sequential step's footprint is owned by the thread before the step. *)
+  Lemma sqex_seq_own (e : sq_expr) Φ m T e' m' la wa ev :
+    lr_step e m T e' m' -> ev ∈ T -> ev_need_full_loc (NA ev) = Some (la, wa) ->
+    EXWP e {{ Φ }} ==∗ fp_own la wa.
+  Proof.
+    intros Hs Hin Hacc. iIntros "Hwp".
+    have Hv := lr_step_not_val _ _ _ _ _ Hs.
+    have Hno : forall op k, ~ lr_external e op k
+      by intros op k Hext; eapply lr_step_external_disjoint.
+    rewrite (exwp_seq_unfold _ _ _ Hv Hno). iDestruct "Hwp" as "[_ Hfp]".
+    iMod ("Hfp" $! m T e' m' with "[//]") as "Hfp".
+    iModIntro. by iApply (fp_tokens_elem with "Hfp").
+  Qed.
+
+  (** An atomic step's footprint is in the precondition of its call. *)
+  Lemma sqex_atomic_own (e : sq_expr) Φ m evs e' m' o la wa ev :
+    at_step e m evs e' m' o -> ev ∈ evs -> am_atomic ev = true ->
+    ev_need_full_loc ev = Some (la, wa) ->
+    EXWP e {{ Φ }} ={⊤,∅}=∗ fp_own la wa.
+  Proof.
+    intros Hst Hin Ha Hacc. iIntros "Hwp".
+    destruct (at_step_cases _ _ _ _ _ _ Hst) as [(T & _ & -> & _) | (op & k & Hext)].
+    { apply list_elem_of_fmap in Hin as (ev' & -> & _). simpl in Ha. discriminate. }
+    iEval (rewrite (exwp_ext_unfold _ _ _ _ _ Hext)) in "Hwp".
+    iMod "Hwp" as (x) "[Hpre _]". iModIntro.
+    by iApply (ext_specs_footprint op with "Hpre").
+  Qed.
+
+  (** One step of a thread, with the WP of the thread it spawns (if any). *)
+  Lemma sqex_thread_step (c : sq_expr) Ψ m evs c' m' o :
+    at_step c m evs c' m' o ->
+    EXWP c {{ Ψ }} -∗ sq_heap m ={⊤,∅}=∗ ▷ |={∅,⊤}=>
+      sq_heap m' ∗ EXWP c' {{ Ψ }} ∗ from_option (λ ef, EXWP ef {{ _, True }}) True o.
+  Proof.
+    intros Hst. iIntros "Hwp Hm".
+    destruct (at_step_cases _ _ _ _ _ _ Hst) as [(T & Hs & -> & ->) | (op & k & Hext)].
+    - (* A core step. *)
+      have Hv := lr_step_not_val _ _ _ _ _ Hs.
+      have Hno : forall op k, ~ lr_external c op k
+        by intros op k Hext; eapply lr_step_external_disjoint.
+      rewrite (exwp_seq_unfold _ _ _ Hv Hno). iDestruct "Hwp" as "[Hwp _]".
+      iMod ("Hwp" with "Hm") as "[_ Hwp]".
+      iSpecialize ("Hwp" $! T c' m' with "[//]").
+      iApply fupd_mask_intro; first set_solver. iIntros "Hclose". iNext.
+      iMod "Hwp" as "[$ $]". by iMod "Hclose" as "_".
+    - (* An external call: its specification gives the step. *)
+      iEval (rewrite (exwp_ext_unfold _ _ _ _ _ Hext)) in "Hwp".
+      iMod "Hwp" as (x) "[Hpre Hcont]".
+      iMod (ext_specs_step op with "Hpre Hm") as (ov) "(-> & Hm & Hpost & Ho)";
+        [exact Hext | exact Hst | ].
+      iModIntro. destruct o as [c_new|]; simpl; iNext;
+        iMod ("Hcont" with "Hpost") as "Hwp"; iModIntro; iFrame.
+  Qed.
+End footprints.
 
 (** ** The invariant *)
 
 Section adequacy.
-  Context `{!lrSqGS Σ} (φ : sq_val -> Prop).
+  Context `{!lrSqGS Σ, specs : !ExtSpecs lr_language Σ, !ExtSpecsSound specs}.
+  Context (φ : sq_val -> Prop).
 
   (** Thread 0 is the initial thread; spawned threads have postcondition True. *)
   Definition sqex_post (i : nat) : sq_val -> iProp Σ :=
     if decide (i = 0%nat) then (λ v, ⌜φ v⌝)%I else (λ _, True)%I.
 
-  (** A thread with pending trace [T] has the points-tos corresponding to the pending events to justify the wp. *)
-  Definition sqex_thread (i : nat) (t : tstate) : iProp Σ :=
-    match t with
-    | Running e T => ∃ ds, fp_tokens T ds ∗ (fp_tokens T ds -∗ EXWP e {{ sqex_post i }})
-    | StuckState => False
-    end.
+  Definition sqex_threads (tp : sqex_tpool) : iProp Σ :=
+    [∗ map] i ↦ e ∈ tp, EXWP (e : sq_expr) {{ sqex_post i }}.
 
-  Definition sqex_inv (tp : tpool) (m : lr_mem) (mu : rw_map) : iProp Σ :=
-    sq_heap m ∗ ⌜
-      (* all pending events have been reserved (and can therefore can be
-         commited later in an [at_step]) *)
-      sqex_pool_reservations tp m mu ∧
-      is_Some (tp !! 0%nat)⌝ ∗
-    [∗ map] i ↦ t ∈ tp, sqex_thread i t.
+  Definition sqex_inv (tp : sqex_tpool) (m : lr_mem) : iProp Σ :=
+    sq_heap m ∗ ⌜is_Some (tp !! 0%nat)⌝ ∗ sqex_threads tp.
 
-  Lemma sqex_thread_ready i e :
-    sqex_thread i (Running e []) ⊣⊢ EXWP e {{ sqex_post i }}.
-  Proof.
-    iSplit.
-    - iIntros "(%ds & Htok & Hwp)". iDestruct (fp_tokens_nil_inv with "Htok") as %->.
-      by iApply "Hwp".
-    - iIntros "Hwp". iExists []. iSplit; first by iApply fp_tokens_nil. by iIntros "_".
-  Qed.
-
-  (** Pending footprints exclude conflicting fragments. *)
-  Lemma sqex_threads_read_excl tp l q v :
-    ([∗ map] i ↦ t ∈ tp, sqex_thread i t) -∗ l ↦{q} v -∗
-    ⌜lr_write_event l ∉ sqex_pending_events tp⌝.
-  Proof.
-    iIntros "Hts Hl %Hin".
-    apply sqex_pending_events_elem in Hin as (j & e & T & Hj & HinT).
-    iDestruct (big_sepM_lookup with "Hts") as "Ht"; first exact Hj.
-    iDestruct "Ht" as (ds) "[Htok _]".
-    by iDestruct (fp_tokens_read_excl with "Htok Hl") as %?.
-  Qed.
-
-  Lemma sqex_threads_write_excl tp l v :
-    ([∗ map] i ↦ t ∈ tp, sqex_thread i t) -∗ l ↦ v -∗
-    ⌜lr_write_event l ∉ sqex_pending_events tp ∧
-      lr_read_event l ∉ sqex_pending_events tp⌝.
-  Proof.
-    iIntros "Hts Hl". iSplit.
-    - iApply (sqex_threads_read_excl with "Hts Hl").
-    - iIntros (Hin). apply sqex_pending_events_elem in Hin as (j & e & T & Hj & HinT).
-      iDestruct (big_sepM_lookup with "Hts") as "Ht"; first exact Hj.
-      iDestruct "Ht" as (ds) "[Htok _]".
-      iDestruct (fp_tokens_write_excl with "Htok Hl") as %[_ Hr]. done.
-  Qed.
-
-  Lemma sqex_threads_allocated tp m :
-    sq_heap m -∗ ([∗ map] i ↦ t ∈ tp, sqex_thread i t) -∗
-    ⌜forall l, lr_read_event l ∈ sqex_pending_events tp \/
-      lr_write_event l ∈ sqex_pending_events tp -> is_Some (m !! l)⌝.
-  Proof.
-    iIntros "Hm Hts" (l Hin).
-    have [j [e [T [Hj HinT]]]] : exists j e T, tp !! j = Some (Running e T) /\
-        (lr_read_event l ∈ T \/ lr_write_event l ∈ T).
-    { destruct Hin as [Hin|Hin]; apply sqex_pending_events_elem in Hin as (j & e & T & Hj & HinT);
-        eauto 10. }
-    iDestruct (big_sepM_lookup with "Hts") as "Ht"; first exact Hj.
-    iDestruct "Ht" as (ds) "[Htok _]".
-    iDestruct (fp_tokens_allocated with "Hm Htok") as %Halloc.
-    iPureIntro. by apply Halloc.
-  Qed.
-
-  (** The reservation side conditions of a step of a ready thread, given its
-      footprint, the state after the step, and the other threads. *)
-  Lemma sqex_ready_conditions tp m mu i e T e' m' ds :
-    sqex_pool_reservations tp m mu -> tp !! i = Some (Running e []) ->
-    lr_step e m T e' m' ->
-    sq_heap m' -∗ fp_tokens T ds -∗
-    ([∗ map] k ↦ t ∈ delete i tp, sqex_thread k t) -∗
-    ⌜(forall l, lr_read_event l ∈ T -> exists n, mu !! l = Some (Rst n)) /\
-     (forall l, lr_write_event l ∈ T -> mu !! l = Some (Rst 0)) /\
-     (forall l, lr_free_event l ∈ T -> mu !! l = Some (Rst 0))⌝.
-  Proof.
-    intros Hres Hi Hstep. iIntros "Hm Htok Hts".
-    have Hres' : sqex_reservations m (sqex_pending_events (delete i tp)) mu.
-    { unfold sqex_pool_reservations in Hres. by rewrite -(sqex_pending_ready _ _ _ Hi). }
-    iDestruct (sqex_threads_allocated with "Hm Hts") as %Halloc.
-    iSplit; [|iSplit].
-    - iIntros (l Hin).
-      iDestruct (fp_tokens_read with "Htok") as (q v) "[Hl _]"; first done.
-      iDestruct (sqex_threads_read_excl with "Hts Hl") as %Hw.
-      iPureIntro. eapply sqex_reservations_readable; [exact Hres' | | exact Hw].
-      by destruct (lr_step_read_footprint _ _ _ _ _ _ Hstep Hin) as [Hm _].
-    - iIntros (l Hin).
-      iDestruct (fp_tokens_write with "Htok") as (v) "[Hl _]"; first done.
-      iDestruct (sqex_threads_write_excl with "Hts Hl") as %[Hw Hr].
-      iPureIntro. eapply sqex_reservations_writable; [exact Hres' | | exact Hw | exact Hr].
-      destruct (lr_step_write_footprint _ _ _ _ _ _ Hstep Hin) as (old & _ & Hold & _).
-      by eexists.
-    - iPureIntro. intros l Hin.
-      destruct (sqex_step_free _ _ _ _ _ _ Hstep Hin) as [Hm Hm'].
-      apply (sqex_reservations_writable _ _ _ _ Hres' Hm).
-      + intros Hw. have [w Hw'] := Halloc l (or_intror Hw). congruence.
-      + intros Hr. have [w Hr'] := Halloc l (or_introl Hr). congruence.
-  Qed.
-
-  (** An external call's full points-to makes the location writable. *)
-  Lemma sqex_external_writable tp m mu i e l v :
-    sqex_pool_reservations tp m mu -> tp !! i = Some (Running e []) ->
-    sq_heap m -∗ l ↦ v -∗ ([∗ map] k ↦ t ∈ delete i tp, sqex_thread k t) -∗
-    ⌜m !! l = Some v ∧ mu !! l = Some (Rst 0)⌝.
-  Proof.
-    intros Hres Hi. iIntros "Hm Hl Hts".
-    have Hres' : sqex_reservations m (sqex_pending_events (delete i tp)) mu.
-    { unfold sqex_pool_reservations in Hres. by rewrite -(sqex_pending_ready _ _ _ Hi). }
-    iDestruct (sq_heap_read with "Hm Hl") as %Hv.
-    iDestruct (sqex_threads_write_excl with "Hts Hl") as %[Hw Hr].
-    iPureIntro. split; first done.
-    eapply sqex_reservations_writable; [exact Hres' | by eexists | exact Hw | exact Hr].
-  Qed.
-
-  Lemma sqex_external_readable tp m mu i e l q v :
-    sqex_pool_reservations tp m mu -> tp !! i = Some (Running e []) ->
-    sq_heap m -∗ l ↦{q} v -∗ ([∗ map] k ↦ t ∈ delete i tp, sqex_thread k t) -∗
-    ⌜m !! l = Some v ∧ exists n, mu !! l = Some (Rst n)⌝.
-  Proof.
-    intros Hres Hi. iIntros "Hm Hl Hts".
-    have Hres' : sqex_reservations m (sqex_pending_events (delete i tp)) mu.
-    { unfold sqex_pool_reservations in Hres. by rewrite -(sqex_pending_ready _ _ _ Hi). }
-    iDestruct (sq_heap_read with "Hm Hl") as %Hv.
-    iDestruct (sqex_threads_read_excl with "Hts Hl") as %Hw.
-    iPureIntro. split; first done.
-    eapply sqex_reservations_readable; [exact Hres' | by eexists | exact Hw].
-  Qed.
-
-  Lemma sqex_inv_zero (tp : tpool) (i : nat) (t : tstate) :
-    is_Some (tp !! 0%nat) -> is_Some (<[i := t]> tp !! 0%nat).
+  Lemma sqex_inv_zero (tp : sqex_tpool) (i : nat) (e : sq_expr) :
+    is_Some (tp !! 0%nat) -> is_Some (<[i := e]> tp !! 0%nat).
   Proof. intros H0. rewrite lookup_insert_is_Some'. by right. Qed.
 
-  (** ** sqex_inv preserved *)
-
-  Lemma at_step_preserves_sqex_inv tp m mu tp' m' mu' :
-    at_step (AMCfg tp m mu) (AMCfg tp' m' mu') ->
-    sqex_inv tp m mu ⊢ |={⊤,∅}=> ▷ |={∅,⊤}=> sqex_inv tp' m' mu'.
+  Lemma am_step_preserves_sqex_inv tp m i evs tp' m' :
+    am_step (AMCfg tp m) i evs (AMCfg tp' m') ->
+    sqex_inv tp m ⊢ |={⊤,∅}=> ▷ |={∅,⊤}=> sqex_inv tp' m'.
   Proof.
-    iIntros (Hat) "(Hm & [%Hres %H0] & Hts)".
-    inversion Hat; subst.
-    - (* Core_Try: the thread hands over the footprint of its trace. *)
-      iDestruct (big_sepM_delete _ _ i with "Hts") as "[Ht Hts]"; first done.
-      iEval (rewrite sqex_thread_ready) in "Ht".
-      have Hv := lr_step_not_val _ _ _ _ _ Hstep.
-      have Hno : forall op k, ~ lr_external c op k
-        by intros op k Hext; eapply lr_step_external_disjoint.
-      rewrite (exwp_seq_unfold _ _ _ Hv Hno).
-      iMod ("Ht" with "Hm") as "[_ Hwp]".
-      iSpecialize ("Hwp" $! T c' m' with "[//]").
-      iApply fupd_mask_intro; first set_solver. iIntros "Hclose". iNext.
-      iMod "Hwp" as "[Hm (%ds & Htok & Hwp)]".
-      iDestruct (sqex_ready_conditions with "Hm Htok Hts") as %(_ & _ & Hfree);
-        [done | done | done | ].
-      have Hres' := sqex_pool_reservations_try _ _ _ _ _ _ _ _ _ Hres Hget Hstep Hfree Hreserve.
-      iMod "Hclose" as "_". iModIntro. iFrame "Hm". iSplit.
-      { iPureIntro. split; [done | by apply sqex_inv_zero]. }
-      iApply big_sepM_insert_delete. iFrame "Hts". iExists ds. iFrame.
-    - (* Core_Commit: the footprint is returned. *)
-      destruct (sqex_pool_reservations_commit _ _ _ _ _ _ Hres Hget) as (mu2 & Hfin & Hres').
-      rewrite Hcommit in Hfin. injection Hfin as <-.
-      iDestruct (big_sepM_delete _ _ i with "Hts") as "[Ht Hts]"; first done.
-      iDestruct "Ht" as (ds) "[Htok Hwp]". iSpecialize ("Hwp" with "Htok").
-      iApply fupd_mask_intro; first set_solver. iIntros "Hclose". iNext.
-      iMod "Hclose" as "_". iModIntro. iFrame "Hm". iSplit.
-      { iPureIntro. split; [done | by apply sqex_inv_zero]. }
-      iApply big_sepM_insert_delete. iFrame "Hts". by iApply sqex_thread_ready.
-    - (* SC_Read *)
-      iDestruct (big_sepM_delete _ _ i with "Hts") as "[Ht Hts]"; first done.
-      iEval (rewrite sqex_thread_ready (exwp_ext_unfold _ _ _ _ _ Hext)) in "Ht".
-      iMod "Ht" as ([q w]) "[Hl Hcont]". simpl.
-      iDestruct (sq_heap_read with "Hm Hl") as %Hw.
-      change (m' !! l = Some v) in Hload. rewrite Hload in Hw. injection Hw as <-.
-      iModIntro. iNext. iMod ("Hcont" $! (Some v) with "[Hl]") as "Hwp".
-      { by iFrame. }
-      iModIntro. iFrame "Hm". iSplit.
-      { iPureIntro. split; last by apply sqex_inv_zero.
-        by eapply sqex_pool_reservations_ready_update. }
-      iApply big_sepM_insert_delete. iFrame "Hts". by iApply sqex_thread_ready.
-    - (* SC_Write *)
-      iDestruct (big_sepM_delete _ _ i with "Hts") as "[Ht Hts]"; first done.
-      iEval (rewrite sqex_thread_ready (exwp_ext_unfold _ _ _ _ _ Hext)) in "Ht".
-      iMod "Ht" as (w) "[Hl Hcont]". simpl.
-      iDestruct (sq_heap_read with "Hm Hl") as %Hw.
-      rewrite /= Hw in Hstore. injection Hstore as <-.
-      iMod (sq_heap_write with "Hm Hl") as "[Hm Hl]".
-      iModIntro. iNext. iMod ("Hcont" $! None with "[Hl]") as "Hwp".
-      { by iFrame. }
-      iModIntro. iFrame "Hm". iSplit.
-      { iPureIntro. split; last by apply sqex_inv_zero.
-        eapply sqex_pool_reservations_ready_update; last done.
-        apply sqex_pool_reservations_store; [done | by eexists]. }
-      iApply big_sepM_insert_delete. iFrame "Hts". by iApply sqex_thread_ready.
-    - (* SC_Cas_Suc *)
-      iDestruct (big_sepM_delete _ _ i with "Hts") as "[Ht Hts]"; first done.
-      iEval (rewrite sqex_thread_ready (exwp_ext_unfold _ _ _ _ _ Hext)) in "Ht".
-      iMod "Ht" as ([z_cur z_exp]) "[[-> Hl] Hcont]". simpl.
-      iDestruct (sq_heap_read with "Hm Hl") as %Hw.
-      change (m !! l = Some v_cur) in Hload. rewrite Hload in Hw. injection Hw as ->.
-      apply sqex_lit_eq_int in Heq. subst.
-      rewrite /= Hload in Hstore. injection Hstore as <-.
-      iMod (sq_heap_write _ _ _ v_new with "Hm Hl") as "[Hm Hl]".
-      iModIntro. iNext.
-      iMod ("Hcont" $! (Some (LitV (lit_of_bool true))) with "[Hl]") as "Hwp".
-      { rewrite bool_decide_true // decide_True //. by iFrame. }
-      iModIntro. iFrame "Hm". iSplit.
-      { iPureIntro. split; last by apply sqex_inv_zero.
-        eapply sqex_pool_reservations_ready_update; last done.
-        apply sqex_pool_reservations_store; [done | by eexists]. }
-      iApply big_sepM_insert_delete. iFrame "Hts". by iApply sqex_thread_ready.
-    - (* SC_Cas_Fail *)
-      iDestruct (big_sepM_delete _ _ i with "Hts") as "[Ht Hts]"; first done.
-      iEval (rewrite sqex_thread_ready (exwp_ext_unfold _ _ _ _ _ Hext)) in "Ht".
-      iMod "Ht" as ([z_cur z_exp]) "[[-> Hl] Hcont]". simpl.
-      iDestruct (sq_heap_read with "Hm Hl") as %Hw.
-      change (m' !! l = Some v_cur) in Hload. rewrite Hload in Hw. injection Hw as ->.
-      apply sqex_lit_neq_int in Hneq.
-      iModIntro. iNext.
-      iMod ("Hcont" $! (Some (LitV (lit_of_bool false))) with "[Hl]") as "Hwp".
-      { have Hne : z_cur ≠ z_exp by intros ?; apply Hneq.
-        rewrite bool_decide_false // decide_False //. by iFrame. }
-      iModIntro. iFrame "Hm". iSplit.
-      { iPureIntro. split; last by apply sqex_inv_zero.
-        by eapply sqex_pool_reservations_ready_update. }
-      iApply big_sepM_insert_delete. iFrame "Hts". by iApply sqex_thread_ready.
-    - (* SC_Cas_Stuck is impossible: the full points-to makes [l] writable. *)
-      iDestruct (big_sepM_delete _ _ i with "Hts") as "[Ht Hts]"; first done.
-      iEval (rewrite sqex_thread_ready (exwp_ext_unfold _ _ _ _ _ Hext)) in "Ht".
-      iMod "Ht" as ([z_cur z_exp]) "[[-> Hl] Hcont]". simpl.
-      iDestruct (sqex_external_writable with "Hm Hl Hts") as %[_ Hw]; [done | done |].
-      exfalso. apply Ho. by apply Forall_singleton.
-    - (* Spawn *)
-      iDestruct (big_sepM_delete _ _ i with "Hts") as "[Ht Hts]"; first done.
-      iEval (rewrite sqex_thread_ready (exwp_ext_unfold _ _ _ _ _ Hspawn)) in "Ht".
-      iMod "Ht" as (x) "[Hchild Hcont]". simpl.
+    iIntros (Hmach) "(Hm & %H0 & Hts)". rewrite /sqex_threads.
+    inversion Hmach; subst; rename Hstep into Htstep;
+      iDestruct (big_sepM_delete _ _ i with "Hts") as "[Ht Hts]"; try done;
+      iMod (sqex_thread_step with "Ht Hm") as "Hstep"; try done;
+      iModIntro; iNext; iMod "Hstep" as "(Hm & Hwp & Ho)"; iModIntro; iFrame "Hm";
+      simpl.
+    - iSplit; first (iPureIntro; by apply sqex_inv_zero).
+      iApply big_sepM_insert_delete. iFrame.
+    - (* The spawned thread gets an unused index other than 0. *)
       have Hne : i ≠ j by intros ->; congruence.
       have Hj0 : j ≠ 0%nat by intros ->; destruct H0; congruence.
-      iModIntro. iNext.
-      iMod ("Hcont" $! None with "[//]") as "Hwp".
-      iModIntro. iFrame "Hm". iSplit.
-      { iPureIntro. split; last by do 2 apply sqex_inv_zero.
-        apply sqex_pool_reservations_spawn; last by rewrite lookup_insert_ne.
-        by eapply sqex_pool_reservations_ready_update. }
+      iSplit; first (iPureIntro; by do 2 apply sqex_inv_zero).
       iApply big_sepM_insert; first by rewrite lookup_insert_ne.
-      iSplitL "Hchild".
-      { iApply sqex_thread_ready. rewrite /sqex_post decide_False //. }
-      iApply big_sepM_insert_delete. iFrame "Hts". by iApply sqex_thread_ready.
+      iSplitL "Ho".
+      { rewrite /sqex_post decide_False //. }
+      iApply big_sepM_insert_delete. iFrame.
   Qed.
 
-  Lemma sqex_inv_implies_adequacy tp m mu i t :
-    tp !! i = Some t ->
-    sqex_inv tp m mu ⊢ |={⊤,∅}=> |={∅}▷=>
-      ⌜am_not_stuck t m mu ∧ postcond_ok [φ] i t⌝.
+  (** ** The invariant implies safety *)
+
+  Lemma sqex_inv_thread_ok tp m i e :
+    tp !! i = Some e ->
+    sqex_inv tp m ⊢ |={⊤,∅}=> |={∅}▷=>
+      ⌜am_not_stuck e m ∧ postcond_ok [φ] i e⌝.
   Proof.
-    iIntros (Hi) "(Hm & [%Hres %H0] & Hts)".
-    destruct t as [e T|]; last first.
-    { iDestruct (big_sepM_lookup with "Hts") as "Ht"; first done. done. }
-    destruct (decide (T = [])) as [->|HT]; last first.
-    { iApply fupd_mask_intro_discard; first set_solver.
-      iApply step_fupd_intro; first done. iNext. iPureIntro. split.
-      - by eapply sqex_pool_reservations_pending_safe.
-      - intros e0 v ? [= _ ->]. done. }
-    iDestruct (big_sepM_delete _ _ i with "Hts") as "[Ht Hts]"; first done.
-    iEval (rewrite sqex_thread_ready exwp_unfold /exwp_pre) in "Ht".
+    iIntros (Hi) "(Hm & _ & Hts)".
+    iDestruct (big_sepM_lookup with "Hts") as "Ht"; first done.
+    iEval (rewrite exwp_unfold /exwp_pre /sq_step) in "Ht".
     destruct (to_val e) as [v|] eqn:Hv.
     { iMod "Ht" as "Hpost".
       iAssert (⌜i = 0%nat -> φ v⌝)%I with "[Hpost]" as %Hφ.
@@ -395,71 +313,80 @@ Section adequacy.
         - iPureIntro. by intros ?. }
       iApply fupd_mask_intro_discard; first set_solver.
       iApply step_fupd_intro; first done. iNext. iPureIntro. split.
-      - left. exists e. split; first done. change (lr_final e). rewrite /lr_final Hv. by eexists.
-      - intros e0 v0 φ0 [= <-] Hv0 [-> <-]%list_lookup_singleton_Some. rewrite Hv in Hv0. injection Hv0 as <-. by apply Hφ. }
-    iMod "Ht" as "[[%Hno Hseq] | (%op & %k & %He & Hspec)]".
-    - (* A sequential step that allocates outside the reservation map. *)
-      iMod ("Hseq" with "Hm") as "[%Hred Hstep]".
-      destruct Hred as (T0 & e0 & m0 & Hstep0).
-      destruct (sqex_step_fresh_reservations _ _ _ _ _ mu Hstep0)
-        as (T1 & e1 & m1 & Hstep1 & Hfresh).
-      iSpecialize ("Hstep" $! T1 e1 m1 with "[//]").
+      - left. change (lr_final e). rewrite /lr_final Hv. by eexists.
+      - intros v0 φ0 Hv0 [-> <-]%list_lookup_singleton_Some.
+        rewrite Hv in Hv0. injection Hv0 as <-. by apply Hφ. }
+    iMod "Ht" as "[[%Hno [Hseq _]] | (%op & %k & %He & Hspec)]".
+    - (* A core step. *)
+      iMod ("Hseq" with "Hm") as "[%Hred _]".
       iApply fupd_mask_intro_discard; first set_solver.
-      iModIntro. iNext. iMod "Hstep" as "[Hm1 (%ds & Htok & _)]".
-      iDestruct (sqex_ready_conditions with "Hm1 Htok Hts") as %(Hread & Hwrite & _);
-        [done | done | done | ].
-      destruct (sqex_step_reservable _ _ _ _ _ mu Hstep1 Hread Hwrite Hfresh) as [mu1 Hrsv].
-      iModIntro. iPureIntro. split.
-      + right. eexists. eapply Core_Try; [apply sqex_singleton_lookup | exact Hstep1 | exact Hrsv].
-      + intros e2 v2 ? [= <-] Hv2 ?. congruence.
+      iApply step_fupd_intro; first done. iNext. iPureIntro. split.
+      + right. destruct Hred as (T & e2 & m2 & Hs). do 4 eexists. by apply Core_Step.
+      + intros v0 ? Hv0. congruence.
     - (* An external call: its precondition enables the machine step. *)
       iMod "Hspec" as (x) "[Hpre _]".
-      destruct op as [ly l|ly l w|ly l v_exp v_new|e_new]; simpl in x |- *.
-      + destruct x as [q w]. simpl.
-        iDestruct (sqex_external_readable with "Hm Hpre Hts") as %[Hw [n Hn]];
-          [done | done | ].
-        iModIntro. iApply step_fupd_intro; first done. iNext. iPureIntro.
-        split; last (intros e2 v2 ? [= <-] Hv2 ?; congruence).
-        right. eexists. eapply SC_Read; [apply sqex_singleton_lookup | exact He | | exact Hw].
-        apply Forall_singleton. by rewrite Hn.
-      + iDestruct (sqex_external_writable with "Hm Hpre Hts") as %[Hw Hn];
-          [done | done | ].
-        iModIntro. iApply step_fupd_intro; first done. iNext. iPureIntro.
-        split; last (intros e2 v2 ? [= <-] Hv2 ?; congruence).
-        right. eexists. eapply SC_Write; [apply sqex_singleton_lookup | exact He | | ].
-        * by apply Forall_singleton.
-        * by rewrite /= Hw.
-      + destruct x as [z_cur z_exp]. simpl. iDestruct "Hpre" as "[-> Hl]".
-        iDestruct (sqex_external_writable with "Hm Hl Hts") as %[Hw Hn];
-          [done | done | ].
-        iModIntro. iApply step_fupd_intro; first done. iNext. iPureIntro.
-        split; last (intros e2 v2 ? [= <-] Hv2 ?; congruence).
-        right. destruct (decide (z_cur = z_exp)) as [<-|Hne].
-        * eexists. eapply (SC_Cas_Suc _ _ _ _ _ _ _ _ _ (LitV (LitInt z_cur)));
-            [apply sqex_singleton_lookup | exact He | by apply Forall_singleton
-            | exact Hw | | by rewrite /= Hw].
-          change (sq_mem.lit_eq m (LitInt z_cur) (LitInt z_cur)). constructor.
-        * eexists. eapply (SC_Cas_Fail _ _ _ _ _ _ _ _ _ (LitV (LitInt z_cur)));
-            [apply sqex_singleton_lookup | exact He | | exact Hw | ].
-          { apply Forall_singleton. by rewrite Hn. }
-          change (lit_neq (LitInt z_exp) (LitInt z_cur)). constructor. done.
-      + iModIntro. iApply step_fupd_intro; first done. iNext. iPureIntro.
-        split; last (intros e2 v2 ? [= <-] Hv2 ?; congruence).
-        right. eexists. eapply (Spawn _ _ _ _ _ _ _ 1%nat);
-          [apply sqex_singleton_lookup | exact He | | ].
-        * by rewrite sqex_singleton_lookup_1.
-        * intros k0 Hk0. assert (k0 = 0%nat) as -> by lia. by rewrite sqex_singleton_lookup.
+      iDestruct (ext_specs_enabled op with "Hpre Hm") as %Hen; first exact He.
+      iModIntro. iApply step_fupd_intro; first done. iNext. iPureIntro.
+      split; [by right | intros v0 ? Hv0; congruence].
   Qed.
 
-  Lemma sqex_sound n tp m mu tp' m' mu' i t :
-    nsteps at_step n (AMCfg tp m mu) (AMCfg tp' m' mu') -> tp' !! i = Some t ->
-    sqex_inv tp m mu ⊢ |={⊤,∅}=> |={∅}▷=>^(S n)
-      ⌜am_not_stuck t m' mu' ∧ postcond_ok [φ] i t⌝.
+  (** A race between a sequential step of [i] and any step of [j] would
+      need incompatible ownership. *)
+  Lemma sqex_threads_no_race_seq tp m i j ci cj T evs2 ci' cj' m1 m2 o2 :
+    i ≠ j -> tp !! i = Some ci -> tp !! j = Some cj ->
+    lr_step ci m T ci' m1 -> at_step cj m evs2 cj' m2 o2 ->
+    am_conflicts (NA <$> T) evs2 ->
+    sqex_threads tp ⊢ |={⊤,∅}=> False.
   Proof.
-    revert tp m mu. induction n as [|n IH]; intros tp m mu Hsteps Hi.
-    - inversion Hsteps; subst. by iApply sqex_inv_implies_adequacy.
-    - inversion Hsteps as [|n0 cfg1 [tp2 m2 mu2] cfg3 Hfirst Htail]; subst.
-      iIntros "Hinv". iMod (at_step_preserves_sqex_inv with "Hinv") as "Hinv"; first done.
+    intros Hij Hi Hj Hs Hst (e1 & e2 & He1 & He2 & Hc).
+    apply list_elem_of_fmap in He1 as (ev1 & -> & Hev1).
+    destruct (am_conflict_cases _ _ Hc) as
+      [(la & a & Heq & Hacc2) | [(la & a & -> & Hacc1) | (la & w1 & w2 & Hacc1 & Hacc2 & Hw)]].
+    { (* [i] allocates [la], which [j] accesses. *)
+      exfalso. injection Heq as ->.
+      have Hfresh := lr_step_alloc_fresh _ _ _ _ _ _ Hs Hev1.
+      destruct (at_step_access_allocated _ _ _ _ _ _ _ _ _ Hst He2 Hacc2). congruence. }
+    { (* [j] allocates [la], which [i] accesses. *)
+      exfalso. have Hfresh := at_step_alloc_fresh _ _ _ _ _ _ _ Hst He2.
+      destruct (lr_step_access_allocated _ _ _ _ _ _ _ _ Hs Hev1 Hacc1). congruence. }
+    iIntros "Hts". rewrite /sqex_threads.
+    iDestruct (big_sepM_delete _ _ i with "Hts") as "[Hi Hts]"; first done.
+    iDestruct (big_sepM_lookup _ _ j with "Hts") as "Hj"; first by rewrite lookup_delete_ne.
+    iMod (sqex_seq_own with "Hi") as "Hown1"; [exact Hs | exact Hev1 | exact Hacc1 | ].
+    destruct (at_step_events _ _ _ _ _ _ Hst) as [(T2 & Hs2 & ->) | Hat].
+    - apply list_elem_of_fmap in He2 as (ev2 & -> & Hev2).
+      iMod (sqex_seq_own with "Hj") as "Hown2"; [exact Hs2 | exact Hev2 | exact Hacc2 | ].
+      by iDestruct (fp_own_excl _ _ _ Hw with "Hown1 Hown2") as "[]".
+    - rewrite Forall_forall in Hat.
+      iMod (sqex_atomic_own with "Hj") as "Hown2";
+        [exact Hst | exact He2 | by apply Hat | exact Hacc2 | ].
+      by iDestruct (fp_own_excl _ _ _ Hw with "Hown1 Hown2") as "[]".
+  Qed.
+
+  Lemma sqex_inv_no_race tp m i j ci cj evs1 evs2 ci' cj' m1 m2 o1 o2 :
+    i ≠ j -> tp !! i = Some ci -> tp !! j = Some cj ->
+    at_step ci m evs1 ci' m1 o1 -> at_step cj m evs2 cj' m2 o2 ->
+    am_conflicts evs1 evs2 ->
+    sqex_inv tp m ⊢ |={⊤,∅}=> |={∅}▷=> ⌜False⌝.
+  Proof.
+    intros Hij Hi Hj H1 H2 Hc. iIntros "(_ & _ & Hts)".
+    destruct (am_conflicts_seq _ _ _ _ _ _ _ _ _ _ _ H1 H2 Hc)
+      as [(T & Hs & ->) | (T & Hs & ->)].
+    - by iMod (sqex_threads_no_race_seq with "Hts") as "[]".
+    - iMod (sqex_threads_no_race_seq _ _ j i with "Hts") as "[]"; try done.
+      by apply am_conflicts_sym.
+  Qed.
+
+  Lemma sqex_sound n tp m tp' m' (P : Prop) :
+    nsteps am_step_any n (AMCfg tp m) (AMCfg tp' m') ->
+    (sqex_inv tp' m' ⊢ |={⊤,∅}=> |={∅}▷=> ⌜P⌝) ->
+    sqex_inv tp m ⊢ |={⊤,∅}=> |={∅}▷=>^(S n) ⌜P⌝.
+  Proof.
+    intros Hsteps Hend. revert tp m Hsteps.
+    induction n as [|n IH]; intros tp m Hsteps.
+    - inversion Hsteps; subst. exact Hend.
+    - inversion Hsteps as [|n0 cfg1 [tp2 m2] cfg3 (i & evs & Hfirst) Htail]; subst.
+      iIntros "Hinv". iMod (am_step_preserves_sqex_inv with "Hinv") as "Hinv"; first done.
       iModIntro. rewrite Nat.iter_succ. iModIntro. iNext. iMod "Hinv".
       by iApply (IH with "Hinv").
   Qed.
@@ -467,29 +394,49 @@ End adequacy.
 
 (** ** Adequacy *)
 
+(** For any sound specifications of the external calls. *)
+Theorem sqex_adequacy_gen Σ `{!lrSqGpreS Σ}
+    (specs : forall H : lrSqGS Σ, ExtSpecs lr_language Σ)
+    (Hspecs : forall H : lrSqGS Σ, @ExtSpecsSound Σ H (specs H))
+    (e : sq_expr) (φ : sq_val -> Prop) (m : lr_mem) :
+  (forall H : lrSqGS Σ, ⊢ @exwp Σ H (specs H) ⊤ e (λ v, ⌜φ v⌝)) ->
+  at_sem_adequate [e] [φ] m.
+Proof.
+  intros Hwp tp' m' Hrtc.
+  change (am_steps (AMCfg {[0%nat := e]} m) (AMCfg tp' m')) in Hrtc.
+  destruct (rtc_nsteps_1 _ _ Hrtc) as [n Hsteps].
+  assert (Hsound : forall P : Prop,
+    (forall Hgs : lrSqGS Σ, @sqex_inv Σ Hgs (specs Hgs) φ tp' m' ⊢ |={⊤,∅}=> |={∅}▷=> ⌜P⌝) -> P).
+  { intros P HP. apply (pure_soundness (PROP := iPropI Σ)).
+    apply (step_fupdN_soundness_lc (Σ := Σ) _ (S n) 0). intros Hinv. iIntros "_".
+    iMod (sq_heap_init m) as (Hheap) "Hheap".
+    set (Hgs := LrSqGS _ Hinv Hheap).
+    iApply (@sqex_sound Σ Hgs (specs Hgs) (Hspecs Hgs) φ n with "[Hheap]");
+      [exact Hsteps | apply HP | ].
+    iSplitL "Hheap"; first iExact "Hheap".
+    iSplit; first (iPureIntro; by rewrite lookup_singleton_eq).
+    rewrite /sqex_threads big_sepM_singleton /sqex_post /=. iApply (Hwp Hgs). }
+  have Hend : forall i e0, tp' !! i = Some e0 ->
+      am_not_stuck e0 m' /\ postcond_ok [φ] i e0.
+  { intros i e0 Hi. apply Hsound. intros Hgs.
+    by apply (@sqex_inv_thread_ok Σ Hgs (specs Hgs) (Hspecs Hgs)). }
+  split; [|split].
+  - intros (i & j & ci & cj & evs1 & evs2 & ci' & cj' & m1 & m2 & o1 & o2 &
+      Hij & Hi & Hj & H1 & H2 & Hc).
+    apply (Hsound False). intros Hgs.
+    by eapply (@sqex_inv_no_race Σ Hgs (specs Hgs) (Hspecs Hgs)).
+  - intros i e0 Hi. exact (proj1 (Hend i e0 Hi)).
+  - intros i e0 Hi. exact (proj2 (Hend i e0 Hi)).
+Qed.
+
+Local Existing Instance lr_ext_specs.
+
+(** For the contracts [lr_ext_specs] of the SC operations and Fork. *)
 Theorem sqex_adequacy Σ `{!lrSqGpreS Σ} (e : sq_expr) (φ : sq_val -> Prop) (m : lr_mem) :
   (forall `{!lrSqGS Σ}, ⊢ EXWP e {{ v, ⌜φ v⌝ }}) ->
   at_sem_adequate [e] [φ] m.
 Proof.
-  intros Hwp tp' m' mu' Hrtc.
-  change (rtc at_step (AMCfg {[0%nat := Running e []]} m (sq_mu m))
-    (AMCfg tp' m' mu')) in Hrtc.
-  destruct (rtc_nsteps_1 _ _ Hrtc) as [n Hsteps].
-  assert (Hend : forall (i : nat) (t : tstate), tp' !! i = Some t ->
-    am_not_stuck t m' mu' ∧ postcond_ok [φ] i t).
-  { intros i t Hi. apply (pure_soundness (PROP := iPropI Σ)).
-    apply (step_fupdN_soundness_lc (Σ := Σ) _ (S n) 0). intros Hinv. iIntros "_".
-    iMod (sq_heap_init m) as (Hheap) "Hheap".
-    set (Hgs := LrSqGS _ Hinv Hheap).
-    iApply (@sqex_sound Σ Hgs φ n with "[Hheap]"); [exact Hsteps | exact Hi | ].
-    iSplitL "Hheap"; first iExact "Hheap".
-    iSplit.
-    { iPureIntro. split; last by rewrite sqex_singleton_lookup.
-      apply sqex_pool_reservations_init. intros j t' Ht'.
-      apply (lookup_singleton_Some (M := gmap nat)) in Ht' as [_ <-]. done. }
-    rewrite big_sepM_singleton. iApply sqex_thread_ready.
-    rewrite /sqex_post /=. iApply (Hwp Hgs). }
-  split; intros i t Hi.
-  - exact (proj1 (Hend i t Hi)).
-  - exact (proj2 (Hend i t Hi)).
+  intros Hwp. apply (sqex_adequacy_gen Σ (fun H => @lr_ext_specs Σ H)
+    (fun H => @lr_ext_specs_sound Σ H)).
+  exact Hwp.
 Qed.

@@ -1,135 +1,53 @@
-(** *
+(** * The atomic machine
 
-    This file implements a generic sequentially consistent concurrent semantics,
-    lifting a sequential semantics to a sequentially consistent concurrent
-    machine with a lambda-Rust-style reader/writer race detector (the `rw_map`)
-    and SC atomic operations.
+    This file defines the interface of a sequential language ([sqlang]) and
+    lifts it to a sequentially consistent concurrent machine that only tracks
+    events. There is no reader/writer map and no Try/Commit split: a
+    sequential step of a thread is one machine step, and so is an atomic
+    operation.
 
-    A machine configuration is <<AMCfg tp m μ>> where [tp] is a thread pool,
-    [m] a CompCert memory, and [μ] a reader/writer state map.  A thread
-    performs a sequential step in two phases: [Core_Try] runs a single thread
-    step and "reserve permissions" by updating the "rw_map" and emits a trace of
-    "on-going" memory events. If a thread has on-going events, it can only
-    execute [Core_Commit] to finish the memory events, and release the reserve.
-    Data-race is modeled by failure to reserve in [μ].
+    Every step emits events ([am_event]):
+    - a sequential step emits its memory events as non-atomic events
+      ([NA ev] for a [mem_ev] [ev]);
+    - atomic loads and stores emit [SC (SCread l)] and [SC (SCwrite l)],
+      a successful CAS emits the read-modify-write event [SC (SCrw l)], and
+      a failed one [SC (SCread l)];
+    - spawning emits no event.
 
- *)
-
-(* FIXME there can be a better name for "machine" in atomic_machine. *)
+    Data races are defined on the events, after CASCompCert's predicted
+    races: a configuration is racy ([am_race]) if two different threads can
+    each take a step from it whose events conflict ([am_conflict]). Events
+    on different locations never conflict. On the same location:
+    - two non-atomic events conflict as in CASCompCert's [FP.conflict]
+      (allocations and frees being permission changes), i.e. unless both
+      are reads, or both are allocations (see [am_conflicting]);
+    - two SC events never conflict;
+    - a non-atomic and an SC event conflict unless both are reads.
+    Since every interleaving is a machine execution, a one-step prediction
+    is enough: a later conflicting step of a thread is predicted from the
+    configuration reached by scheduling that thread first. *)
 
 From Stdlib Require Import Arith.PeanoNat.
 From Stdlib Require Import Strings.String.
 From Stdlib Require Import List.
 Import ListNotations.
 
-Require Import stdpp.gmap.
+Require Import stdpp.gmap stdpp.relations.
 
-(** ** Reader/writer states
-
-    The state of one memory byte, as in lambda-Rust: [Rst n] means [n]
-    threads are between Try and Commit of a step that reads the byte;
-    [Wst] means some thread is mid-step on a write to it. *)
+(** ** Memory events of the sequential language *)
 
 Class Location := location : Type.
 Global Typeclasses Transparent Location.
 
-Section RWMap.
-
+Section MemEvents.
   Context {Loc : Location}.
-  Context {LocEqDec : EqDecision Loc}.
-  Context {LocCountable : @Countable Loc _}.
-
-  Inductive rw_state : Type :=
-  | Rst (n : nat)
-  | Wst.
 
   Variant mem_ev : Type :=
   | Read (l : Loc)
   | Write (l : Loc)
   | Alloc (l : Loc)
   | Free (l : Loc).
-
-  Definition rw_map := gmap Loc rw_state.
-
-  Implicit Types (μ : rw_map) (oμ : option rw_map) (l : Loc)
-    (ev : mem_ev) (evs : list mem_ev).
-
-  Definition initial_rw : rw_map := ∅.
-
-  Definition rsv_Alloc μ l : option rw_map :=
-    match μ !! l with
-    | None => Some $ <[l := Rst 0]> μ
-    | _ => None
-    end.
-
-  (* can't free right now because a subsequent fin_Read needs the location to be define *)
-  Definition rsv_Free μ : option rw_map :=
-    mret μ.
-
-  Definition rsv_Write μ l : option rw_map :=
-    st ← μ !! l;
-    match st with
-    | Rst O => Some $ <[l := Wst]> μ
-    | _ => None
-    end.
-
-  Definition rsv_Read μ l : option rw_map :=
-    st ← μ !! l;
-    match st with
-    | Rst n => Some $ <[l := Rst (S n)]> μ
-    | _ => None
-    end.
-
-  Definition fin_Alloc μ : option rw_map := mret μ.
-
-  Definition fin_Free μ l : option rw_map :=
-    match μ !! l with
-    | Some _ => Some $ delete l μ
-    | _ => None
-    end.
-
-  Definition fin_Write μ l : option rw_map :=
-    st ← μ !! l;
-    match st with
-    | Wst => Some $ <[l := Rst O]> μ
-    | _ => None
-    end.
-
-  Definition fin_Read μ l : option rw_map :=
-    st ← μ !! l;
-    match st with
-    | Rst (S n) => Some $ <[l := Rst n]> μ
-    | _ => None
-    end.
-
-  Definition rsv_ev ev oμ : option rw_map :=
-    μ ← oμ;
-    match ev with
-    | Read l => rsv_Read μ l
-    | Write l => rsv_Write μ l
-    | Alloc l => rsv_Alloc μ l
-    | Free l => rsv_Free μ
-    end.
-
-  Definition fin_ev ev oμ : option rw_map :=
-    μ ← oμ;
-    match ev with
-    | Read l => fin_Read μ l
-    | Write l => fin_Write μ l
-    | Alloc _ => fin_Alloc μ
-    | Free l => fin_Free μ l
-    end.
-
-  (* for memory events, "reserve permission" by updating rw_map *)
-  Definition rsv evs μ : option rw_map :=
-    foldr rsv_ev (Some μ) evs.
-
-  (* some memory events release permission after completion. *)
-  Definition fin evs μ : option rw_map :=
-    foldr fin_ev (Some μ) evs.
-
-End RWMap.
-
+End MemEvents.
 
 Section Memory.
   Class Memory {Loc Val : Type} {LocEqDec : EqDecision Loc} {LocCountable : Countable Loc} {Mem : Type} {Layout : Type} : Type := {
@@ -146,7 +64,6 @@ Section SeqLang.
     {Mem Layout : Type} {expr : Type}.
 
   Local Notation mem_ev := (mem_ev(Loc:=Loc)).
-  Local Notation rw_map := (rw_map(Loc:=Loc)).
 
   (* the kind of external functions. Should probably be just a general
      placeholder (maybe only expose a string?) and the supported external calls
@@ -189,12 +106,120 @@ Section SeqLang.
   }.
 End SeqLang.
 
+(** ** Machine events *)
+
+Section Events.
+  Context {Loc : Type}.
+
+  (** (Sequentially consistent) atomic events. *)
+  Variant sc_event : Type :=
+  | SCread (l : Loc)
+  | SCwrite (l : Loc)
+  (* for a successful CAS, does a read and a write at the same time.
+     Failed CAS emits SCread. *)
+  | SCrw (l : Loc).
+
+  (** Events of the machine: the memory events of a sequential step are
+      non-atomic ([NA]), those of atomic operations are [SC]. *)
+  Variant am_event : Type :=
+  | NA (ev : @mem_ev Loc)
+  | SC (ev : sc_event).
+
+  Definition mem_ev_loc (ev : @mem_ev Loc) : Loc :=
+    match ev with Read l | Write l | Alloc l | Free l => l end.
+
+  Definition sc_ev_loc (ev : sc_event) : Loc :=
+    match ev with SCread l | SCwrite l | SCrw l => l end.
+
+  Definition am_ev_loc (e : am_event) : Loc :=
+    match e with NA ev => mem_ev_loc ev | SC ev => sc_ev_loc ev end.
+
+  Definition am_atomic (e : am_event) : bool :=
+    match e with NA _ => false | SC _ => true end.
+
+  (** Two events conflict if they are on the same location, and
+      - Two non-atomic events conflict as in CASCompCert's [FP.conflict].
+        - FIXME what about (NA (alloc l), NA (_ l))? Maybe don't need to care?
+      - Two SC events never conflict.
+      - A non-atomic and an SC event conflict unless both are reads. *)
+  Definition am_conflicting (e1 e2 : am_event) : bool :=
+    match e1, e2 with
+    | NA (Read _), NA (Read _) | NA (Alloc _), NA (Alloc _) => false
+    | SC _, SC _ => false
+    | NA (Read _), SC (SCread _) | SC (SCread _), NA (Read _) => false
+    | _, _ => true
+    end.
+
+  Definition am_conflict (e1 e2 : am_event) : Prop :=
+    am_ev_loc e1 = am_ev_loc e2 /\ am_conflicting e1 e2 = true.
+
+  (** Two event traces conflict if two of their events conflict. *)
+  Definition am_conflicts (evs1 evs2 : list am_event) : Prop :=
+    exists e1 e2, e1 ∈ evs1 /\ e2 ∈ evs2 /\ am_conflict e1 e2.
+
+  Lemma am_conflict_sym e1 e2 : am_conflict e1 e2 -> am_conflict e2 e1.
+  Proof. intros [Hl Hc]. split; first done. by destruct e1 as [[]|[]], e2 as [[]|[]]. Qed.
+
+  Lemma am_conflicts_sym evs1 evs2 : am_conflicts evs1 evs2 -> am_conflicts evs2 evs1.
+  Proof.
+    intros (e1 & e2 & H1 & H2 & Hc). exists e2, e1.
+    split_and!; [done | done | by apply am_conflict_sym].
+  Qed.
+
+  (** Two atomic events never conflict. *)
+  Lemma am_conflict_not_atomic e1 e2 :
+    am_conflict e1 e2 -> am_atomic e1 = false \/ am_atomic e2 = false.
+  Proof. intros [_ Hc]. destruct e1 as [[]|[]], e2 as [[]|[]]; naive_solver. Qed.
+
+  (** The location an access reads or writes, and whether it writes it. An
+      allocation is not an access. *)
+  Definition ev_need_full_loc (e : am_event) : option (Loc * bool) :=
+    match e with
+    | NA (Read l) | SC (SCread l) => Some (l, false)
+    | NA (Write l) | NA (Free l) | SC (SCwrite l) | SC (SCrw l) => Some (l, true)
+    | NA (Alloc _) => None
+    end.
+
+  (** A conflict is between an allocation and an access, or between two
+      accesses of which one writes. *)
+  Lemma am_conflict_cases e1 e2 :
+    am_conflict e1 e2 ->
+    (exists l a, e1 = NA (Alloc l) /\ ev_need_full_loc e2 = Some (l, a)) \/
+    (exists l a, e2 = NA (Alloc l) /\ ev_need_full_loc e1 = Some (l, a)) \/
+    (exists l w1 w2, ev_need_full_loc e1 = Some (l, w1) /\ ev_need_full_loc e2 = Some (l, w2) /\
+       (w1 = true \/ w2 = true)).
+  Proof.
+    intros [Hl Hc]. destruct e1 as [[]|[]], e2 as [[]|[]]; simpl in *; subst; naive_solver.
+  Qed.
+End Events.
+
+Global Arguments am_event : clear implicits.
+
+(** Every finite map over [nat] has a least unused index. *)
+Lemma am_least_free {A : Type} (tp : gmap nat A) :
+  exists j, tp !! j = None /\ forall k, k < j -> is_Some (tp !! k).
+Proof.
+  assert (Hdisj : forall N, (exists j, j <= N /\ tp !! j = None /\
+                               forall k, k < j -> is_Some (tp !! k)) \/
+                        (forall k, k <= N -> is_Some (tp !! k))).
+  { induction N as [ | N IH ].
+    - destruct (tp !! 0) eqn:H0; [ right | left ].
+      + intros k Hk. assert (k = 0) as -> by lia. by rewrite H0.
+      + exists 0. split; [ lia | ]. split; [ done | ]. lia.
+    - destruct IH as [(j & Hj & Hfree & Hleast) | Hall].
+      + left. exists j. split; [ lia | done ].
+      + destruct (tp !! S N) eqn:HN; [ right | left ].
+        * intros k Hk. destruct (decide (k = S N)) as [-> | ]; [ by rewrite HN | ].
+          apply Hall. lia.
+        * exists (S N). split; [ lia | ]. split; [ done | ].
+          intros k Hk. apply Hall. lia. }
+  destruct (Hdisj (fresh (dom tp))) as [(j & _ & Hj) | Hall]; [ by eexists | ].
+  exfalso. apply (is_fresh (dom tp)), elem_of_dom, Hall. lia.
+Qed.
+
 Section AtomicMachine.
 
   Context `{L : !@sqlang Loc Val LocEqDec LocCountable Mem Layout expr}.
-
-  Local Notation mem_ev := (mem_ev(Loc:=Loc)).
-  Local Notation rw_map := (rw_map(Loc:=Loc)).
 
   Local Notation C := sqlang_thrd_st.
   Local Notation at_external := sqlang_at_external.
@@ -202,197 +227,129 @@ Section AtomicMachine.
   Local Notation Vfalse := sqlang_false_val.
   Local Notation ValEq := sqlang_ValEq.
   Local Notation ValNEq := sqlang_ValNEq.
+  Local Notation event := (am_event Loc).
 
-  Implicit Types (μ : rw_map) (oμ : option rw_map) (l : Loc)
-    (ev : mem_ev) (evs : list mem_ev) (ly : Layout).
+  (** One step of one thread, with its events and optionally a new thread it spawns. *)
+  Inductive at_step : C -> Mem -> list event -> C -> Mem -> option C -> Prop :=
+  | Core_Step c m T c' m'
+      (Hstep : sqlang_step c m T c' m') :
+      at_step c m (NA <$> T) c' m' None
+  | SC_Read c m ly l v K
+      (Hext : at_external c (ALoad ly l) K)
+      (Hload : load m l ly = Some v) :
+      (* FIXME now it emits a list of SCread events, maybe it should be a single
+         SCread event that contains a range? *)
+      at_step c m ((fun l => SC (SCread l)) <$> layout_to_locs l ly) (K (Some v)) m None
+  | SC_Write c m ly l v m' K
+      (Hext : at_external c (AStore ly l v) K)
+      (Hstore : store m l ly v = Some m') :
+      at_step c m ((fun l => SC (SCwrite l)) <$> layout_to_locs l ly) (K None) m' None
+  | SC_Cas_Suc c m ly l v_exp v_new v_cur m' K
+      (Hext : at_external c (ACAS ly l v_exp v_new) K)
+      (Hload : load m l ly = Some v_cur)
+      (Heq : ValEq m v_cur v_exp)
+      (Hstore : store m l ly v_new = Some m') :
+      at_step c m ((fun l => SC (SCrw l)) <$> layout_to_locs l ly)
+        (K (Some Vtrue)) m' None
+  | SC_Cas_Fail c m ly l v_exp v_new v_cur K
+      (Hext : at_external c (ACAS ly l v_exp v_new) K)
+      (Hload : load m l ly = Some v_cur)
+      (Hneq : ValNEq m v_cur v_exp) :
+      at_step c m ((fun l => SC (SCread l)) <$> layout_to_locs l ly)
+        (K (Some Vfalse)) m None
+  | Spawn c m e_new K
+      (Hspawn : at_external c (ASpawn e_new) K) :
+      at_step c m [] (K None) m (Some (sqlang_expr_to_thrd_st e_new)).
 
-  Inductive tstate : Type :=
-  | Running (c : C) (T : list mem_ev)
-  | StuckState.
-
-  Definition tpool := gmap nat tstate.
-
-  (** The atomic machine configuration: the thread pool, the shared memory, and
-      the reader/writer count map. *)
+  Definition am_tpool := gmap nat C.
   #[projections(primitive)]
   Record am_cfg : Type := AMCfg {
-    am_threads : tpool;
+    am_threads : am_tpool;
     am_mem : Mem;
-    am_rw : rw_map;
   }.
 
-  (** No non-atomic write in progress anywhere in ls. *)
-  Definition readable μ (ls : list Loc) : Prop :=
-    Forall (fun l => μ !! l <> Some Wst) ls.
-
-  (** No non-atomic access at all in ls. *)
-  Definition writable μ (ls : list Loc) : Prop :=
-    Forall (fun l => μ !! l = Some (Rst 0)) ls.
-
-  Inductive at_step : am_cfg -> am_cfg -> Prop :=
-
-  | Core_Try : forall tp m μ i c T c' m' μ'
-      (Hget : tp !! i = Some (Running c []))
-      (Hstep : sqlang_step c m T c' m')
-      (Hreserve : rsv T μ = Some μ'),
-      at_step (AMCfg tp m μ) (AMCfg (<[i := Running c' T]> tp) m' μ')
-    
-  | Core_Commit : forall tp m μ i c T μ'
-      (Hget : tp !! i = Some (Running c T))
-      (Hne : T <> [])
-      (Hcommit : fin T μ = Some μ'),
-      at_step (AMCfg tp m μ) (AMCfg (<[i := Running c []]> tp) m μ')
-
-  | SC_Read : forall tp m μ i c ly l v K
-      (Hget : tp !! i = Some (Running c []))
-      (Hext : at_external c (ALoad ly l) K)
-      (Hmu : readable μ (layout_to_locs l ly))
-      (Hload : load m l ly = Some v),
-      at_step (AMCfg tp m μ) (AMCfg (<[i := Running (K $ Some v) []]> tp) m μ)
-
-  | SC_Write : forall tp m μ i c ly l v m' K
-      (Hget : tp !! i = Some (Running c []))
-      (Hext : at_external c (AStore ly l v) K)
-      (Hmu : writable μ (layout_to_locs l ly))
-      (Hstore : store m l ly v = Some m'),
-      at_step (AMCfg tp m μ) (AMCfg (<[i := Running (K None) []]> tp) m' μ)
-
-  | SC_Cas_Suc : forall tp m μ i c ly l v_exp v_new v_cur m' K
-      (Hget : tp !! i = Some (Running c []))
-      (Hext : at_external c (ACAS ly l v_exp v_new) K)
-      (Hmu : writable μ (layout_to_locs l ly))
-      (Hload : load m l ly = Some v_cur)
-      (Heq : ValEq m v_cur v_exp)
-      (Hstore : store m l ly v_new = Some m'),
-      at_step (AMCfg tp m μ) (AMCfg (<[i := Running (K $ Some Vtrue) []]> tp) m' μ)
-
-  | SC_Cas_Fail : forall tp m μ i c ly l v_exp v_new v_cur K
-      (Hget : tp !! i = Some (Running c []))
-      (Hext : at_external c (ACAS ly l v_exp v_new) K)
-      (Hmu : readable μ (layout_to_locs l ly))
-      (Hload : load m l ly = Some v_cur)
-      (Hneq : ValNEq m v_cur v_exp),
-      at_step (AMCfg tp m μ) (AMCfg (<[i := Running (K $ Some Vfalse) []]> tp) m μ)
-
-  (** comparison succeeded, but can't write new value because reserve fails. *)
-  | SC_Cas_Stuck : forall tp m μ i c ly l v_exp v_new v_cur K
-      (Hget : tp !! i = Some (Running c []))
-      (Hext : at_external c (ACAS ly l v_exp v_new) K)
-      (Hload : load m l ly = Some v_cur)
-      (Heq : ValEq m v_cur v_exp)
-      (Ho : ~ writable μ (layout_to_locs l ly)),
-      at_step (AMCfg tp m μ) (AMCfg (<[i := StuckState]> tp) m μ)
-
-  (** Thread creation.  The new thread gets the least unused index, so
-      a pool whose indices are an initial segment of [nat] stays one. *)
-  | Spawn : forall tp m μ i c e_new K j
-      (Hget : tp !! i = Some (Running c []))
-      (Hspawn : at_external c (ASpawn e_new) K)
+  (** at_step lifted to thread pool, and we can talk about the thread ID of the
+    executing thread. FIXME the spawn rule looks weird; do we need this at all,
+    over the Iris step closure? *)
+  Inductive am_step : am_cfg -> nat -> list event -> am_cfg -> Prop :=
+  | AMStep tp m i c evs c' m'
+      (Hget : tp !! i = Some c)
+      (Hstep : at_step c m evs c' m' None) :
+      am_step (AMCfg tp m) i evs (AMCfg (<[i := c']> tp) m')
+  | AMStepSpawn tp m i c evs c' m' c_new j
+      (Hget : tp !! i = Some c)
+      (Hstep : at_step c m evs c' m' (Some c_new))
+      (* picks least-unused index for the new thread *)
       (Hfree : tp !! j = None)
-      (Hleast : forall k, k < j -> is_Some (tp !! k)),
-      at_step (AMCfg tp m μ) (
-        AMCfg (<[j := Running (sqlang_expr_to_thrd_st e_new) []]> 
-               (<[i := Running (K None) []]> tp)) m μ).
+      (Hleast : forall k, k < j -> is_Some (tp !! k)) :
+      am_step (AMCfg tp m) i evs (AMCfg (<[j := c_new]> (<[i := c']> tp)) m').
 
-  Definition am_steps : relation am_cfg := rtc at_step.
+  Definition am_step_any (q q' : am_cfg) : Prop := exists i evs, am_step q i evs q'.
 
-  (** ** Safety
+  Definition am_steps : relation am_cfg := rtc am_step_any.
 
-      A singleton pool tests whether this particular thread can step with
-      the current shared memory and reservations.  All [at_step] rules
-      inspect only the selected thread, so this does not ask other threads
-      to finish their pending accesses first. *)
-  Definition am_reducible (t : tstate) (m : Mem) (μ : rw_map) : Prop :=
-    exists q', at_step (AMCfg {[0 := t]} m μ) q'.
+  (** ** Races and safety *)
 
-  (** A singleton reduction really can be scheduled in any pool containing
-      this thread, without changing the memory or reservations beforehand. *)
-  (** Every pool has a least unused index. *)
-  Lemma tpool_least_free (tp : tpool) :
-    exists j, tp !! j = None /\ forall k, k < j -> is_Some (tp !! k).
-  Proof.
-    assert (Hdisj : forall N, (exists j, j <= N /\ tp !! j = None /\
-                                 forall k, k < j -> is_Some (tp !! k)) \/
-                          (forall k, k <= N -> is_Some (tp !! k))).
-    { induction N as [ | N IH ].
-      - destruct (tp !! 0) eqn:H0; [ right | left ].
-        + intros k Hk. assert (k = 0) as -> by lia. by rewrite H0.
-        + exists 0. split; [ lia | ]. split; [ done | ]. lia.
-      - destruct IH as [(j & Hj & Hfree & Hleast) | Hall].
-        + left. exists j. split; [ lia | done ].
-        + destruct (tp !! S N) eqn:HN; [ right | left ].
-          * intros k Hk. destruct (decide (k = S N)) as [-> | ]; [ by rewrite HN | ].
-            apply Hall. lia.
-          * exists (S N). split; [ lia | ]. split; [ done | ].
-            intros k Hk. apply Hall. lia. }
-    destruct (Hdisj (fresh (dom tp))) as [(j & _ & Hj) | Hall]; [ by eexists | ].
-    exfalso. apply (is_fresh (dom tp)), elem_of_dom, Hall. lia.
-  Qed.
+  (** Two different threads can step from [q] with conflicting events. *)
+  Definition am_race (q : am_cfg) : Prop :=
+    exists i j ci cj evs1 evs2 ci' cj' m1 m2 o1 o2,
+      i <> j /\
+      am_threads q !! i = Some ci /\ am_threads q !! j = Some cj /\
+      at_step ci (am_mem q) evs1 ci' m1 o1 /\
+      at_step cj (am_mem q) evs2 cj' m2 o2 /\
+      am_conflicts evs1 evs2.
 
-  Lemma am_reducible_in_pool tp i t m μ :
-    tp !! i = Some t -> am_reducible t m μ -> exists q', at_step (AMCfg tp m μ) q'.
-  Proof.
-    intros Hlookup (q' & Hstep).
-    destruct (tpool_least_free tp) as (j & Hfree & Hleast).
-    inversion Hstep; subst;
-      apply lookup_singleton_Some in Hget as [Hi Hget]; subst t;
-      eexists; eauto using at_step.
-  Qed.
+  (** A thread is not stuck if it has finished or can step. *)
+  Definition am_not_stuck (c : C) (m : Mem) : Prop :=
+    sqlang_final c \/ exists evs c' m' oc, at_step c m evs c' m' oc.
 
-  (* a thread [t:tstate] is not stuck if the underlying sequential state is final
-  and it has no event to commit, or it can take a step. *)
-  Definition am_not_stuck (t : tstate) (m : Mem) (μ : rw_map) : Prop :=
-    (exists c, t = Running c [] /\ sqlang_final c) \/ am_reducible t m μ.
-
-  (** [q:am_cfg] is safe if every thread in any reachable configurations is not
-      stuck. *)
   Definition am_safe (q : am_cfg) : Prop :=
-    forall tp m μ,
-      am_steps q (AMCfg tp m μ) ->
-      forall i t, tp !! i = Some t -> am_not_stuck t m μ.
+    forall q', am_steps q q' ->
+      ~ am_race q' /\
+      forall i c, am_threads q' !! i = Some c -> am_not_stuck c (am_mem q').
 
-  Lemma am_safe_reachable q q' :
-    am_safe q -> am_steps q q' -> am_safe q'.
-  Proof. intros Hsafe Hsteps tp m μ Hsteps'. apply Hsafe. by eapply rtc_trans. Qed.
-
-  Lemma am_stuck_not_reducible m μ : ~ am_reducible StuckState m μ.
+  (** A thread that can step in isolation can step in every pool. *)
+  Lemma at_step_in_pool tp m i c evs c' m' oc :
+    tp !! i = Some c -> at_step c m evs c' m' oc ->
+    exists q', am_step (AMCfg tp m) i evs q'.
   Proof.
-    intros (q' & Hstep). inversion Hstep; subst;
-      apply lookup_singleton_Some in Hget as [Hi Hget]; discriminate.
+    intros Hi Hstep. destruct oc as [c_new|].
+    - destruct (am_least_free tp) as (j & Hj & Hleast).
+      eexists. by eapply AMStepSpawn.
+    - eexists. by eapply AMStep.
   Qed.
 
-  Lemma am_stuck_not_safe q tp m μ i :
-    am_steps q (AMCfg tp m μ) -> tp !! i = Some StuckState ->
-    ~ am_safe q.
+  (** The events of a sequential step are non-atomic; those of an external
+      calls are atomic.
+      TODO relax this, allow for non-atomic events (or even mixed?) *)
+  Lemma at_step_events c m evs c' m' oc :
+    at_step c m evs c' m' oc ->
+    (exists T, sqlang_step c m T c' m' /\ evs = NA <$> T) \/
+    Forall (fun e => am_atomic e = true) evs.
   Proof.
-    intros Hsteps Hget Hsafe.
-    destruct (Hsafe _ _ _ Hsteps _ _ Hget) as [(c & Hc & _) | Hred];
-      [ discriminate | exact (am_stuck_not_reducible _ _ Hred) ].
+    destruct 1; [left; by eexists | right..].
+    - apply Forall_fmap, Forall_true. done.
+    - apply Forall_fmap, Forall_true. done.
+    - apply Forall_fmap, Forall_true. done.
+    - apply Forall_fmap, Forall_true. done.
+    - constructor.
   Qed.
 
-  Lemma am_pending_not_stuck c T m μ :
-    T <> [] ->
-    (am_not_stuck (Running c T) m μ <-> exists μ', fin T μ = Some μ').
+  (** two event traces conflict if two of the events coming from each trace
+    conflict. *)
+  Lemma am_conflicts_seq c1 c2 m evs1 evs2 c1' c2' m1 m2 o1 o2 :
+    at_step c1 m evs1 c1' m1 o1 -> at_step c2 m evs2 c2' m2 o2 ->
+    am_conflicts evs1 evs2 ->
+    (exists T, sqlang_step c1 m T c1' m1 /\ evs1 = NA <$> T) \/
+    (exists T, sqlang_step c2 m T c2' m2 /\ evs2 = NA <$> T).
   Proof.
-    intros Hne. split.
-    - intros [(c' & Heq & _) | (q' & Hstep)]; [ congruence | ].
-      inversion Hstep; subst;
-        apply lookup_singleton_Some in Hget as [Hi Hget];
-        inversion Hget; subst; try contradiction. by eexists.
-    - intros (μ' & Hfin). right. eexists.
-      eapply Core_Commit with (i := 0);
-        [ apply lookup_singleton_eq | exact Hne | exact Hfin ].
-  Qed.
-
-  Lemma am_safe_final_singleton c m μ :
-    sqlang_final c -> ~ am_reducible (Running c []) m μ ->
-    am_safe (AMCfg {[0 := Running c []]} m μ).
-  Proof.
-    intros Hfinal Hnormal tp m' μ' Hsteps i t Hget.
-    inversion Hsteps as [ | ? q ? Hstep _ ]; subst.
-    - apply lookup_singleton_Some in Hget as [Hi Heq]. subst t.
-      left. by eexists.
-    - exfalso. apply Hnormal. by exists q.
+    intros H1 H2 (e1 & e2 & He1 & He2 & Hc).
+    destruct (at_step_events _ _ _ _ _ _ H1) as [?|Ha1]; first by left.
+    destruct (at_step_events _ _ _ _ _ _ H2) as [?|Ha2]; first by right.
+    exfalso. rewrite Forall_forall in Ha1. rewrite Forall_forall in Ha2.
+    destruct (am_conflict_not_atomic _ _ Hc) as [Hn|Hn].
+    - rewrite Ha1 in Hn; [discriminate | done].
+    - rewrite Ha2 in Hn; [discriminate | done].
   Qed.
 
 End AtomicMachine.
