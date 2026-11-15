@@ -878,27 +878,19 @@ lambda-rust-reference: _CoqProject \
 	atomic_machine/lambda_rust/common.vo \
 	lambda-rust/lambda-rust/lang/races.vo
 
-lambda-rust-equivalence: lambda-rust-reference \
+lambda-rust-semantics: lambda-rust-reference \
 	atomic_machine/atomic_machine.vo \
-	atomic_machine/lambda_rust/sq_sem.vo \
-	atomic_machine/lambda_rust/at_sem.vo \
-	atomic_machine/lambda_rust/equivalence.vo
+	atomic_machine/lambda_rust/sq_sem.vo
 
-lambda-rust-adequacy: lambda-rust-equivalence \
-	atomic_machine/lambda_rust/safety_reflection.vo \
-	atomic_machine/lambda_rust/machine_safety.vo \
-	atomic_machine/lambda_rust/adequacy.vo
-
-lambda-rust-logic: lambda-rust-adequacy \
+lambda-rust-logic: lambda-rust-semantics \
 	atomic_machine/lambda_rust/logic/sq_heap.vo \
 	atomic_machine/lambda_rust/logic/sq_logic.vo \
-	atomic_machine/lambda_rust/logic/sq_adequacy.vo \
+	atomic_machine/lambda_rust/logic/lr_lemmas.vo \
 	atomic_machine/lambda_rust/logic/sqex_logic.vo \
-	atomic_machine/lambda_rust/logic/sqex_pending.vo \
+	atomic_machine/lambda_rust/logic/sqex_lr_logic.vo \
 	atomic_machine/lambda_rust/logic/sqex_adequacy.vo \
 	atomic_machine/lambda_rust/logic/sqex_examples.vo \
-	atomic_machine/lambda_rust/logic/at_logic.vo \
-	atomic_machine/lambda_rust/logic/at_adequacy.vo
+	atomic_machine/lambda_rust/logic/sqex_iris_adequacy.vo
 
 # The CASCompCert-based theory needs ATOMIC_MACHINE=true (and a configured
 # cascompcert submodule).

@@ -3,7 +3,7 @@
     EXWP is a weakest precondition for one lambda-Rust thread of the atomic
     machine [am_step] ([atomic_machine.v] instantiated with [lr_language]).
     External calls (the SC atomics and Fork) go through [ExtSpecs]; the
-    contracts [lr_ext_specs] and the rules for the SC operations and Fork are
+    contracts [ext_specs] and the rules for the SC operations and Fork are
     at the end of this file.
 
     A sequential (core) step is a single machine step. Races are predicted
@@ -443,48 +443,48 @@ Section ext_specs.
   Context `{!lrSqGS Σ}.
 
   (** An SC read of [l]: a fraction [q] of [l ↦ v], returned with [v]. *)
-  Definition lr_load_spec (l : loc) : ExtSpec lr_language Σ := {|
+  Definition sc_load_spec (l : loc) : ExtSpec lr_language Σ := {|
     ext_args := Qp * val;
     ext_pre qv := cconst (l ↦{qv.1} qv.2)%I;
     ext_post qv ov := (⌜ov = Some qv.2⌝ ∗ l ↦{qv.1} qv.2)%I |}.
 
   (** An SC write of [v] to [l]: full ownership of [l]. *)
-  Definition lr_store_spec (l : loc) (v : val) : ExtSpec lr_language Σ := {|
+  Definition sc_store_spec (l : loc) (v : val) : ExtSpec lr_language Σ := {|
     ext_args := val;
     ext_pre v' := cconst (l ↦ v')%I;
     ext_post _ ov := (⌜ov = None⌝ ∗ l ↦ v)%I |}.
 
   (** A CAS on an integer cell: full ownership, whether it succeeds or not. *)
-  Definition lr_cas_spec (l : loc) (v_exp v_new : val) : ExtSpec lr_language Σ := {|
+  Definition sc_cas_spec (l : loc) (v_exp v_new : val) : ExtSpec lr_language Σ := {|
     ext_args := Z * Z;
     ext_pre x := cconst (⌜v_exp = LitV (LitInt x.2)⌝ ∗ l ↦ LitV (LitInt x.1))%I;
     ext_post x ov :=
       (⌜ov = Some (LitV (lit_of_bool (bool_decide (x.1 = x.2))))⌝ ∗
        l ↦ (if decide (x.1 = x.2) then v_new else LitV (LitInt x.1)))%I |}.
 
-  Local Instance lr_spawn_pre_ne (e : sq_expr) :
+  Local Instance sc_spawn_pre_ne (e : sq_expr) :
     NonExpansive (λ W : sq_expr -d> iPropO Σ, W e).
   Proof. intros n W W' HW. apply HW. Qed.
 
   (** Spawning [e]: the WP of [e]. *)
-  Definition lr_spawn_spec (e : sq_expr) : ExtSpec lr_language Σ := {|
+  Definition sc_spawn_spec (e : sq_expr) : ExtSpec lr_language Σ := {|
     ext_args := unit;
     ext_pre _ := OfeMor (λ W : sq_expr -d> iPropO Σ, W e);
     ext_post _ ov := ⌜ov = None⌝%I |}.
 
-  Definition lr_ext_specs : ExtSpecs lr_language Σ := λ op,
+  Definition ext_specs : ExtSpecs lr_language Σ := λ op,
     match op with
-    | ALoad _ l => lr_load_spec l
-    | AStore _ l v => lr_store_spec l v
-    | ACAS _ l v_exp v_new => lr_cas_spec l v_exp v_new
-    | ASpawn e => lr_spawn_spec e
+    | ALoad _ l => sc_load_spec l
+    | AStore _ l v => sc_store_spec l v
+    | ACAS _ l v_exp v_new => sc_cas_spec l v_exp v_new
+    | ASpawn e => sc_spawn_spec e
     end.
 End ext_specs.
 
 (** Proof rules. *)
 Section concurrent_rules.
   Context `{!lrSqGS Σ}.
-  Local Existing Instance lr_ext_specs.
+  Local Existing Instance ext_specs.
 
   Lemma conc_wp_read_sc E l q v :
     {{{ ▷ l ↦{q} v }}} EXWP (Read ScOrd (Lit $ LitLoc l) : sq_expr) @ E

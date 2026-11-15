@@ -86,7 +86,7 @@ Class ExtSpecsSound `{!lrSqGS Σ} (specs : ExtSpecs lr_language Σ) := {
 
 (** Inverts a machine step of an external call [op] whose continuation is
     [k]: the step is one for [op], with a continuation equal to [k] ([Hk]). *)
-Local Ltac lr_ext_inv He Hst :=
+Local Ltac ext_inv He Hst :=
   inversion Hst; subst;
   try (exfalso; by eapply lr_step_external_disjoint);
   match goal with H : sqlang_at_external _ _ _ |- _ =>
@@ -94,46 +94,46 @@ Local Ltac lr_ext_inv He Hst :=
     injection Hop; intros; subst
   end.
 
-Section lr_ext_specs_sound.
+Section sc_ext_specs_sound.
   Context `{!lrSqGS Σ}.
 
-  Lemma lr_load_sound ly l : ExtSound (lr_load_spec l) (ALoad ly l).
+  Lemma sc_load_sound ly l : ExtSound (sc_load_spec l) (ALoad ly l).
   Proof.
     split.
     - intros e k [q w] W m He. iIntros "Hpre Hm". simpl.
       iDestruct (sq_heap_read with "Hm Hpre") as %Hw. iPureIntro.
       do 4 eexists. eapply SC_Read; [exact He | exact Hw].
     - intros e k [q w] W m evs e' m' o He Hst. iIntros "Hpre Hm".
-      lr_ext_inv He Hst. simpl.
+      ext_inv He Hst. simpl.
       iDestruct (sq_heap_read with "Hm Hpre") as %Hw.
       simpl in Hload. rewrite Hload in Hw. injection Hw as <-.
       iModIntro. iExists (Some v). iFrame. by rewrite Hk.
     - intros e k [q w] W m evs e' m' o ev l' w' He Hst Hin Hacc. iIntros "Hpre".
-      lr_ext_inv He Hst.
+      ext_inv He Hst.
       simpl in Hin. apply list_elem_of_singleton in Hin as ->. injection Hacc as <- <-.
       rewrite /fp_own. by iExists q, w.
   Qed.
 
-  Lemma lr_store_sound ly l v : ExtSound (lr_store_spec l v) (AStore ly l v).
+  Lemma sc_store_sound ly l v : ExtSound (sc_store_spec l v) (AStore ly l v).
   Proof.
     split.
     - intros e k w W m He. iIntros "Hpre Hm". simpl.
       iDestruct (sq_heap_read with "Hm Hpre") as %Hw. iPureIntro.
       do 4 eexists. eapply SC_Write; [exact He | by rewrite /= Hw].
     - intros e k w W m evs e' m' o He Hst. iIntros "Hpre Hm".
-      lr_ext_inv He Hst. simpl.
+      ext_inv He Hst. simpl.
       iDestruct (sq_heap_read with "Hm Hpre") as %Hw.
       rewrite /= Hw in Hstore. injection Hstore as <-.
       iMod (sq_heap_write with "Hm Hpre") as "[Hm Hl]".
       iModIntro. iExists None. iFrame. by rewrite Hk.
     - intros e k w W m evs e' m' o ev l' w' He Hst Hin Hacc. iIntros "Hpre".
-      lr_ext_inv He Hst.
+      ext_inv He Hst.
       simpl in Hin. apply list_elem_of_singleton in Hin as ->. injection Hacc as <- <-.
       by iApply fp_own_full.
   Qed.
 
-  Lemma lr_cas_sound ly l v_exp v_new :
-    ExtSound (lr_cas_spec l v_exp v_new) (ACAS ly l v_exp v_new).
+  Lemma sc_cas_sound ly l v_exp v_new :
+    ExtSound (sc_cas_spec l v_exp v_new) (ACAS ly l v_exp v_new).
   Proof.
     split.
     - intros e k [z_cur z_exp] W m He. iIntros "Hpre Hm". simpl.
@@ -147,7 +147,7 @@ Section lr_ext_specs_sound.
           [exact He | exact Hw | ].
         change (lit_neq (LitInt z_exp) (LitInt z_cur)). constructor. done.
     - intros e k [z_cur z_exp] W m evs e' m' o He Hst. iIntros "Hpre Hm".
-      lr_ext_inv He Hst; simpl; iDestruct "Hpre" as "[-> Hl]";
+      ext_inv He Hst; simpl; iDestruct "Hpre" as "[-> Hl]";
         iDestruct (sq_heap_read with "Hm Hl") as %Hw;
         simpl in Hload; rewrite Hload in Hw; injection Hw as ->.
       + (* Success *)
@@ -162,35 +162,35 @@ Section lr_ext_specs_sound.
         iModIntro. iExists (Some (LitV (lit_of_bool false))). iFrame.
         rewrite bool_decide_false // decide_False //. iFrame. by rewrite Hk.
     - intros e k [z_cur z_exp] W m evs e' m' o ev l' w' He Hst Hin Hacc. iIntros "Hpre".
-      lr_ext_inv He Hst;
+      ext_inv He Hst;
         simpl in Hin; apply list_elem_of_singleton in Hin as ->; injection Hacc as <- <-;
         iDestruct "Hpre" as "[_ Hl]"; by iApply fp_own_full.
   Qed.
 
-  Lemma lr_spawn_sound e_new : ExtSound (lr_spawn_spec e_new) (ASpawn e_new).
+  Lemma sc_spawn_sound e_new : ExtSound (sc_spawn_spec e_new) (ASpawn e_new).
   Proof.
     split.
     - intros e k [] W m He. iIntros "Hpre Hm". iPureIntro.
       do 4 eexists. by eapply Spawn.
     - (* The precondition is the spawned thread's [W]. *)
       intros e k [] W m evs e' m' o He Hst. iIntros "Hpre Hm".
-      lr_ext_inv He Hst. iModIntro. iExists None. iFrame. by rewrite Hk.
+      ext_inv He Hst. iModIntro. iExists None. iFrame. by rewrite Hk.
     - intros e k [] W m evs e' m' o ev l' w' He Hst Hin Hacc.
-      lr_ext_inv He Hst. by apply elem_of_nil in Hin.
+      ext_inv He Hst. by apply elem_of_nil in Hin.
   Qed.
 
-  Lemma lr_ext_sound op : ExtSound (lr_ext_specs op) op.
+  Lemma ext_sound op : ExtSound (ext_specs op) op.
   Proof.
     destruct op as [ly l|ly l v|ly l v_exp v_new|e];
-      [apply lr_load_sound | apply lr_store_sound | apply lr_cas_sound | apply lr_spawn_sound].
+      [apply sc_load_sound | apply sc_store_sound | apply sc_cas_sound | apply sc_spawn_sound].
   Qed.
 
-  Global Instance lr_ext_specs_sound : ExtSpecsSound lr_ext_specs.
+  Global Instance ext_specs_sound : ExtSpecsSound ext_specs.
   Proof.
     split; intros op; [apply ext_enabled_pf | apply ext_step_pf | apply ext_footprint_pf];
-      apply lr_ext_sound.
+      apply ext_sound.
   Qed.
-End lr_ext_specs_sound.
+End sc_ext_specs_sound.
 
 (** ** Footprints of predicted steps *)
 
@@ -429,14 +429,14 @@ Proof.
   - intros i e0 Hi. exact (proj2 (Hend i e0 Hi)).
 Qed.
 
-Local Existing Instance lr_ext_specs.
+Local Existing Instance ext_specs.
 
-(** For the contracts [lr_ext_specs] of the SC operations and Fork. *)
+(** For the contracts [ext_specs] of the SC operations and Fork. *)
 Theorem sqex_adequacy Σ `{!lrSqGpreS Σ} (e : sq_expr) (φ : sq_val -> Prop) (m : lr_mem) :
   (forall `{!lrSqGS Σ}, ⊢ EXWP e {{ v, ⌜φ v⌝ }}) ->
   at_sem_adequate [e] [φ] m.
 Proof.
-  intros Hwp. apply (sqex_adequacy_gen Σ (fun H => @lr_ext_specs Σ H)
-    (fun H => @lr_ext_specs_sound Σ H)).
+  intros Hwp. apply (sqex_adequacy_gen Σ (fun H => @ext_specs Σ H)
+    (fun H => @ext_specs_sound Σ H)).
   exact Hwp.
 Qed.

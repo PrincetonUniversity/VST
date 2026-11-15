@@ -16,7 +16,6 @@ Set Default Proof Using "Type".
     the inferred location type is [loc] itself, not a constant equal to it. *)
 #[global] Hint Extern 0 Location => exact loc : typeclass_instances.
 
-(** The reader/writer state is maintained separately by the atomic machine. *)
 Definition lr_mem : Type := gmap loc val.
 Definition lr_layout : Type := unit.
 
@@ -274,3 +273,54 @@ Definition lr_final (e : expr) : Prop := is_Some (to_val e).
      sqlang_ValEq := lr_val_eq;
      sqlang_ValNEq := lr_val_neq |}.
 #[global] Existing Instance lr_language.
+
+(** ** Evaluation contexts around a redex *)
+
+Lemma fill_item_not_val Ki e : to_val (fill_item Ki e) = None.
+Proof. by destruct Ki. Qed.
+
+(** An expression has redex shape if it is not itself a strict context
+    around a non-value.  Head redexes have this shape, so their evaluation
+    context is unique. *)
+
+Definition redex_shape (e : expr) : Prop :=
+  forall Ki e', e = fill_item Ki e' -> is_Some (to_val e').
+
+Lemma fill_redex_shape_inv K e e1 :
+  redex_shape e1 -> to_val e = None -> fill K e = e1 -> K = [] /\ e = e1.
+Proof.
+  revert e. induction K as [ | Ki K IH ]; intros e Hshape He Hfill; simpl in Hfill; [ auto | ].
+  destruct (IH _ Hshape (fill_item_not_val Ki e) Hfill) as (_ & Heq).
+  destruct (Hshape Ki e (eq_sym Heq)) as [v Hv]. by rewrite He in Hv.
+Qed.
+
+Lemma fill_redex_unique K1 K2 e1 e2 :
+  redex_shape e1 -> redex_shape e2 -> to_val e1 = None -> to_val e2 = None ->
+  fill K1 e1 = fill K2 e2 -> K1 = K2 /\ e1 = e2.
+Proof.
+  intros Hs1 Hs2 Hv1 Hv2. revert K2.
+  induction K1 as [ | Ki K1 IH ] using rev_ind; intros K2 Hfill.
+  - by destruct (fill_redex_shape_inv K2 e2 e1 Hs1 Hv2 (eq_sym Hfill)) as (-> & ->).
+  - destruct K2 as [ | Kj K2 _ ] using rev_ind.
+    + destruct (fill_redex_shape_inv (K1 ++ [Ki]) e1 e2 Hs2 Hv1 Hfill) as (Hnil & _).
+      by destruct K1.
+    + rewrite !fill_app in Hfill. simpl in Hfill.
+      pose proof (fill_item_no_val_inj Ki Kj (fill K1 e1) (fill K2 e2)
+                    (fill_not_val K1 e1 Hv1) (fill_not_val K2 e2 Hv2) Hfill) as <-.
+      apply (inj (fill_item Ki)) in Hfill as Hfill'.
+      by destruct (IH K2 Hfill') as (-> & ->).
+Qed.
+
+Lemma lr_step_not_val e m T e' m' :
+  lr_step e m T e' m' -> to_val e = None.
+Proof.
+  intros Hstep. inversion Hstep; subst. apply fill_not_val.
+  by inversion H.
+Qed.
+
+Lemma lr_external_not_val e op k :
+  lr_external e op k -> to_val e = None.
+Proof.
+  intros Hext. inversion Hext; subst. apply fill_not_val.
+  by inversion H.
+Qed.
