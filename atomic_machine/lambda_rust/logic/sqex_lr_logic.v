@@ -24,29 +24,30 @@ Section footprints.
 
   Lemma fp_tokens_read l q v : l ↦{q} v ⊢ fp_tokens [lr_read_event l].
   Proof.
-    iIntros "Hl". rewrite /fp_tokens big_sepL_singleton /fp_event /=.
+    iIntros "Hl". rewrite fp_tokens_singleton /fp_event /=.
     by iExists q, v.
   Qed.
 
   Lemma fp_tokens_write l v : l ↦ v ⊢ fp_tokens [lr_write_event l].
   Proof.
-    iIntros "Hl". rewrite /fp_tokens big_sepL_singleton /fp_event /=.
+    iIntros "Hl". rewrite fp_tokens_singleton /fp_event /=.
     by iExists v.
   Qed.
 
   Lemma fp_tokens_alloc l n : ⊢ fp_tokens (lr_alloc_events l n).
   Proof.
-    rewrite /fp_tokens /lr_alloc_events. revert l.
-    induction n as [|n IH]=> l /=; first done.
-    iSplitR; [done | iApply IH].
+    rewrite /lr_alloc_events. revert l.
+    induction n as [|n IH]=> l /=; first apply fp_tokens_nil.
+    iApply fp_tokens_cons. iSplitR; [done | iApply IH].
   Qed.
 
   Lemma fp_tokens_free l vl : l ↦∗ vl ⊢ fp_tokens (lr_free_events l (length vl)).
   Proof.
-    rewrite /fp_tokens /lr_free_events. revert l.
+    rewrite /lr_free_events. revert l.
     induction vl as [|v vl IH]=> l /=.
-    { by iIntros "_". }
-    rewrite sq_pointsto_vec_cons. iIntros "[Hl Hvl]". iSplitL "Hl".
+    { iIntros "_". iApply fp_tokens_nil. }
+    rewrite sq_pointsto_vec_cons. iIntros "[Hl Hvl]".
+    iApply fp_tokens_cons. iSplitL "Hl".
     - rewrite /fp_event /=. by iExists v.
     - by iApply IH.
   Qed.

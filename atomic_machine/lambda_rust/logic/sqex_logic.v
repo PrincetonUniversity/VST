@@ -45,16 +45,53 @@ Local Existing Instance lrSqGS_invGS.
 
 (** ** Footprints *)
 
+(** For the event trace [T] in a *single* step, for each accessed
+   location, records whether that location needs a full points-to in [T]. *)
+Fixpoint fp_requirements (T : list (@mem_ev loc)) : gmap loc bool :=
+  match T with
+  | [] => ∅
+  | ev :: T =>
+      let F := fp_requirements T in
+      match ev_need_full_loc (NA ev) with
+      | Some (l, w) => <[l := w || default false (F !! l)]> F
+      | None => F
+      end
+  end.
+
+Lemma fp_requirements_elem T ev l w :
+  ev ∈ T -> ev_need_full_loc (NA ev) = Some (l, w) ->
+  exists w', fp_requirements T !! l = Some w' /\ (w = true -> w' = true).
+Proof.
+  induction T as [|ev' T IH]; first by rewrite elem_of_nil.
+  rewrite elem_of_cons. intros [-> | Hin] Hacc; cbn [fp_requirements].
+  - rewrite Hacc lookup_insert_eq. eexists. split; first done.
+    intros ->. done.
+  - destruct (IH Hin Hacc) as (w' & Hl & Hw).
+    destruct (ev_need_full_loc (NA ev')) as [[l' w'']|]; last by eauto.
+    destruct (decide (l' = l)) as [-> | Hne].
+    + rewrite lookup_insert_eq Hl /=. eexists. split; first done.
+      intros H. rewrite (Hw H). by destruct w''.
+    + rewrite lookup_insert_ne //. by eauto.
+Qed.
+
 Section footprints.
   Context `{!sq_heapGS Σ}.
 
-  (** Ownership of a location: fractional to read it, full to modify (write &
-      free) it. *)
+  (** A footprint requirement's corresponding ownership. [w] is true for a write
+     or free event. *)
   Definition fp_own (l : loc) (w : bool) : iProp Σ :=
     (if w then ∃ v, l ↦ v else ∃ q v, l ↦{q} v)%I.
 
   Lemma fp_own_full l v w : l ↦ v ⊢ fp_own l w.
   Proof. iIntros "Hl". destruct w; rewrite /fp_own; by iExists _; try iExists _. Qed.
+
+  Lemma fp_own_mono l w w' :
+    (w = true -> w' = true) -> fp_own l w' ⊢ fp_own l w.
+  Proof.
+    intros Hw. destruct w, w'; try done.
+    - by specialize (Hw eq_refl).
+    - iDestruct 1 as (v) "Hl". by iApply fp_own_full.
+  Qed.
 
   (** Two owners of a location, one of them writing, are incompatible. *)
   Lemma fp_own_excl l w1 w2 :
@@ -80,18 +117,38 @@ Section footprints.
     | None => True
     end.
 
+  (** One points-to per accessed location, with full ownership exactly when
+      at least one event at that location writes or frees it. *)
   Definition fp_tokens (T : list (@mem_ev loc)) : iProp Σ :=
-    [∗ list] ev ∈ T, fp_event ev.
+    [∗ map] l ↦ w ∈ fp_requirements T, fp_own l w.
 
   Lemma fp_tokens_nil : ⊢ fp_tokens [].
-  Proof. by rewrite /fp_tokens. Qed.
+  Proof. by rewrite /fp_tokens /= big_sepM_empty. Qed.
+
+  Lemma fp_tokens_singleton ev : fp_tokens [ev] ⊣⊢ fp_event ev.
+  Proof.
+    destruct ev; rewrite /fp_tokens /fp_event /= ?lookup_empty /=;
+      by rewrite ?big_sepM_singleton ?big_sepM_empty.
+  Qed.
+
+  Lemma fp_tokens_cons ev T : fp_event ev ∗ fp_tokens T ⊢ fp_tokens (ev :: T).
+  Proof.
+    rewrite /fp_event /fp_tokens. cbn [fp_requirements].
+    destruct (ev_need_full_loc (NA ev)) as [[l w]|]; last by iIntros "[_ $]".
+    iIntros "[Hev HT]".
+    destruct (fp_requirements T !! l) as [w'|] eqn:Hl.
+    - iDestruct (big_sepM_insert_acc with "HT") as "[Hl Hclose]"; first exact Hl.
+      iApply "Hclose". simpl. destruct w; [iExact "Hev" | iExact "Hl"].
+    - rewrite big_sepM_insert // /= Bool.orb_false_r. by iFrame.
+  Qed.
 
   Lemma fp_tokens_elem T ev l w :
     ev ∈ T -> ev_need_full_loc (NA ev) = Some (l, w) -> fp_tokens T ⊢ fp_own l w.
   Proof.
-    intros Hin Hacc. iIntros "Hfp".
-    iDestruct (big_sepL_elem_of with "Hfp") as "Hev"; first exact Hin.
-    by rewrite /fp_event Hacc.
+    intros Hin Hacc.
+    destruct (fp_requirements_elem _ _ _ _ Hin Hacc) as (w' & Hl & Hw).
+    rewrite /fp_tokens. iIntros "Hfp". iApply (fp_own_mono _ _ _ Hw).
+    by iApply (big_sepM_lookup with "Hfp").
   Qed.
 End footprints.
 
@@ -106,6 +163,10 @@ Proof.
   - intros [[K e1 ? ? e2 ? Hh] ->]. apply (Ectx_step' (Λ := sq_ectx_lang) K). by apply SqHeadStep.
 Qed.
 
+(* FIXME this part is for "lfiting" some WP rule for the core step to a EXWP
+  step. Core steps are those that can be reduced in the sequential semantics,
+  thus the [CoreRedex]; but whether this is the right approach needs further
+  investigation. *)
 (** ** Core steps
 
     [sq_step e Ψ] is the weakest precondition of one core (sequential) step
