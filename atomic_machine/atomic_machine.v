@@ -18,9 +18,10 @@
     races: a configuration is racy ([am_race]) if two different threads can
     each take a step from it whose events conflict ([am_conflict]). Events
     on different locations never conflict. On the same location:
-    - two non-atomic events conflict as in CASCompCert's [FP.conflict]
-      (allocations and frees being permission changes), i.e. unless both
-      are reads, or both are allocations (see [am_conflicting]);
+    - an allocation conflicts with nothing (see [am_conflicting]);
+    - two other non-atomic events conflict as in CASCompCert's
+      [FP.conflict] (frees being permission changes), i.e. unless both are
+      reads;
     - two SC events never conflict;
     - a non-atomic and an SC event conflict unless both are reads.
     Since every interleaving is a machine execution, a one-step prediction
@@ -139,12 +140,13 @@ Section Events.
 
   (** Two events conflict if they are on the same location, and
       - Two non-atomic events conflict as in CASCompCert's [FP.conflict].
-        - FIXME what about (NA (alloc l), NA (_ l))? Maybe don't need to care?
+        "conflicts" with Alloc is a memory safety property and not handled here.
       - Two SC events never conflict.
       - A non-atomic and an SC event conflict unless both are reads. *)
   Definition am_conflicting (e1 e2 : am_event) : bool :=
     match e1, e2 with
-    | NA (Read _), NA (Read _) | NA (Alloc _), NA (Alloc _) => false
+    | NA (Alloc _), _ | _, NA (Alloc _) => false
+    | NA (Read _), NA (Read _) => false
     | SC _, SC _ => false
     | NA (Read _), SC (SCread _) | SC (SCread _), NA (Read _) => false
     | _, _ => true
@@ -180,14 +182,11 @@ Section Events.
     | NA (Alloc _) => None
     end.
 
-  (** A conflict is between an allocation and an access, or between two
-      accesses of which one writes. *)
+  (** A conflict is between two accesses of which one writes. *)
   Lemma am_conflict_cases e1 e2 :
     am_conflict e1 e2 ->
-    (exists l a, e1 = NA (Alloc l) /\ ev_need_full_loc e2 = Some (l, a)) \/
-    (exists l a, e2 = NA (Alloc l) /\ ev_need_full_loc e1 = Some (l, a)) \/
-    (exists l w1 w2, ev_need_full_loc e1 = Some (l, w1) /\ ev_need_full_loc e2 = Some (l, w2) /\
-       (w1 = true \/ w2 = true)).
+    exists l w1 w2, ev_need_full_loc e1 = Some (l, w1) /\ ev_need_full_loc e2 = Some (l, w2) /\
+      (w1 = true \/ w2 = true).
   Proof.
     intros [Hl Hc]. destruct e1 as [[]|[]], e2 as [[]|[]]; simpl in *; subst; naive_solver.
   Qed.

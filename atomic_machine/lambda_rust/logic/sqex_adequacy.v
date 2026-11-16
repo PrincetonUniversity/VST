@@ -225,6 +225,21 @@ Section footprints.
     by iApply (ext_specs_footprint op with "Hpre").
   Qed.
 
+  (** The footprint of any step is owned by the thread before the step. *)
+  Lemma sqex_step_own (e : sq_expr) Φ m evs e' m' o la wa ev :
+    at_step e m evs e' m' o -> ev ∈ evs ->
+    ev_need_full_loc ev = Some (la, wa) ->
+    EXWP e {{ Φ }} ={⊤,∅}=∗ fp_own la wa.
+  Proof.
+    intros Hst Hin Hacc. iIntros "Hwp".
+    destruct (at_step_events _ _ _ _ _ _ Hst) as [(T & Hs & ->) | Hat].
+    - apply list_elem_of_fmap in Hin as (ev' & -> & Hev').
+      iMod (sqex_seq_own with "Hwp") as "$"; [exact Hs | exact Hev' | exact Hacc | ].
+      by iApply fupd_mask_intro_discard.
+    - have Ha : am_atomic ev = true by rewrite Forall_forall in Hat; apply Hat.
+      by iApply (sqex_atomic_own with "Hwp").
+  Qed.
+
   (** One step of a thread, with the WP of the thread it spawns (if any). *)
   Lemma sqex_thread_step (c : sq_expr) Ψ m evs c' m' o :
     at_step c m evs c' m' o ->
@@ -303,7 +318,7 @@ Section adequacy.
   Proof.
     iIntros (Hi) "(Hm & _ & Hts)".
     iDestruct (big_sepM_lookup with "Hts") as "Ht"; first done.
-    iEval (rewrite exwp_unfold /exwp_pre /sq_step) in "Ht".
+    iEval (rewrite exwp_unfold /exwp_pre) in "Ht".
     destruct (to_val e) as [v|] eqn:Hv.
     { iMod "Ht" as "Hpost".
       iAssert (⌜i = 0%nat -> φ v⌝)%I with "[Hpost]" as %Hφ.
@@ -340,27 +355,15 @@ Section adequacy.
   Proof.
     intros Hij Hi Hj Hs Hst (e1 & e2 & He1 & He2 & Hc).
     apply list_elem_of_fmap in He1 as (ev1 & -> & Hev1).
-    destruct (am_conflict_cases _ _ Hc) as
-      [(la & a & Heq & Hacc2) | [(la & a & -> & Hacc1) | (la & w1 & w2 & Hacc1 & Hacc2 & Hw)]].
-    { (* [i] allocates [la], which [j] accesses. *)
-      exfalso. injection Heq as ->.
-      have Hfresh := lr_step_alloc_fresh _ _ _ _ _ _ Hs Hev1.
-      destruct (at_step_access_allocated _ _ _ _ _ _ _ _ _ Hst He2 Hacc2). congruence. }
-    { (* [j] allocates [la], which [i] accesses. *)
-      exfalso. have Hfresh := at_step_alloc_fresh _ _ _ _ _ _ _ Hst He2.
-      destruct (lr_step_access_allocated _ _ _ _ _ _ _ _ Hs Hev1 Hacc1). congruence. }
+    destruct (am_conflict_cases _ _ Hc) as (la & w1 & w2 & Hacc1 & Hacc2 & Hw).
     iIntros "Hts". rewrite /sqex_threads.
     iDestruct (big_sepM_delete _ _ i with "Hts") as "[Hi Hts]"; first done.
     iDestruct (big_sepM_lookup _ _ j with "Hts") as "Hj"; first by rewrite lookup_delete_ne.
+    (* [i]'s step is sequential, so its footprint needs no mask change; [j]'s
+       step may be an external call, whose footprint is in its precondition. *)
     iMod (sqex_seq_own with "Hi") as "Hown1"; [exact Hs | exact Hev1 | exact Hacc1 | ].
-    destruct (at_step_events _ _ _ _ _ _ Hst) as [(T2 & Hs2 & ->) | Hat].
-    - apply list_elem_of_fmap in He2 as (ev2 & -> & Hev2).
-      iMod (sqex_seq_own with "Hj") as "Hown2"; [exact Hs2 | exact Hev2 | exact Hacc2 | ].
-      by iDestruct (fp_own_excl _ _ _ Hw with "Hown1 Hown2") as "[]".
-    - rewrite Forall_forall in Hat.
-      iMod (sqex_atomic_own with "Hj") as "Hown2";
-        [exact Hst | exact He2 | by apply Hat | exact Hacc2 | ].
-      by iDestruct (fp_own_excl _ _ _ Hw with "Hown1 Hown2") as "[]".
+    iMod (sqex_step_own with "Hj") as "Hown2"; [exact Hst | exact He2 | exact Hacc2 | ].
+    by iDestruct (fp_own_excl _ _ _ Hw with "Hown1 Hown2") as "[]".
   Qed.
 
   Lemma sqex_inv_no_race tp m i j ci cj evs1 evs2 ci' cj' m1 m2 o1 o2 :

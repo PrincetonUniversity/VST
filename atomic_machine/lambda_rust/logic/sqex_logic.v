@@ -1,21 +1,5 @@
-(** * EXWP: a weakest precondition for lambda-Rust threads of the atomic machine
-
-    EXWP is a weakest precondition for one lambda-Rust thread of the atomic
-    machine [am_step] ([atomic_machine.v] instantiated with [lr_language]).
-    External calls (the SC atomics and Fork) go through [ExtSpecs]; the
-    contracts [ext_specs] and the rules for the SC operations and Fork are
-    at the end of this file.
-
-    A sequential (core) step is a single machine step. Races are predicted
-    from the configuration before a step, so the thread must own the
-    footprint of each of its possible steps beforehand ([fp_tokens T]):
-    fractional points-to for reads, full points-to for writes and frees,
-    nothing for allocations. The sequential case is therefore the weakest
-    precondition [sq_step] of one core step, whose successor satisfies EXWP.
-    Every rule for a core step is lifted by the single rule [exwp_core_step],
-    whose side condition [CoreRedex e] is discharged by instance search; the
-    rules and instances for the operations of [sq_logic.v] are in
-    [sqex_lr_logic.v]. *)
+(** Program logic of a sq_lang quantified over a specification of external 
+   calls. The weakest pre definition is EXWP. *)
 
 From iris.algebra Require Import auth gmap.
 From iris.proofmode Require Import proofmode coq_tactics reduction.
@@ -38,7 +22,9 @@ Record ExtSpec `(L : @sqlang Loc Val LocEqDec LocCountable Mem Layout Expr)
     (Σ : gFunctors) := {
   ext_args : Type;
   ext_pre : ext_args ->
-    ((@sqlang_thrd_st _ _ _ _ _ _ _ L) -d> iPropO Σ) -n> iPropO Σ;
+    (* spawned threads' WP *)
+    ((@sqlang_thrd_st _ _ _ _ _ _ _ L) -d> iPropO Σ) -n>
+      iPropO Σ;
   ext_post : ext_args -> option Val -> iProp Σ
 }.
 
@@ -217,10 +203,14 @@ Section exwp_pre.
     match to_val e1 with
     | Some v => |==> Φ v
     | None => |==>
-        (* A core step is a step of [sq_step]: as in Iris's wp, except that
-           a NA step needs to show that it has "enough" points-tos to emit
-           its events. *)
-        (⌜forall op k, ~ lr_external e1 op k⌝ ∗ sq_step e1 (λ e2, exwp E e2 Φ)) ∨
+        (* A core step: as in Iris's wp, except that a NA step needs to
+           show that it has "enough" points-tos to emit its events. This is
+           [sq_step e1 (λ e2, exwp E e2 Φ)], inlined. *)
+        (⌜forall op k, ~ lr_external e1 op k⌝ ∗
+          ((∀ m1, sq_heap m1 ==∗
+             ⌜exists T e2 m2, lr_step e1 m1 T e2 m2⌝ ∗
+             ∀ T e2 m2, ⌜lr_step e1 m1 T e2 m2⌝ -∗ ▷ |==> sq_heap m2 ∗ exwp E e2 Φ) ∧
+           (∀ m1 T e2 m2, ⌜lr_step e1 m1 T e2 m2⌝ ==∗ fp_tokens T))) ∨
         (∃ op k, ⌜lr_external e1 op k⌝ ∗
           |={E,∅}=> ∃ x : ext_spec_args op,
             ext_spec_pre op x (λ ef, ▷ exwp ⊤ ef (λ _, True)) ∗
@@ -229,7 +219,7 @@ Section exwp_pre.
 
   Global Instance exwp_pre_contractive : Contractive exwp_pre.
   Proof.
-    rewrite /exwp_pre /sq_step /= => n wp wp' Hwp E e1 Φ.
+    rewrite /exwp_pre /= => n wp wp' Hwp E e1 Φ.
     repeat (f_contractive || f_equiv); first [apply Hwp | intros ef; f_contractive; apply Hwp].
   Qed.
 End exwp_pre.
@@ -283,7 +273,7 @@ Section exwp.
            sq_heap m2 ∗ EXWP e2 @ E {{ Φ }}) ∧
        (∀ m1 T e2 m2, ⌜lr_step e m1 T e2 m2⌝ ==∗ fp_tokens T)).
   Proof.
-    intros Hv Hext. rewrite exwp_unfold /exwp_pre /sq_step Hv.
+    intros Hv Hext. rewrite exwp_unfold /exwp_pre Hv.
     iSplit.
     - iIntros "H". iSplit.
       + iIntros (m) "Hm".
