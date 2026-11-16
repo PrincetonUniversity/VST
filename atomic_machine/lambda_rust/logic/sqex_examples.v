@@ -136,8 +136,9 @@ Section proofs.
     rewrite /two_increments /sc_increment /wait_for_two
       /sc_increment_loop /wait_for_two_loop.
     exwp_bind (Alloc _).
-    iApply exwp_core_step. iApply sq_step_alloc. iIntros "!>" (l) "Hl _".
-    iApply exwp_value'. exwp_pure (App _ _).
+    iApply exwp_sqwp. iSplit; last iApply wp_well_behaved_alloc.
+    iApply sqwp_alloc. iIntros "!>" (l) "Hl _".
+    exwp_pure (App _ _).
     exwp_bind (Write _ _ _).
     iApply (exwp_write_sc_atomic _ ⊤ _ #0).
     iModIntro. iApply (conc_wp_write_sc with "[Hl]"); first by iNext.
@@ -160,19 +161,21 @@ Section proofs.
     ⊢ EXWP shared_reads {{ v, ⌜v = #7⌝ }}.
   Proof.
     rewrite /shared_reads. exwp_bind (Alloc _).
-    iApply exwp_core_step. iApply sq_step_alloc. iIntros "!>" (l) "Hl _".
-    iApply exwp_value'. exwp_pure (App _ _). exwp_bind (Write _ _ _).
-    iApply exwp_core_step.
-    iApply (sq_step_write_na _ (LitV LitPoison) (LitV (LitInt 7)) with "Hl").
-    iIntros "!> Hl". iApply exwp_value'. exwp_pure (App _ _).
+    iApply exwp_sqwp. iSplit; last iApply wp_well_behaved_alloc.
+    iApply sqwp_alloc. iIntros "!>" (l) "Hl _".
+    exwp_pure (App _ _). exwp_bind (Write _ _ _).
+    iApply exwp_sqwp. iSplit;
+      last by iApply (wp_well_behaved_write_na _ (LitV LitPoison) (LitV (LitInt 7)) with "Hl").
+    iApply (sqwp_write_na _ _ (LitV LitPoison) (LitV (LitInt 7)) with "Hl").
+    iIntros "!> Hl". exwp_pure (App _ _).
     iDestruct "Hl" as "[Hchild Hparent]".
     exwp_bind (Fork _). iApply (conc_wp_fork with "[Hchild]").
     - (* The child reads atomically. *)
       iNext. iApply (conc_wp_read_sc with "Hchild"). by iIntros "!> _".
     - (* The parent reads non-atomically. *)
       iNext. iIntros "_". exwp_pure (App _ _).
-      iApply exwp_core_step. iApply (sq_step_read_na with "Hparent").
-      iIntros "!> _". by iApply exwp_value.
+      iApply exwp_sqwp. iSplit; last by iApply (wp_well_behaved_read_na with "Hparent").
+      iApply (sqwp_read_na with "Hparent"). by iIntros "!> _".
   Qed.
 End proofs.
 
