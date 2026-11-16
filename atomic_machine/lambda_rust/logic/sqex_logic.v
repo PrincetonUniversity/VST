@@ -200,12 +200,12 @@ Section exwp_pre.
   Definition exwp_pre
       (exwp : coPset -d> sq_expr -d> (sq_val -d> iPropO Σ) -d> iPropO Σ) :
       coPset -d> sq_expr -d> (sq_val -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
+    (|={E}=>
     match to_val e1 with
-    | Some v => |==> Φ v
-    | None => |==>
+    | Some v => Φ v
+    | None =>
         (* A core step: as in Iris's wp, except that a NA step needs to
-           show that it has "enough" points-tos to emit its events. This is
-           [sq_step e1 (λ e2, exwp E e2 Φ)], inlined. *)
+           show that it has "enough" points-tos to emit its events. *)
         (⌜forall op k, ~ lr_external e1 op k⌝ ∗
           ((∀ m1, sq_heap m1 ==∗
              ⌜exists T e2 m2, lr_step e1 m1 T e2 m2⌝ ∗
@@ -215,7 +215,7 @@ Section exwp_pre.
           |={E,∅}=> ∃ x : ext_spec_args op,
             ext_spec_pre op x (λ ef, ▷ exwp ⊤ ef (λ _, True)) ∗
             ▷ (∀ ov, ext_spec_post op x ov -∗ |={∅,E}=> exwp E (k ov) Φ))
-    end%I.
+    end)%I.
 
   Global Instance exwp_pre_contractive : Contractive exwp_pre.
   Proof.
@@ -251,23 +251,26 @@ Section exwp.
     EXWP e @ E {{ Φ }} ⊣⊢ exwp_pre _ exwp E e Φ.
   Proof. apply (fixpoint_unfold (exwp_pre _)). Qed.
 
-  Lemma exwp_value_bupd E v Φ : EXWP of_val v @ E {{ Φ }} ⊣⊢ |==> Φ v.
+  Lemma exwp_value_fupd E v Φ : EXWP of_val v @ E {{ Φ }} ⊣⊢ |={E}=> Φ v.
   Proof. by rewrite exwp_unfold /exwp_pre to_of_val. Qed.
 
   Lemma exwp_value E v Φ : Φ v ⊢ EXWP of_val v @ E {{ Φ }}.
-  Proof. rewrite exwp_value_bupd. apply bupd_intro. Qed.
+  Proof. rewrite exwp_value_fupd. apply fupd_intro. Qed.
 
   (** A value given as an expression, e.g. a literal. *)
   Lemma exwp_value' E e v Φ `{!@IntoVal sq_lang e v} : Φ v ⊢ EXWP e @ E {{ Φ }}.
   Proof. rewrite -(@into_val sq_lang e v). apply exwp_value. Qed.
 
+  Lemma fupd_exwp E e Φ : (|={E}=> EXWP e @ E {{ Φ }}) ⊢ EXWP e @ E {{ Φ }}.
+  Proof. rewrite exwp_unfold /exwp_pre. apply fupd_trans. Qed.
+
   Lemma bupd_exwp E e Φ : (|==> EXWP e @ E {{ Φ }}) ⊢ EXWP e @ E {{ Φ }}.
-  Proof. rewrite exwp_unfold /exwp_pre. destruct (to_val e); apply bupd_trans. Qed.
+  Proof. iIntros "H". iApply fupd_exwp. by iMod "H". Qed.
 
   Lemma exwp_seq_unfold E e Φ :
     to_val e = None -> (forall op k, ~ lr_external e op k) ->
     EXWP e @ E {{ Φ }} ⊣⊢
-      ((∀ m1, sq_heap m1 ==∗
+      |={E}=> ((∀ m1, sq_heap m1 ==∗
          ⌜exists T e2 m2, lr_step e m1 T e2 m2⌝ ∗
          ∀ T e2 m2, ⌜lr_step e m1 T e2 m2⌝ -∗ ▷ |==>
            sq_heap m2 ∗ EXWP e2 @ E {{ Φ }}) ∧
@@ -275,22 +278,17 @@ Section exwp.
   Proof.
     intros Hv Hext. rewrite exwp_unfold /exwp_pre Hv.
     iSplit.
-    - iIntros "H". iSplit.
-      + iIntros (m) "Hm".
-        iMod "H" as "[[_ [Hseq _]] | (%op & %k & %Hcall & _)]".
-        * by iApply "Hseq".
-        * exfalso. by eapply Hext.
-      + iIntros (m T e2 m2 Hs).
-        iMod "H" as "[[_ [_ Hfp]] | (%op & %k & %Hcall & _)]".
-        * by iApply "Hfp".
-        * exfalso. by eapply Hext.
-    - iIntros "H !>". iLeft. iFrame. done.
+    - iIntros ">[[_ Hseq] | (%op & %k & %Hcall & _)]".
+      + by iModIntro.
+      + exfalso. by eapply Hext.
+    - iIntros ">H !>". iLeft. iFrame. done.
   Qed.
 
   Lemma exwp_core_step E e Φ `{!CoreRedex e} :
     sq_step e (λ e2, EXWP e2 @ E {{ Φ }}) ⊢ EXWP e @ E {{ Φ }}.
   Proof.
-    by rewrite (exwp_seq_unfold _ _ _ core_redex_not_val core_redex_not_external) /sq_step.
+    rewrite (exwp_seq_unfold _ _ _ core_redex_not_val core_redex_not_external) /sq_step.
+    apply fupd_intro.
   Qed.
 
   Lemma exwp_lift_external E e op k Φ :
@@ -326,7 +324,7 @@ Section exwp.
   Proof.
     iLöb as "IH" forall (e). rewrite (exwp_unfold E e) /exwp_pre.
     destruct (to_val e) as [v|] eqn:Hv.
-    { apply of_to_val in Hv. subst e. iApply bupd_exwp. }
+    { apply of_to_val in Hv. subst e. iApply fupd_exwp. }
     rewrite exwp_unfold /exwp_pre (fill_not_val _ _ Hv).
     iIntros ">[[%Hno Hseq] | (%op & %k & %He & Hspec)] !>".
     - iLeft. iSplit.
@@ -376,6 +374,22 @@ Section exwp.
       iApply ("IH" with "Hwp HΦ").
   Qed.
 
+  Lemma exwp_fupd E e Φ :
+    EXWP e @ E {{ v, |={E}=> Φ v }} ⊢ EXWP e @ E {{ Φ }}.
+  Proof.
+    iLöb as "IH" forall (e). rewrite !(exwp_unfold E e) /exwp_pre.
+    destruct (to_val e) as [v|].
+    { iIntros ">H". by iMod "H". }
+    iIntros ">[[%Hno Hseq] | (%op & %k & %He & Hspec)] !>".
+    - iLeft. iSplit; first done.
+      iApply (sq_step_wand with "Hseq"). iIntros "!>" (e') "Hwp".
+      by iApply "IH".
+    - iRight. iExists op, k. iSplit; first done.
+      iMod "Hspec" as (x) "[Hpre Hcont]". iModIntro. iExists x. iFrame "Hpre".
+      iNext. iIntros (ov) "Hpost". iMod ("Hcont" with "Hpost") as "Hwp".
+      iModIntro. by iApply "IH".
+  Qed.
+
   Lemma exwp_atomic_ext E1 E2 e op k Φ :
     lr_external e op k ->
     (forall x ov, ext_spec_post op x ov ⊢ ⌜is_Some (to_val (k ov))⌝) ->
@@ -390,7 +404,7 @@ Section exwp.
     iNext. iIntros (ov) "Hpost".
     iDestruct (Ha with "Hpost") as %[v Hv].
     iMod ("Hcont" with "Hpost") as "Hwp".
-    apply of_to_val in Hv as <-. rewrite !exwp_value_bupd.
+    apply of_to_val in Hv as <-. rewrite !exwp_value_fupd.
     iMod "Hwp" as ">HΦ". by iModIntro.
   Qed.
 End exwp.

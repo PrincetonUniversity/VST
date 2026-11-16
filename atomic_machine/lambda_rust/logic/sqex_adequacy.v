@@ -200,13 +200,13 @@ Section footprints.
   (** A sequential step's footprint is owned by the thread before the step. *)
   Lemma sqex_seq_own (e : sq_expr) Φ m T e' m' la wa ev :
     lr_step e m T e' m' -> ev ∈ T -> ev_need_full_loc (NA ev) = Some (la, wa) ->
-    EXWP e {{ Φ }} ==∗ fp_own la wa.
+    EXWP e {{ Φ }} ={⊤}=∗ fp_own la wa.
   Proof.
     intros Hs Hin Hacc. iIntros "Hwp".
     have Hv := lr_step_not_val _ _ _ _ _ Hs.
     have Hno : forall op k, ~ lr_external e op k
       by intros op k Hext; eapply lr_step_external_disjoint.
-    rewrite (exwp_seq_unfold _ _ _ Hv Hno). iDestruct "Hwp" as "[_ Hfp]".
+    rewrite (exwp_seq_unfold _ _ _ Hv Hno). iMod "Hwp" as "[_ Hfp]".
     iMod ("Hfp" $! m T e' m' with "[//]") as "Hfp".
     iModIntro. by iApply (fp_tokens_elem with "Hfp").
   Qed.
@@ -252,7 +252,7 @@ Section footprints.
       have Hv := lr_step_not_val _ _ _ _ _ Hs.
       have Hno : forall op k, ~ lr_external c op k
         by intros op k Hext; eapply lr_step_external_disjoint.
-      rewrite (exwp_seq_unfold _ _ _ Hv Hno). iDestruct "Hwp" as "[Hwp _]".
+      rewrite (exwp_seq_unfold _ _ _ Hv Hno). iMod "Hwp" as "[Hwp _]".
       iMod ("Hwp" with "Hm") as "[_ Hwp]".
       iSpecialize ("Hwp" $! T c' m' with "[//]").
       iApply fupd_mask_intro; first set_solver. iIntros "Hclose". iNext.
@@ -359,8 +359,8 @@ Section adequacy.
     iIntros "Hts". rewrite /sqex_threads.
     iDestruct (big_sepM_delete _ _ i with "Hts") as "[Hi Hts]"; first done.
     iDestruct (big_sepM_lookup _ _ j with "Hts") as "Hj"; first by rewrite lookup_delete_ne.
-    (* [i]'s step is sequential, so its footprint needs no mask change; [j]'s
-       step may be an external call, whose footprint is in its precondition. *)
+    (* Extract [i]'s sequential footprint at [⊤] before [j]'s footprint
+       potentially changes the mask to [∅] for an external call. *)
     iMod (sqex_seq_own with "Hi") as "Hown1"; [exact Hs | exact Hev1 | exact Hacc1 | ].
     iMod (sqex_step_own with "Hj") as "Hown2"; [exact Hst | exact He2 | exact Hacc2 | ].
     by iDestruct (fp_own_excl _ _ _ Hw with "Hown1 Hown2") as "[]".
