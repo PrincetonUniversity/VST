@@ -60,12 +60,11 @@ Section ext_sound.
       ⊢ ext_pre spec x W -∗ sq_heap m ==∗
         ∃ ov, ⌜e' = k ov⌝ ∗ sq_heap m' ∗ ext_post spec x ov ∗ from_option W True o.
 
-  (** For each emitted event, the precondition owns enough points-to to
-      emit it. (FIXME: is this too strict?) *)
+  (** At every location accessed in [evs], the precond owns the required points-to. *)
   Definition ext_footprint : Prop :=
     forall (e : sq_expr) k x (W : sq_expr -> iProp Σ) m evs e' m' o ev l w,
       lr_external e op k -> at_step e m evs e' m' o -> ev ∈ evs ->
-      ev_need_full_loc ev = Some (l, w) ->
+      ev_access ev l w ->
       ⊢ ext_pre spec x W -∗ fp_own l w.
 End ext_sound.
 
@@ -110,7 +109,8 @@ Section sc_ext_specs_sound.
       iModIntro. iExists (Some v). iFrame. by rewrite Hk.
     - intros e k [q w] W m evs e' m' o ev l' w' He Hst Hin Hacc. iIntros "Hpre".
       ext_inv He Hst.
-      simpl in Hin. apply list_elem_of_singleton in Hin as ->. injection Hacc as <- <-.
+      simpl in Hin. apply list_elem_of_singleton in Hin as ->.
+      destruct Hacc as [Hl ->]. apply list_elem_of_singleton in Hl as <-.
       rewrite /fp_own. by iExists q, w.
   Qed.
 
@@ -128,7 +128,8 @@ Section sc_ext_specs_sound.
       iModIntro. iExists None. iFrame. by rewrite Hk.
     - intros e k w W m evs e' m' o ev l' w' He Hst Hin Hacc. iIntros "Hpre".
       ext_inv He Hst.
-      simpl in Hin. apply list_elem_of_singleton in Hin as ->. injection Hacc as <- <-.
+      simpl in Hin. apply list_elem_of_singleton in Hin as ->.
+      destruct Hacc as [Hl ->]. apply list_elem_of_singleton in Hl as <-.
       by iApply fp_own_full.
   Qed.
 
@@ -163,7 +164,8 @@ Section sc_ext_specs_sound.
         rewrite bool_decide_false // decide_False //. iFrame. by rewrite Hk.
     - intros e k [z_cur z_exp] W m evs e' m' o ev l' w' He Hst Hin Hacc. iIntros "Hpre".
       ext_inv He Hst;
-        simpl in Hin; apply list_elem_of_singleton in Hin as ->; injection Hacc as <- <-;
+        simpl in Hin; apply list_elem_of_singleton in Hin as ->; destruct Hacc as [Hl ->];
+        apply list_elem_of_singleton in Hl as <-;
         iDestruct "Hpre" as "[_ Hl]"; by iApply fp_own_full.
   Qed.
 
@@ -199,7 +201,7 @@ Section footprints.
 
   (** A sequential step's footprint is owned by the thread before the step. *)
   Lemma sqex_seq_own (e : sq_expr) Φ m T e' m' la wa ev :
-    lr_step e m T e' m' -> ev ∈ T -> ev_need_full_loc (NA ev) = Some (la, wa) ->
+    lr_step e m T e' m' -> ev ∈ T -> mem_ev_need_full_loc ev = Some (la, wa) ->
     EXWP e {{ Φ }} ={⊤}=∗ fp_own la wa.
   Proof.
     intros Hs Hin Hacc. iIntros "Hwp".
@@ -214,7 +216,7 @@ Section footprints.
   (** An atomic step's footprint is in the precondition of its call. *)
   Lemma sqex_atomic_own (e : sq_expr) Φ m evs e' m' o la wa ev :
     at_step e m evs e' m' o -> ev ∈ evs -> am_atomic ev = true ->
-    ev_need_full_loc ev = Some (la, wa) ->
+    ev_access ev la wa ->
     EXWP e {{ Φ }} ={⊤,∅}=∗ fp_own la wa.
   Proof.
     intros Hst Hin Ha Hacc. iIntros "Hwp".
@@ -228,7 +230,7 @@ Section footprints.
   (** The footprint of any step is owned by the thread before the step. *)
   Lemma sqex_step_own (e : sq_expr) Φ m evs e' m' o la wa ev :
     at_step e m evs e' m' o -> ev ∈ evs ->
-    ev_need_full_loc ev = Some (la, wa) ->
+    ev_access ev la wa ->
     EXWP e {{ Φ }} ={⊤,∅}=∗ fp_own la wa.
   Proof.
     intros Hst Hin Hacc. iIntros "Hwp".

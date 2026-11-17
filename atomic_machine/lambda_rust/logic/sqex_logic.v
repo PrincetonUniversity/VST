@@ -52,14 +52,14 @@ Fixpoint fp_requirements (T : list (@mem_ev loc)) : gmap loc bool :=
   | [] => ∅
   | ev :: T =>
       let F := fp_requirements T in
-      match ev_need_full_loc (NA ev) with
+      match mem_ev_need_full_loc ev with
       | Some (l, w) => <[l := w || default false (F !! l)]> F
       | None => F
       end
   end.
 
 Lemma fp_requirements_elem T ev l w :
-  ev ∈ T -> ev_need_full_loc (NA ev) = Some (l, w) ->
+  ev ∈ T -> mem_ev_need_full_loc ev = Some (l, w) ->
   exists w', fp_requirements T !! l = Some w' /\ (w = true -> w' = true).
 Proof.
   induction T as [|ev' T IH]; first by rewrite elem_of_nil.
@@ -67,7 +67,7 @@ Proof.
   - rewrite Hacc lookup_insert_eq. eexists. split; first done.
     intros ->. done.
   - destruct (IH Hin Hacc) as (w' & Hl & Hw).
-    destruct (ev_need_full_loc (NA ev')) as [[l' w'']|]; last by eauto.
+    destruct (mem_ev_need_full_loc ev') as [[l' w'']|]; last by eauto.
     destruct (decide (l' = l)) as [-> | Hne].
     + rewrite lookup_insert_eq Hl /=. eexists. split; first done.
       intros H. rewrite (Hw H). by destruct w''.
@@ -112,7 +112,7 @@ Section footprints.
 
   (** The ownership needed for one non-atomic event, before the step. *)
   Definition fp_event (ev : @mem_ev loc) : iProp Σ :=
-    match ev_need_full_loc (NA ev) with
+    match mem_ev_need_full_loc ev with
     | Some (l, w) => fp_own l w
     | None => True
     end.
@@ -134,7 +134,7 @@ Section footprints.
   Lemma fp_tokens_cons ev T : fp_event ev ∗ fp_tokens T ⊢ fp_tokens (ev :: T).
   Proof.
     rewrite /fp_event /fp_tokens. cbn [fp_requirements].
-    destruct (ev_need_full_loc (NA ev)) as [[l w]|]; last by iIntros "[_ $]".
+    destruct (mem_ev_need_full_loc ev) as [[l w]|]; last by iIntros "[_ $]".
     iIntros "[Hev HT]".
     destruct (fp_requirements T !! l) as [w'|] eqn:Hl.
     - iDestruct (big_sepM_insert_acc with "HT") as "[Hl Hclose]"; first exact Hl.
@@ -143,7 +143,7 @@ Section footprints.
   Qed.
 
   Lemma fp_tokens_elem T ev l w :
-    ev ∈ T -> ev_need_full_loc (NA ev) = Some (l, w) -> fp_tokens T ⊢ fp_own l w.
+    ev ∈ T -> mem_ev_need_full_loc ev = Some (l, w) -> fp_tokens T ⊢ fp_own l w.
   Proof.
     intros Hin Hacc.
     destruct (fp_requirements_elem _ _ _ _ Hin Hacc) as (w' & Hl & Hw).

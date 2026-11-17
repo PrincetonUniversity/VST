@@ -9,15 +9,16 @@
     Every step emits events ([am_event]):
     - a sequential step emits its memory events as non-atomic events
       ([NA ev] for a [mem_ev] [ev]);
-    - atomic loads and stores emit [SC (SCread l)] and [SC (SCwrite l)],
-      a successful CAS emits the read-modify-write event [SC (SCrw l)], and
-      a failed one [SC (SCread l)];
+    - atomic loads and stores emit one [SC (SCread ls)] or [SC (SCwrite ls)],
+      covering all locations [ls] of the operation's layout;
+      a successful CAS emits one read-modify-write event [SC (SCrw ls)],
+      and a failed one [SC (SCread ls)];
     - spawning emits no event.
 
     Data races are defined on the events, after CASCompCert's predicted
     races: a configuration is racy ([am_race]) if two different threads can
     each take a step from it whose events conflict ([am_conflict]). Events
-    on different locations never conflict. On the same location:
+    with disjoint location ranges never conflict. At an overlapping location:
     - an allocation conflicts with nothing (see [am_conflicting]);
     - two other non-atomic events conflict as in CASCompCert's
       [FP.conflict] (frees being permission changes), i.e. unless both are
@@ -112,13 +113,14 @@ End SeqLang.
 Section Events.
   Context {Loc : Type}.
 
-  (** (Sequentially consistent) atomic events. *)
+  (** (Sequentially consistent) atomic events. Each event contains the
+      entire range of locations accessed by one atomic operation. *)
   Variant sc_event : Type :=
-  | SCread (l : Loc)
-  | SCwrite (l : Loc)
+  | SCread (ls : list Loc)
+  | SCwrite (ls : list Loc)
   (* for a successful CAS, does a read and a write at the same time.
      Failed CAS emits SCread. *)
-  | SCrw (l : Loc).
+  | SCrw (ls : list Loc).
 
   (** Events of the machine: the memory events of a sequential step are
       non-atomic ([NA]), those of atomic operations are [SC]. *)
@@ -129,16 +131,16 @@ Section Events.
   Definition mem_ev_loc (ev : @mem_ev Loc) : Loc :=
     match ev with Read l | Write l | Alloc l | Free l => l end.
 
-  Definition sc_ev_loc (ev : sc_event) : Loc :=
-    match ev with SCread l | SCwrite l | SCrw l => l end.
+  Definition sc_ev_locs (ev : sc_event) : list Loc :=
+    match ev with SCread ls | SCwrite ls | SCrw ls => ls end.
 
-  Definition am_ev_loc (e : am_event) : Loc :=
-    match e with NA ev => mem_ev_loc ev | SC ev => sc_ev_loc ev end.
+  Definition am_ev_locs (e : am_event) : list Loc :=
+    match e with NA ev => [mem_ev_loc ev] | SC ev => sc_ev_locs ev end.
 
   Definition am_atomic (e : am_event) : bool :=
     match e with NA _ => false | SC _ => true end.
 
-  (** Two events conflict if they are on the same location, and
+  (** Two events conflict if their location ranges overlap, and
       - Two non-atomic events conflict as in CASCompCert's [FP.conflict].
         "conflicts" with Alloc is a memory safety property and not handled here.
       - Two SC events never conflict.
@@ -153,14 +155,18 @@ Section Events.
     end.
 
   Definition am_conflict (e1 e2 : am_event) : Prop :=
-    am_ev_loc e1 = am_ev_loc e2 /\ am_conflicting e1 e2 = true.
+    (exists l, l ∈ am_ev_locs e1 /\ l ∈ am_ev_locs e2) /\
+      am_conflicting e1 e2 = true.
 
   (** Two event traces conflict if two of their events conflict. *)
   Definition am_conflicts (evs1 evs2 : list am_event) : Prop :=
     exists e1 e2, e1 ∈ evs1 /\ e2 ∈ evs2 /\ am_conflict e1 e2.
 
   Lemma am_conflict_sym e1 e2 : am_conflict e1 e2 -> am_conflict e2 e1.
-  Proof. intros [Hl Hc]. split; first done. by destruct e1 as [[]|[]], e2 as [[]|[]]. Qed.
+  Proof.
+    intros [(l & H1 & H2) Hc]. split; first by exists l.
+    by destruct e1 as [[]|[]], e2 as [[]|[]].
+  Qed.
 
   Lemma am_conflicts_sym evs1 evs2 : am_conflicts evs1 evs2 -> am_conflicts evs2 evs1.
   Proof.
@@ -173,22 +179,35 @@ Section Events.
     am_conflict e1 e2 -> am_atomic e1 = false \/ am_atomic e2 = false.
   Proof. intros [_ Hc]. destruct e1 as [[]|[]], e2 as [[]|[]]; naive_solver. Qed.
 
-  (** The location an access reads or writes, and whether it writes it. An
-      allocation is not an access. *)
-  Definition ev_need_full_loc (e : am_event) : option (Loc * bool) :=
+  (** The location a non-atomic access reads or writes, and whether it
+      writes it. An allocation is not an access. *)
+  Definition mem_ev_need_full_loc (e : @mem_ev Loc) : option (Loc * bool) :=
     match e with
-    | NA (Read l) | SC (SCread l) => Some (l, false)
-    | NA (Write l) | NA (Free l) | SC (SCwrite l) | SC (SCrw l) => Some (l, true)
-    | NA (Alloc _) => None
+    | Read l => Some (l, false)
+    | Write l | Free l => Some (l, true)
+    | Alloc _ => None
+    end.
+
+  (** For each event, the location it accesses and whether it needs full 
+      points-to. *)
+  Definition ev_access (e : am_event) (l : Loc) (w : bool) : Prop :=
+    match e with
+    | NA ev => mem_ev_need_full_loc ev = Some (l, w)
+    | SC (SCread ls) => l ∈ ls /\ w = false
+    | SC (SCwrite ls) | SC (SCrw ls) => l ∈ ls /\ w = true
     end.
 
   (** A conflict is between two accesses of which one writes. *)
   Lemma am_conflict_cases e1 e2 :
     am_conflict e1 e2 ->
-    exists l w1 w2, ev_need_full_loc e1 = Some (l, w1) /\ ev_need_full_loc e2 = Some (l, w2) /\
+    exists l w1 w2, ev_access e1 l w1 /\ ev_access e2 l w2 /\
       (w1 = true \/ w2 = true).
   Proof.
-    intros [Hl Hc]. destruct e1 as [[]|[]], e2 as [[]|[]]; simpl in *; subst; naive_solver.
+    intros [(l & H1 & H2) Hc].
+    destruct e1 as [[]|[]], e2 as [[]|[]]; simpl in *;
+      repeat match goal with
+      | H : _ ∈ [_] |- _ => apply list_elem_of_singleton in H; subst
+      end; naive_solver.
   Qed.
 End Events.
 
@@ -236,25 +255,23 @@ Section AtomicMachine.
   | SC_Read c m ly l v K
       (Hext : at_external c (ALoad ly l) K)
       (Hload : load m l ly = Some v) :
-      (* FIXME now it emits a list of SCread events, maybe it should be a single
-         SCread event that contains a range? *)
-      at_step c m ((fun l => SC (SCread l)) <$> layout_to_locs l ly) (K (Some v)) m None
+      at_step c m [SC (SCread (layout_to_locs l ly))] (K (Some v)) m None
   | SC_Write c m ly l v m' K
       (Hext : at_external c (AStore ly l v) K)
       (Hstore : store m l ly v = Some m') :
-      at_step c m ((fun l => SC (SCwrite l)) <$> layout_to_locs l ly) (K None) m' None
+      at_step c m [SC (SCwrite (layout_to_locs l ly))] (K None) m' None
   | SC_Cas_Suc c m ly l v_exp v_new v_cur m' K
       (Hext : at_external c (ACAS ly l v_exp v_new) K)
       (Hload : load m l ly = Some v_cur)
       (Heq : ValEq m v_cur v_exp)
       (Hstore : store m l ly v_new = Some m') :
-      at_step c m ((fun l => SC (SCrw l)) <$> layout_to_locs l ly)
+      at_step c m [SC (SCrw (layout_to_locs l ly))]
         (K (Some Vtrue)) m' None
   | SC_Cas_Fail c m ly l v_exp v_new v_cur K
       (Hext : at_external c (ACAS ly l v_exp v_new) K)
       (Hload : load m l ly = Some v_cur)
       (Hneq : ValNEq m v_cur v_exp) :
-      at_step c m ((fun l => SC (SCread l)) <$> layout_to_locs l ly)
+      at_step c m [SC (SCread (layout_to_locs l ly))]
         (K (Some Vfalse)) m None
   | Spawn c m e_new K
       (Hspawn : at_external c (ASpawn e_new) K) :
@@ -327,10 +344,10 @@ Section AtomicMachine.
     Forall (fun e => am_atomic e = true) evs.
   Proof.
     destruct 1; [left; by eexists | right..].
-    - apply Forall_fmap, Forall_true. done.
-    - apply Forall_fmap, Forall_true. done.
-    - apply Forall_fmap, Forall_true. done.
-    - apply Forall_fmap, Forall_true. done.
+    - repeat constructor.
+    - repeat constructor.
+    - repeat constructor.
+    - repeat constructor.
     - constructor.
   Qed.
 

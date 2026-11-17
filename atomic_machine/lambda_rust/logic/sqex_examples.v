@@ -253,7 +253,9 @@ Proof.
     apply (LRWriteNaS race_loc (Lit (LitInt 1)) (LitV (LitInt 1)) (LitV LitPoison));
       by vm_compute.
   - exists (NA (lr_read_event race_loc)), (NA (lr_write_event race_loc)).
-    split_and!; [by apply list_elem_of_singleton | by apply list_elem_of_singleton | done].
+    split; first by apply list_elem_of_singleton.
+    split; first by apply list_elem_of_singleton.
+    split; last done. exists race_loc. by split; apply list_elem_of_singleton.
 Qed.
 
 (** Hence EXWP cannot verify the racy program. *)
