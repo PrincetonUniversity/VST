@@ -719,7 +719,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     eapply (stratifies_unstratify_more x 0 1).
     simpl; reflexivity.
     simpl.
-    generalize (fst (proj1_sig k) : sinv x).
+    generalize (fst (proj1_sig k) :> sinv x); change (forall s : sinv x, stratifies (unstratify x s) x s).
     clear.
     induction x; simpl; intuition.
     eapply (stratifies_unstratify_more x 0 1).
