@@ -20,13 +20,13 @@ Section ghost.
 
 Context {RA: Ghost}.
 
-Lemma own_alloc_strong : forall P (a : G) (pp : preds), ghost_seplog.pred_infinite P -> valid a ->
+Lemma own_alloc_strong : forall P (a : G) (pp : preds), ghost_seplog.pred_infinite P -> ghost.valid a ->
   emp |-- (|==> EX g : own.gname, !!(P g) && own g a pp)%I.
 Proof.
   exact own_alloc_strong.
 Qed.
 
-Lemma own_alloc : forall (a : G) (pp : preds), valid a -> emp%I |-- (|==> EX g : own.gname, own g a pp)%I.
+Lemma own_alloc : forall (a : G) (pp : preds), ghost.valid a -> emp%I |-- (|==> EX g : own.gname, own g a pp)%I.
 Proof.
   exact own_alloc.
 Qed.
@@ -47,14 +47,14 @@ Proof.
   exact own_update_ND.
 Qed.
 
-Lemma own_list_alloc : forall la lp, Forall valid la -> length lp = length la ->
+Lemma own_list_alloc : forall la lp, Forall ghost.valid la -> length lp = length la ->
   emp |-- (|==> (EX lg : _, !!(Zlength lg = Zlength la) &&
     iter_sepcon (fun '(g, a, p) => own g a p) (combine (combine lg la) lp)))%I.
 Proof.
   exact own_list_alloc.
 Qed.
 
-Corollary own_list_alloc' : forall a pp i, 0 <= i -> valid a ->
+Corollary own_list_alloc' : forall a pp i, 0 <= i -> ghost.valid a ->
   emp |-- (|==> (EX lg : _, !!(Zlength lg = i) && iter_sepcon (fun g => own g a pp) lg))%I.
 Proof.
   exact own_list_alloc'.
@@ -223,24 +223,24 @@ Section gmap_ghost.
 
 Context {K} `{Countable K} {A : Ghost}.
 
-Program Instance gmap_ghost : Ghost := { G := gmap K G; Join_G a b c := forall k, sepalg.join (a !! k) (b !! k) (c !! k);
+Program Instance gmap_ghost : Ghost := { G := gmap K G; Join_G a b c := forall k, sepalg.join (lookup k a) (lookup k b) (lookup k c);
   valid a := True%type }.
 Next Obligation.
 Proof.
   exists (fun m => gmap_fmap _ _ sepalg.core m); intros.
   - intros k.
     rewrite lookup_fmap.
-    destruct (t !! k); constructor.
+    destruct (lookup k t); constructor.
     apply core_unit.
   - exists (gmap_fmap _ _ sepalg.core c); intros k.
     rewrite !lookup_fmap.
     specialize (H0 k); inv H0; try constructor.
-    + destruct (a !! k); constructor.
+    + destruct (lookup k a); constructor.
       apply core_duplicable.
     + eapply core_sub_join, join_core_sub, H4.
   - apply map_eq; intros k.
     rewrite !lookup_fmap.
-    destruct (a !! k); auto; simpl.
+    destruct (lookup k a); auto; simpl.
     rewrite core_idem; auto.
 Defined.
 Next Obligation.
@@ -255,13 +255,13 @@ Proof.
   - exists (map_imap (fun k _ => projT1 (join_assoc (H0 k) (H1 k))) (b ∪ c)).
     split; intros k; pose proof (H0 k) as Hj1; pose proof (H1 k) as Hj2;
       rewrite map_lookup_imap lookup_union; destruct (join_assoc (H0 k) (H1 k)) as (? & ? & ?);
-      destruct (b !! k) eqn: Hb; simpl; auto.
+      destruct (lookup k b) eqn: Hb; simpl; auto.
     + inv j; constructor; auto.
     + inv j; [|constructor].
-      destruct (c !! k); constructor.
+      destruct (lookup k c); constructor.
     + inv j; auto.
     + inv j; auto.
-      destruct (c !! k); auto.
+      destruct (lookup k c); auto.
   - intros k; specialize (H0 k).
     apply sepalg.join_comm; auto.
   - apply map_eq; intros k.
@@ -278,13 +278,13 @@ Qed.
 
 Context `{A_order : PCM_order(P := A)}.
 
-Lemma map_included_option_ord : forall (a b : gmap K G), map_included ord a b -> forall k, option_ord(ord := ord) (a !! k) (b !! k).
+Lemma map_included_option_ord : forall (a b : gmap K G), map_included (fun _ => ord) a b -> forall k, option_ord(ord := ord) (lookup k a) (lookup k b).
 Proof.
   intros.
-  specialize (H0 k); destruct (a !! k), (b !! k); simpl; auto.
+  specialize (H0 k); destruct (lookup k a), (lookup k b); simpl; auto.
 Qed.
 
-#[export] Instance gmap_order : PCM_order (map_included ord).
+#[export] Instance gmap_order : PCM_order (map_included (fun _ => ord)).
 Proof.
   constructor.
   - apply (map_included_preorder(M := gmap K)), _.
@@ -294,26 +294,26 @@ Proof.
     exists (map_imap (fun k _ => proj1_sig (ord_lub(PCM_order := option_order(ORD := A_order)) _ _ _ (Ha k) (Hb k))) (map_union a b)).
     split; intros k; pose proof (H0 k) as Hj1; pose proof (H1 k) as Hj2;
       rewrite map_lookup_imap lookup_union; destruct (ord_lub _ _ _ (Ha k) (Hb k)) as (? & ? & ?); simpl;
-      destruct (a !! k) eqn: Ha1; rewrite Ha1 in j |- *; simpl; auto.
-    + destruct (b !! k) eqn: Hb1; rewrite Hb1 in j |- *; simpl; auto.
-    + destruct (b !! k) eqn: Hb1; rewrite Hb1 in j |- *; simpl; auto; constructor.
-    + destruct (b !! k) eqn: Hb1; rewrite Hb1 in j |- *;
-        destruct x, (c !! k) eqn: Hc; rewrite Hc in o |- *; simpl; auto.
-    + destruct (b !! k) eqn: Hb1; rewrite Hb1 in j |- *;
-        destruct x, (c !! k) eqn: Hc; rewrite Hc in o |- *; simpl; auto.
+      destruct (lookup k a) eqn: Ha1; rewrite Ha1 in j |- *; simpl; auto.
+    + destruct (lookup k b) eqn: Hb1; rewrite Hb1 in j |- *; simpl; auto.
+    + destruct (lookup k b) eqn: Hb1; rewrite Hb1 in j |- *; simpl; auto; constructor.
+    + destruct (lookup k b) eqn: Hb1; rewrite Hb1 in j |- *;
+        destruct x, (lookup k c) eqn: Hc; rewrite Hc in o |- *; simpl; auto.
+    + destruct (lookup k b) eqn: Hb1; rewrite Hb1 in j |- *;
+        destruct x, (lookup k c) eqn: Hc; rewrite Hc in o |- *; simpl; auto.
   - split; intros k; specialize (H0 k); inv H0; simpl; auto.
-    + destruct (b !! k) eqn: Hb; rewrite Hb; auto.
-    + destruct (a !! k) eqn: Ha; rewrite Ha; simpl; auto.
+    + destruct (lookup k b) eqn: Hb; rewrite Hb; auto.
+    + destruct (lookup k a) eqn: Ha; rewrite Ha; simpl; auto.
       reflexivity.
     + apply join_ord in H4 as []; auto.
-    + destruct (b !! k) eqn: Hb; rewrite Hb; simpl; auto.
+    + destruct (lookup k b) eqn: Hb; rewrite Hb; simpl; auto.
       reflexivity.
-    + destruct (a !! k) eqn: Ha; rewrite Ha; auto.
+    + destruct (lookup k a) eqn: Ha; rewrite Ha; auto.
     + apply join_ord in H4 as []; auto.
   - intros ??? k.
     specialize (H0 k).
-    destruct (b !! k) eqn: Hb; rewrite Hb in H0 |- *; [|constructor].
-    destruct (a !! k) eqn: Ha; rewrite Ha in H0 |- *; [|contradiction].
+    destruct (lookup k b) eqn: Hb; rewrite Hb in H0 |- *; [|constructor].
+    destruct (lookup k a) eqn: Ha; rewrite Ha in H0 |- *; [|contradiction].
     constructor; apply ord_join; auto.
 Qed.
 

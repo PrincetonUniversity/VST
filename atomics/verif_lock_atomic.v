@@ -138,9 +138,27 @@ Section PROOFS.
         iIntros "a"; destruct x; simpl.
         * iApply "H"; auto.
         * iDestruct "H" as "[_ H]"; iApply ("H" $! tt); iFrame; auto.
-      + Intros r. destruct (eq_dec r (vint 0)).
-        * forward_if; try contradiction. forward. entailer!.
-        * forward_if; try discriminate. forward. entailer!.
+      + Intros r.
+        (* [rocq-dev] [forward_if] fails here with a bare "No matching clauses
+           for match", which names nothing: that message comes from
+           [forward_if'_new]'s outer [match goal] (forward.v:2891), and because
+           [match goal] backtracks it reports only that every clause failed, not
+           why the clause that did match failed.  The real error is
+           [Hypothesis Delta_specs depends on the bodies of Heqv0 v0], from the
+           [remember]/[subst] pair inside [do_compute_expr_helper2]
+           (forward.v:1726-1748): [remember] abstracts its term everywhere,
+           including inside the body of the let-bound [Delta_specs], and the
+           following [subst] then cannot clear it.  Dropping that body first
+           costs nothing here -- there are no further calls to look up. *)
+        clear_Delta_specs.
+        destruct (eq_dec r (vint 0)).
+        (* [rocq-dev] The impossible branch of each [forward_if] now arrives as a
+           bare arithmetic contradiction rather than as [False]: [H : 1 = 0] in the
+           first bullet, [H : 0 <> 0] in the second.  [contradiction] acts on
+           neither, and [discriminate] only on the first, so use [congruence],
+           which closes both. *)
+        * forward_if; try congruence. forward. entailer!.
+        * forward_if; try congruence. forward. entailer!.
   Qed.
 
   Program Definition release_spec_nonatomic :=

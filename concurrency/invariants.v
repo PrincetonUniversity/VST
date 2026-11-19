@@ -58,11 +58,20 @@ Lemma fresh_inv_name n N : ∃ i, (n <= i)%nat /\ Pos.of_nat (S i) ∈ (↑N:coP
 Proof.
   pose proof (coPpick_elem_of (↑ N ∖ gset_to_coPset (list_to_set (map (fun i => Z.to_pos (i + 1)) (upto n))))).
   rewrite elem_of_difference in H; destruct H as [HN H].
-  { apply coPset_infinite_finite, difference_infinite, gset_to_coPset_finite.
-    apply coPset_infinite_finite, nclose_infinite. }
+  { (* stdpp's [coPpick_elem_of] now takes [X <> empty] rather than [~ set_finite X],
+       so bridge through [set_infinite_non_empty] and stay in [set_infinite]:
+       [nclose_infinite] is already stated that way. *)
+    apply set_infinite_non_empty, difference_infinite.
+    - apply nclose_infinite.
+    - apply gset_to_coPset_finite. }
   exists (Pos.to_nat (coPpick (↑ N ∖ gset_to_coPset (list_to_set (map (fun i => Z.to_pos (i + 1)) (upto n))))) - 1)%nat; split.
   - match goal with |-(?a <= ?b)%nat => destruct (le_lt_dec a b); auto; exfalso end.
-    apply H, elem_of_gset_to_coPset, elem_of_list_to_set, elem_of_list_In, in_map_iff.
+    (* [stdpp] [elem_of_list_In] was renamed to [list_elem_of_In] (stdpp/base.v);
+       it is the same statement, [x ∈ l ↔ In x l].  Part of a wider
+       [elem_of_list_*] -> [list_elem_of_*] rename -- [elem_of_list_to_set]
+       (stdpp/sets.v) and [elem_of_gset_to_coPset] (stdpp/coPset.v) were not
+       touched, so only this one link of the chain moves. *)
+    apply H, elem_of_gset_to_coPset, elem_of_list_to_set, list_elem_of_In, in_map_iff.
     apply Nat2Z.inj_lt in l.
     setoid_rewrite In_upto; eexists; split; [|split; [|apply l]]; lia.
   - destruct (eq_dec (coPpick (↑N ∖ gset_to_coPset (list_to_set (map (λ i : Z, Z.to_pos (i + 1)) (upto n))))) 1%positive).
@@ -187,7 +196,12 @@ Qed.
 
 Lemma later_nonexpansive1 : nonexpansive (box laterM).
 Proof.
-  apply contractive_nonexpansive, later_contractive, identity_nonexpansive.
+  (* [iris] [iris/bi/extensions.v] exports a [later_contractive] projection
+     ([Contractive (bi_later (PROP:=PROP))]) which shadows VST's.  Qualify, as
+     this file already does for [contractive.wand_nonexpansive] below.  The
+     giveaway is [Unable to unify "bi_car ?PROP" with "predicates_hered.pred
+     rmap"] -- an Iris-flavoured type where an [rmap] one belongs. *)
+  apply contractive_nonexpansive, contractive.later_contractive, identity_nonexpansive.
 Qed.
 
 Lemma inv_nonexpansive : forall N, nonexpansive (inv N).
