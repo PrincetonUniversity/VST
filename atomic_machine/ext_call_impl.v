@@ -1,4 +1,5 @@
-(** Language-generic implementations of the atomic-operation contracts. *)
+(** Language-generic SC atomic specs and proofs that their specs satisfy
+   [ext_call_soundness]. *)
 From iris.proofmode Require Import proofmode.
 Require Export VST.atomic_machine.sqex_adequacy.
 
