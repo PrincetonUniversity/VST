@@ -1,7 +1,7 @@
 (** Adequacy of generic EXWP for the atomic machine. *)
 From stdpp Require Import relations.
 From iris.proofmode Require Import proofmode.
-Require Export VST.atomic_machine.lambda_rust.logic.sqex_logic.
+Require Export VST.atomic_machine.sqex_logic.
 
 Set Default Proof Using "Type*".
 
@@ -273,11 +273,7 @@ Class sqGS (Σ : gFunctors) := HeapGS {
   sqGS_extspecs_sound :: ExtSpecsSound
 }.
 
-Section adequacy_gen.
-  Context (Σ : gFunctors) `{!invGpreS Σ}.
-
-(** Initialization supplies sound interpretations, initial heap ownership, and the WP. *)
-Theorem sqex_adequacy_gen (e : C) (φ : Val -> Prop) (m : Mem) :
+Theorem sqex_adequacy_gen (Σ : gFunctors) `{!invGpreS Σ} (e : C) (φ : Val -> Prop) (m : Mem) :
   (forall `{!invGS Σ},
     (* if we have *some* sqGS and can prove wp.
        compare with wp_adequacy_gen *)
@@ -311,7 +307,5 @@ Proof.
   - intros i e0 Hi. exact (proj1 (Hend i e0 Hi)).
   - intros i e0 Hi. exact (proj2 (Hend i e0 Hi)).
 Qed.
-
-End adequacy_gen.
 
 End language.

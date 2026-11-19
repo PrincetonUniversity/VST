@@ -6,7 +6,7 @@
 From stdpp Require Import relations.
 From iris.program_logic Require Export language adequacy.
 Require Import VST.atomic_machine.atomic_machine.
-Require Export VST.atomic_machine.lambda_rust.logic.sqex_adequacy.
+Require Export VST.atomic_machine.sqex_adequacy.
 
 Set Default Proof Using "Type".
 #[local] Set Warnings "-redundant-canonical-projection".

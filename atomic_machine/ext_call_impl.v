@@ -1,6 +1,6 @@
 (** Language-generic implementations of the atomic-operation contracts. *)
 From iris.proofmode Require Import proofmode.
-Require Export VST.atomic_machine.lambda_rust.logic.sqex_adequacy.
+Require Export VST.atomic_machine.sqex_adequacy.
 
 Set Default Proof Using "Type".
 

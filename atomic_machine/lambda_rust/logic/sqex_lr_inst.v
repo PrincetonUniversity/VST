@@ -2,7 +2,7 @@
 From iris.algebra Require Import auth gmap frac.
 From iris.proofmode Require Import proofmode coq_tactics reduction.
 From lrust.lang Require Import tactics lifting.
-Require Export VST.atomic_machine.lambda_rust.logic.ext_call_impl.
+Require Export VST.atomic_machine.ext_call_impl.
 Require Export VST.atomic_machine.lambda_rust.logic.sq_heap.
 Require Export VST.atomic_machine.lambda_rust.logic.lr_lemmas.
 
