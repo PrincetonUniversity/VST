@@ -285,7 +285,7 @@ Proof.
   change (am_steps (AMCfg {[0%nat := e]} m) (AMCfg tp' m')) in Hrtc.
   destruct (rtc_nsteps_1 _ _ Hrtc) as [n Hsteps].
   assert (Hsound : forall P : Prop,
-    (forall `{!invGS Σ, !sqGS Σ},
+    (forall (Hinv : invGS Σ) (G : sqGS Σ),
       sqex_inv φ tp' m' ⊢ |={⊤,∅}=> |={∅}▷=> ⌜P⌝) -> P).
   { intros P HP. apply (pure_soundness (PROP := iPropI Σ)).
     apply (step_fupdN_soundness_lc (Σ := Σ) _ (S n) 0). intros Hinv. iIntros "_".

@@ -1,34 +1,14 @@
 (** * The atomic machine
 
     This file defines the interface of a sequential language ([sqlang]) and
-    lifts it to a sequentially consistent concurrent machine that only tracks
-    events. There is no reader/writer map and no Try/Commit split: a
-    sequential step of a thread is one machine step, and so is an atomic
-    operation.
-
-    Every step emits events ([am_event]):
-    - a sequential step emits its memory events as non-atomic events
-      ([NA ev] for a [mem_ev] [ev]);
-    - atomic loads and stores emit one [SC (SCread ls)] or [SC (SCwrite ls)],
-      covering all locations [ls] of the operation's layout;
-      a successful CAS emits one read-modify-write event [SC (SCrw ls)],
-      and a failed one [SC (SCread ls)];
-    - spawning emits no event.
-
-    Data races follow CASCompCert's predicted races: a configuration is
-    racy ([am_race]) if two different threads can each take a step whose
-    events conflict. Two allocation events do not conflict: separate
-    predictions can choose the same fresh location. An allocation and any
-    other event conflict when their locations overlap.
-
-    Events with disjoint location ranges never conflict. Otherwise:
-    - two non-atomic accesses conflict unless both are reads (frees being
-      permission changes);
-    - two SC events never conflict;
-    - a non-atomic and an SC event conflict unless both are reads.
-    Every interleaving is a machine execution, so a later conflicting
-    access is predicted from the configuration reached by scheduling its
-    thread first. *)
+    lifts it to a sequentially consistent concurrent language with atomic read,
+    write, CAS and fork. The concurrent language tracks memory events, and can
+    potentially be racy. [race] is a predicate on program states defined on the
+    potential events, not an explicit state, and a racy state does not get stuck
+    in the concurrent language. Race freedom is restored by the program
+    logic: a proof of [EXWP e Q] for some postcondition [Q] implies the
+    execution of [e] is safe, i.e. it does not get stuck or reach a racy state.
+     *)
 
 From Stdlib Require Import Arith.PeanoNat.
 From Stdlib Require Import Strings.String.
@@ -37,11 +17,12 @@ Import ListNotations.
 
 Require Import stdpp.gmap stdpp.relations.
 
-(** ** Memory events of the sequential language *)
 
 Class Location := location : Type.
 Global Typeclasses Transparent Location.
 
+
+(** ** Memory events of the sequential language *)
 Section MemEvents.
   Context {Loc : Location}.
 
@@ -125,6 +106,7 @@ Section SeqLang.
     (** Every configuration is exactly one of: a value, can take a step,
         is at an external call, or is stuck. *)
     sqlang_state_classify e m : exists! kind, sqlang_in_state e m kind;
+
     (** External operations and continuations are determined by the thread. *)
     sqlang_external_det e op1 k1 op2 k2 :
       sqlang_at_external e op1 k1 -> sqlang_at_external e op2 k2 ->

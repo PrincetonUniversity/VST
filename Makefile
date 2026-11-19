@@ -876,11 +876,10 @@ files: _CoqProject $(FILES:.v=.vo)
 
 atomic-machine-logic: _CoqProject \
 	atomic_machine/atomic_machine.vo \
-	atomic_machine/lambda_rust/logic/sqex_logic.vo \
-	atomic_machine/lambda_rust/logic/ext_call_impl.vo \
-	atomic_machine/lambda_rust/logic/sqex_adequacy.vo \
-	atomic_machine/lambda_rust/logic/sqex_iris_adequacy.vo \
-	atomic_machine/tests/sqex_generic.vo
+	atomic_machine/sqex_logic.vo \
+	atomic_machine/ext_call_impl.vo \
+	atomic_machine/sqex_adequacy.vo \
+	atomic_machine/sqex_iris_adequacy.vo
 
 lambda-rust-reference: _CoqProject \
 	atomic_machine/lambda_rust/common.vo \
