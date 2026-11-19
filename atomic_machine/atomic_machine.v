@@ -15,19 +15,20 @@
       and a failed one [SC (SCread ls)];
     - spawning emits no event.
 
-    Data races are defined on the events, after CASCompCert's predicted
-    races: a configuration is racy ([am_race]) if two different threads can
-    each take a step from it whose events conflict ([am_conflict]). Events
-    with disjoint location ranges never conflict. At an overlapping location:
-    - an allocation conflicts with nothing (see [am_conflicting]);
-    - two other non-atomic events conflict as in CASCompCert's
-      [FP.conflict] (frees being permission changes), i.e. unless both are
-      reads;
+    Data races follow CASCompCert's predicted races: a configuration is
+    racy ([am_race]) if two different threads can each take a step whose
+    events conflict. Two allocation events do not conflict: separate
+    predictions can choose the same fresh location. An allocation and any
+    other event conflict when their locations overlap.
+
+    Events with disjoint location ranges never conflict. Otherwise:
+    - two non-atomic accesses conflict unless both are reads (frees being
+      permission changes);
     - two SC events never conflict;
     - a non-atomic and an SC event conflict unless both are reads.
-    Since every interleaving is a machine execution, a one-step prediction
-    is enough: a later conflicting step of a thread is predicted from the
-    configuration reached by scheduling that thread first. *)
+    Every interleaving is a machine execution, so a later conflicting
+    access is predicted from the configuration reached by scheduling its
+    thread first. *)
 
 From Stdlib Require Import Arith.PeanoNat.
 From Stdlib Require Import Strings.String.
@@ -59,6 +60,9 @@ Section Memory.
   }.
 
 End Memory.
+
+Inductive sqlang_state_kind :=
+| SqValue | SqStep | SqExternal | SqStuck.
 
 Section SeqLang.
 
@@ -98,15 +102,76 @@ Section SeqLang.
       sqlang_thrd_st -> atomic_op ->
       (option Val -> sqlang_thrd_st) -> Prop;
 
-    (** Terminal states: a thread in a final state with no pending events
-        has finished, so being unable to step is not an error. *)
-    sqlang_final : sqlang_thrd_st -> Prop;
+    (** Returns [Some val] for terminated thread evaluating to [val], [None] for not terminated. *)
+    sqlang_is_final : sqlang_thrd_st -> option Val;
 
     (** Value (in)equality for CAS *)
     sqlang_ValEq : Mem -> Val -> Val -> Prop;
     sqlang_ValNEq : Mem -> Val -> Val -> Prop;
+
+    sqlang_stuck (e : sqlang_thrd_st) (m : Mem) : Prop :=
+      sqlang_is_final e = None /\
+      ~ (exists T e' m', sqlang_step e m T e' m') /\
+      ~ (exists op k, sqlang_at_external e op k);
+
+    sqlang_in_state e m kind : Prop :=
+      match kind with
+      | SqValue => is_Some (sqlang_is_final e)
+      | SqStep => exists T e' m', sqlang_step e m T e' m'
+      | SqExternal => exists op k, sqlang_at_external e op k
+      | SqStuck => sqlang_stuck e m
+      end;
+
+    (** Every configuration is exactly one of: a value, can take a step,
+        is at an external call, or is stuck. *)
+    sqlang_state_classify e m : exists! kind, sqlang_in_state e m kind;
+    (** External operations and continuations are determined by the thread. *)
+    sqlang_external_det e op1 k1 op2 k2 :
+      sqlang_at_external e op1 k1 -> sqlang_at_external e op2 k2 ->
+      op2 = op1 /\ forall ov, k2 ov = k1 ov
   }.
 End SeqLang.
+
+Section StateClassification.
+  Context `{L : !@sqlang Loc Val LocEqDec LocCountable Mem Layout Expr}.
+
+  Lemma sqlang_state_exclusive e m kind1 kind2 :
+    sqlang_in_state e m kind1 -> sqlang_in_state e m kind2 -> kind1 = kind2.
+  Proof.
+    destruct (sqlang_state_classify e m) as (kind & _ & Hunique).
+    intros H1 H2. transitivity kind; [symmetry |]; by apply Hunique.
+  Qed.
+
+  Lemma sqlang_step_not_final e m T e' m' :
+    sqlang_step e m T e' m' -> sqlang_is_final e = None.
+  Proof.
+    intros Hstep. destruct (sqlang_is_final e) as [v|] eqn:Hfinal; last done.
+    exfalso. enough (SqValue = SqStep) by discriminate.
+    eapply (sqlang_state_exclusive e m).
+    - by exists v.
+    - by exists T, e', m'.
+  Qed.
+
+  Lemma sqlang_external_not_final e (m : Mem) op k :
+    sqlang_at_external e op k -> sqlang_is_final e = None.
+  Proof.
+    intros Hext. destruct (sqlang_is_final e) as [v|] eqn:Hfinal; last done.
+    exfalso. enough (SqValue = SqExternal) by discriminate.
+    eapply (sqlang_state_exclusive e m).
+    - by exists v.
+    - by exists op, k.
+  Qed.
+
+  Lemma sqlang_step_external_disjoint e m T e' m' op k :
+    sqlang_step e m T e' m' -> sqlang_at_external e op k -> False.
+  Proof.
+    intros Hstep Hext. enough (SqStep = SqExternal) by discriminate.
+    eapply (sqlang_state_exclusive e m).
+    - by exists T, e', m'.
+    - by exists op, k.
+  Qed.
+
+End StateClassification.
 
 (** ** Machine events *)
 
@@ -140,20 +205,25 @@ Section Events.
   Definition am_atomic (e : am_event) : bool :=
     match e with NA _ => false | SC _ => true end.
 
-  (** Two events conflict if their location ranges overlap, and
+  (** Check whether two event types conflict. There is a separate check for
+      filtering events at the same location.
+
+      Two event types conflict if their location ranges overlap, and
       - Two non-atomic events conflict as in CASCompCert's [FP.conflict].
-        "conflicts" with Alloc is a memory safety property and not handled here.
+        An Alloc event conflicts with every event except another Alloc.
       - Two SC events never conflict.
       - A non-atomic and an SC event conflict unless both are reads. *)
   Definition am_conflicting (e1 e2 : am_event) : bool :=
     match e1, e2 with
-    | NA (Alloc _), _ | _, NA (Alloc _) => false
+    | NA (Alloc _), NA (Alloc _) => false
     | NA (Read _), NA (Read _) => false
     | SC _, SC _ => false
     | NA (Read _), SC (SCread _) | SC (SCread _), NA (Read _) => false
     | _, _ => true
     end.
 
+  (* Two events conflict if they access the same location and have conflicting
+     event types. *)
   Definition am_conflict (e1 e2 : am_event) : Prop :=
     (exists l, l ∈ am_ev_locs e1 /\ l ∈ am_ev_locs e2) /\
       am_conflicting e1 e2 = true.
@@ -197,18 +267,23 @@ Section Events.
     | SC (SCwrite ls) | SC (SCrw ls) => l ∈ ls /\ w = true
     end.
 
-  (** A conflict is between two accesses of which one writes. *)
-  Lemma am_conflict_cases e1 e2 :
-    am_conflict e1 e2 ->
-    exists l w1 w2, ev_access e1 l w1 /\ ev_access e2 l w2 /\
-      (w1 = true \/ w2 = true).
+  (** Every event at a location either allocates it or accesses it. *)
+  Lemma am_event_access_or_alloc e l :
+    l ∈ am_ev_locs e -> e = NA (Alloc l) \/ exists w, ev_access e l w.
   Proof.
-    intros [(l & H1 & H2) Hc].
-    destruct e1 as [[]|[]], e2 as [[]|[]]; simpl in *;
-      repeat match goal with
-      | H : _ ∈ [_] |- _ => apply list_elem_of_singleton in H; subst
-      end; naive_solver.
+    destruct e as [[l'|l'|l'|l']|[ls|ls|ls]]; simpl;
+      try (intros Hl; apply list_elem_of_singleton in Hl; subst l');
+      eauto.
   Qed.
+
+  Lemma am_conflicting_access_write e1 e2 l w1 w2 :
+    am_conflicting e1 e2 = true -> ev_access e1 l w1 -> ev_access e2 l w2 ->
+    w1 = true \/ w2 = true.
+  Proof.
+    destruct e1 as [[]|[]], e2 as [[]|[]]; simpl;
+      intros Hc H1 H2; naive_solver.
+  Qed.
+
 End Events.
 
 Global Arguments am_event : clear implicits.
@@ -249,33 +324,54 @@ Section AtomicMachine.
 
   (** One step of one thread, with its events and optionally a new thread it spawns. *)
   Inductive at_step : C -> Mem -> list event -> C -> Mem -> option C -> Prop :=
-  | Core_Step c m T c' m'
-      (Hstep : sqlang_step c m T c' m') :
-      at_step c m (NA <$> T) c' m' None
-  | SC_Read c m ly l v K
-      (Hext : at_external c (ALoad ly l) K)
+  | Core_Step e m T e' m'
+      (Hstep : sqlang_step e m T e' m') :
+      at_step e m (NA <$> T) e' m' None
+  | SC_Read e m ly l v K
+      (Hext : at_external e (ALoad ly l) K)
       (Hload : load m l ly = Some v) :
-      at_step c m [SC (SCread (layout_to_locs l ly))] (K (Some v)) m None
-  | SC_Write c m ly l v m' K
-      (Hext : at_external c (AStore ly l v) K)
+      at_step e m [SC (SCread (layout_to_locs l ly))] (K (Some v)) m None
+  | SC_Write e m ly l v m' K
+      (Hext : at_external e (AStore ly l v) K)
       (Hstore : store m l ly v = Some m') :
-      at_step c m [SC (SCwrite (layout_to_locs l ly))] (K None) m' None
-  | SC_Cas_Suc c m ly l v_exp v_new v_cur m' K
-      (Hext : at_external c (ACAS ly l v_exp v_new) K)
+      at_step e m [SC (SCwrite (layout_to_locs l ly))] (K None) m' None
+  | SC_Cas_Suc e m ly l v_exp v_new v_cur m' K
+      (Hext : at_external e (ACAS ly l v_exp v_new) K)
       (Hload : load m l ly = Some v_cur)
       (Heq : ValEq m v_cur v_exp)
       (Hstore : store m l ly v_new = Some m') :
-      at_step c m [SC (SCrw (layout_to_locs l ly))]
+      at_step e m [SC (SCrw (layout_to_locs l ly))]
         (K (Some Vtrue)) m' None
-  | SC_Cas_Fail c m ly l v_exp v_new v_cur K
-      (Hext : at_external c (ACAS ly l v_exp v_new) K)
+  | SC_Cas_Fail e m ly l v_exp v_new v_cur K
+      (Hext : at_external e (ACAS ly l v_exp v_new) K)
       (Hload : load m l ly = Some v_cur)
       (Hneq : ValNEq m v_cur v_exp) :
-      at_step c m [SC (SCread (layout_to_locs l ly))]
+      at_step e m [SC (SCread (layout_to_locs l ly))]
         (K (Some Vfalse)) m None
-  | Spawn c m e_new K
-      (Hspawn : at_external c (ASpawn e_new) K) :
-      at_step c m [] (K None) m (Some (sqlang_expr_to_thrd_st e_new)).
+  | Spawn e m e_new K
+      (Hspawn : at_external e (ASpawn e_new) K) :
+      at_step e m [] (K None) m (Some (sqlang_expr_to_thrd_st e_new)).
+
+  (** Optional semantic laws for allocation freshness and valid accesses. *)
+  Class SqAllocLaws := {
+    sq_loc_allocated : Mem -> Loc -> Prop;
+    sq_alloc_step {e m evs e' m' o l} :
+      at_step e m evs e' m' o -> NA (Alloc l) ∈ evs ->
+      ~ sq_loc_allocated m l /\ sq_loc_allocated m' l;
+    sq_access_step {e m evs e' m' o ev l w} :
+      at_step e m evs e' m' o -> ev ∈ evs -> ev_access ev l w ->
+      sq_loc_allocated m l \/ NA (Alloc l) ∈ evs
+  }.
+
+  Lemma am_successive_allocations_disjoint `{!SqAllocLaws}
+      {e1 e2 m evs1 evs2 e1' e2' m1 m2 o1 o2 l} :
+    at_step e1 m evs1 e1' m1 o1 -> at_step e2 m1 evs2 e2' m2 o2 ->
+    NA (Alloc l) ∈ evs1 -> NA (Alloc l) ∉ evs2.
+  Proof.
+    intros Hstep1 Hstep2 Ha1 Ha2.
+    destruct (sq_alloc_step Hstep1 Ha1) as [_ Hlive].
+    destruct (sq_alloc_step Hstep2 Ha2) as [Hfresh _]. exact (Hfresh Hlive).
+  Qed.
 
   Definition am_tpool := gmap nat C.
   #[projections(primitive)]
@@ -288,17 +384,17 @@ Section AtomicMachine.
     executing thread. FIXME the spawn rule looks weird; do we need this at all,
     over the Iris step closure? *)
   Inductive am_step : am_cfg -> nat -> list event -> am_cfg -> Prop :=
-  | AMStep tp m i c evs c' m'
-      (Hget : tp !! i = Some c)
-      (Hstep : at_step c m evs c' m' None) :
-      am_step (AMCfg tp m) i evs (AMCfg (<[i := c']> tp) m')
-  | AMStepSpawn tp m i c evs c' m' c_new j
-      (Hget : tp !! i = Some c)
-      (Hstep : at_step c m evs c' m' (Some c_new))
+  | AMStep tp m i e evs e' m'
+      (Hget : tp !! i = Some e)
+      (Hstep : at_step e m evs e' m' None) :
+      am_step (AMCfg tp m) i evs (AMCfg (<[i := e']> tp) m')
+  | AMStepSpawn tp m i e evs e' m' e_new j
+      (Hget : tp !! i = Some e)
+      (Hstep : at_step e m evs e' m' (Some e_new))
       (* picks least-unused index for the new thread *)
       (Hfree : tp !! j = None)
       (Hleast : forall k, k < j -> is_Some (tp !! k)) :
-      am_step (AMCfg tp m) i evs (AMCfg (<[j := c_new]> (<[i := c']> tp)) m').
+      am_step (AMCfg tp m) i evs (AMCfg (<[j := e_new]> (<[i := e']> tp)) m').
 
   Definition am_step_any (q q' : am_cfg) : Prop := exists i evs, am_step q i evs q'.
 
@@ -306,30 +402,30 @@ Section AtomicMachine.
 
   (** ** Races and safety *)
 
-  (** Two different threads can step from [q] with conflicting events. *)
   Definition am_race (q : am_cfg) : Prop :=
-    exists i j ci cj evs1 evs2 ci' cj' m1 m2 o1 o2,
+    exists i j ei ej evs1 evs2 ei' ej' m1 m2 o1 o2,
       i <> j /\
-      am_threads q !! i = Some ci /\ am_threads q !! j = Some cj /\
-      at_step ci (am_mem q) evs1 ci' m1 o1 /\
-      at_step cj (am_mem q) evs2 cj' m2 o2 /\
+      am_threads q !! i = Some ei /\ am_threads q !! j = Some ej /\
+      at_step ei (am_mem q) evs1 ei' m1 o1 /\
+      at_step ej (am_mem q) evs2 ej' m2 o2 /\
       am_conflicts evs1 evs2.
 
+  (* TODO review the non_stuck condition when there are more external calls *)
   (** A thread is not stuck if it has finished or can step. *)
-  Definition am_not_stuck (c : C) (m : Mem) : Prop :=
-    sqlang_final c \/ exists evs c' m' oc, at_step c m evs c' m' oc.
+  Definition am_not_stuck (e : C) (m : Mem) : Prop :=
+    is_Some (sqlang_is_final e) \/ exists evs e' m' oc, at_step e m evs e' m' oc.
 
   Definition am_safe (q : am_cfg) : Prop :=
     forall q', am_steps q q' ->
       ~ am_race q' /\
-      forall i c, am_threads q' !! i = Some c -> am_not_stuck c (am_mem q').
+      forall i e, am_threads q' !! i = Some e -> am_not_stuck e (am_mem q').
 
   (** A thread that can step in isolation can step in every pool. *)
-  Lemma at_step_in_pool tp m i c evs c' m' oc :
-    tp !! i = Some c -> at_step c m evs c' m' oc ->
+  Lemma at_step_in_pool tp m i e evs e' m' oc :
+    tp !! i = Some e -> at_step e m evs e' m' oc ->
     exists q', am_step (AMCfg tp m) i evs q'.
   Proof.
-    intros Hi Hstep. destruct oc as [c_new|].
+    intros Hi Hstep. destruct oc as [e_new|].
     - destruct (am_least_free tp) as (j & Hj & Hleast).
       eexists. by eapply AMStepSpawn.
     - eexists. by eapply AMStep.
@@ -338,9 +434,9 @@ Section AtomicMachine.
   (** The events of a sequential step are non-atomic; those of an external
       calls are atomic.
       TODO relax this, allow for non-atomic events (or even mixed?) *)
-  Lemma at_step_events c m evs c' m' oc :
-    at_step c m evs c' m' oc ->
-    (exists T, sqlang_step c m T c' m' /\ evs = NA <$> T) \/
+  Lemma at_step_events e m evs e' m' oc :
+    at_step e m evs e' m' oc ->
+    (exists T, sqlang_step e m T e' m' /\ evs = NA <$> T) \/
     Forall (fun e => am_atomic e = true) evs.
   Proof.
     destruct 1; [left; by eexists | right..].
@@ -351,15 +447,14 @@ Section AtomicMachine.
     - constructor.
   Qed.
 
-  (** two event traces conflict if two of the events coming from each trace
-    conflict. *)
-  Lemma am_conflicts_seq c1 c2 m evs1 evs2 c1' c2' m1 m2 o1 o2 :
-    at_step c1 m evs1 c1' m1 o1 -> at_step c2 m evs2 c2' m2 o2 ->
+  (** A predicted data race includes a non-atomic step. **)
+  Lemma am_conflicts_seq e1 e2 m evs1 evs2 e1' e2' m1 m2 o1 o2 :
+    at_step e1 m evs1 e1' m1 o1 -> at_step e2 m evs2 e2' m2 o2 ->
     am_conflicts evs1 evs2 ->
-    (exists T, sqlang_step c1 m T c1' m1 /\ evs1 = NA <$> T) \/
-    (exists T, sqlang_step c2 m T c2' m2 /\ evs2 = NA <$> T).
+    (exists T, sqlang_step e1 m T e1' m1 /\ evs1 = NA <$> T) \/
+    (exists T, sqlang_step e2 m T e2' m2 /\ evs2 = NA <$> T).
   Proof.
-    intros H1 H2 (e1 & e2 & He1 & He2 & Hc).
+    intros H1 H2 (ev1 & ev2 & Hev1 & Hev2 & Hc).
     destruct (at_step_events _ _ _ _ _ _ H1) as [?|Ha1]; first by left.
     destruct (at_step_events _ _ _ _ _ _ H2) as [?|Ha2]; first by right.
     exfalso. rewrite Forall_forall in Ha1. rewrite Forall_forall in Ha2.

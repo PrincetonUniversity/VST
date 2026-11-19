@@ -11,7 +11,7 @@ Set Default Proof Using "Type".
 
 (** * Evaluation contexts around a redex *)
 
-Lemma fill_decompose K K' e r :
+Local Lemma fill_decompose K K' e r :
   redex_shape r -> to_val r = None -> to_val e = None ->
   fill K e = fill K' r -> exists K'', K' = K'' ++ K /\ e = fill K'' r.
 Proof.
@@ -26,25 +26,6 @@ Proof.
       apply (inj (fill_item Ki)) in Hfill.
       destruct (IH K' Hfill) as (K'' & -> & ->). exists K''. by rewrite assoc.
 Qed.
-
-Lemma lr_head_step_not_val e m T e' m' : lr_head_step e m T e' m' -> to_val e = None.
-Proof. by destruct 1. Qed.
-
-Lemma lr_head_external_not_val e op k : lr_head_external e op k -> to_val e = None.
-Proof. by destruct 1. Qed.
-
-Lemma lr_head_step_redex_shape e m T e' m' : lr_head_step e m T e' m' -> redex_shape e.
-Proof.
-  intros Hh Ki e1 ->. revert Hh.
-  destruct Ki; inversion_clear 1; decompose_Forall_hyps; simplify_option_eq; by eauto.
-Qed.
-
-Lemma lr_head_external_redex_shape e op k : lr_head_external e op k -> redex_shape e.
-Proof. intros Hh Ki e1 ->. destruct Ki; inversion Hh; subst; rewrite ?to_of_val; eauto. Qed.
-
-Lemma lr_head_step_external e m T e' m' op k :
-  lr_head_step e m T e' m' -> lr_head_external e op k -> False.
-Proof. destruct 1; inversion 1. Qed.
 
 (** A step of a thread whose expression has redex shape happens at its head. *)
 
@@ -64,18 +45,6 @@ Proof.
     as (-> & _). exact Hh.
 Qed.
 
-(** * Sequential steps and external calls are disjoint *)
-
-Lemma lr_step_external_disjoint e m T e' m' op k :
-  lr_step e m T e' m' -> lr_external e op k -> False.
-Proof.
-  intros [K1 e1 ?? e2 ? Hh] Hext. inversion Hext as [K2 e3 ? k' Hh' Heq].
-  destruct (fill_redex_unique K2 K1 e3 e1 (lr_head_external_redex_shape _ _ _ Hh')
-              (lr_head_step_redex_shape _ _ _ _ _ Hh) (lr_head_external_not_val _ _ _ Hh')
-              (lr_head_step_not_val _ _ _ _ _ Hh) Heq) as [_ ->].
-  exact (lr_head_step_external _ _ _ _ _ _ _ Hh Hh').
-Qed.
-
 (** Discharges [redex_shape] side conditions of [lr_step_head] and
     [lr_external_head]. *)
 Ltac solve_redex_shape :=
@@ -83,20 +52,6 @@ Ltac solve_redex_shape :=
   intros Ki e' Heq; destruct Ki; simpl in Heq; simplify_eq; rewrite /= ?to_of_val; by eauto.
 
 (** * Steps and external calls under evaluation contexts *)
-
-Lemma lr_external_det e op1 k1 op2 k2 :
-  lr_external e op1 k1 -> lr_external e op2 k2 ->
-  op2 = op1 /\ forall ov, k2 ov = k1 ov.
-Proof.
-  intros H1 H2. destruct H1 as [K1 e1 op1 k1 H1].
-  inversion H2 as [K2 e2 op2x k2x Hh Heq]; subst.
-  destruct (fill_redex_unique K2 K1 e2 e1
-    (lr_head_external_redex_shape _ _ _ Hh)
-    (lr_head_external_redex_shape _ _ _ H1)
-    (lr_head_external_not_val _ _ _ Hh)
-    (lr_head_external_not_val _ _ _ H1) Heq) as [-> ->].
-  destruct H1; inversion Hh; subst; split; congruence.
-Qed.
 
 Lemma lr_external_fill K e op k :
   lr_external e op k -> exists k',
@@ -135,10 +90,3 @@ Proof. by inversion 1. Qed.
 
 Lemma lr_lit_neq_int z1 z2 : lit_neq (LitInt z1) (LitInt z2) -> z1 ≠ z2.
 Proof. by inversion 1. Qed.
-
-(** A thread step is a core step, or the thread is at an external call. *)
-Lemma at_step_cases (c : expr) (m : lr_mem) evs c' m' o :
-  at_step c m evs c' m' o ->
-  (exists T, lr_step c m T c' m' /\ evs = NA <$> T /\ o = None) \/
-  (exists op K, lr_external c op K).
-Proof. destruct 1; [left; by eexists | right; by do 2 eexists ..]. Qed.

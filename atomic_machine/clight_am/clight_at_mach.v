@@ -8,6 +8,7 @@ Require Import compcert.common.AST.
 From Stdlib Require Import Strings.String.
 From Stdlib Require Import List.
 From Stdlib Require Import ZArith.BinInt.
+From Stdlib Require Import Classical_Prop.
 Import ListNotations.
 
 Require Import VST.sepcomp.event_semantics.
@@ -123,17 +124,72 @@ Section ClightInstantiation.
       event_semantics.ev_step evsem_inst c m T c' m' ->
       ev_step_with_mem_ev evsem_inst c m (clight_into_evs T) c' m'.
 
+  Lemma clight_step_not_final ge c m T c' m' :
+    ev_step_with_mem_ev (Clight_evsem.CLC_evsem ge) c m T c' m' ->
+    Clight_core.cl_halted c = None.
+  Proof.
+    intros Hstep. destruct Hstep as [c m T c' m' Hev].
+    pose proof (Clight_evsem.CLC_evstep_ax1 ge _ _ _ _ _ Hev) as Hcore.
+    inversion Hcore; reflexivity.
+  Qed.
+
+  Lemma clight_external_not_final ge c op k :
+    clight_external ge c op k -> Clight_core.cl_halted c = None.
+  Proof. destruct 1; reflexivity. Qed.
+
+  Lemma clight_step_external_disjoint ge c m T c' m' op k :
+    ev_step_with_mem_ev (Clight_evsem.CLC_evsem ge) c m T c' m' ->
+    clight_external ge c op k -> False.
+  Proof.
+    intros Hstep Hext. destruct Hstep as [c m T c' m' Hev].
+    pose proof (Clight_evsem.CLC_evstep_ax1 ge _ _ _ _ _ Hev) as Hcore.
+    pose proof (Clight_core.cl_corestep_not_at_external ge _ _ _ _ Hcore) as Hnoext.
+    inversion Hext; subst; discriminate Hnoext.
+  Qed.
+
+  Lemma clight_external_det ge c op1 k1 op2 k2 :
+    clight_external ge c op1 k1 -> clight_external ge c op2 k2 ->
+    op2 = op1 /\ forall ov, k2 ov = k1 ov.
+  Proof.
+    intros H1 H2. destruct H1; inversion H2; subst; try discriminate.
+    all: split; [congruence | intros ov; reflexivity].
+  Qed.
+
   #[global] Instance Clight_language (ge : Clight.genv)
-      : @sqlang address val _ _ mem memory_chunk Clight_core.CC_core :=
-    {| sqlang_memory := clight_mem_mixin;
+      : @sqlang address val _ _ mem memory_chunk Clight_core.CC_core.
+  Proof.
+    refine {| sqlang_memory := clight_mem_mixin;
       sqlang_thrd_st := Clight_core.CC_core;
       sqlang_true_val := Values.Vtrue;
       sqlang_false_val := Values.Vfalse;
       sqlang_step := ev_step_with_mem_ev (Clight_evsem.CLC_evsem ge);
       sqlang_expr_to_thrd_st := id;
       sqlang_at_external := clight_external ge;
-      sqlang_final := fun c => Clight_core.cl_halted c <> None;
+      sqlang_is_final := Clight_core.cl_halted;
       sqlang_ValEq := clight_ValEq;
       sqlang_ValNEq := clight_ValNEq |}.
+    - intros c m. destruct (Clight_core.cl_halted c) as [v|] eqn:Hfinal.
+      + have Hnoext : ~ (exists op k, clight_external ge c op k).
+        { intros (op & k & Hext). apply clight_external_not_final in Hext. congruence. }
+        have Hnostep : ~ (exists T c' m',
+          ev_step_with_mem_ev (Clight_evsem.CLC_evsem ge) c m T c' m').
+        { intros (T & c' & m' & Hstep). apply clight_step_not_final in Hstep. congruence. }
+        exists SqValue. split; first by exists v.
+        intros []; cbn; rewrite /is_Some; naive_solver.
+      + destruct (classic (exists T c' m',
+          ev_step_with_mem_ev (Clight_evsem.CLC_evsem ge) c m T c' m')) as [Hstep | Hnostep].
+        * have Hnoext : ~ (exists op k, clight_external ge c op k).
+          { intros (op & k & Hext). destruct Hstep as (T & c' & m' & Hstep).
+            by eapply clight_step_external_disjoint. }
+          exists SqStep. split; first exact Hstep.
+          intros []; cbn; rewrite /is_Some; naive_solver.
+        * destruct (classic (exists op k, clight_external ge c op k)) as [Hext | Hnoext].
+          -- exists SqExternal. split; first exact Hext.
+             intros []; cbn; rewrite /is_Some; naive_solver.
+          -- exists SqStuck. split.
+             ++ split; first done. done.
+             ++ intros []; cbn; rewrite /is_Some; naive_solver.
+    - apply clight_external_det.
+  Defined.
 
 End ClightInstantiation.

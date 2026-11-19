@@ -325,12 +325,12 @@ End heap.
 
 (** Allocate the heap authority for an initial memory. *)
 Lemma sq_heap_init `{!inG Σ (authR sq_heapUR), !inG Σ (authR sq_freeableUR)} (m : lr_mem) :
-  ⊢ |==> ∃ Hheap : sq_heapGS Σ, @sq_heap Σ Hheap m.
+  ⊢ |==> ∃ γh γf : gname, @sq_heap Σ (SqHeapGS Σ _ _ γh γf) m.
 Proof.
   iMod (own_alloc (● sq_heap_cells m)) as (vγ) "Hvγ";
     first by apply auth_auth_valid, sq_heap_cells_valid.
   iMod (own_alloc (● (∅ : sq_freeableUR))) as (fγ) "Hfγ";
     first by apply auth_auth_valid.
-  iModIntro. iExists (SqHeapGS _ _ _ vγ fγ), ∅. iFrame. iPureIntro.
+  iModIntro. iExists vγ, fγ, ∅. iFrame. iPureIntro.
   intros ?? Hnone. by rewrite lookup_empty in Hnone.
 Qed.

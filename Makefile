@@ -874,6 +874,14 @@ endif
 
 files: _CoqProject $(FILES:.v=.vo)
 
+atomic-machine-logic: _CoqProject \
+	atomic_machine/atomic_machine.vo \
+	atomic_machine/lambda_rust/logic/sqex_logic.vo \
+	atomic_machine/lambda_rust/logic/ext_call_impl.vo \
+	atomic_machine/lambda_rust/logic/sqex_adequacy.vo \
+	atomic_machine/lambda_rust/logic/sqex_iris_adequacy.vo \
+	atomic_machine/tests/sqex_generic.vo
+
 lambda-rust-reference: _CoqProject \
 	atomic_machine/lambda_rust/common.vo \
 	lambda-rust/lambda-rust/lang/races.vo
@@ -882,15 +890,12 @@ lambda-rust-semantics: lambda-rust-reference \
 	atomic_machine/atomic_machine.vo \
 	atomic_machine/lambda_rust/sq_sem.vo
 
-lambda-rust-logic: lambda-rust-semantics \
+lambda-rust-logic: atomic-machine-logic lambda-rust-semantics \
 	atomic_machine/lambda_rust/logic/sq_heap.vo \
-	atomic_machine/lambda_rust/logic/sq_logic.vo \
 	atomic_machine/lambda_rust/logic/lr_lemmas.vo \
-	atomic_machine/lambda_rust/logic/sqex_logic.vo \
+	atomic_machine/lambda_rust/logic/sqex_lr_inst.vo \
 	atomic_machine/lambda_rust/logic/sqex_lr_logic.vo \
-	atomic_machine/lambda_rust/logic/sqex_adequacy.vo \
-	atomic_machine/lambda_rust/logic/sqex_examples.vo \
-	atomic_machine/lambda_rust/logic/sqex_iris_adequacy.vo
+	atomic_machine/lambda_rust/logic/sqex_examples.vo
 
 # The CASCompCert-based theory needs ATOMIC_MACHINE=true (and a configured
 # cascompcert submodule).
