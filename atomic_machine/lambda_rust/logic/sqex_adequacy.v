@@ -67,7 +67,8 @@ Section footprints.
     destruct (sqex_at_step_cases _ _ _ _ _ _ Hst) as [(T & _ & -> & _) | (op & k & Hext)].
     { apply list_elem_of_fmap in Hin as (ev' & -> & _). simpl in Ha. discriminate. }
     iEval (rewrite (exwp_ext_unfold _ _ _ _ _ Hext)) in "Hwp".
-    iMod "Hwp" as (x) "[Hpre _]". iModIntro.
+    iMod "Hwp" as "Hcall".
+    iMod (ext_call_open _ _ _ _ with "Hcall") as (x) "[Hpre _]". iModIntro.
     by iApply (ext_footprint_pf _ op (ext_specs_soundness op) with "Hpre").
   Qed.
 
@@ -119,7 +120,8 @@ Section footprints.
       iMod "Hwp" as "[$ $]". by iMod "Hclose" as "_".
     - (* An external call: its specification gives the step. *)
       iEval (rewrite (exwp_ext_unfold _ _ _ _ _ Hext)) in "Hwp".
-      iMod "Hwp" as (x) "[Hpre Hcont]".
+      iMod "Hwp" as "Hcall".
+      iMod (ext_call_open _ _ _ _ with "Hcall") as (x) "[Hpre Hcont]".
       iMod (ext_step_pf _ op (ext_specs_soundness op) with "Hpre Hm") as (ov) "(-> & Hm & Hpost & Ho)";
         [exact Hext | exact Hst | ].
       iModIntro. destruct o as [e_new|]; simpl; iNext;
@@ -200,7 +202,7 @@ Section adequacy.
       + right. destruct Hred as (T & e2 & m2 & Hs). do 4 eexists. by apply Core_Step.
       + intros v0 ? Hv0. congruence.
     - (* An external call: its precondition enables the machine step. *)
-      iMod "Hspec" as (x) "[Hpre _]".
+      iMod (ext_call_open _ _ _ _ with "Hspec") as (x) "[Hpre _]".
       iDestruct (ext_enabled_pf _ op (ext_specs_soundness op) with "Hpre Hm") as %Hen; first exact He.
       iModIntro. iApply step_fupd_intro; first done. iNext. iPureIntro.
       split; [by right | intros v0 ? Hv0; congruence].

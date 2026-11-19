@@ -22,13 +22,14 @@ Class sqHeap `(L : @sqlang Loc Val LocEqDec LocCountable Mem Layout Expr)
     sq_heap m -∗ sq_pointsto l q v -∗ False
 }.
 
-(** The specification of one external call: the type of its logical
-    parameters, its precondition, and its postcondition on the returned
-    value. The precondition may require the verification of spawned
-    threads: EXWP supplies their WPs [W] under a later; the precondition
-    itself is required now, inside the opening fancy update. *)
+(** Atomic contracts can open invariants around the physical step. *)
+Inductive ext_call_mode := ExtPlain | ExtAtomic.
+
+(** A call specifies its mask behavior, logical arguments, precondition and
+    postcondition. EXWP supplies spawned-thread WPs [W] under a later. *)
 Record ExtSpec `(L : @sqlang Loc Val LocEqDec LocCountable Mem Layout Expr)
     (Σ : gFunctors) := {
+  ext_mode : ext_call_mode;
   ext_args : Type;
   ext_pre : ext_args ->
     (* spawned threads' WP *)
@@ -37,6 +38,7 @@ Record ExtSpec `(L : @sqlang Loc Val LocEqDec LocCountable Mem Layout Expr)
   ext_post : ext_args -> option Val -> iProp Σ
 }.
 
+Global Arguments ext_mode {_ _ _ _ _ _ _ _ _} _.
 Global Arguments ext_args {_ _ _ _ _ _ _ _ _} _.
 Global Arguments ext_pre {_ _ _ _ _ _ _ _ _} _ _.
 Global Arguments ext_post {_ _ _ _ _ _ _ _ _} _ _ _.
@@ -54,6 +56,57 @@ Notation ext_spec_post op := (ext_post (ext_spec op)).
 Section language.
   Context `{L : !@sqlang Loc Val LocEqDec LocCountable Mem Layout Expr}.
   Local Notation C := (@sqlang_thrd_st _ _ _ _ _ _ _ L).
+
+Section external_call.
+  Context {Σ : gFunctors} `{!invGS Σ} (spec : ExtSpec L Σ).
+
+  Definition ext_call (E : coPset) (W : C -d> iPropO Σ)
+      (K : option Val -d> iPropO Σ) : iProp Σ :=
+    match ext_mode spec with
+    | ExtPlain => ∃ x, ext_pre spec x W ∗ ▷ (∀ ov, ext_post spec x ov -∗ K ov)
+    | ExtAtomic => |={E,∅}=> ∃ x, ext_pre spec x W ∗
+        ▷ (∀ ov, ext_post spec x ov -∗ |={∅,E}=> K ov)
+    end%I.
+
+  Lemma ext_call_ne E n (W W' : C -d> iPropO Σ) (K K' : option Val -d> iPropO Σ) :
+    W ≡{n}≡ W' -> dist_later n K K' -> ext_call E W K ≡{n}≡ ext_call E W' K'.
+  Proof.
+    intros HW HK. unfold ext_call. destruct (ext_mode spec);
+      repeat (f_contractive || f_equiv); first [apply HW | apply HK].
+  Qed.
+
+  Lemma ext_call_wand E W K K' :
+    ext_call E W K -∗ ▷ (∀ ov, K ov -∗ K' ov) -∗ ext_call E W K'.
+  Proof.
+    rewrite /ext_call. destruct (ext_mode spec).
+    - iIntros "(%x & Hpre & HK) Hwand". iExists x. iFrame "Hpre".
+      iNext. iIntros (ov) "Hpost". iApply "Hwand". by iApply "HK".
+    - iIntros ">(%x & Hpre & HK) Hwand !>". iExists x. iFrame "Hpre".
+      iNext. iIntros (ov) "Hpost". iMod ("HK" with "Hpost") as "HK".
+      iModIntro. by iApply "Hwand".
+  Qed.
+
+  Lemma ext_call_intro E W K x :
+    ext_pre spec x W -∗ ▷ (∀ ov, ext_post spec x ov -∗ K ov) -∗ ext_call E W K.
+  Proof.
+    rewrite /ext_call. iIntros "Hpre HK". destruct (ext_mode spec).
+    - iExists x. iFrame.
+    - iMod (fupd_mask_subseteq ∅) as "Hclose"; first set_solver.
+      iModIntro. iExists x. iFrame "Hpre". iNext. iIntros (ov) "Hpost".
+      iMod "Hclose". iModIntro. by iApply "HK".
+  Qed.
+
+  (** Adequacy checks a single physical step at the empty mask. *)
+  Lemma ext_call_open E W K :
+    ext_call E W K ⊢ |={E,∅}=> ∃ x, ext_pre spec x W ∗
+      ▷ (∀ ov, ext_post spec x ov -∗ |={∅,E}=> K ov).
+  Proof.
+    rewrite /ext_call. destruct (ext_mode spec); last done.
+    iIntros "(%x & Hpre & HK)". iMod (fupd_mask_subseteq ∅) as "Hclose"; first set_solver.
+    iModIntro. iExists x. iFrame "Hpre". iNext. iIntros (ov) "Hpost".
+    iMod "Hclose". iModIntro. by iApply "HK".
+  Qed.
+End external_call.
 
 (** ** Footprints *)
 
@@ -243,16 +296,17 @@ Definition exwp_pre `{!sqHeap L Σ, !invGS Σ, !ExtSpecs L Σ}
       (⌜forall op k, ~ sqlang_at_external e1 op k⌝ ∗
         sq_step e1 (λ e2, exwp E e2 Φ)) ∨
       (∃ op k, ⌜sqlang_at_external e1 op k⌝ ∗
-        |={E,∅}=> ∃ x : ext_spec_args op,
-          ext_spec_pre op x (λ ef, ▷ exwp ⊤ ef (λ _, True)) ∗
-          ▷ (∀ ov, ext_spec_post op x ov -∗ |={∅,E}=> exwp E (k ov) Φ))
+        ext_call (ext_spec op) E (λ ef, ▷ exwp ⊤ ef (λ _, True))
+          (λ ov, exwp E (k ov) Φ))
   end)%I.
 
 Global Instance exwp_pre_contractive `{!sqHeap L Σ, !invGS Σ, !ExtSpecs L Σ} :
   Contractive exwp_pre.
 Proof.
   rewrite /exwp_pre /sq_step /= => n wp wp' Hwp E e1 Φ.
-  repeat (f_contractive || f_equiv); first [apply Hwp | intros ef; f_contractive; apply Hwp].
+  repeat (f_contractive || apply ext_call_ne || f_equiv);
+    first [apply Hwp | intros ef; f_contractive; apply Hwp |
+      dist_later_intro; intros ov; apply Hwp; done].
 Qed.
 
 
@@ -336,9 +390,11 @@ Class SqPureExec (φ : Prop) (n : nat) (e1 e2 : C) : Prop :=
   sq_pure_exec : φ -> relations.nsteps sq_pure_step n e1 e2.
 
 Class SqAtomicExternal `{!ExtSpecs L Σ} (op : @atomic_op Loc Val Layout Expr)
-    (k : option Val -> C) : Prop :=
+    (k : option Val -> C) : Prop := {
+  sq_atomic_external_mask : ext_mode (ext_spec op) = ExtAtomic;
   sq_atomic_external_final x ov :
-    ext_spec_post op x ov ⊢ ⌜is_Some (sqlang_is_final (k ov))⌝.
+    ext_spec_post op x ov ⊢ ⌜is_Some (sqlang_is_final (k ov))⌝
+}.
 
 Section syntax_steps.
   Context `{!sqHeap L Σ}.
@@ -427,9 +483,8 @@ Section exwp.
 
   Lemma exwp_lift_external E e op k Φ :
     sqlang_at_external e op k ->
-    (|={E,∅}=> ∃ x : ext_spec_args op,
-      ext_spec_pre op x (λ ef, ▷ EXWP ef {{ _, True }}) ∗
-      ▷ (∀ ov, ext_spec_post op x ov -∗ |={∅,E}=> EXWP k ov @ E {{ Φ }})) ⊢
+    ext_call (ext_spec op) E (λ ef, ▷ EXWP ef {{ _, True }})
+      (λ ov, EXWP k ov @ E {{ Φ }}) ⊢
     EXWP e @ E {{ Φ }}.
   Proof.
     intros Hext. rewrite exwp_unfold /exwp_pre
@@ -440,17 +495,18 @@ Section exwp.
   Lemma exwp_ext_unfold E e op k Φ :
     sqlang_at_external e op k ->
     EXWP e @ E {{ Φ }} ⊣⊢
-      (|={E,∅}=> ∃ x : ext_spec_args op,
-        ext_spec_pre op x (λ ef, ▷ EXWP ef {{ _, True }}) ∗
-        ▷ (∀ ov, ext_spec_post op x ov -∗ |={∅,E}=> EXWP k ov @ E {{ Φ }})).
+      (|={E}=> ext_call (ext_spec op) E (λ ef, ▷ EXWP ef {{ _, True }})
+        (λ ov, EXWP k ov @ E {{ Φ }})).
   Proof.
-    intros He. iSplit; last by iApply (exwp_lift_external _ _ _ _ _ He).
-    rewrite exwp_unfold /exwp_pre (sqlang_external_not_final _ inhabitant _ _ He).
-    iIntros ">[[%Hno _] | (%op' & %k' & %He' & Hspec)]".
-    - exfalso. by eapply Hno.
-    - destruct (sqlang_external_det _ _ _ _ _ He He') as [-> Hk].
-      iMod "Hspec" as (x) "[Hpre Hcont]". iModIntro. iExists x. iFrame "Hpre".
-      iNext. iIntros (ov) "Hpost". rewrite -(Hk ov). by iApply "Hcont".
+    intros He. iSplit.
+    - rewrite exwp_unfold /exwp_pre (sqlang_external_not_final _ inhabitant _ _ He).
+      iIntros ">[[%Hno _] | (%op' & %k' & %He' & Hspec)]".
+      + exfalso. by eapply Hno.
+      + destruct (sqlang_external_det _ _ _ _ _ He He') as [-> Hk].
+        iModIntro. iApply (ext_call_wand with "Hspec").
+        iNext. iIntros (ov) "Hwp". by rewrite -(Hk ov).
+    - iIntros "Hspec". iApply fupd_exwp. iMod "Hspec" as "Hspec".
+      iModIntro. by iApply (exwp_lift_external _ _ _ _ _ He).
   Qed.
 
   (** Apply a selected external-call contract, restoring the caller's mask
@@ -460,12 +516,10 @@ Section exwp.
     ▷ (∀ ov, ext_spec_post op x ov -∗ EXWP (k ov) @ E {{ Φ }}) -∗
     EXWP e @ E {{ Φ }}.
   Proof.
-    iIntros "Hpre Hcont". iApply (exwp_lift_external _ _ _ _ _ sq_at_external).
-    iMod "Hpre" as "Hpre".
-    iMod (fupd_mask_subseteq ∅) as "Hclose"; first set_solver.
-    iModIntro. iExists x. iFrame "Hpre".
-    iNext. iIntros (ov) "Hpost". iMod "Hclose" as "_".
-    by iApply "Hcont".
+    iIntros "Hpre Hcont". iApply fupd_exwp.
+    iMod "Hpre" as "Hpre". iModIntro.
+    iApply (exwp_lift_external _ _ _ _ _ sq_at_external).
+    by iApply (ext_call_intro with "Hpre Hcont").
   Qed.
 
   Lemma exwp_ext_call E e op k x v Q `{!SqAtExternal e op k} :
@@ -497,21 +551,23 @@ Section exwp.
       by iApply "IH".
     - destruct (sq_ctx_external _ _ _ He) as (k' & He' & Hk).
       iRight. iExists op, k'. iSplit; first done.
-      iMod "Hspec" as (x) "[Hpre Hcont]". iModIntro. iExists x. iFrame "Hpre".
-      iNext. iIntros (ov) "Hpost". iMod ("Hcont" with "Hpost") as "Hwp".
-      iModIntro. rewrite Hk. by iApply "IH".
+      iApply (ext_call_wand with "Hspec").
+      iNext. iIntros (ov) "Hwp". rewrite Hk. by iApply "IH".
   Qed.
 
   Lemma exwp_atomic_ext E1 E2 e op k Φ :
     sqlang_at_external e op k ->
+    ext_mode (ext_spec op) = ExtAtomic ->
     (forall x ov, ext_spec_post op x ov ⊢ ⌜is_Some (sqlang_is_final (k ov))⌝) ->
     (|={E1,E2}=> EXWP e @ E2 {{ v, |={E2,E1}=> Φ v }}) ⊢
       EXWP e @ E1 {{ Φ }}.
   Proof.
-    intros He Ha. iIntros "Hwp".
+    intros He Hmode Ha. iIntros "Hwp".
     iApply (exwp_lift_external _ _ _ _ _ He).
+    rewrite /ext_call Hmode.
     iMod "Hwp" as "Hwp".
     iEval (rewrite (exwp_ext_unfold _ _ _ _ _ He)) in "Hwp".
+    iMod "Hwp" as "Hwp". iEval (rewrite /ext_call Hmode) in "Hwp".
     iMod "Hwp" as (x) "[Hpre Hcont]". iModIntro. iExists x. iFrame "Hpre".
     iNext. iIntros (ov) "Hpost".
     iDestruct (Ha with "Hpost") as %[v Hv].
@@ -523,7 +579,10 @@ Section exwp.
   Lemma exwp_atomic E1 E2 {e op k} Φ `{!SqAtExternal e op k, !SqAtomicExternal op k} :
     (|={E1,E2}=> EXWP e @ E2 {{ v, |={E2,E1}=> Φ v }}) ⊢
       EXWP e @ E1 {{ Φ }}.
-  Proof. apply (exwp_atomic_ext _ _ _ _ _ _ sq_at_external), sq_atomic_external_final. Qed.
+  Proof.
+    apply (exwp_atomic_ext _ _ _ _ _ _ sq_at_external sq_atomic_external_mask).
+    apply sq_atomic_external_final.
+  Qed.
 End exwp.
 
 Lemma tac_exwp_bind `{!sqHeap L Σ, !invGS Σ, !ExtSpecs L Σ, !sqOfVal}

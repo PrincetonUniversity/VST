@@ -33,18 +33,21 @@ Section language.
     Context `{!sqHeap L Σ, !sq_pointsto_mixin}.
 
     Definition sc_load_spec (ly : Layout) (l : Loc) : ExtSpec L Σ := {|
+      ext_mode := ExtAtomic;
       ext_args := Qp * Val;
       ext_pre qv := cconst (sq_pointsto l qv.1 qv.2);
       ext_post qv ov := (⌜ov = Some qv.2⌝ ∗ sq_pointsto l qv.1 qv.2)%I
     |}.
 
     Definition sc_store_spec (ly : Layout) (l : Loc) (v : Val) : ExtSpec L Σ := {|
+      ext_mode := ExtAtomic;
       ext_args := Val;
       ext_pre v' := cconst (sq_pointsto l 1 v');
       ext_post _ ov := (⌜ov = None⌝ ∗ sq_pointsto l 1 v)%I
     |}.
 
     Definition sc_cas_spec (ly : Layout) (l : Loc) (v_exp v_new : Val) : ExtSpec L Σ := {|
+      ext_mode := ExtAtomic;
       ext_args := Val * bool;
       ext_pre x := cconst (sq_compare x.1 v_exp x.2 ∗
         sq_pointsto l 1 x.1)%I;
@@ -58,6 +61,7 @@ Section language.
     Proof. intros n W W' HW. apply HW. Qed.
 
     Definition sc_spawn_spec (e : Expr) : ExtSpec L Σ := {|
+      ext_mode := ExtAtomic;
       ext_args := unit;
       ext_pre _ := OfeMor (λ W : C -d> iPropO Σ, W (sqlang_expr_to_thrd_st e));
       ext_post _ ov := ⌜ov = None⌝%I
@@ -169,6 +173,7 @@ Section language.
         `{!(forall v, SqIntoVal (k (Some v)) v)} :
         SqAtomicExternal (ALoad ly l) k.
     Proof.
+      split; first done.
       intros [q v] ov. simpl. iIntros "[-> _]".
       iPureIntro. exists v. apply sq_into_val.
     Qed.
@@ -176,6 +181,7 @@ Section language.
     Global Instance sc_store_atomic ly l v k vret
         `{!SqIntoVal (k None) vret} : SqAtomicExternal (AStore ly l v) k.
     Proof.
+      split; first done.
       intros v' ov. simpl. iIntros "[-> _]".
       iPureIntro. exists vret. apply sq_into_val.
     Qed.
@@ -184,6 +190,7 @@ Section language.
         `{!(forall v, SqIntoVal (k (Some v)) v)} :
         SqAtomicExternal (ACAS ly l v_exp v_new) k.
     Proof.
+      split; first done.
       intros [v b] ov. simpl. iIntros "[-> _]".
       iPureIntro. eexists. apply sq_into_val.
     Qed.
@@ -191,6 +198,7 @@ Section language.
     Global Instance sc_spawn_atomic e_new k vret
         `{!SqIntoVal (k None) vret} : SqAtomicExternal (ASpawn e_new) k.
     Proof.
+      split; first done.
       intros [] ov. simpl. iIntros "->".
       iPureIntro. exists vret. apply sq_into_val.
     Qed.
