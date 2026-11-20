@@ -547,7 +547,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     eapply (stratifies_unstratify_more x 0 1).
     simpl; reflexivity.
     simpl.
-    generalize (fst (proj1_sig k) : sinv x).
+    generalize (fst (proj1_sig k) :> sinv x); change (forall s : sinv x, stratifies (unstratify x s) x s).
     clear.
     induction x; simpl; intuition.
     eapply (stratifies_unstratify_more x 0 1).
