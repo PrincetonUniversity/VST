@@ -246,7 +246,8 @@ assert (forall t, projT1 (reptype_gen t) = projT1 (reptype_gen0 t)).
 clear t; intro t.
 type_induction t; auto.
 - destruct f; auto.
--  rewrite reptype_gen_eq, reptype_gen0_eq. simpl; f_equal; auto.
+- rewrite reptype_gen_eq, reptype_gen0_eq.
+  simpl; apply (f_equal (fun carrier : Type => list carrier)); auto.
 - rewrite reptype_gen_eq, reptype_gen0_eq. simpl.
    forget (co_members (get_co id)) as m. clear id.
    cbv zeta in IH.
